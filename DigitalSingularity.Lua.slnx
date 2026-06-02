@@ -1,3 +1,5 @@
 <Solution>
+  <Project Path="DigitalSingularity.Lua.Cli/DigitalSingularity.Lua.Cli.csproj" />
+  <Project Path="DigitalSingularity.Lua.Test/DigitalSingularity.Lua.Test.csproj" />
   <Project Path="DigitalSingularity.Lua/DigitalSingularity.Lua.csproj" />
 </Solution>
