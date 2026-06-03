@@ -27,11 +27,11 @@ public static unsafe partial class Lua
 #endif
 
 // #define luai_userstateclose(l)  \
-//   lua_assert(getlock(l)->lock == 1 && getlock(l)->plock == &(getlock(l)->lock))
+//   Debug.Assert(getlock(l)->lock == 1 && getlock(l)->plock == &(getlock(l)->lock))
 // #define luai_userstatethread(l,l1) \
-//   lua_assert(getlock(l1)->plock == getlock(l)->plock)
+//   Debug.Assert(getlock(l1)->plock == getlock(l)->plock)
 // #define luai_userstatefree(l,l1) \
-//   lua_assert(getlock(l)->plock == getlock(l1)->plock)
+//   Debug.Assert(getlock(l)->plock == getlock(l1)->plock)
 
     private static void lua_lock(lua_State* l)
     {
@@ -101,59 +101,72 @@ public static unsafe partial class Lua
 // static void freeCI (lua_State *L) {
 //   CallInfo *ci = L->ci;
 //   CallInfo *next = ci->next;
-//   ci->next = NULL;
-//   while ((ci = next) != NULL) {
+//   ci->next = null;
+//   while ((ci = next) != null) {
 //     next = ci->next;
 //     luaM_free(L, ci);
 //     L->nci--;
 //   }
 // }
-//
-//
-// /*
-// ** free half of the CallInfo structures not in use by a thread,
-// ** keeping the first one.
-// */
-// void luaE_shrinkCI (lua_State *L) {
-//   CallInfo *ci = L->ci->next;  /* first free CallInfo */
-//   CallInfo *next;
-//   if (ci == NULL)
-//     return;  /* no extra elements */
-//   while ((next = ci->next) != NULL) {  /* two extra elements? */
-//     CallInfo *next2 = next->next;  /* next's next */
-//     ci->next = next2;  /* remove next from the list */
-//     L->nci--;
-//     luaM_free(L, next);  /* free next */
-//     if (next2 == NULL)
-//       break;  /* no more elements */
-//     else {
-//       next2->previous = ci;
-//       ci = next2;  /* continue */
-//     }
-//   }
-// }
-//
-//
-// /*
-// ** Called when 'getCcalls(L)' larger or equal to LUAI_MAXCCALLS.
-// ** If equal, raises an overflow error. If value is larger than
-// ** LUAI_MAXCCALLS (which means it is handling an overflow) but
-// ** not much larger, does not report an error (to allow overflow
-// ** handling to work).
-// */
-// void luaE_checkcstack (lua_State *L) {
-//   if (getCcalls(L) == LUAI_MAXCCALLS)
-//     luaG_runerror(L, "C stack overflow");
-//   else if (getCcalls(L) >= (LUAI_MAXCCALLS / 10 * 11))
-//     luaD_errerr(L);  /* error while handling stack error */
-// }
-//
-//
-// LUAI_FUNC void luaE_incCstack (lua_State *L) {
-//   L->nCcalls++;
-//   if (l_unlikely(getCcalls(L) >= LUAI_MAXCCALLS))
-//     luaE_checkcstack(L);
-// }
+
+    /*
+    ** free half of the CallInfo structures not in use by a thread,
+    ** keeping the first one.
+    */
+    private static partial void luaE_shrinkCI(lua_State* L)
+    {
+        CallInfo* ci = L->ci->next; /* first free CallInfo */
+        if (ci == null)
+        {
+            return; /* no extra elements */
+        }
+
+        CallInfo* next;
+        while ((next = ci->next) != null)
+        {
+            /* two extra elements? */
+            CallInfo* next2 = next->next; /* next's next */
+            ci->next = next2; /* remove next from the list */
+            L->nci--;
+            luaM_free(L, next); /* free next */
+            if (next2 == null)
+            {
+                break; /* no more elements */
+            }
+
+            next2->previous = ci;
+            ci = next2; /* continue */
+        }
+    }
+
+    /*
+    ** Called when 'getCcalls(L)' larger or equal to LUAI_MAXCCALLS.
+    ** If equal, raises an overflow error. If value is larger than
+    ** LUAI_MAXCCALLS (which means it is handling an overflow) but
+    ** not much larger, does not report an error (to allow overflow
+    ** handling to work).
+    */
+    private static partial void luaE_checkcstack(lua_State* L)
+    {
+        if (getCcalls(L) == LUAI_MAXCCALLS)
+        {
+            luaG_runerror(L, "C stack overflow");
+        }
+        else if (getCcalls(L) >= (LUAI_MAXCCALLS / 10 * 11))
+        {
+            // luaD_errerr(L); /* error while handling stack error */
+            throw new NotImplementedException();
+        }
+    }
+
+    private static partial void luaE_incCstack(lua_State* L)
+    {
+        L->nCcalls++;
+        if (getCcalls(L) >= LUAI_MAXCCALLS)
+        {
+            luaE_checkcstack(L);
+        }
+    }
 
     private static void resetCI(lua_State* L)
     {
@@ -185,11 +198,11 @@ public static unsafe partial class Lua
     }
 
 // static void freestack (lua_State *L) {
-//   if (L->stack.p == NULL)
+//   if (L->stack.p == null)
 //     return;  /* stack not completely built yet */
 //   L->ci = &L->base_ci;  /* free the entire 'ci' list */
 //   freeCI(L);
-//   lua_assert(L->nci == 0);
+//   Debug.Assert(L->nci == 0);
 //   /* free stack */
 //   luaM_freearray(L, L->stack.p, cast_sizet(stacksize(L) + EXTRA_STACK));
 // }
@@ -256,13 +269,16 @@ public static unsafe partial class Lua
         L->base_ci.previous = L->base_ci.next = null;
     }
 
-// lu_mem luaE_threadsize (lua_State *L) {
-//   lu_mem sz = cast(lu_mem, sizeof(LX))
-//             + cast_uint(L->nci) * sizeof(CallInfo);
-//   if (L->stack.p != NULL)
-//     sz += cast_uint(stacksize(L) + EXTRA_STACK) * sizeof(StackValue);
-//   return sz;
-// }
+    private static partial long luaE_threadsize(lua_State* L)
+    {
+        long sz = sizeof(LX) + (uint)L->nci * sizeof(CallInfo);
+        if (L->stack.p != null!)
+        {
+            sz += (uint)(stacksize(L) + EXTRA_STACK) * sizeof(StackValue);
+        }
+
+        return sz;
+    }
 
     private static void close_state(lua_State* L)
     {
@@ -278,7 +294,7 @@ public static unsafe partial class Lua
 //   }
 //   luaM_freearray(L, G(L)->strt.hash, cast_sizet(G(L)->strt.size));
 //   freestack(L);
-//   lua_assert(gettotalbytes(g) == sizeof(global_State));
+//   Debug.Assert(gettotalbytes(g) == sizeof(global_State));
 //   (*g->frealloc)(g->ud, g, sizeof(global_State), 0);  /* free main block */
         throw new NotImplementedException();
     }
@@ -313,7 +329,7 @@ public static unsafe partial class Lua
 // void luaE_freethread (lua_State *L, lua_State *L1) {
 //   LX *l = fromstate(L1);
 //   luaF_closeupval(L1, L1->stack.p);  /* close all upvalues */
-//   lua_assert(L1->openupval == NULL);
+//   Debug.Assert(L1->openupval == null);
 //   luai_userstatefree(L, L1);
 //   freestack(L1);
 //   luaM_free(L, l);
@@ -376,13 +392,13 @@ public static unsafe partial class Lua
         g->panic = null;
         g->gcstate = GCSpause;
         g->gckind = KGC_INC;
-        g->gcstopem = 0;
+        g->gcstopem = false;
         g->gcemergency = false;
         g->finobj = g->tobefnz = g->fixedgc = null;
         g->firstold1 = g->survival = g->old1 = g->reallyold = null;
         g->finobjsur = g->finobjold1 = g->finobjrold = null;
         g->sweepgc = null;
-        g->gray = g->grayagain = null;
+        g->grey = g->greyagain = null;
         g->weak = g->ephemeron = g->allweak = null;
         g->twups = null;
         g->GCtotalbytes = sizeof(global_State);
@@ -418,13 +434,15 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// void luaE_warning (lua_State *L, const char *msg, int tocont) {
-//   lua_WarnFunction wf = G(L)->warnf;
-//   if (wf != NULL)
-//     wf(G(L)->ud_warn, msg, tocont);
-// }
-//
-//
+    private static partial void luaE_warning(lua_State* L, string msg, bool tocont)
+    {
+        lua_WarnFunction wf = G(L)->warnf;
+        if (wf != null)
+        {
+            wf(G(L)->ud_warn, msg, tocont);
+        }
+    }
+
 // /*
 // ** Generate a warning from an error message
 // */

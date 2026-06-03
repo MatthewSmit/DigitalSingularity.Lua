@@ -34,12 +34,12 @@ public static unsafe partial class Lua
 // ** 'allgc' -> 'survival': new objects;
 // ** 'survival' -> 'old': objects that survived one collection;
 // ** 'old1' -> 'reallyold': objects that became old in last collection;
-// ** 'reallyold' -> NULL: objects old for more than one cycle.
+// ** 'reallyold' -> null: objects old for more than one cycle.
 // **
 // ** 'finobj' -> 'finobjsur': new objects marked for finalization;
 // ** 'finobjsur' -> 'finobjold1': survived   """";
 // ** 'finobjold1' -> 'finobjrold': just old  """";
-// ** 'finobjrold' -> NULL: really old       """".
+// ** 'finobjrold' -> null: really old       """".
 // **
 // ** All lists can contain elements older than their main ages, due
 // ** to 'luaC_checkfinalizer' and 'udata2finalize', which move
@@ -242,7 +242,7 @@ public static unsafe partial class Lua
     private const int CIST_RECST = 12;  /* the offset, not the mask */
 
     /* call is running a C function (still in first 16 bits) */
-    private const uint CIST_C = 1u << (CIST_RECST + 3);
+    private const uint CIST_C = 1u << CIST_RECST + 3;
     /* call is on a fresh "luaV_execute" frame */
     private const uint CIST_FRESH = CIST_C << 1;
     /* function is closing tbc variables */
@@ -430,14 +430,14 @@ public static unsafe partial class Lua
         public byte currentwhite;
         public byte gcstate;  /* state of garbage collector */
         public byte gckind;  /* kind of GC running */
-        public byte gcstopem;  /* stops emergency collections */
+        public bool gcstopem;  /* stops emergency collections */
         public byte gcstp;  /* control whether GC is running */
         public bool gcemergency;  /* true if this is an emergency collection */
         public GCObject* allgc;  /* list of all collectable objects */
         public GCObject** sweepgc;  /* current position of sweep in list */
         public GCObject* finobj;  /* list of collectable objects with finalizers */
-        public GCObject* gray;  /* list of gray objects */
-        public GCObject* grayagain;  /* list of objects to be traversed atomically */
+        public GCObject* grey;  /* list of gray objects */
+        public GCObject* greyagain;  /* list of objects to be traversed atomically */
         public GCObject* weak;  /* list of tables with weak values */
         public GCObject* ephemeron;  /* list of ephemeron tables (weak keys) */
         public GCObject* allweak;  /* list of all-weak tables */
@@ -469,9 +469,12 @@ public static unsafe partial class Lua
 
     // #define G(L)	(L->l_G)
 
-// #define mainthread(G)	(&(G)->mainth.l)
-//
-// /*
+    private static lua_State* mainthread(global_State* G)
+    {
+        return &G->mainth.l;
+    }
+
+    // /*
 // ** 'g->nilvalue' being a nil value flags that the state was completely
 // ** build.
 // */
@@ -519,7 +522,11 @@ public static unsafe partial class Lua
         return (Udata*)o;
     }
 
-    // #define gco2lcl(o)  check_exp((o)->tt == LUA_VLCL, &((cast_u(o))->cl.l))
+    private static LClosure* gco2lcl(GCObject* o)
+    {
+        Debug.Assert(o->tt == LUA_VLCL);
+        return (LClosure*)o;
+    }
 
     private static CClosure* gco2ccl(GCObject* o)
     {
@@ -527,8 +534,11 @@ public static unsafe partial class Lua
         return (CClosure*)o;
     }
 
-    // #define gco2cl(o)  \
-// 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
+    private static Closure* gco2cl(GCObject* o)
+    {
+        Debug.Assert(novariant(o->tt) == LUA_TFUNCTION);
+        return (Closure*)o;
+    }
 
     private static Table* gco2t(GCObject* o)
     {
@@ -536,13 +546,27 @@ public static unsafe partial class Lua
         return (Table*)o;
     }
 
-    // #define gco2p(o)  check_exp((o)->tt == LUA_VPROTO, &((cast_u(o))->p))
-// #define gco2th(o)  check_exp((o)->tt == LUA_VTHREAD, &((cast_u(o))->th))
-// #define gco2upv(o)	check_exp((o)->tt == LUA_VUPVAL, &((cast_u(o))->upv))
+    private static Proto* gco2p(GCObject* o)
+    {
+        Debug.Assert(o->tt == LUA_VPROTO);
+        return (Proto*)o;
+    }
+
+    private static lua_State* gco2th(GCObject* o)
+    {
+        Debug.Assert(o->tt == LUA_VTHREAD);
+        return (lua_State*)o;
+    }
+
+    private static UpVal* gco2upv(GCObject* o)
+    {
+        Debug.Assert(o->tt == LUA_VUPVAL);
+        return (UpVal*)o;
+    }
 
     /*
-    ** macro to convert a Lua object into a GCObject
-    */
+     ** macro to convert a Lua object into a GCObject
+     */
     private static GCObject* obj2gco(lua_State* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
@@ -573,6 +597,11 @@ public static unsafe partial class Lua
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+    private static GCObject* obj2gco(LClosure* v)
+    {
+        Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
+        return (GCObject*)v;
+    }
 
     /* actual number of total memory allocated */
     private static long gettotalbytes(global_State* g)
@@ -583,14 +612,19 @@ public static unsafe partial class Lua
     private static partial void luaE_setdebt(global_State* g, long debt);
     
 // LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);
-// LUAI_FUNC lu_mem luaE_threadsize (lua_State *L);
+
+    private static partial long luaE_threadsize(lua_State* L);
 
     private static partial CallInfo* luaE_extendCI(lua_State* L);
-    
-// LUAI_FUNC void luaE_shrinkCI (lua_State *L);
-// LUAI_FUNC void luaE_checkcstack (lua_State *L);
-// LUAI_FUNC void luaE_incCstack (lua_State *L);
-// LUAI_FUNC void luaE_warning (lua_State *L, const char *msg, int tocont);
+
+    private static partial void luaE_shrinkCI(lua_State* L);
+
+    private static partial void luaE_checkcstack(lua_State* L);
+
+    private static partial void luaE_incCstack(lua_State* L);
+
+    private static partial void luaE_warning(lua_State* L, string msg, bool tocont);
+
 // LUAI_FUNC void luaE_warnerror (lua_State *L, const char *where);
 // LUAI_FUNC TStatus luaE_resetthread (lua_State *L, TStatus status);
 }

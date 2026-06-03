@@ -15,17 +15,21 @@ public static unsafe partial class Lua
         c->nupvalues = (byte)nupvals;
         return c;
     }
-    
-// LClosure *luaF_newLclosure (lua_State *L, int nupvals) {
-//   GCObject *o = luaC_newobj(L, LUA_VLCL, sizeLclosure(nupvals));
-//   LClosure *c = gco2lcl(o);
-//   c->p = NULL;
-//   c->nupvalues = cast_byte(nupvals);
-//   while (nupvals--) c->upvals[nupvals] = NULL;
-//   return c;
-// }
-//
-//
+
+    private static partial LClosure* luaF_newLclosure(lua_State* L, int nupvals)
+    {
+        GCObject* o = luaC_newobj(L, LUA_VLCL, sizeLclosure(nupvals));
+        LClosure* c = gco2lcl(o);
+        c->p = null;
+        c->nupvalues = (byte)nupvals;
+        while (nupvals-- >= 0)
+        {
+            (&c->upvals)[nupvals] = null;
+        }
+
+        return c;
+    }
+
 // /*
 // ** fill a closure with new closed upvalues
 // */
@@ -71,9 +75,9 @@ public static unsafe partial class Lua
 // UpVal *luaF_findupval (lua_State *L, StkId level) {
 //   UpVal **pp = &L->openupval;
 //   UpVal *p;
-//   lua_assert(isintwups(L) || L->openupval == NULL);
-//   while ((p = *pp) != NULL && uplevel(p) >= level) {  /* search for it */
-//     lua_assert(!isdead(G(L), p));
+//   Debug.Assert(isintwups(L) || L->openupval == null);
+//   while ((p = *pp) != null && uplevel(p) >= level) {  /* search for it */
+//     Debug.Assert(!isdead(G(L), p));
 //     if (uplevel(p) == level)  /* corresponding upvalue? */
 //       return p;  /* return it */
 //     pp = &p->u.open.next;
@@ -94,7 +98,7 @@ public static unsafe partial class Lua
 //   const TValue *tm = luaT_gettmbyobj(L, obj, TM_CLOSE);
 //   setobj2s(L, top++, tm);  /* will call metamethod... */
 //   setobj2s(L, top++, obj);  /* with 'self' as the 1st argument */
-//   if (err != NULL)  /* if there was an error... */
+//   if (err != null)  /* if there was an error... */
 //     setobj2s(L, top++, err);  /* then error object will be 2nd argument */
 //   L->top.p = top;  /* add function and arguments */
 //   if (yy)
@@ -112,8 +116,8 @@ public static unsafe partial class Lua
 //   const TValue *tm = luaT_gettmbyobj(L, s2v(level), TM_CLOSE);
 //   if (ttisnil(tm)) {  /* no metamethod? */
 //     int idx = cast_int(level - L->ci->func.p);  /* variable index */
-//     const char *vname = luaG_findlocal(L, L->ci, idx, NULL);
-//     if (vname == NULL) vname = "?";
+//     const char *vname = luaG_findlocal(L, L->ci, idx, null);
+//     if (vname == null) vname = "?";
 //     luaG_runerror(L, "variable '%s' got a non-closable value", vname);
 //   }
 // }
@@ -135,7 +139,7 @@ public static unsafe partial class Lua
 //       L->top.p = level + 1;  /* call will be at this level */
 //       /* FALLTHROUGH */
 //     case CLOSEKTOP:  /* don't need to change top */
-//       errobj = NULL;  /* no error object */
+//       errobj = null;  /* no error object */
 //       break;
 //     default:  /* 'luaD_seterrorobj' will set top to level + 2 */
 //       errobj = s2v(level + 1);  /* error object goes after 'uv' */
@@ -154,7 +158,7 @@ public static unsafe partial class Lua
 // ** Insert a variable in the list of to-be-closed variables.
 // */
 // void luaF_newtbcupval (lua_State *L, StkId level) {
-//   lua_assert(level > L->tbclist.p);
+//   Debug.Assert(level > L->tbclist.p);
 //   if (l_isfalse(s2v(level)))
 //     return;  /* false doesn't need to be closed */
 //   checkclosemth(L, level);  /* value must have a close method */
@@ -168,7 +172,7 @@ public static unsafe partial class Lua
 //
 //
 // void luaF_unlinkupval (UpVal *uv) {
-//   lua_assert(upisopen(uv));
+//   Debug.Assert(upisopen(uv));
 //   *uv->u.open.previous = uv->u.open.next;
 //   if (uv->u.open.next)
 //     uv->u.open.next->u.open.previous = uv->u.open.previous;
@@ -180,9 +184,9 @@ public static unsafe partial class Lua
 // */
 // void luaF_closeupval (lua_State *L, StkId level) {
 //   UpVal *uv;
-//   while ((uv = L->openupval) != NULL && uplevel(uv) >= level) {
+//   while ((uv = L->openupval) != null && uplevel(uv) >= level) {
 //     TValue *slot = &uv->u.value;  /* new position for value */
-//     lua_assert(uplevel(uv) < L->top.p);
+//     Debug.Assert(uplevel(uv) < L->top.p);
 //     luaF_unlinkupval(uv);  /* remove upvalue from 'openupval' list */
 //     setobj(L, slot, uv->v.p);  /* move value to upvalue slot */
 //     uv->v.p = slot;  /* now current value lives here */
@@ -199,7 +203,7 @@ public static unsafe partial class Lua
 // */
 // static void poptbclist (lua_State *L) {
 //   StkId tbc = L->tbclist.p;
-//   lua_assert(tbc->tbclist.delta > 0);  /* first element cannot be dummy */
+//   Debug.Assert(tbc->tbclist.delta > 0);  /* first element cannot be dummy */
 //   tbc -= tbc->tbclist.delta;
 //   while (tbc > L->stack.p && tbc->tbclist.delta == 0)
 //     tbc -= MAXDELTA;  /* remove dummy nodes */
@@ -222,50 +226,51 @@ public static unsafe partial class Lua
 //   }
 //   return level;
 // }
-//
-//
-// Proto *luaF_newproto (lua_State *L) {
-//   GCObject *o = luaC_newobj(L, LUA_VPROTO, sizeof(Proto));
-//   Proto *f = gco2p(o);
-//   f->k = NULL;
-//   f->sizek = 0;
-//   f->p = NULL;
-//   f->sizep = 0;
-//   f->code = NULL;
-//   f->sizecode = 0;
-//   f->lineinfo = NULL;
-//   f->sizelineinfo = 0;
-//   f->abslineinfo = NULL;
-//   f->sizeabslineinfo = 0;
-//   f->upvalues = NULL;
-//   f->sizeupvalues = 0;
-//   f->numparams = 0;
-//   f->flag = 0;
-//   f->maxstacksize = 0;
-//   f->locvars = NULL;
-//   f->sizelocvars = 0;
-//   f->linedefined = 0;
-//   f->lastlinedefined = 0;
-//   f->source = NULL;
-//   return f;
-// }
-//
-//
-// lu_mem luaF_protosize (Proto *p) {
-//   lu_mem sz = cast(lu_mem, sizeof(Proto))
-//             + cast_uint(p->sizep) * sizeof(Proto*)
-//             + cast_uint(p->sizek) * sizeof(TValue)
-//             + cast_uint(p->sizelocvars) * sizeof(LocVar)
-//             + cast_uint(p->sizeupvalues) * sizeof(Upvaldesc);
-//   if (!(p->flag & PF_FIXED)) {
-//     sz += cast_uint(p->sizecode) * sizeof(Instruction);
-//     sz += cast_uint(p->sizelineinfo) * sizeof(lu_byte);
-//     sz += cast_uint(p->sizeabslineinfo) * sizeof(AbsLineInfo);
-//   }
-//   return sz;
-// }
-//
-//
+
+    private static partial Proto* luaF_newproto(lua_State* L)
+    {
+        GCObject* o = luaC_newobj(L, LUA_VPROTO, sizeof(Proto));
+        Proto* f = gco2p(o);
+        f->k = null;
+        f->sizek = 0;
+        f->p = null;
+        f->sizep = 0;
+        f->code = null;
+        f->sizecode = 0;
+        f->lineinfo = null;
+        f->sizelineinfo = 0;
+        f->abslineinfo = null;
+        f->sizeabslineinfo = 0;
+        f->upvalues = null;
+        f->sizeupvalues = 0;
+        f->numparams = 0;
+        f->flag = 0;
+        f->maxstacksize = 0;
+        f->locvars = null;
+        f->sizelocvars = 0;
+        f->linedefined = 0;
+        f->lastlinedefined = 0;
+        f->source = null;
+        return f;
+    }
+
+    private static partial long luaF_protosize(Proto* p)
+    {
+        long sz = sizeof(Proto) +
+                  (uint)p->sizep * sizeof(Proto*) +
+                  (uint)p->sizek * sizeof(TValue) +
+                  (uint)p->sizelocvars * sizeof(LocVar) +
+                  (uint)p->sizeupvalues * sizeof(Upvaldesc);
+        if ((p->flag & PF_FIXED) == 0)
+        {
+            sz += (uint)p->sizecode * sizeof(uint);
+            sz += (uint)p->sizelineinfo * sizeof(byte);
+            sz += (uint)p->sizeabslineinfo * sizeof(AbsLineInfo);
+        }
+
+        return sz;
+    }
+
 // void luaF_freeproto (lua_State *L, Proto *f) {
 //   if (!(f->flag & PF_FIXED)) {
 //     luaM_freearray(L, f->code, cast_sizet(f->sizecode));
@@ -282,7 +287,7 @@ public static unsafe partial class Lua
 //
 // /*
 // ** Look for n-th local variable at line 'line' in function 'func'.
-// ** Returns NULL if not found.
+// ** Returns null if not found.
 // */
 // const char *luaF_getlocalname (const Proto *f, int local_number, int pc) {
 //   int i;
@@ -293,7 +298,7 @@ public static unsafe partial class Lua
 //         return getstr(f->locvars[i].varname);
 //     }
 //   }
-//   return NULL;  /* not found */
+//   return null;  /* not found */
 // }
 //
 

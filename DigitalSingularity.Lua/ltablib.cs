@@ -61,19 +61,20 @@ public static unsafe partial class Lua
 //       luaL_checktype(L, arg, LUA_TTABLE);  /* force an error */
 //   }
 // }
-//
-//
-// static int tcreate (lua_State *L) {
+
+    private static int tcreate(lua_State* L)
+    {
 //   lua_Unsigned sizeseq = (lua_Unsigned)luaL_checkinteger(L, 1);
 //   lua_Unsigned sizerest = (lua_Unsigned)luaL_optinteger(L, 2, 0);
 //   luaL_argcheck(L, sizeseq <= cast_uint(INT_MAX), 1, "out of range");
 //   luaL_argcheck(L, sizerest <= cast_uint(INT_MAX), 2, "out of range");
 //   lua_createtable(L, cast_int(sizeseq), cast_int(sizerest));
 //   return 1;
-// }
-//
-//
-// static int tinsert (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    private static int tinsert(lua_State* L)
+    {
 //   lua_Integer pos;  /* where to insert new element */
 //   lua_Integer e = aux_getn(L, 1, TAB_RW);
 //   e = luaL_intop(+, e, 1);  /* first empty element */
@@ -100,10 +101,11 @@ public static unsafe partial class Lua
 //   }
 //   lua_seti(L, 1, pos);  /* t[pos] = v */
 //   return 0;
-// }
-//
-//
-// static int tremove (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    private static int tremove(lua_State* L)
+    {
 //   lua_Integer size = aux_getn(L, 1, TAB_RW);
 //   lua_Integer pos = luaL_optinteger(L, 2, size);
 //   if (pos != size)  /* validate 'pos' if given */
@@ -118,16 +120,17 @@ public static unsafe partial class Lua
 //   lua_pushnil(L);
 //   lua_seti(L, 1, pos);  /* remove entry t[pos] */
 //   return 1;
-// }
-//
-//
-// /*
-// ** Copy elements (1[f], ..., 1[e]) into (tt[t], tt[t+1], ...). Whenever
-// ** possible, copy in increasing order, which is better for rehashing.
-// ** "possible" means destination after original range, or smaller
-// ** than origin, or copying to another table.
-// */
-// static int tmove (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** Copy elements (1[f], ..., 1[e]) into (tt[t], tt[t+1], ...). Whenever
+     ** possible, copy in increasing order, which is better for rehashing.
+     ** "possible" means destination after original range, or smaller
+     ** than origin, or copying to another table.
+     */
+    private static int tmove(lua_State* L)
+    {
 //   lua_Integer f = luaL_checkinteger(L, 2);
 //   lua_Integer e = luaL_checkinteger(L, 3);
 //   lua_Integer t = luaL_checkinteger(L, 4);
@@ -156,9 +159,9 @@ public static unsafe partial class Lua
 //   }
 //   lua_pushvalue(L, tt);  /* return destination table */
 //   return 1;
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static void addfield (lua_State *L, luaL_Buffer *b, lua_Integer i) {
 //   lua_geti(L, 1, i);
 //   if (l_unlikely(!lua_isstring(L, -1)))
@@ -166,9 +169,9 @@ public static unsafe partial class Lua
 //                   luaL_typename(L, -1), (LUAI_UACINT)i);
 //   luaL_addvalue(b);
 // }
-//
-//
-// static int tconcat (lua_State *L) {
+
+    private static int tconcat(lua_State* L)
+    {
 //   luaL_Buffer b;
 //   lua_Integer last = aux_getn(L, 1, TAB_R);
 //   size_t lsep;
@@ -184,16 +187,17 @@ public static unsafe partial class Lua
 //     addfield(L, &b, i);
 //   luaL_pushresult(&b);
 //   return 1;
-// }
-//
-//
-// /*
-// ** {======================================================
-// ** Pack/unpack
-// ** =======================================================
-// */
-//
-// static int tpack (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** {======================================================
+     ** Pack/unpack
+     ** =======================================================
+     */
+
+    private static int tpack(lua_State* L)
+    {
 //   int i;
 //   int n = lua_gettop(L);  /* number of elements to pack */
 //   lua_createtable(L, n, 1);  /* create result table */
@@ -203,10 +207,11 @@ public static unsafe partial class Lua
 //   lua_pushinteger(L, n);
 //   lua_setfield(L, 1, "n");  /* t.n = number of elements */
 //   return 1;  /* return table */
-// }
-//
-//
-// static int tunpack (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    private static int tunpack(lua_State* L)
+    {
 //   lua_Unsigned n;
 //   lua_Integer i = luaL_optinteger(L, 2, 1);
 //   lua_Integer e = luaL_opt(L, luaL_checkinteger, 3, luaL_len(L, 1));
@@ -220,21 +225,19 @@ public static unsafe partial class Lua
 //   }
 //   lua_geti(L, 1, e);  /* push last element */
 //   return (int)n;
-// }
-//
-// /* }====================================================== */
-//
-//
-//
-// /*
-// ** {======================================================
-// ** Quicksort
-// ** (based on 'Algorithms in MODULA-3', Robert Sedgewick;
-// **  Addison-Wesley, 1993.)
-// ** =======================================================
-// */
-//
-//
+        throw new NotImplementedException();
+    }
+
+/* }====================================================== */
+
+    /*
+     ** {======================================================
+     ** Quicksort
+     ** (based on 'Algorithms in MODULA-3', Robert Sedgewick;
+     **  Addison-Wesley, 1993.)
+     ** =======================================================
+     */
+
 // /*
 // ** Type for array indices. These indices are always limited by INT_MAX,
 // ** so it is safe to cast them to lua_Integer even for Lua 32 bits.
@@ -334,7 +337,7 @@ public static unsafe partial class Lua
 // static IdxT choosePivot (IdxT lo, IdxT up, unsigned int rnd) {
 //   IdxT r4 = (up - lo) / 4;  /* range/4 */
 //   IdxT p = (rnd ^ lo ^ up) % (r4 * 2) + (lo + r4);
-//   lua_assert(lo + r4 <= p && p <= up - r4);
+//   Debug.Assert(lo + r4 <= p && p <= up - r4);
 //   return p;
 // }
 //
@@ -393,9 +396,9 @@ public static unsafe partial class Lua
 //       rnd = l_randomizePivot(L);  /* try a new randomization */
 //   }  /* tail call auxsort(L, lo, up, rnd) */
 // }
-//
-//
-// static int sort (lua_State *L) {
+
+    private static int sort(lua_State* L)
+    {
 //   lua_Integer n = aux_getn(L, 1, TAB_RW);
 //   if (n > 1) {  /* non-trivial interval? */
 //     luaL_argcheck(L, n < INT_MAX, 1, "array too big");
@@ -405,27 +408,26 @@ public static unsafe partial class Lua
 //     auxsort(L, 1, (IdxT)n, 0);
 //   }
 //   return 0;
-// }
-//
-// /* }====================================================== */
-//
-//
-// static const luaL_Reg tab_funcs[] = {
-//   {"concat", tconcat},
-//   {"create", tcreate},
-//   {"insert", tinsert},
-//   {"pack", tpack},
-//   {"unpack", tunpack},
-//   {"remove", tremove},
-//   {"move", tmove},
-//   {"sort", sort},
-//   {NULL, NULL}
-// };
+        throw new NotImplementedException();
+    }
+
+    /* }====================================================== */
+
+    private static luaL_Reg[] tab_funcs =
+    [
+        new("concat", &tconcat),
+        new("create", &tcreate),
+        new("insert", &tinsert),
+        new("pack", &tpack),
+        new("unpack", &tunpack),
+        new("remove", &tremove),
+        new("move", &tmove),
+        new("sort", &sort),
+    ];
 
     private static partial int luaopen_table(lua_State* L)
     {
-//   luaL_newlib(L, tab_funcs);
-//   return 1;
-        throw new NotImplementedException();
+        luaL_newlib(L, tab_funcs);
+        return 1;
     }
 }

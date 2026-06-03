@@ -193,7 +193,7 @@ public static unsafe partial class Lua
 //     }
 //     argword = "argument";
 //   }
-//   if (ar.name == NULL)
+//   if (ar.name == null)
 //     ar.name = (pushglobalfuncname(L, &ar)) ? lua_tostring(L, -1) : "?";
 //   return luaL_error(L, "bad %s #%d to '%s' (%s)",
 //                        argword, arg, ar.name, extramsg);
@@ -296,7 +296,7 @@ public static unsafe partial class Lua
 //
 // LUALIB_API int luaL_execresult (lua_State *L, int stat) {
 //   if (stat != 0 && errno != 0)  /* error with an 'errno'? */
-//     return luaL_fileresult(L, 0, NULL);
+//     return luaL_fileresult(L, 0, null);
 //   else {
 //     const char *what = "exit";  /* type of termination */
 //     l_inspectstat(stat, what);  /* interpret result */
@@ -318,7 +318,7 @@ public static unsafe partial class Lua
     ** =======================================================
     */
 
-    private static partial int luaL_newmetatable(lua_State* L, string tname)
+    public static partial int luaL_newmetatable(lua_State* L, string tname)
     {
         if (luaL_getmetatable(L, tname) != LUA_TNIL) /* name already in use? */
         {
@@ -334,7 +334,7 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    private static partial void luaL_setmetatable(lua_State* L, string tname)
+    public static partial void luaL_setmetatable(lua_State* L, string tname)
     {
         luaL_getmetatable(L, tname);
         lua_setmetatable(L, -2);
@@ -342,22 +342,22 @@ public static unsafe partial class Lua
 
 // LUALIB_API void *luaL_testudata (lua_State *L, int ud, const char *tname) {
 //   void *p = lua_touserdata(L, ud);
-//   if (p != NULL) {  /* value is a userdata? */
+//   if (p != null) {  /* value is a userdata? */
 //     if (lua_getmetatable(L, ud)) {  /* does it have a metatable? */
 //       luaL_getmetatable(L, tname);  /* get correct metatable */
 //       if (!lua_rawequal(L, -1, -2))  /* not the same? */
-//         p = NULL;  /* value is a userdata with wrong metatable */
+//         p = null;  /* value is a userdata with wrong metatable */
 //       lua_pop(L, 2);  /* remove both metatables */
 //       return p;
 //     }
 //   }
-//   return NULL;  /* value is not a userdata with a metatable */
+//   return null;  /* value is not a userdata with a metatable */
 // }
 //
 //
 // LUALIB_API void *luaL_checkudata (lua_State *L, int ud, const char *tname) {
 //   void *p = luaL_testudata(L, ud, tname);
-//   luaL_argexpected(L, p != NULL, ud, tname);
+//   luaL_argexpected(L, p != null, ud, tname);
 //   return p;
 // }
 //
@@ -389,7 +389,7 @@ public static unsafe partial class Lua
     ** this extra space, Lua will generate the same 'stack overflow' error,
     ** but without 'msg'.)
     */
-    private static partial void luaL_checkstack(lua_State* L, int space, string msg)
+    public static partial void luaL_checkstack(lua_State* L, int space, string msg)
     {
         if (!lua_checkstack(L, space))
         {
@@ -430,7 +430,7 @@ public static unsafe partial class Lua
 //   else return luaL_checklstring(L, arg, len);
 // }
 
-    private static partial double luaL_checknumber(lua_State* L, int arg)
+    public static partial double luaL_checknumber(lua_State* L, int arg)
     {
         double d = lua_tonumberx(L, arg, out bool isnum);
         if (!isnum)
@@ -441,7 +441,7 @@ public static unsafe partial class Lua
         return d;
     }
 
-    private static partial double luaL_optnumber(lua_State* L, int arg, double def)
+    public static partial double luaL_optnumber(lua_State* L, int arg, double def)
     {
         return lua_isnoneornil(L, arg) ? def : luaL_checknumber(L, arg);
     }
@@ -498,7 +498,7 @@ public static unsafe partial class Lua
 //     void *ud;
 //     lua_Alloc allocf = lua_getallocf(L, &ud);
 //     void *temp = allocf(ud, box->box, box->bsize, newsize);
-//     if (l_unlikely(temp == NULL && newsize > 0)) {  /* allocation error? */
+//     if (l_unlikely(temp == null && newsize > 0)) {  /* allocation error? */
 //       lua_pushliteral(L, "not enough memory");
 //       lua_error(L);  /* raise a memory error */
 //     }
@@ -518,13 +518,13 @@ public static unsafe partial class Lua
 // static const luaL_Reg boxmt[] = {  /* box metamethods */
 //   {"__gc", boxgc},
 //   {"__close", boxgc},
-//   {NULL, NULL}
+//   {null, null}
 // };
 //
 //
 // static void newbox (lua_State *L) {
 //   UBox *box = (UBox *)lua_newuserdatauv(L, sizeof(UBox), 0);
-//   box->box = NULL;
+//   box->box = null;
 //   box->bsize = 0;
 //   if (luaL_newmetatable(L, "_UBOX*"))  /* creating metatable? */
 //     luaL_setfuncs(L, boxmt, 0);  /* set its metamethods */
@@ -541,10 +541,10 @@ public static unsafe partial class Lua
 //
 // /*
 // ** Whenever buffer is accessed, slot 'idx' must either be a box (which
-// ** cannot be NULL) or it is a placeholder for the buffer.
+// ** cannot be null) or it is a placeholder for the buffer.
 // */
 // #define checkbufferlevel(B,idx)  \
-//   lua_assert(buffonstack(B) ? lua_touserdata(B->L, idx) != NULL  \
+//   Debug.Assert(buffonstack(B) ? lua_touserdata(B->L, idx) != null  \
 //                             : lua_touserdata(B->L, idx) == (void*)B)
 //
 //
@@ -604,7 +604,7 @@ public static unsafe partial class Lua
 //
 //
 // LUALIB_API void luaL_addlstring (luaL_Buffer *B, const char *s, size_t l) {
-//   if (l > 0) {  /* avoid 'memcpy' when 's' can be NULL */
+//   if (l > 0) {  /* avoid 'memcpy' when 's' can be null */
 //     char *b = prepbuffsize(B, l, -1);
 //     memcpy(b, s, l * sizeof(char));
 //     luaL_addsize(B, l);
@@ -632,7 +632,7 @@ public static unsafe partial class Lua
 //     s = (char*)box->box;  /* final buffer address */
 //     s[len] = '\0';  /* add ending zero */
 //     /* clear box, as Lua will take control of the buffer */
-//     box->bsize = 0;  box->box = NULL;
+//     box->bsize = 0;  box->box = null;
 //     lua_pushexternalstring(L, s, len, allocf, ud);
 //     lua_closeslot(L, -2);  /* close the box */
 //     lua_gc(L, LUA_GCSTEP, len);
@@ -705,7 +705,7 @@ public static unsafe partial class Lua
 //   if (lua_rawgeti(L, t, 1) == LUA_TNUMBER)  /* already initialized? */
 //     ref = (int)lua_tointeger(L, -1);  /* ref = t[1] */
 //   else {  /* first access */
-//     lua_assert(!lua_toboolean(L, -1));  /* must be nil or false */
+//     Debug.Assert(!lua_toboolean(L, -1));  /* must be nil or false */
 //     ref = 0;  /* list is empty */
 //     lua_pushinteger(L, 0);  /* initialize as an empty list */
 //     lua_rawseti(L, t, 1);  /* ref = t[1] = 0 */
@@ -726,47 +726,59 @@ public static unsafe partial class Lua
 //   if (ref >= 0) {
 //     t = lua_absindex(L, t);
 //     lua_rawgeti(L, t, 1);
-//     lua_assert(lua_isinteger(L, -1));
+//     Debug.Assert(lua_isinteger(L, -1));
 //     lua_rawseti(L, t, ref);  /* t[ref] = t[1] */
 //     lua_pushinteger(L, ref);
 //     lua_rawseti(L, t, 1);  /* t[1] = ref */
 //   }
 // }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Load functions
-// ** =======================================================
-// */
-//
-// typedef struct LoadF {
-//   unsigned n;  /* number of pre-read characters */
-//   FILE *f;  /* file being read */
-//   char buff[BUFSIZ];  /* area for reading file */
-// } LoadF;
-//
-//
-// static const char *getF (lua_State *L, void *ud, size_t *size) {
-//   LoadF *lf = (LoadF *)ud;
-//   UNUSED(L);
-//   if (lf->n > 0) {  /* are there pre-read characters to be read? */
-//     *size = lf->n;  /* return them (chars already in buffer) */
-//     lf->n = 0;  /* no more pre-read characters */
-//   }
-//   else {  /* read a block from file */
-//     /* 'fread' can return > 0 *and* set the EOF flag. If next call to
-//        'getF' called 'fread', it might still wait for user input.
-//        The next check avoids this problem. */
-//     if (feof(lf->f)) return NULL;
-//     *size = fread(lf->buff, 1, sizeof(lf->buff), lf->f);  /* read block */
-//   }
-//   return lf->buff;
-// }
-//
-//
+
+    /* }====================================================== */
+
+    /*
+    ** {======================================================
+    ** Load functions
+    ** =======================================================
+    */
+
+    private const int BUFF_SIZE = 512;
+
+    private struct LoadF
+    {
+        public uint n; /* number of pre-read characters */
+        public nint f; /* file being read */
+        public fixed byte buff[BUFF_SIZE]; /* area for reading file */
+    }
+
+    private static byte* getF(lua_State* L, void* ud, long* size)
+    {
+        LoadF* lf = (LoadF*)ud;
+        if (lf->n > 0)
+        {
+            /* are there pre-read characters to be read? */
+            *size = lf->n; /* return them (chars already in buffer) */
+            lf->n = 0; /* no more pre-read characters */
+        }
+        else
+        {
+            /* read a block from file */
+            /* 'fread' can return > 0 *and* set the EOF flag. If next call to
+               'getF' called 'fread', it might still wait for user input.
+               The next check avoids this problem. */
+            Stream f = (Stream?)GCHandle.FromIntPtr(lf->f).Target ?? throw new InvalidOperationException();
+            Span<byte> span = new(lf->buff, BUFF_SIZE);
+            int tmp = f.Read(span);
+            if (tmp <= 0)
+            {
+                return null;
+            }
+
+            *size = tmp;
+        }
+
+        return lf->buff;
+    }
+
 // static int errfile (lua_State *L, const char *what, int fnameindex) {
 //   int err = errno;
 //   const char *filename = lua_tostring(L, fnameindex) + 1;
@@ -777,86 +789,108 @@ public static unsafe partial class Lua
 //   lua_remove(L, fnameindex);
 //   return LUA_ERRFILE;
 // }
-//
-//
-// /*
-// ** Skip an optional BOM at the start of a stream. If there is an
-// ** incomplete BOM (the first character is correct but the rest is
-// ** not), returns the first character anyway to force an error
-// ** (as no chunk can start with 0xEF).
-// */
-// static int skipBOM (FILE *f) {
-//   int c = getc(f);  /* read first character */
-//   if (c == 0xEF && getc(f) == 0xBB && getc(f) == 0xBF)  /* correct BOM? */
-//     return getc(f);  /* ignore BOM and return next char */
-//   else  /* no (valid) BOM */
-//     return c;  /* return first character */
-// }
-//
-//
-// /*
-// ** reads the first character of file 'f' and skips an optional BOM mark
-// ** in its beginning plus its first line if it starts with '#'. Returns
-// ** true if it skipped the first line.  In any case, '*cp' has the
-// ** first "valid" character of the file (after the optional BOM and
-// ** a first-line comment).
-// */
-// static int skipcomment (FILE *f, int *cp) {
-//   int c = *cp = skipBOM(f);
-//   if (c == '#') {  /* first line is a comment (Unix exec. file)? */
-//     do {  /* skip first line */
-//       c = getc(f);
-//     } while (c != EOF && c != '\n');
-//     *cp = getc(f);  /* next character after comment, if present */
-//     return 1;  /* there was a comment */
-//   }
-//   else return 0;  /* no comment */
-// }
-//
-//
-// LUALIB_API int luaL_loadfilex (lua_State *L, const char *filename,
-//                                              const char *mode) {
-//   LoadF lf;
-//   int status, readstatus;
-//   int c;
-//   int fnameindex = lua_gettop(L) + 1;  /* index of filename on the stack */
-//   if (filename == NULL) {
+
+    /*
+    ** Skip an optional BOM at the start of a stream. If there is an
+    ** incomplete BOM (the first character is correct but the rest is
+    ** not), returns the first character anyway to force an error
+    ** (as no chunk can start with 0xEF).
+    */
+    private static int skipBOM(Stream f)
+    {
+        int c = f.ReadByte(); /* read first character */
+        if (c == 0xEF && f.ReadByte() == 0xBB && f.ReadByte() == 0xBF) /* correct BOM? */
+        {
+            return f.ReadByte(); /* ignore BOM and return next char */
+        }
+
+        /* no (valid) BOM */
+        return c; /* return first character */
+    }
+
+    /*
+     ** reads the first character of file 'f' and skips an optional BOM mark
+     ** in its beginning plus its first line if it starts with '#'. Returns
+     ** true if it skipped the first line.  In any case, '*cp' has the
+     ** first "valid" character of the file (after the optional BOM and
+     ** a first-line comment).
+     */
+    private static bool skipcomment(Stream f, int* cp)
+    {
+        int c = *cp = skipBOM(f);
+        if (c == '#')
+        {
+            /* first line is a comment (Unix exec. file)? */
+            do
+            {
+                /* skip first line */
+                c = f.ReadByte();
+            } while (c >= 0 && c != '\n');
+
+            *cp = f.ReadByte(); /* next character after comment, if present */
+            return true; /* there was a comment */
+        }
+
+        return false; /* no comment */
+    }
+
+    public static partial int luaL_loadfilex(lua_State* L, string? filename, string? mode)
+    {
+        LoadF lf;
+        Stream f;
+        int fnameindex = lua_gettop(L) + 1; /* index of filename on the stack */
+        if (filename == null)
+        {
+            throw new NotImplementedException();
 //     lua_pushliteral(L, "=stdin");
 //     lf.f = stdin;
-//   }
-//   else {
-//     lua_pushfstring(L, "@%s", filename);
-//     errno = 0;
-//     lf.f = fopen(filename, "r");
-//     if (lf.f == NULL) return errfile(L, "open", fnameindex);
-//   }
-//   lf.n = 0;
-//   if (skipcomment(lf.f, &c))  /* read initial portion */
-//     lf.buff[lf.n++] = '\n';  /* add newline to correct line numbers */
-//   if (c == LUA_SIGNATURE[0]) {  /* binary file? */
-//     lf.n = 0;  /* remove possible newline */
-//     if (filename) {  /* "real" file? */
-//       errno = 0;
-//       lf.f = freopen(filename, "rb", lf.f);  /* reopen in binary mode */
-//       if (lf.f == NULL) return errfile(L, "reopen", fnameindex);
-//       skipcomment(lf.f, &c);  /* re-read initial portion */
-//     }
-//   }
-//   if (c != EOF)
-//     lf.buff[lf.n++] = cast_char(c);  /* 'c' is the first character */
-//   status = lua_load(L, getF, &lf, lua_tostring(L, -1), mode);
+        }
+        else
+        {
+            lua_pushfstring(L, "@%s", filename);
+            try
+            {
+                f = File.OpenRead(filename);
+                lf.f = GCHandle.ToIntPtr(GCHandle.Alloc(f));
+            }
+            catch (IOException e)
+            {
+//     if (lf.f == null) return errfile(L, "open", fnameindex);
+                throw new NotImplementedException();
+            }
+        }
+
+        lf.n = 0;
+        int c;
+        if (skipcomment(f, &c)) /* read initial portion */
+        {
+            lf.buff[lf.n++] = (byte)'\n'; /* add newline to correct line numbers */
+        }
+
+        if (c == LUA_SIGNATURE[0])
+        {
+            /* binary file? */
+            lf.n = 0; /* remove possible newline */
+        }
+
+        if (c >= 0)
+        {
+            lf.buff[lf.n++] = (byte)c; /* 'c' is the first character */
+        }
+
+        int status = lua_load(L, &getF, &lf, lua_tostring(L, -1), mode);
 //   readstatus = ferror(lf.f);
-//   errno = 0;  /* no useful error number until here */
 //   if (filename) fclose(lf.f);  /* close file (even in case of errors) */
+        GCHandle.FromIntPtr(lf.f).Free();
 //   if (readstatus) {
 //     lua_settop(L, fnameindex);  /* ignore results from 'lua_load' */
 //     return errfile(L, "read", fnameindex);
 //   }
 //   lua_remove(L, fnameindex);
 //   return status;
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // typedef struct LoadS {
 //   const char *s;
 //   size_t size;
@@ -866,7 +900,7 @@ public static unsafe partial class Lua
 // static const char *getS (lua_State *L, void *ud, size_t *size) {
 //   LoadS *ls = (LoadS *)ud;
 //   UNUSED(L);
-//   if (ls->size == 0) return NULL;
+//   if (ls->size == 0) return null;
 //   *size = ls->size;
 //   ls->size = 0;
 //   return ls->s;
@@ -970,7 +1004,7 @@ public static unsafe partial class Lua
     ** function gets the 'nup' elements at the top as upvalues.
     ** Returns with only the table at the stack.
     */
-    private static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup)
+    public static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup)
     {
         luaL_checkstack(L, nup, "too many upvalues");
         for (; !l.IsEmpty; l = l[1..])
@@ -1000,7 +1034,7 @@ public static unsafe partial class Lua
      ** ensure that stack[idx][fname] has a table and push that table
      ** into the stack
      */
-    private static partial bool luaL_getsubtable(lua_State* L, int idx, string fname)
+    public static partial bool luaL_getsubtable(lua_State* L, int idx, string fname)
     {
         if (lua_getfield(L, idx, fname) == LUA_TTABLE)
         {
@@ -1021,7 +1055,7 @@ public static unsafe partial class Lua
      ** if 'glb' is true, also registers the result in the global table.
      ** Leaves resulting module on the top.
      */
-    private static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb)
+    public static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb)
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
         lua_getfield(L, -1, modname); /* LOADED[modname] */
@@ -1048,7 +1082,7 @@ public static unsafe partial class Lua
 //                                      const char *p, const char *r) {
 //   const char *wild;
 //   size_t l = strlen(p);
-//   while ((wild = strstr(s, p)) != NULL) {
+//   while ((wild = strstr(s, p)) != null) {
 //     luaL_addlstring(b, s, ct_diff2sz(wild - s));  /* push prefix */
 //     luaL_addstring(b, r);  /* push replacement in place of pattern */
 //     s = wild + l;  /* continue after 'p' */
@@ -1129,7 +1163,7 @@ public static unsafe partial class Lua
 //   }
 // }
 
-    private static void warnfon(void* ud, byte* message, int tocont)
+    private static void warnfon(void* ud, string message, bool tocont)
     {
         // if (checkcontrol((lua_State*)ud, message, tocont)) /* control message? */
         //     return; /* nothing else to be done */
@@ -1166,7 +1200,7 @@ public static unsafe partial class Lua
 //   unsigned int buff[BUFSEED];
 //   unsigned int res;
 //   unsigned int i;
-//   time_t t = time(NULL);
+//   time_t t = time(null);
 //   char *b = (char*)buff;
 //   addbuff(b, b);  /* local variable's address */
 //   addbuff(b, t);  /* time */

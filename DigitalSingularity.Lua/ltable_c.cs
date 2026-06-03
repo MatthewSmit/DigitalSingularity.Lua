@@ -89,11 +89,14 @@ public static unsafe partial class Lua
         return gnode(t, lmod(n, sizenode(t)));
     }
 
-    // /*
-// ** for other types, it is better to avoid modulo by power of 2, as
-// ** they can have many 2 factors.
-// */
-// #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1u)|1u))))
+    /*
+    ** for other types, it is better to avoid modulo by power of 2, as
+    ** they can have many 2 factors.
+    */
+    private static Node* hashmod(Table* t, ulong n)
+    {
+        return gnode(t, (uint)(n % (sizenode(t) - 1u | 1u)));
+    }
 
     private static Node* hashstr(Table* t, TString* str)
     {
@@ -109,27 +112,29 @@ public static unsafe partial class Lua
     ** Common hash part for tables with empty hash parts. That allows all
     ** tables to have a hash part, avoiding an extra check ("is there a hash
     ** part?") when indexing. Its sole node has an empty value and a key
-    ** (DEADKEY, NULL) that is different from any valid TValue.
+    ** (DEADKEY, null) that is different from any valid TValue.
     */
     private static readonly Node* dummynode = (Node*)NativeMemory.AllocZeroed((nuint)sizeof(Node));
     
     private static readonly TValue* absentkey = (TValue*)NativeMemory.AllocZeroed((nuint)sizeof(TValue));
         
-// /*
-// ** Hash for integers. To allow a good hash, use the remainder operator
-// ** ('%'). If integer fits as a non-negative int, compute an int
-// ** remainder, which is faster. Otherwise, use an unsigned-integer
-// ** remainder, which uses all bits and ensures a non-negative result.
-// */
-// static Node *hashint (const Table *t, lua_Integer i) {
-//   lua_Unsigned ui = l_castS2U(i);
-//   if (ui <= cast_uint(INT_MAX))
-//     return gnode(t, cast_int(ui) % cast_int((sizenode(t)-1) | 1));
-//   else
-//     return hashmod(t, ui);
-// }
-//
-//
+    /*
+    ** Hash for integers. To allow a good hash, use the remainder operator
+    ** ('%'). If integer fits as a non-negative int, compute an int
+    ** remainder, which is faster. Otherwise, use an unsigned-integer
+    ** remainder, which uses all bits and ensures a non-negative result.
+    */
+    private static Node* hashint(Table* t, long i)
+    {
+        ulong ui = (ulong)i;
+        if (ui <= int.MaxValue)
+        {
+            return gnode(t, (int)ui % (int)(sizenode(t) - 1 | 1));
+        }
+
+        return hashmod(t, ui);
+    }
+
 // /*
 // ** Hash for floating-point numbers.
 // ** The main computation should be just
@@ -149,7 +154,7 @@ public static unsafe partial class Lua
 //   lua_Integer ni;
 //   n = l_mathop(frexp)(n, &i) * -cast_num(INT_MIN);
 //   if (!lua_numbertointeger(n, &ni)) {  /* is 'n' inf/-inf/NaN? */
-//     lua_assert(luai_numisnan(n) || l_mathop(fabs)(n) == cast_num(HUGE_VAL));
+//     Debug.Assert(luai_numisnan(n) || l_mathop(fabs)(n) == cast_num(HUGE_VAL));
 //     return 0;
 //   }
 //   else {  /* normal case */
@@ -170,15 +175,16 @@ public static unsafe partial class Lua
             case LUA_VNUMINT:
                 {
                     long i = ivalue(key);
-//       return hashint(t, i);
+                    return hashint(t, i);
                 }
-                throw new NotImplementedException();
+            
             case LUA_VNUMFLT:
                 {
-//       lua_Number n = fltvalue(key);
+       double n = fltvalue(key);
 //       return hashmod(t, l_hashfloat(n));
                 }
                 throw new NotImplementedException();
+            
             case LUA_VSHRSTR:
                 return hashstr(t, tsvalue(key));
             
@@ -188,24 +194,29 @@ public static unsafe partial class Lua
 //       return hashpow2(t, luaS_hashlongstr(ts));
                 }
                 throw new NotImplementedException();
+            
             case LUA_VFALSE:
 //       return hashboolean(t, 0);
                 throw new NotImplementedException();
+            
             case LUA_VTRUE:
 //       return hashboolean(t, 1);
                 throw new NotImplementedException();
+            
             case LUA_VLIGHTUSERDATA:
                 {
                     void* p = pvalue(key);
 //       return hashpointer(t, p);
                 }
                 throw new NotImplementedException();
+            
             case LUA_VLCF:
                 {
                     lua_CFunction f = fvalue(key);
 //       return hashpointer(t, f);
                 }
                 throw new NotImplementedException();
+            
             default:
                 {
                     GCObject* o = gcvalue(key);
@@ -272,8 +283,7 @@ public static unsafe partial class Lua
                 return true;
 
             case LUA_VNUMINT:
-//         return (ivalue(k1) == keyival(n2));
-                throw new NotImplementedException();
+                return ivalue(k1) == keyival(n2);
 
             case LUA_VNUMFLT:
 //         return luai_numeq(fltvalue(k1), fltvalueraw(keyval(n2)));
@@ -603,10 +613,9 @@ public static unsafe partial class Lua
         if (newasize == 0)
         {
             /* erasing array? */
-            // Value *op = t->array - oldasize;  /* original array's real address */
-            // luaM_freemem(L, op, concretesize(oldasize));  /* free it */
-            // return NULL;
-            throw new NotImplementedException();
+            Value* op = t->array - oldasize; /* original array's real address */
+            luaM_freemem(L, op, concretesize(oldasize)); /* free it */
+            return null;
         }
 
         long newasizeb = concretesize(newasize);
@@ -619,15 +628,14 @@ public static unsafe partial class Lua
         np += newasize; /* shift pointer to the end of value segment */
         if (oldasize > 0)
         {
-            //     /* move common elements to new position */
-            //     size_t oldasizeb = concretesize(oldasize);
-            //     Value *op = t->array;  /* original array */
-            //     unsigned tomove = (oldasize < newasize) ? oldasize : newasize;
-            //     size_t tomoveb = (oldasize < newasize) ? oldasizeb : newasizeb;
-            //     lua_assert(tomoveb > 0);
-            //     memcpy(np - tomove, op - tomove, tomoveb);
-            //     luaM_freemem(L, op - oldasize, oldasizeb);  /* free old block */
-            throw new NotImplementedException();
+            /* move common elements to new position */
+            long oldasizeb = concretesize(oldasize);
+            Value* op = t->array; /* original array */
+            uint tomove = (oldasize < newasize) ? oldasize : newasize;
+            long tomoveb = (oldasize < newasize) ? oldasizeb : newasizeb;
+            Debug.Assert(tomoveb > 0);
+            memcpy(np - tomove, op - tomove, tomoveb);
+            luaM_freemem(L, op - oldasize, oldasizeb); /* free old block */
         }
 
         return np;
@@ -890,22 +898,26 @@ public static unsafe partial class Lua
         return t;
     }
 
-// lu_mem luaH_size (Table *t) {
-//   lu_mem sz = cast(lu_mem, sizeof(Table)) + concretesize(t->asize);
-//   if (!isdummy(t))
-//     sz += sizehash(t);
-//   return sz;
-// }
-//
-//
-// /*
-// ** Frees a table.
-// */
-// void luaH_free (lua_State *L, Table *t) {
-//   freehash(L, t);
-//   resizearray(L, t, t->asize, 0);
-//   luaM_free(L, t);
-// }
+    private static partial long luaH_size(Table* t)
+    {
+        long sz = sizeof(Table) + concretesize(t->asize);
+        if (!isdummy(t))
+        {
+            sz += sizehash(t);
+        }
+
+        return sz;
+    }
+
+    /*
+    ** Frees a table.
+    */
+    private static partial void luaH_free(lua_State* L, Table* t)
+    {
+        freehash(L, t);
+        resizearray(L, t, t->asize, 0);
+        luaM_free(L, t);
+    }
 
     private static Node* getfreepos(Table* t)
     {
@@ -1050,22 +1062,30 @@ public static unsafe partial class Lua
         }
     }
 
-// static const TValue *getintfromhash (Table *t, lua_Integer key) {
-//   Node *n = hashint(t, key);
-//   lua_assert(!ikeyinarray(t, key));
-//   for (;;) {  /* check whether 'key' is somewhere in the chain */
-//     if (keyisinteger(n) && keyival(n) == key)
-//       return gval(n);  /* that's it */
-//     else {
-//       int nx = gnext(n);
-//       if (nx == 0) break;
-//       n += nx;
-//     }
-//   }
-//   return &absentkey;
-// }
-//
-//
+    private static TValue* getintfromhash(Table* t, long key)
+    {
+        Node* n = hashint(t, key);
+        Debug.Assert(ikeyinarray(t, key) == 0);
+        while (true)
+        {
+            /* check whether 'key' is somewhere in the chain */
+            if (keyisinteger(n) && keyival(n) == key)
+            {
+                return gval(n); /* that's it */
+            }
+
+            int nx = gnext(n);
+            if (nx == 0)
+            {
+                break;
+            }
+
+            n += nx;
+        }
+
+        return absentkey;
+    }
+
 // static int hashkeyisempty (Table *t, lua_Unsigned key) {
 //   const TValue *val = getintfromhash(t, l_castU2S(key));
 //   return isempty(val);
@@ -1131,8 +1151,8 @@ public static unsafe partial class Lua
     private static TValue* Hgetlongstr(Table* t, TString* key)
     {
 //   TValue ko;
-//   lua_assert(!strisshr(key));
-//   setsvalue(cast(lua_State *, NULL), &ko, key);
+//   Debug.Assert(!strisshr(key));
+//   setsvalue(cast(lua_State *, null), &ko, key);
 //   return getgeneric(t, &ko, 0);  /* for long strings, use generic case */
         throw new NotImplementedException();
     }
@@ -1152,37 +1172,43 @@ public static unsafe partial class Lua
         return finishnodeget(Hgetstr(t, key), res);
     }
     
-// /*
-// ** main search function
-// */
-// lu_byte luaH_get (Table *t, const TValue *key, TValue *res) {
-//   const TValue *slot;
-//   switch (ttypetag(key)) {
-//     case LUA_VSHRSTR:
-//       slot = luaH_Hgetshortstr(t, tsvalue(key));
-//       break;
-//     case LUA_VNUMINT:
-//       return luaH_getint(t, ivalue(key), res);
-//     case LUA_VNIL:
-//       slot = &absentkey;
-//       break;
-//     case LUA_VNUMFLT: {
+    /*
+    ** main search function
+    */
+    private static partial byte luaH_get(Table* t, TValue* key, TValue* res)
+    {
+        TValue* slot;
+        switch (ttypetag(key))
+        {
+            case LUA_VSHRSTR:
+                slot = luaH_Hgetshortstr(t, tsvalue(key));
+                break;
+            case LUA_VNUMINT:
+                return luaH_getint(t, ivalue(key), res);
+            case LUA_VNIL:
+                slot = absentkey;
+                break;
+            case LUA_VNUMFLT:
+                {
 //       lua_Integer k;
 //       if (luaV_flttointeger(fltvalue(key), &k, F2Ieq)) /* integral index? */
 //         return luaH_getint(t, k, res);  /* use specialized version */
 //       /* else... */
-//     }  /* FALLTHROUGH */
-//     default:
-//       slot = getgeneric(t, key, 0);
-//       break;
-//   }
-//   return finishnodeget(slot, res);
-// }
+                } /* FALLTHROUGH */
+                throw new NotImplementedException();
+
+            default:
+                slot = getgeneric(t, key, false);
+                break;
+        }
+
+        return finishnodeget(slot, res);
+    }
 
     /*
-    ** When a 'pset' cannot be completed, this function returns an encoding
-    ** of its result, to be used by 'luaH_finishset'.
-    */
+     ** When a 'pset' cannot be completed, this function returns an encoding
+     ** of its result, to be used by 'luaH_finishset'.
+     */
     private static int retpsetcode(Table* t, TValue* slot)
     {
         if (isabstkey(slot))
@@ -1196,26 +1222,26 @@ public static unsafe partial class Lua
 
 // static int finishnodeset (Table *t, const TValue *slot, TValue *val) {
 //   if (!ttisnil(slot)) {
-//     setobj(((lua_State*)NULL), cast(TValue*, slot), val);
+//     setobj(((lua_State*)null), cast(TValue*, slot), val);
 //     return HOK;  /* success */
 //   }
 //   else
 //     return retpsetcode(t, slot);
 // }
-//
-//
-// static int rawfinishnodeset (const TValue *slot, TValue *val) {
-//   if (isabstkey(slot))
-//     return 0;  /* no slot with that key */
-//   else {
-//     setobj(((lua_State*)NULL), cast(TValue*, slot), val);
-//     return 1;  /* success */
-//   }
-// }
-//
-//
+
+    private static bool rawfinishnodeset(TValue* slot, TValue* val)
+    {
+        if (isabstkey(slot))
+        {
+            return false; /* no slot with that key */
+        }
+
+        setobj(null, slot, val);
+        return true; /* success */
+    }
+
 // int luaH_psetint (Table *t, lua_Integer key, TValue *val) {
-//   lua_assert(!ikeyinarray(t, key));
+//   Debug.Assert(!ikeyinarray(t, key));
 //   return finishnodeset(t, getintfromhash(t, key), val);
 // }
 //
@@ -1283,28 +1309,38 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// int luaH_pset (Table *t, const TValue *key, TValue *val) {
-//   switch (ttypetag(key)) {
-//     case LUA_VSHRSTR: return luaH_psetshortstr(t, tsvalue(key), val);
-//     case LUA_VNUMINT: return psetint(t, ivalue(key), val);
-//     case LUA_VNIL: return HNOTFOUND;
-//     case LUA_VNUMFLT: {
+    private static partial int luaH_pset(Table* t, TValue* key, TValue* val)
+    {
+        switch (ttypetag(key))
+        {
+            case LUA_VSHRSTR:
+                return luaH_psetshortstr(t, tsvalue(key), val);
+            case LUA_VNUMINT:
+                // return psetint(t, ivalue(key), val);
+                throw new NotImplementedException();
+            case LUA_VNIL:
+                return HNOTFOUND;
+            case LUA_VNUMFLT:
+                {
 //       lua_Integer k;
 //       if (luaV_flttointeger(fltvalue(key), &k, F2Ieq)) /* integral index? */
 //         return psetint(t, k, val);  /* use specialized version */
 //       /* else... */
-//     }  /* FALLTHROUGH */
-//     default:
-//       return finishnodeset(t, getgeneric(t, key, 0), val);
-//   }
-// }
+                    throw new NotImplementedException();
+                } /* FALLTHROUGH */
+            
+            default:
+                // return finishnodeset(t, getgeneric(t, key, 0), val);
+                throw new NotImplementedException();
+        }
+    }
 
     /*
-    ** Finish a raw "set table" operation, where 'hres' encodes where the
-    ** value should have been (the result of a previous 'pset' operation).
-    ** Beware: when using this function the caller probably need to check a
-    ** GC barrier and invalidate the TM cache.
-    */
+     ** Finish a raw "set table" operation, where 'hres' encodes where the
+     ** value should have been (the result of a previous 'pset' operation).
+     ** Beware: when using this function the caller probably need to check a
+     ** GC barrier and invalidate the TM cache.
+     */
     private static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres)
     {
         Debug.Assert(hres != HOK);
@@ -1354,20 +1390,23 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** beware: when using this function you probably need to check a GC
-// ** barrier and invalidate the TM cache.
-// */
-// void luaH_set (lua_State *L, Table *t, const TValue *key, TValue *value) {
-//   int hres = luaH_pset(t, key, value);
-//   if (hres != HOK)
-//     luaH_finishset(L, t, key, value, hres);
-// }
+    /*
+    ** beware: when using this function, you probably need to check a GC
+    ** barrier and invalidate the TM cache.
+    */
+    private static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value)
+    {
+        int hres = luaH_pset(t, key, value);
+        if (hres != HOK)
+        {
+            luaH_finishset(L, t, key, value, hres);
+        }
+    }
 
     /*
-    ** Ditto for a GC barrier. (No need to invalidate the TM cache, as
-    ** integers cannot be keys to metamethods.)
-    */
+     ** Ditto for a GC barrier. (No need to invalidate the TM cache, as
+     ** integers cannot be keys to metamethods.)
+     */
     private static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value)
     {
         uint ik = ikeyinarray(t, key);
@@ -1377,13 +1416,13 @@ public static unsafe partial class Lua
         }
         else
         {
-//     int ok = rawfinishnodeset(getintfromhash(t, key), value);
-//     if (!ok) {
-//       TValue k;
-//       setivalue(&k, key);
-//       luaH_newkey(L, t, &k, value);
-//     }
-            throw new NotImplementedException();
+            bool ok = rawfinishnodeset(getintfromhash(t, key), value);
+            if (!ok)
+            {
+                TValue k;
+                setivalue(&k, key);
+                luaH_newkey(L, t, &k, value);
+            }
         }
     }
 
@@ -1438,7 +1477,7 @@ public static unsafe partial class Lua
 //
 //
 // static unsigned int binsearch (Table *array, unsigned int i, unsigned int j) {
-//   lua_assert(i <= j);
+//   Debug.Assert(i <= j);
 //   while (j - i > 1u) {  /* binary search */
 //     unsigned int m = (i + j) / 2;
 //     if (arraykeyisempty(array, m)) j = m;
@@ -1450,7 +1489,7 @@ public static unsafe partial class Lua
 //
 // /* return a border, saving it as a hint for next call */
 // static lua_Unsigned newhint (Table *t, unsigned hint) {
-//   lua_assert(hint <= t->asize);
+//   Debug.Assert(hint <= t->asize);
 //   *lenhint(t) = hint;
 //   return hint;
 // }
@@ -1504,7 +1543,7 @@ public static unsafe partial class Lua
 //     *lenhint(t) = asize;
 //   }
 //   /* no array part or t[asize] is not empty; check the hash part */
-//   lua_assert(asize == 0 || !arraykeyisempty(t, asize));
+//   Debug.Assert(asize == 0 || !arraykeyisempty(t, asize));
 //   if (isdummy(t) || hashkeyisempty(t, asize + 1))
 //     return asize;  /* 'asize + 1' is empty */
 //   else  /* 'asize + 1' is also non empty */

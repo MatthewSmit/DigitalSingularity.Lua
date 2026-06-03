@@ -201,7 +201,7 @@ public static unsafe partial class Lua
 //     state->init = 1;
 //     luaL_buffinit(L, &state->B);
 //   }
-//   if (b == NULL) {  /* finishing dump? */
+//   if (b == null) {  /* finishing dump? */
 //     luaL_pushresult(&state->B);  /* push result */
 //     lua_replace(L, 1);  /* move it to reserved slot */
 //   }
@@ -242,15 +242,17 @@ public static unsafe partial class Lua
 #else
     private static int tonum(lua_State* L, int arg)
     {
-//   if (lua_type(L, arg) == LUA_TNUMBER) {  /* already a number? */
-//     lua_pushvalue(L, arg);
-//     return 1;
-//   }
-//   else {  /* check whether it is a numerical string */
+        if (lua_type(L, arg) == LUA_TNUMBER)
+        {
+            /* already a number? */
+            lua_pushvalue(L, arg);
+            return 1;
+        }
+
+        /* check whether it is a numerical string */
 //     size_t len;
 //     const char *s = lua_tolstring(L, arg, &len);
-//     return (s != NULL && lua_stringtonumber(L, s) == len + 1);
-//   }
+//     return (s != null && lua_stringtonumber(L, s) == len + 1);
         throw new NotImplementedException();
     }
 
@@ -487,7 +489,7 @@ public static unsafe partial class Lua
 //                                    const char *p) {
 //   if (l_unlikely(p >= ms->p_end - 1))
 //     luaL_error(ms->L, "malformed pattern (missing arguments to '%%b')");
-//   if (*s != *p) return NULL;
+//   if (*s != *p) return null;
 //   else {
 //     int b = *p;
 //     int e = *(p+1);
@@ -499,7 +501,7 @@ public static unsafe partial class Lua
 //       else if (*s == b) cont++;
 //     }
 //   }
-//   return NULL;  /* string ends out of balance */
+//   return null;  /* string ends out of balance */
 // }
 //
 //
@@ -514,7 +516,7 @@ public static unsafe partial class Lua
 //     if (res) return res;
 //     i--;  /* else didn't match; reduce 1 repetition to try again */
 //   }
-//   return NULL;
+//   return null;
 // }
 //
 //
@@ -522,11 +524,11 @@ public static unsafe partial class Lua
 //                                  const char *p, const char *ep) {
 //   for (;;) {
 //     const char *res = match(ms, s, ep+1);
-//     if (res != NULL)
+//     if (res != null)
 //       return res;
 //     else if (singlematch(ms, s, p, ep))
 //       s++;  /* try with one more repetition */
-//     else return NULL;
+//     else return null;
 //   }
 // }
 //
@@ -539,7 +541,7 @@ public static unsafe partial class Lua
 //   ms->capture[level].init = s;
 //   ms->capture[level].len = what;
 //   ms->level = level+1;
-//   if ((res=match(ms, s, p)) == NULL)  /* match failed? */
+//   if ((res=match(ms, s, p)) == null)  /* match failed? */
 //     ms->level--;  /* undo capture */
 //   return res;
 // }
@@ -550,7 +552,7 @@ public static unsafe partial class Lua
 //   int l = capture_to_close(ms);
 //   const char *res;
 //   ms->capture[l].len = s - ms->capture[l].init;  /* close capture */
-//   if ((res = match(ms, s, p)) == NULL)  /* match failed? */
+//   if ((res = match(ms, s, p)) == null)  /* match failed? */
 //     ms->capture[l].len = CAP_UNFINISHED;  /* undo capture */
 //   return res;
 // }
@@ -563,7 +565,7 @@ public static unsafe partial class Lua
 //   if ((size_t)(ms->src_end-s) >= len &&
 //       memcmp(ms->capture[l].init, s, len) == 0)
 //     return s+len;
-//   else return NULL;
+//   else return null;
 // }
 //
 //
@@ -587,16 +589,16 @@ public static unsafe partial class Lua
 //       case '$': {
 //         if ((p + 1) != ms->p_end)  /* is the '$' the last char in pattern? */
 //           goto dflt;  /* no; go to default */
-//         s = (s == ms->src_end) ? s : NULL;  /* check end of string */
+//         s = (s == ms->src_end) ? s : null;  /* check end of string */
 //         break;
 //       }
 //       case L_ESC: {  /* escaped sequences not in the format class[*+?-]? */
 //         switch (*(p + 1)) {
 //           case 'b': {  /* balanced string? */
 //             s = matchbalance(ms, s, p + 2);
-//             if (s != NULL) {
+//             if (s != null) {
 //               p += 4; goto init;  /* return match(ms, s, p + 4); */
-//             }  /* else fail (s == NULL) */
+//             }  /* else fail (s == null) */
 //             break;
 //           }
 //           case 'f': {  /* frontier? */
@@ -610,14 +612,14 @@ public static unsafe partial class Lua
 //                matchbracketclass(cast_uchar(*s), p, ep - 1)) {
 //               p = ep; goto init;  /* return match(ms, s, ep); */
 //             }
-//             s = NULL;  /* match failed */
+//             s = null;  /* match failed */
 //             break;
 //           }
 //           case '0': case '1': case '2': case '3':
 //           case '4': case '5': case '6': case '7':
 //           case '8': case '9': {  /* capture results (%0-%9)? */
 //             s = match_capture(ms, s, cast_uchar(*(p + 1)));
-//             if (s != NULL) {
+//             if (s != null) {
 //               p += 2; goto init;  /* return match(ms, s, p + 2) */
 //             }
 //             break;
@@ -634,13 +636,13 @@ public static unsafe partial class Lua
 //             p = ep + 1; goto init;  /* return match(ms, s, ep + 1); */
 //           }
 //           else  /* '+' or no suffix */
-//             s = NULL;  /* fail */
+//             s = null;  /* fail */
 //         }
 //         else {  /* matched once */
 //           switch (*ep) {  /* handle optional suffix */
 //             case '?': {  /* optional */
 //               const char *res;
-//               if ((res = match(ms, s + 1, ep + 1)) != NULL)
+//               if ((res = match(ms, s + 1, ep + 1)) != null)
 //                 s = res;
 //               else {
 //                 p = ep + 1; goto init;  /* else return match(ms, s, ep + 1); */
@@ -673,12 +675,12 @@ public static unsafe partial class Lua
 // static const char *lmemfind (const char *s1, size_t l1,
 //                                const char *s2, size_t l2) {
 //   if (l2 == 0) return s1;  /* empty strings are everywhere */
-//   else if (l2 > l1) return NULL;  /* avoids a negative 'l1' */
+//   else if (l2 > l1) return null;  /* avoids a negative 'l1' */
 //   else {
 //     const char *init;  /* to search for a '*s2' inside 's1' */
 //     l2--;  /* 1st char will be checked by 'memchr' */
 //     l1 = l1-l2;  /* 's2' cannot be found after that */
-//     while (l1 > 0 && (init = (const char *)memchr(s1, *s2, l1)) != NULL) {
+//     while (l1 > 0 && (init = (const char *)memchr(s1, *s2, l1)) != null) {
 //       init++;   /* 1st char is already checked */
 //       if (memcmp(init, s2+1, l2) == 0)
 //         return init-1;
@@ -687,7 +689,7 @@ public static unsafe partial class Lua
 //         s1 = init;
 //       }
 //     }
-//     return NULL;  /* not found */
+//     return null;  /* not found */
 //   }
 // }
 //
@@ -767,7 +769,7 @@ public static unsafe partial class Lua
 //
 // static void reprepstate (MatchState *ms) {
 //   ms->level = 0;
-//   lua_assert(ms->matchdepth == MAXCCALLS);
+//   Debug.Assert(ms->matchdepth == MAXCCALLS);
 // }
 //
 //
@@ -801,11 +803,11 @@ public static unsafe partial class Lua
 //     do {
 //       const char *res;
 //       reprepstate(&ms);
-//       if ((res=match(&ms, s1, p)) != NULL) {
+//       if ((res=match(&ms, s1, p)) != null) {
 //         if (find) {
 //           lua_pushinteger(L, ct_diff2S(s1 - s) + 1);  /* start */
 //           lua_pushinteger(L, ct_diff2S(res - s));   /* end */
-//           return push_captures(&ms, NULL, 0) + 2;
+//           return push_captures(&ms, null, 0) + 2;
 //         }
 //         else
 //           return push_captures(&ms, s1, res);
@@ -844,7 +846,7 @@ public static unsafe partial class Lua
 //   for (src = gm->src; src <= gm->ms.src_end; src++) {
 //     const char *e;
 //     reprepstate(&gm->ms);
-//     if ((e = match(&gm->ms, src, gm->p)) != NULL && e != gm->lastmatch) {
+//     if ((e = match(&gm->ms, src, gm->p)) != null && e != gm->lastmatch) {
 //       gm->src = gm->lastmatch = e;
 //       return push_captures(&gm->ms, src, e);
 //     }
@@ -865,7 +867,7 @@ public static unsafe partial class Lua
 //   if (init > ls)  /* start after string's end? */
 //     init = ls + 1;  /* avoid overflows in 's + init' */
 //   prepstate(&gm->ms, L, s, ls, p, lp);
-//   gm->src = s + init; gm->p = p; gm->lastmatch = NULL;
+//   gm->src = s + init; gm->p = p; gm->lastmatch = null;
 //   lua_pushcclosure(L, gmatch_aux, 3);
 //   return 1;
         throw new NotImplementedException();
@@ -877,7 +879,7 @@ public static unsafe partial class Lua
 //   lua_State *L = ms->L;
 //   const char *news = lua_tolstring(L, 3, &l);
 //   const char *p;
-//   while ((p = (char *)memchr(news, L_ESC, l)) != NULL) {
+//   while ((p = (char *)memchr(news, L_ESC, l)) != null) {
 //     luaL_addlstring(b, news, ct_diff2sz(p - news));
 //     p++;  /* skip ESC */
 //     if (*p == L_ESC)  /* '%%' */
@@ -946,7 +948,7 @@ public static unsafe partial class Lua
 //   size_t srcl, lp;
 //   const char *src = luaL_checklstring(L, 1, &srcl);  /* subject */
 //   const char *p = luaL_checklstring(L, 2, &lp);  /* pattern */
-//   const char *lastmatch = NULL;  /* end of last match */
+//   const char *lastmatch = null;  /* end of last match */
 //   int tr = lua_type(L, 3);  /* replacement type */
 //   /* max replacements */
 //   lua_Integer max_s = luaL_optinteger(L, 4, cast_st2S(srcl) + 1);
@@ -966,7 +968,7 @@ public static unsafe partial class Lua
 //   while (n < max_s) {
 //     const char *e;
 //     reprepstate(&ms);  /* (re)prepare state for new match */
-//     if ((e = match(&ms, src, p)) != NULL && e != lastmatch) {  /* match? */
+//     if ((e = match(&ms, src, p)) != null && e != lastmatch) {  /* match? */
 //       n++;
 //       changed = add_value(&ms, &b, src, e, tr) | changed;
 //       src = lastmatch = e;
@@ -1050,7 +1052,7 @@ public static unsafe partial class Lua
 //       } while (m > 0);
 //     }
 //     n += cast_uint(l_sprintf(buff + n, sz - n, "p%+d", e));  /* add exponent */
-//     lua_assert(n < sz);
+//     Debug.Assert(n < sz);
 //     return cast_int(n);
 //   }
 // }
@@ -1163,7 +1165,7 @@ public static unsafe partial class Lua
 //     int  nb = lua_number2strx(L, buff, MAX_ITEM,
 //                                  "%" LUA_NUMBER_FRMLEN "a", n);
 //     /* ensures that 'buff' string uses a dot as the radix character */
-//     if (memchr(buff, '.', cast_uint(nb)) == NULL) {  /* no dot? */
+//     if (memchr(buff, '.', cast_uint(nb)) == null) {  /* no dot? */
 //       char point = lua_getlocaledecpoint();  /* try locale point */
 //       char *ppoint = (char *)memchr(buff, point, cast_uint(nb));
 //       if (ppoint) *ppoint = '.';  /* change it to a dot */
@@ -1199,7 +1201,7 @@ public static unsafe partial class Lua
 //       break;
 //     }
 //     case LUA_TNIL: case LUA_TBOOLEAN: {
-//       luaL_tolstring(L, arg, NULL);
+//       luaL_tolstring(L, arg, null);
 //       luaL_addvalue(b);
 //       break;
 //     }
@@ -1336,7 +1338,7 @@ public static unsafe partial class Lua
 //         case 'p': {
 //           const void *p = lua_topointer(L, arg);
 //           checkformat(L, form, L_FMTFLAGSC, 0);
-//           if (p == NULL) {  /* avoid calling 'printf' with argument NULL */
+//           if (p == null) {  /* avoid calling 'printf' with argument null */
 //             p = "(null)";  /* result */
 //             form[strlen(form) - 1] = 's';  /* format it as a string */
 //           }
@@ -1357,7 +1359,7 @@ public static unsafe partial class Lua
 //           else {
 //             luaL_argcheck(L, l == strlen(s), arg, "string contains zeros");
 //             checkformat(L, form, L_FMTFLAGSC, 1);
-//             if (strchr(form, '.') == NULL && l >= 100) {
+//             if (strchr(form, '.') == null && l >= 100) {
 //               /* no precision and string is too long to be formatted */
 //               luaL_addvalue(&b);  /* keep entire string */
 //             }
@@ -1372,7 +1374,7 @@ public static unsafe partial class Lua
 //           return luaL_error(L, "invalid conversion '%s' to 'format'", form);
 //         }
 //       }
-//       lua_assert(cast_uint(nb) < maxitem);
+//       Debug.Assert(cast_uint(nb) < maxitem);
 //       luaL_addsize(&b, cast_uint(nb));
 //     }
 //   }

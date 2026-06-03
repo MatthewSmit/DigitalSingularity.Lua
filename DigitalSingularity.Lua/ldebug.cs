@@ -15,22 +15,23 @@ public static unsafe partial class Lua
         L->hookcount = L->basehookcount;
     }
 
-    // /*
-// ** mark for entries in 'lineinfo' array that has absolute information in
-// ** 'abslineinfo' array
-// */
-// #define ABSLINEINFO	(-0x80)
-//
-//
-// /*
-// ** MAXimum number of successive Instructions WiTHout ABSolute line
-// ** information. (A power of two allows fast divisions.)
-// */
-// #if !defined(MAXIWTHABS)
-// #define MAXIWTHABS	128
-// #endif
-//
-//
+    /*
+    ** mark for entries in 'lineinfo' array that has absolute information in
+    ** 'abslineinfo' array
+    */
+    private const int ABSLINEINFO = -0x80;
+
+    /*
+    ** MAXimum number of successive Instructions WiTHout ABSolute line
+    ** information. (A power of two allows fast divisions.)
+    */
+    private const int MAXIWTHABS =
+#if LUA_TEST
+        3;
+#else
+        128;
+#endif
+
 // LUAI_FUNC int luaG_getfuncline (const Proto *f, int pc);
 // LUAI_FUNC const char *luaG_findlocal (lua_State *L, CallInfo *ci, int n,
 //                                                     StkId *pos);

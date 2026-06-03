@@ -328,7 +328,7 @@ private static int math_type (lua_State *L) {
 //   lua_Number res = (lua_Number)(sx) * scaleFIG;
 //   if (sx < 0)
 //     res += l_mathop(1.0);  /* correct the two's complement if negative */
-//   lua_assert(0 <= res && res < 1);
+//   Debug.Assert(0 <= res && res < 1);
 //   return res;
 // }
 //
@@ -371,7 +371,7 @@ private static int math_type (lua_State *L) {
 //
 // /* return i << n */
 // static Rand64 Ishl (Rand64 i, int n) {
-//   lua_assert(n > 0 && n < 32);
+//   Debug.Assert(n > 0 && n < 32);
 //   return packI((i.h << n) | (trim32(i.l) >> (32 - n)), i.l << n);
 // }
 //
@@ -401,14 +401,14 @@ private static int math_type (lua_State *L) {
 //
 // /* return 'i' rotated left 'n' bits */
 // static Rand64 rotl (Rand64 i, int n) {
-//   lua_assert(n > 0 && n < 32);
+//   Debug.Assert(n > 0 && n < 32);
 //   return packI((i.h << n) | (trim32(i.l) >> (32 - n)),
 //                (trim32(i.h) >> (32 - n)) | (i.l << n));
 // }
 //
 // /* for offsets larger than 32, rotate right by 64 - offset */
 // static Rand64 rotl1 (Rand64 i, int n) {
-//   lua_assert(n > 32 && n < 64);
+//   Debug.Assert(n > 32 && n < 64);
 //   n = 64 - n;
 //   return packI((trim32(i.h) >> n) | (i.l << (32 - n)),
 //                (i.h << (32 - n)) | (trim32(i.l) >> n));

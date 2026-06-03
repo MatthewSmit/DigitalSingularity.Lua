@@ -63,41 +63,56 @@ public static unsafe partial class Lua
         return (byte)((p >> (int)log) - 0x10 | log + 1 << 4);
     }
 
-// /*
-// ** Computes 'p' times 'x', where 'p' is a floating-point byte. Roughly,
-// ** we have to multiply 'x' by the mantissa and then shift accordingly to
-// ** the exponent.  If the exponent is positive, both the multiplication
-// ** and the shift increase 'x', so we have to care only about overflows.
-// ** For negative exponents, however, multiplying before the shift keeps
-// ** more significant bits, as long as the multiplication does not
-// ** overflow, so we check which order is best.
-// */
-// l_mem luaO_applyparam (lu_byte p, l_mem x) {
-//   int m = p & 0xF;  /* mantissa */
-//   int e = (p >> 4);  /* exponent */
-//   if (e > 0) {  /* normalized? */
-//     e--;  /* correct exponent */
-//     m += 0x10;  /* correct mantissa; maximum value is 0x1F */
-//   }
-//   e -= 7;  /* correct excess-7 */
-//   if (e >= 0) {
-//     if (x < (MAX_LMEM / 0x1F) >> e)  /* no overflow? */
-//       return (x * m) << e;  /* order doesn't matter here */
-//     else  /* real overflow */
-//       return MAX_LMEM;
-//   }
-//   else {  /* negative exponent */
-//     e = -e;
-//     if (x < MAX_LMEM / 0x1F)  /* multiplication cannot overflow? */
-//       return (x * m) >> e;  /* multiplying first gives more precision */
-//     else if ((x >> e) <  MAX_LMEM / 0x1F)  /* cannot overflow after shift? */
-//       return (x >> e) * m;
-//     else  /* real overflow */
-//       return MAX_LMEM;
-//   }
-// }
-//
-//
+    /*
+    ** Computes 'p' times 'x', where 'p' is a floating-point byte. Roughly,
+    ** we have to multiply 'x' by the mantissa and then shift accordingly to
+    ** the exponent.  If the exponent is positive, both the multiplication
+    ** and the shift increase 'x', so we have to care only about overflows.
+    ** For negative exponents, however, multiplying before the shift keeps
+    ** more significant bits, as long as the multiplication does not
+    ** overflow, so we check which order is best.
+    */
+    private static partial long luaO_applyparam(byte p, long x)
+    {
+        const long MAX_LMEM = 0x7FFFFFFFFFFFFFFFL;
+        
+        int m = p & 0xF; /* mantissa */
+        int e = (p >> 4); /* exponent */
+        if (e > 0)
+        {
+            /* normalized? */
+            e--; /* correct exponent */
+            m += 0x10; /* correct mantissa; maximum value is 0x1F */
+        }
+
+        e -= 7; /* correct excess-7 */
+        if (e >= 0)
+        {
+            if (x < (MAX_LMEM / 0x1F) >> e) /* no overflow? */
+            {
+                return (x * m) << e; /* order doesn't matter here */
+            }
+
+            /* real overflow */
+            return MAX_LMEM;
+        }
+
+        /* negative exponent */
+        e = -e;
+        if (x < MAX_LMEM / 0x1F) /* multiplication cannot overflow? */
+        {
+            return (x * m) >> e; /* multiplying first gives more precision */
+        }
+
+        if ((x >> e) < MAX_LMEM / 0x1F) /* cannot overflow after shift? */
+        {
+            return (x >> e) * m;
+        }
+
+        /* real overflow */
+        return MAX_LMEM;
+    }
+
 // static lua_Integer intarith (lua_State *L, int op, lua_Integer v1,
 //                                                    lua_Integer v2) {
 //   switch (op) {
@@ -113,7 +128,7 @@ public static unsafe partial class Lua
 //     case LUA_OPSHR: return luaV_shiftr(v1, v2);
 //     case LUA_OPUNM: return intop(-, 0, v1);
 //     case LUA_OPBNOT: return intop(^, ~l_castS2U(0), v1);
-//     default: lua_assert(0); return 0;
+//     default: Debug.Assert(0); return 0;
 //   }
 // }
 //
@@ -129,7 +144,7 @@ public static unsafe partial class Lua
 //     case LUA_OPIDIV: return luai_numidiv(L, v1, v2);
 //     case LUA_OPUNM: return luai_numunm(L, v1);
 //     case LUA_OPMOD: return luaV_modf(L, v1, v2);
-//     default: lua_assert(0); return 0;
+//     default: Debug.Assert(0); return 0;
 //   }
 // }
 //
@@ -181,7 +196,7 @@ public static unsafe partial class Lua
 //
 //
 // lu_byte luaO_hexavalue (int c) {
-//   lua_assert(lisxdigit(c));
+//   Debug.Assert(lisxdigit(c));
 //   if (lisdigit(c)) return cast_byte(c - '0');
 //   else return cast_byte((ltolower(c) - 'a') + 10);
 // }
@@ -270,7 +285,7 @@ public static unsafe partial class Lua
 // #endif
 //
 // /*
-// ** Convert string 's' to a Lua number (put in 'result'). Return NULL on
+// ** Convert string 's' to a Lua number (put in 'result'). Return null on
 // ** fail or the address of the ending '\0' on success. ('mode' == 'x')
 // ** means a hexadecimal numeral.
 // */
@@ -278,9 +293,9 @@ public static unsafe partial class Lua
 //   char *endptr;
 //   *result = (mode == 'x') ? lua_strx2number(s, &endptr)  /* try to convert */
 //                           : lua_str2number(s, &endptr);
-//   if (endptr == s) return NULL;  /* nothing recognized? */
+//   if (endptr == s) return null;  /* nothing recognized? */
 //   while (lisspace(cast_uchar(*endptr))) endptr++;  /* skip trailing spaces */
-//   return (*endptr == '\0') ? endptr : NULL;  /* OK iff no trailing chars */
+//   return (*endptr == '\0') ? endptr : null;  /* OK iff no trailing chars */
 // }
 //
 //
@@ -302,17 +317,17 @@ public static unsafe partial class Lua
 //   const char *pmode = strpbrk(s, ".xXnN");  /* look for special chars */
 //   int mode = pmode ? ltolower(cast_uchar(*pmode)) : 0;
 //   if (mode == 'n')  /* reject 'inf' and 'nan' */
-//     return NULL;
+//     return null;
 //   endptr = l_str2dloc(s, result, mode);  /* try to convert */
-//   if (endptr == NULL) {  /* failed? may be a different locale */
+//   if (endptr == null) {  /* failed? may be a different locale */
 //     char buff[L_MAXLENNUM + 1];
 //     const char *pdot = strchr(s, '.');
-//     if (pdot == NULL || strlen(s) > L_MAXLENNUM)
-//       return NULL;  /* string too long or no dot; fail */
+//     if (pdot == null || strlen(s) > L_MAXLENNUM)
+//       return null;  /* string too long or no dot; fail */
 //     strcpy(buff, s);  /* copy string to buffer */
 //     buff[pdot - s] = lua_getlocaledecpoint();  /* correct decimal point */
 //     endptr = l_str2dloc(buff, result, mode);  /* try again */
-//     if (endptr != NULL)
+//     if (endptr != null)
 //       endptr = s + (endptr - buff);  /* make relative to 's' */
 //   }
 //   return endptr;
@@ -340,13 +355,13 @@ public static unsafe partial class Lua
 //     for (; lisdigit(cast_uchar(*s)); s++) {
 //       int d = *s - '0';
 //       if (a >= MAXBY10 && (a > MAXBY10 || d > MAXLASTD + neg))  /* overflow? */
-//         return NULL;  /* do not accept it (as integer) */
+//         return null;  /* do not accept it (as integer) */
 //       a = a * 10 + cast_uint(d);
 //       empty = 0;
 //     }
 //   }
 //   while (lisspace(cast_uchar(*s))) s++;  /* skip trailing spaces */
-//   if (empty || *s != '\0') return NULL;  /* something wrong in the numeral */
+//   if (empty || *s != '\0') return null;  /* something wrong in the numeral */
 //   else {
 //     *result = l_castU2S((neg) ? 0u - a : a);
 //     return s;
@@ -357,10 +372,10 @@ public static unsafe partial class Lua
 // size_t luaO_str2num (const char *s, TValue *o) {
 //   lua_Integer i; lua_Number n;
 //   const char *e;
-//   if ((e = l_str2int(s, &i)) != NULL) {  /* try as an integer */
+//   if ((e = l_str2int(s, &i)) != null) {  /* try as an integer */
 //     setivalue(o, i);
 //   }
-//   else if ((e = l_str2d(s, &n)) != NULL) {  /* else try as a float */
+//   else if ((e = l_str2d(s, &n)) != null) {  /* else try as a float */
 //     setfltvalue(o, n);
 //   }
 //   else
@@ -371,7 +386,7 @@ public static unsafe partial class Lua
 //
 // int luaO_utf8esc (char *buff, l_uint32 x) {
 //   int n = 1;  /* number of bytes put in buffer (backwards) */
-//   lua_assert(x <= 0x7FFFFFFFu);
+//   Debug.Assert(x <= 0x7FFFFFFFu);
 //   if (x < 0x80)  /* ASCII? */
 //     buff[UTF8BUFFSZ - 1] = cast_char(x);
 //   else {  /* need continuation bytes */
@@ -414,7 +429,7 @@ public static unsafe partial class Lua
 //   /* first conversion */
 //   int len = l_sprintf(buff, LUA_N2SBUFFSZ, LUA_NUMBER_FMT,
 //                             (LUAI_UACNUMBER)n);
-//   lua_Number check = lua_str2number(buff, NULL);  /* read it back */
+//   lua_Number check = lua_str2number(buff, null);  /* read it back */
 //   if (check != n) {  /* not enough precision? */
 //     /* convert again with more precision */
 //     len = l_sprintf(buff, LUA_N2SBUFFSZ, LUA_NUMBER_FMT_N,
@@ -434,12 +449,12 @@ public static unsafe partial class Lua
 // */
 // unsigned luaO_tostringbuff (const TValue *obj, char *buff) {
 //   int len;
-//   lua_assert(ttisnumber(obj));
+//   Debug.Assert(ttisnumber(obj));
 //   if (ttisinteger(obj))
 //     len = lua_integer2str(buff, LUA_N2SBUFFSZ, ivalue(obj));
 //   else
 //     len = tostringbuffFloat(fltvalue(obj), buff);
-//   lua_assert(len < LUA_N2SBUFFSZ);
+//   Debug.Assert(len < LUA_N2SBUFFSZ);
 //   return cast_uint(len);
 // }
 //
@@ -532,8 +547,7 @@ public static unsafe partial class Lua
         else
         {
             TString* ts = tsvalue(s2v(buff->L->top.p - 1));
-            ReadOnlySpan<byte> tmp = new(getstr(ts), checked((int)tsslen(ts)));
-            return Encoding.UTF8.GetString(tmp);
+            return getnetstr(ts);
         }
 
         if (buff->b != buff->space) /* using dynamic buffer? */
@@ -571,10 +585,10 @@ public static unsafe partial class Lua
 //       size_t newsize = buff->buffsize + slen;  /* limited to MAX_SIZE/2 */
 //       char *newb =
 //         (buff->b == buff->space)  /* still using static space? */
-//         ? luaM_reallocvector(buff->L, NULL, 0, newsize, char)
+//         ? luaM_reallocvector(buff->L, null, 0, newsize, char)
 //         : luaM_reallocvector(buff->L, buff->b, buff->buffsize, newsize,
 //                                                                char);
-//       if (newb == NULL) {  /* allocation error? */
+//       if (newb == null) {  /* allocation error? */
 //         buff->err = 1;  /* signal a memory error */
 //         return;
 //       }
@@ -740,11 +754,11 @@ public static unsafe partial class Lua
 //     const char *nl = strchr(source, '\n');  /* find first new line (if any) */
 //     addstr(out, PRE, LL(PRE));  /* add prefix */
 //     bufflen -= LL(PRE RETS POS) + 1;  /* save space for prefix+suffix+'\0' */
-//     if (srclen < bufflen && nl == NULL) {  /* small one-line source? */
+//     if (srclen < bufflen && nl == null) {  /* small one-line source? */
 //       addstr(out, source, srclen);  /* keep it */
 //     }
 //     else {
-//       if (nl != NULL)
+//       if (nl != null)
 //         srclen = ct_diff2sz(nl - source);  /* stop at first newline */
 //       if (srclen > bufflen) srclen = bufflen;
 //       addstr(out, source, srclen);

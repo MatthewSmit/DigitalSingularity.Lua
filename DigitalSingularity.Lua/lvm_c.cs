@@ -92,7 +92,7 @@ public static unsafe partial class Lua
 // ** and return 0.
 // */
 // static int l_strton (const TValue *obj, TValue *result) {
-//   lua_assert(obj != result);
+//   Debug.Assert(obj != result);
 //   if (!cvt2num(obj))  /* is object not a string? */
 //     return 0;
 //   else {
@@ -520,7 +520,7 @@ public static unsafe partial class Lua
 // ** Return 'l < r', for numbers.
 // */
 // l_sinline int LTnum (const TValue *l, const TValue *r) {
-//   lua_assert(ttisnumber(l) && ttisnumber(r));
+//   Debug.Assert(ttisnumber(l) && ttisnumber(r));
 //   if (ttisinteger(l)) {
 //     lua_Integer li = ivalue(l);
 //     if (ttisinteger(r))
@@ -542,7 +542,7 @@ public static unsafe partial class Lua
 // ** Return 'l <= r', for numbers.
 // */
 // l_sinline int LEnum (const TValue *l, const TValue *r) {
-//   lua_assert(ttisnumber(l) && ttisnumber(r));
+//   Debug.Assert(ttisnumber(l) && ttisnumber(r));
 //   if (ttisinteger(l)) {
 //     lua_Integer li = ivalue(l);
 //     if (ttisinteger(r))
@@ -564,7 +564,7 @@ public static unsafe partial class Lua
 // ** return 'l < r' for non-numbers.
 // */
 // static int lessthanothers (lua_State *L, const TValue *l, const TValue *r) {
-//   lua_assert(!ttisnumber(l) || !ttisnumber(r));
+//   Debug.Assert(!ttisnumber(l) || !ttisnumber(r));
 //   if (ttisstring(l) && ttisstring(r))  /* both are strings? */
 //     return l_strcmp(tsvalue(l), tsvalue(r)) < 0;
 //   else
@@ -586,7 +586,7 @@ public static unsafe partial class Lua
 // ** return 'l <= r' for non-numbers.
 // */
 // static int lessequalothers (lua_State *L, const TValue *l, const TValue *r) {
-//   lua_assert(!ttisnumber(l) || !ttisnumber(r));
+//   Debug.Assert(!ttisnumber(l) || !ttisnumber(r));
 //   if (ttisstring(l) && ttisstring(r))  /* both are strings? */
 //     return l_strcmp(tsvalue(l), tsvalue(r)) <= 0;
 //   else
@@ -602,17 +602,20 @@ public static unsafe partial class Lua
 //     return LEnum(l, r);
 //   else return lessequalothers(L, l, r);
 // }
-//
-//
-// /*
-// ** Main operation for equality of Lua values; return 't1 == t2'.
-// ** L == NULL means raw equality (no metamethods)
-// */
-// int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2) {
-//   const TValue *tm;
-//   if (ttype(t1) != ttype(t2))  /* not the same type? */
-//     return 0;
-//   else if (ttypetag(t1) != ttypetag(t2)) {
+
+    /*
+    ** Main operation for equality of Lua values; return 't1 == t2'.
+    ** L == null means raw equality (no metamethods)
+    */
+    private static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2)
+    {
+        if (ttype(t1) != ttype(t2)) /* not the same type? */
+        {
+            return false;
+        }
+
+        if (ttypetag(t1) != ttypetag(t2))
+        {
 //     switch (ttypetag(t1)) {
 //       case LUA_VNUMINT: {  /* integer == float? */
 //         /* integer and float can only be equal if float has an integer
@@ -637,51 +640,92 @@ public static unsafe partial class Lua
 //            equal values with different variants */
 //         return 0;
 //     }
-//   }
-//   else {  /* equal variants */
-//     switch (ttypetag(t1)) {
-//       case LUA_VNIL: case LUA_VFALSE: case LUA_VTRUE:
-//         return 1;
-//       case LUA_VNUMINT:
-//         return (ivalue(t1) == ivalue(t2));
-//       case LUA_VNUMFLT:
-//         return (fltvalue(t1) == fltvalue(t2));
-//       case LUA_VLIGHTUSERDATA: return pvalue(t1) == pvalue(t2);
-//       case LUA_VSHRSTR:
-//         return eqshrstr(tsvalue(t1), tsvalue(t2));
-//       case LUA_VLNGSTR:
-//         return luaS_eqstr(tsvalue(t1), tsvalue(t2));
-//       case LUA_VUSERDATA: {
-//         if (uvalue(t1) == uvalue(t2)) return 1;
-//         else if (L == NULL) return 0;
-//         tm = fasttm(L, uvalue(t1)->metatable, TM_EQ);
-//         if (tm == NULL)
-//           tm = fasttm(L, uvalue(t2)->metatable, TM_EQ);
-//         break;  /* will try TM */
-//       }
-//       case LUA_VTABLE: {
-//         if (hvalue(t1) == hvalue(t2)) return 1;
-//         else if (L == NULL) return 0;
-//         tm = fasttm(L, hvalue(t1)->metatable, TM_EQ);
-//         if (tm == NULL)
-//           tm = fasttm(L, hvalue(t2)->metatable, TM_EQ);
-//         break;  /* will try TM */
-//       }
-//       case LUA_VLCF:
-//         return (fvalue(t1) == fvalue(t2));
-//       default:  /* functions and threads */
-//         return (gcvalue(t1) == gcvalue(t2));
-//     }
-//     if (tm == NULL)  /* no TM? */
-//       return 0;  /* objects are different */
-//     else {
+            throw new NotImplementedException();
+        }
+
+        /* equal variants */
+        TValue* tm;
+        switch (ttypetag(t1))
+        {
+            case LUA_VNIL:
+            case LUA_VFALSE:
+            case LUA_VTRUE:
+                return true;
+
+            case LUA_VNUMINT:
+                return ivalue(t1) == ivalue(t2);
+
+            case LUA_VNUMFLT:
+                // ReSharper disable once CompareOfFloatsByEqualityOperator
+                return fltvalue(t1) == fltvalue(t2);
+
+            case LUA_VLIGHTUSERDATA:
+                return pvalue(t1) == pvalue(t2);
+
+            case LUA_VSHRSTR:
+                return eqshrstr(tsvalue(t1), tsvalue(t2));
+
+            case LUA_VLNGSTR:
+                // return luaS_eqstr(tsvalue(t1), tsvalue(t2));
+                throw new NotImplementedException();
+
+            case LUA_VUSERDATA:
+                if (uvalue(t1) == uvalue(t2))
+                {
+                    return true;
+                }
+
+                if (L == null)
+                {
+                    return false;
+                }
+
+                tm = fasttm(L, uvalue(t1)->metatable, TMS.EQ);
+                if (tm == null)
+                {
+                    tm = fasttm(L, uvalue(t2)->metatable, TMS.EQ);
+                }
+
+                break; /* will try TM */
+
+            case LUA_VTABLE:
+                {
+                    if (hvalue(t1) == hvalue(t2))
+                    {
+                        return true;
+                    }
+
+                    if (L == null)
+                    {
+                        return false;
+                    }
+
+                    tm = fasttm(L, hvalue(t1)->metatable, TMS.EQ);
+                    if (tm == null)
+                    {
+                        tm = fasttm(L, hvalue(t2)->metatable, TMS.EQ);
+                    }
+
+                    break; /* will try TM */
+                }
+
+            case LUA_VLCF:
+                return fvalue(t1) == fvalue(t2);
+
+            default: /* functions and threads */
+                return gcvalue(t1) == gcvalue(t2);
+        }
+
+        if (tm == null) /* no TM? */
+        {
+            return false; /* objects are different */
+        }
+
 //       int tag = luaT_callTMres(L, tm, t1, t2, L->top.p);  /* call TM */
 //       return !tagisfalse(tag);
-//     }
-//   }
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // /* macro used by 'luaV_concat' to ensure that element at 'o' is a string */
 // #define tostring(L,o)  \
 // 	(ttisstring(o) || (cvt2str(o) && (luaO_tostring(L, o), 1)))
@@ -903,7 +947,7 @@ public static unsafe partial class Lua
 //     case OP_EQ: {  /* note that 'OP_EQI'/'OP_EQK' cannot yield */
 //       int res = !l_isfalse(s2v(L->top.p - 1));
 //       L->top.p--;
-//       lua_assert(GET_OPCODE(*ci->u.l.savedpc) == OP_JMP);
+//       Debug.Assert(GET_OPCODE(*ci->u.l.savedpc) == OP_JMP);
 //       if (res != GETARG_k(inst))  /* condition failed? */
 //         ci->u.l.savedpc++;  /* skip jump instruction */
 //       break;
@@ -932,7 +976,7 @@ public static unsafe partial class Lua
 //     }
 //     default: {
 //       /* only these other opcodes can yield */
-//       lua_assert(op == OP_TFORCALL || op == OP_CALL ||
+//       Debug.Assert(op == OP_TFORCALL || op == OP_CALL ||
 //            op == OP_TAILCALL || op == OP_SETTABUP || op == OP_SETTABLE ||
 //            op == OP_SETI || op == OP_SETFIELD);
 //       break;
@@ -1011,7 +1055,7 @@ public static unsafe partial class Lua
 // */
 // #define op_arithfK(L,fop) {  \
 //   TValue *v1 = vRB(i);  \
-//   TValue *v2 = KC(i); lua_assert(ttisnumber(v2));  \
+//   TValue *v2 = KC(i); Debug.Assert(ttisnumber(v2));  \
 //   op_arithf_aux(L, v1, v2, fop); }
 //
 //
@@ -1041,7 +1085,7 @@ public static unsafe partial class Lua
 // */
 // #define op_arithK(L,iop,fop) {  \
 //   TValue *v1 = vRB(i);  \
-//   TValue *v2 = KC(i); lua_assert(ttisnumber(v2));  \
+//   TValue *v2 = KC(i); Debug.Assert(ttisnumber(v2));  \
 //   op_arith_aux(L, v1, v2, iop, fop); }
 //
 //
@@ -1255,10 +1299,10 @@ public static unsafe partial class Lua
 //              opnames[GET_OPCODE(i)], pcrel);
 //     }
 //     #endif
-//     lua_assert(base == ci->func.p + 1);
-//     lua_assert(base <= L->top.p && L->top.p <= L->stack_last.p);
+//     Debug.Assert(base == ci->func.p + 1);
+//     Debug.Assert(base <= L->top.p && L->top.p <= L->stack_last.p);
 //     /* for tests, invalidate top for instructions not expecting it */
-//     lua_assert(luaP_isIT(i) || (cast_void(L->top.p = base), 1));
+//     Debug.Assert(luaP_isIT(i) || (cast_void(L->top.p = base), 1));
 //     vmdispatch (GET_OPCODE(i)) {
 //       vmcase(OP_MOVE) {
 //         StkId ra = RA(i);
@@ -1442,7 +1486,7 @@ public static unsafe partial class Lua
 //         if (b > 0)
 //           b = 1u << (b - 1);  /* hash size is 2^(b - 1) */
 //         if (TESTARG_k(i)) {  /* non-zero extra argument? */
-//           lua_assert(GETARG_Ax(*pc) != 0);
+//           Debug.Assert(GETARG_Ax(*pc) != 0);
 //           /* add it to array size */
 //           c += cast_uint(GETARG_Ax(*pc)) * (MAXARG_vC + 1);
 //         }
@@ -1589,7 +1633,7 @@ public static unsafe partial class Lua
 //         TValue *rb = vRB(i);
 //         TMS tm = (TMS)GETARG_C(i);
 //         StkId result = RA(pi);
-//         lua_assert(OP_ADD <= GET_OPCODE(pi) && GET_OPCODE(pi) <= OP_SHR);
+//         Debug.Assert(OP_ADD <= GET_OPCODE(pi) && GET_OPCODE(pi) <= OP_SHR);
 //         Protect(luaT_trybinTM(L, s2v(ra), rb, result, tm));
 //         vmbreak;
 //       }
@@ -1663,7 +1707,7 @@ public static unsafe partial class Lua
 //       }
 //       vmcase(OP_CLOSE) {
 //         StkId ra = RA(i);
-//         lua_assert(!GETARG_B(i));  /* 'close must be alive */
+//         Debug.Assert(!GETARG_B(i));  /* 'close must be alive */
 //         Protect(luaF_close(L, ra, LUA_OK, 1));
 //         vmbreak;
 //       }
@@ -1756,7 +1800,7 @@ public static unsafe partial class Lua
 //           L->top.p = ra + b;  /* top signals number of arguments */
 //         /* else previous instruction set top */
 //         savepc(ci);  /* in case of errors */
-//         if ((newci = luaD_precall(L, ra, nresults)) == NULL)
+//         if ((newci = luaD_precall(L, ra, nresults)) == null)
 //           updatetrap(ci);  /* C call; nothing else to be done */
 //         else {  /* Lua call: run function in this same C frame */
 //           ci = newci;
@@ -1778,8 +1822,8 @@ public static unsafe partial class Lua
 //         savepc(ci);  /* several calls here can raise errors */
 //         if (TESTARG_k(i)) {
 //           luaF_closeupval(L, base);  /* close upvalues from current call */
-//           lua_assert(L->tbclist.p < base);  /* no pending tbc variables */
-//           lua_assert(base == ci->func.p + 1);
+//           Debug.Assert(L->tbclist.p < base);  /* no pending tbc variables */
+//           Debug.Assert(base == ci->func.p + 1);
 //         }
 //         if ((n = luaD_pretailcall(L, ci, ra, b, delta)) < 0)  /* Lua function? */
 //           goto startfunc;  /* execute the callee */
@@ -1899,7 +1943,7 @@ public static unsafe partial class Lua
 //         halfProtect(luaF_newtbcupval(L, ra + 2));
 //         pc += GETARG_Bx(i);  /* go to end of the loop */
 //         i = *(pc++);  /* fetch next instruction */
-//         lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
+//         Debug.Assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
 //         goto l_tforcall;
 //       }
 //       vmcase(OP_TFORCALL) {
@@ -1918,7 +1962,7 @@ public static unsafe partial class Lua
 //         ProtectNT(luaD_call(L, ra + 3, GETARG_C(i)));  /* do the call */
 //         updatestack(ci);  /* stack may have changed */
 //         i = *(pc++);  /* go to next instruction */
-//         lua_assert(GET_OPCODE(i) == OP_TFORLOOP && ra == RA(i));
+//         Debug.Assert(GET_OPCODE(i) == OP_TFORLOOP && ra == RA(i));
 //         goto l_tforloop;
 //       }}
 //       vmcase(OP_TFORLOOP) {
@@ -1945,7 +1989,7 @@ public static unsafe partial class Lua
 //         /* when 'n' is known, table should have proper size */
 //         if (last > h->asize) {  /* needs more space? */
 //           /* fixed-size sets should have space preallocated */
-//           lua_assert(GETARG_vB(i) == 0);
+//           Debug.Assert(GETARG_vB(i) == 0);
 //           luaH_resizearray(L, h, last);  /* preallocate it at once */
 //         }
 //         for (; n > 0; n--) {
@@ -1992,7 +2036,7 @@ public static unsafe partial class Lua
 //         vmbreak;
 //       }
 //       vmcase(OP_EXTRAARG) {
-//         lua_assert(0);
+//         Debug.Assert(0);
 //         vmbreak;
 //       }
 //     }

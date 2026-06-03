@@ -3,7 +3,7 @@ namespace DigitalSingularity.Lua;
 public static unsafe partial class Lua
 {
     /* version suffix for environment variable names */
-    private static readonly string LUA_VERSUFFIX = $"_{LUA_VERSION_MAJOR_N}_{LUA_VERSION_MINOR_N}";
+    public static readonly string LUA_VERSUFFIX = $"_{LUA_VERSION_MAJOR_N}_{LUA_VERSION_MINOR_N}";
 
     private const int LUA_GLIBK = 1;
     private static partial int luaopen_base(lua_State* L);

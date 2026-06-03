@@ -1,5 +1,6 @@
 ﻿namespace DigitalSingularity.Lua.Cli;
 
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using static Lua;
@@ -7,15 +8,12 @@ using static Lua;
 public static unsafe class Program
 {
     private const string LUA_PROGNAME = "lua";
-    
-// #if !defined(LUA_INIT_VAR)
-// #define LUA_INIT_VAR		"LUA_INIT"
-// #endif
-//
-// #define LUA_INITVARVERSION	LUA_INIT_VAR LUA_VERSUFFIX
-//
-//
-// static lua_State *globalL = NULL;
+
+    private const string LUA_INIT_VAR = "LUA_INIT";
+
+    private static readonly string LUA_INITVARVERSION = LUA_INIT_VAR + LUA_VERSUFFIX;
+
+    // static lua_State *globalL = null;
 
     private static string progname = LUA_PROGNAME;
 
@@ -29,7 +27,7 @@ public static unsafe class Program
 //   sa.sa_handler = handler;
 //   sa.sa_flags = 0;
 //   sigemptyset(&sa.sa_mask);  /* do not mask any signal */
-//   sigaction(sig, &sa, NULL);
+//   sigaction(sig, &sa, null);
 // }
 //
 // #else           /* }{ */
@@ -44,7 +42,7 @@ public static unsafe class Program
 // */
 // static void lstop (lua_State *L, lua_Debug *ar) {
 //   (void)ar;  /* unused arg. */
-//   lua_sethook(L, NULL, 0, 0);  /* reset hook */
+//   lua_sethook(L, null, 0, 0);  /* reset hook */
 //   luaL_error(L, "interrupted!");
 // }
 //
@@ -103,7 +101,7 @@ public static unsafe class Program
         if (status != LUA_OK)
         {
             // const char *msg = lua_tostring(L, -1);
-            // if (msg == NULL)
+            // if (msg == null)
             //   msg = "(error message not a string)";
             // l_message(progname, msg);
             // lua_pop(L, 1);  /* remove message */
@@ -118,7 +116,7 @@ public static unsafe class Program
 // */
 // static int msghandler (lua_State *L) {
 //   const char *msg = lua_tostring(L, 1);
-//   if (msg == NULL) {  /* is error object not a string? */
+//   if (msg == null) {  /* is error object not a string? */
 //     if (luaL_callmeta(L, 1, "__tostring") &&  /* does it have a metamethod */
 //         lua_type(L, -1) == LUA_TSTRING)  /* that produces a string? */
 //       return 1;  /* that is the message */
@@ -165,33 +163,34 @@ public static unsafe class Program
     */
     private static void createargtable(lua_State* L, ReadOnlySpan<string> argv, int script)
     {
-//   int i, narg;
-//   narg = argc - (script + 1);  /* number of positive indices */
-//   lua_createtable(L, narg, script + 1);
-//   for (i = 0; i < argc; i++) {
-//     lua_pushstring(L, argv[i]);
-//     lua_rawseti(L, -2, i - script);
-//   }
-//   lua_setglobal(L, "arg");
-        throw new NotImplementedException();
+        int narg = argv.Length - (script + 1); /* number of positive indices */
+        lua_createtable(L, narg, script + 1);
+        for (int i = 0; i < argv.Length; i++)
+        {
+            lua_pushstring(L, argv[i]);
+            lua_rawseti(L, -2, i - script);
+        }
+
+        lua_setglobal(L, "arg");
     }
 
 // static int dochunk (lua_State *L, int status) {
 //   if (status == LUA_OK) status = docall(L, 0, 0);
 //   return report(L, status);
 // }
-//
-//
-// static int dofile (lua_State *L, const char *name) {
+
+    private static int dofile(lua_State* L, string? name)
+    {
 //   return dochunk(L, luaL_loadfile(L, name));
-// }
-//
-//
-// static int dostring (lua_State *L, const char *s, const char *name) {
-//   return dochunk(L, luaL_loadbuffer(L, s, strlen(s), name));
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
+    private static int dostring(lua_State* L, string s, string name)
+    {
+        // return dochunk(L, luaL_loadbuffer(L, s, strlen(s), name));
+        throw new NotImplementedException();
+    }
+
 // /*
 // ** Receives 'globname[=modname]' and runs 'globname = require(modname)'.
 // ** If there is no explicit modname and globname contains a '-', cut
@@ -199,9 +198,9 @@ public static unsafe class Program
 // */
 // static int dolibrary (lua_State *L, char *globname) {
 //   int status;
-//   char *suffix = NULL;
+//   char *suffix = null;
 //   char *modname = strchr(globname, '=');
-//   if (modname == NULL) {  /* no explicit name? */
+//   if (modname == null) {  /* no explicit name? */
 //     modname = globname;  /* module name is equal to global name */
 //     suffix = strchr(modname, *LUA_IGMARK);  /* look for a suffix mark */
 //   }
@@ -213,7 +212,7 @@ public static unsafe class Program
 //   lua_pushstring(L, modname);
 //   status = docall(L, 1, 1);  /* call 'require(modname)' */
 //   if (status == LUA_OK) {
-//     if (suffix != NULL)  /* is there a suffix mark? */
+//     if (suffix != null)  /* is there a suffix mark? */
 //       *suffix = '\0';  /* remove suffix from global name */
 //     lua_setglobal(L, globname);  /* globname = require(modname) */
 //   }
@@ -236,19 +235,23 @@ public static unsafe class Program
 //   return n;
 // }
 
-    private static int handle_script(lua_State* L, ReadOnlySpan<string> argv)
+    private static int handle_script(lua_State* L, ReadOnlySpan<string> argv, string s)
     {
-//   int status;
-//   const char *fname = argv[0];
-//   if (strcmp(fname, "-") == 0 && strcmp(argv[-1], "--") != 0)
-//     fname = NULL;  /* stdin */
-//   status = luaL_loadfile(L, fname);
-//   if (status == LUA_OK) {
+        string? fname = argv[0];
+        if (fname == "-" && s != "--")
+        {
+            fname = null; /* stdin */
+        }
+
+        int status = luaL_loadfile(L, fname);
+        if (status == LUA_OK)
+        {
 //     int n = pushargs(L);  /* push arguments to script */
-//     status = docall(L, n, LUA_MULTRET);
-//   }
-//   return report(L, status);
-        throw new NotImplementedException();
+//     status = docall(L, n, LUA_MULTRET);v
+            throw new NotImplementedException();
+        }
+
+        return report(L, status);
     }
 
 
@@ -301,7 +304,7 @@ public static unsafe class Program
 //         if (argv[i][2] != '\0')  /* extra characters after '--'? */
 //           return has_error;  /* invalid option */
 //         /* if there is a script name, it comes after '--' */
-//         *first = (argv[i + 1] != NULL) ? i + 1 : 0;
+//         *first = (argv[i + 1] != null) ? i + 1 : 0;
 //         return args;
                     throw new NotImplementedException();
 
@@ -339,7 +342,7 @@ public static unsafe class Program
                 case 'l': /* both options need an argument */
 //         if (argv[i][2] == '\0') {  /* no concatenated argument? */
 //           i++;  /* try next 'argv' */
-//           if (argv[i] == NULL || argv[i][0] == '-')
+//           if (argv[i] == null || argv[i][0] == '-')
 //             return has_error;  /* no next argument or it is another option */
 //         }
 //         break;
@@ -361,17 +364,17 @@ public static unsafe class Program
     */
     private static bool runargs(lua_State* L, ReadOnlySpan<string> argv, int n)
     {
-//   int i;
-//   lua_warning(L, "@off", 0);  /* by default, Lua stand-alone has warnings off */
-//   for (i = 1; i < n; i++) {
-//     int option = argv[i][1];
-//     lua_assert(argv[i][0] == '-');  /* already checked */
+        lua_warning(L, "@off", false); /* by default, Lua stand-alone has warnings off */
+        for (int i = 1; i < n; i++)
+        {
+            int option = argv[i][1];
+            Debug.Assert(argv[i][0] == '-');  /* already checked */
 //     switch (option) {
 //       case 'e':  case 'l': {
 //         int status;
 //         char *extra = argv[i] + 2;  /* both options need an argument */
 //         if (*extra == '\0') extra = argv[++i];
-//         lua_assert(extra != NULL);
+//         Debug.Assert(extra != null);
 //         status = (option == 'e')
 //                  ? dostring(L, extra, "=(command line)")
 //                  : dolibrary(L, extra);
@@ -382,25 +385,33 @@ public static unsafe class Program
 //         lua_warning(L, "@on", 0);  /* warnings on */
 //         break;
 //     }
-//   }
-//   return 1;
-        throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
+
+        return true;
     }
 
     private static int handle_luainit(lua_State* L)
     {
-//   const char *name = "=" LUA_INITVARVERSION;
-//   const char *init = getenv(name + 1);
-//   if (init == NULL) {
-//     name = "=" LUA_INIT_VAR;
-//     init = getenv(name + 1);  /* try alternative name */
-//   }
-//   if (init == NULL) return LUA_OK;
-//   else if (init[0] == '@')
-//     return dofile(L, init+1);
-//   else
-//     return dostring(L, init, name);
-        throw new NotImplementedException();
+        string name = "=" + LUA_INITVARVERSION;
+        string? init = Environment.GetEnvironmentVariable(name[1..]);
+        if (init == null)
+        {
+            name = "=" + LUA_INIT_VAR;
+            init = Environment.GetEnvironmentVariable(name[1..]); /* try alternative name */
+        }
+
+        if (init == null)
+        {
+            return LUA_OK;
+        }
+
+        if (init[0] == '@')
+        {
+            return dofile(L, init + 1);
+        }
+
+        return dostring(L, init, name);
     }
 
 // /*
@@ -474,15 +485,15 @@ public static unsafe class Program
 //
 // /* pointer to 'readline' function (if any) */
 // typedef char *(*l_readlineT) (const char *prompt);
-// static l_readlineT l_readline = NULL;
+// static l_readlineT l_readline = null;
 //
 // /* pointer to 'add_history' function (if any) */
 // typedef void (*l_addhistT) (const char *string);
-// static l_addhistT l_addhist = NULL;
+// static l_addhistT l_addhist = null;
 //
 //
 // static char *lua_readline (char *buff, const char *prompt) {
-//   if (l_readline != NULL)  /* is there a 'readline'? */
+//   if (l_readline != null)  /* is there a 'readline'? */
 //     return (*l_readline)(prompt);  /* use it */
 //   else {  /* emulate 'readline' over 'buff' */
 //     fputs(prompt, stdout);
@@ -493,14 +504,14 @@ public static unsafe class Program
 //
 //
 // static void lua_saveline (const char *line) {
-//   if (l_addhist != NULL)  /* is there an 'add_history'? */
+//   if (l_addhist != null)  /* is there an 'add_history'? */
 //     (*l_addhist)(line);  /* use it */
 //   /* else nothing to be done */
 // }
 //
 //
 // static void lua_freeline (char *line) {
-//   if (l_readline != NULL)  /* is there a 'readline'? */
+//   if (l_readline != null)  /* is there a 'readline'? */
 //     free(line);  /* free line created by it */
 //   /* else 'lua_readline' used an automatic buffer; nothing to free */
 // }
@@ -513,15 +524,15 @@ public static unsafe class Program
 //
 // static void lua_initreadline (lua_State *L) {
 //   void *lib = dlopen(LUA_READLINELIB, RTLD_NOW | RTLD_LOCAL);
-//   if (lib == NULL)
+//   if (lib == null)
 //     lua_warning(L, "library '" LUA_READLINELIB "' not found", 0);
 //   else {
 //     const char **name = cast(const char**, dlsym(lib, "rl_readline_name"));
-//     if (name != NULL)
+//     if (name != null)
 //       *name = "lua";
 //     l_readline = cast(l_readlineT, cast_func(dlsym(lib, "readline")));
 //     l_addhist = cast(l_addhistT, cast_func(dlsym(lib, "add_history")));
-//     if (l_readline == NULL)
+//     if (l_readline == null)
 //       lua_warning(L, "unable to load 'readline'", 0);
 //   }
 // }
@@ -529,7 +540,7 @@ public static unsafe class Program
 // #else		/* }{ */
 // /* no dlopen or LUA_READLINELIB undefined */
 //
-// /* Leave pointers with NULL */
+// /* Leave pointers with null */
 // #define lua_initreadline(L)	((void)L)
 //
 // #endif		/* } */
@@ -548,7 +559,7 @@ public static unsafe class Program
 //   if (lua_getglobal(L, firstline ? "_PROMPT" : "_PROMPT2") == LUA_TNIL)
 //     return (firstline ? LUA_PROMPT : LUA_PROMPT2);  /* use the default */
 //   else {  /* apply 'tostring' over the value */
-//     const char *p = luaL_tolstring(L, -1, NULL);
+//     const char *p = luaL_tolstring(L, -1, null);
 //     lua_remove(L, -2);  /* remove original value */
 //     return p;
 //   }
@@ -584,7 +595,7 @@ public static unsafe class Program
 //   const char *prmt = get_prompt(L, firstline);
 //   char *b = lua_readline(buffer, prmt);
 //   lua_pop(L, 1);  /* remove prompt */
-//   if (b == NULL)
+//   if (b == null)
 //     return 0;  /* no input */
 //   l = strlen(b);
 //   if (l > 0 && b[l-1] == '\n')  /* line ends with newline? */
@@ -616,7 +627,7 @@ public static unsafe class Program
 //   static const char space[] = " \t";
 //   line += strspn(line, space);  /* skip spaces */
 //   if (strncmp(line, "local", szloc) == 0 &&  /* "local"? */
-//       strchr(space, *(line + szloc)) != NULL) {  /* followed by a space? */
+//       strchr(space, *(line + szloc)) != null) {  /* followed by a space? */
 //     lua_writestringerror("%s\n",
 //       "warning: locals do not survive across lines in interactive mode");
 //   }
@@ -663,7 +674,7 @@ public static unsafe class Program
 //   if (line[0] != '\0')  /* non empty? */
 //     lua_saveline(line);  /* keep history */
 //   lua_remove(L, 1);  /* remove line from the stack */
-//   lua_assert(lua_gettop(L) == 1);
+//   Debug.Assert(lua_gettop(L) == 1);
 //   return status;
 // }
 //
@@ -691,7 +702,7 @@ public static unsafe class Program
     {
 //   int status;
 //   const char *oldprogname = progname;
-//   progname = NULL;  /* no 'progname' on errors in interactive mode */
+//   progname = null;  /* no 'progname' on errors in interactive mode */
 //   lua_initreadline(L);
 //   while ((status = loadline(L)) != -1) {
 //     if (status == LUA_OK)
@@ -748,8 +759,7 @@ public static unsafe class Program
         }
         else
         {
-            luai_openlibs(L);
-            // openlibs.Invoke(null, [(nint)L]); /* open standard libraries */
+            openlibs.Invoke(null, [(nint)L]); /* open standard libraries */
         }
 
         createargtable(L, argv.AsSpan(), script); /* create table 'arg' */
@@ -772,7 +782,7 @@ public static unsafe class Program
         if (script > 0)
         {
             /* execute main script (if there is one) */
-            if (handle_script(L, argv.AsSpan(script)) != LUA_OK)
+            if (handle_script(L, argv.AsSpan(script), argv[script - 1]) != LUA_OK)
             {
                 return 0; /* interrupt in case of error */
             }
@@ -784,18 +794,18 @@ public static unsafe class Program
         }
         else if (script < 1 && (args & (has_e | has_v)) == 0)
         {
-            // /* no active option? */
-            // if (lua_stdin_is_tty())
-            // {
-            //     /* running in interactive mode? */
-            //     print_version();
-            //     doREPL(L); /* do read-eval-print loop */
-            // }
-            // else
-            // {
-            //     dofile(L, NULL); /* executes stdin as a file */
-            // }
-            throw new NotImplementedException();
+            /* no active option? */
+            if (!Console.IsInputRedirected)
+            {
+                //     /* running in interactive mode? */
+                //     print_version();
+                //     doREPL(L); /* do read-eval-print loop */
+                throw new NotImplementedException();
+            }
+            else
+            {
+                dofile(L, null); /* executes stdin as a file */
+            }
         }
 
         lua_pushboolean(L, true); /* signal no errors */
@@ -804,6 +814,8 @@ public static unsafe class Program
 
     public static int Main(string[] args)
     {
+        args = [@"E:\DigitalSingularity.Lua\DigitalSingularity.Lua.Test\lua\math.lua"];
+        
         lua_State* L = luaL_newstate(); /* create state */
         if (L == null)
         {

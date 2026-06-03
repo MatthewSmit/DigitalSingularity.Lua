@@ -39,14 +39,24 @@ public static unsafe partial class Lua
         return n <= long.MaxValue / sizeof(T) ? n : (int)(long.MaxValue / sizeof(T));
     }
 
-    // /*
-// ** Arrays of chars do not need any test
-// */
-// #define luaM_reallocvchar(L,b,on,n)  \
-//   cast_charp(luaM_saferealloc_(L, (b), (on)*sizeof(char), (n)*sizeof(char)))
-//
-// #define luaM_freemem(L, b, s)	luaM_free_(L, (b), (s))
-// #define luaM_free(L, b)		luaM_free_(L, (b), sizeof(*(b)))
+    /*
+    ** Arrays of chars do not need any test
+    */
+    private static byte* luaM_reallocvchar(lua_State* L, byte* b, long on, long n)
+    {
+        return (byte*)luaM_saferealloc_(L, b, on, n);
+    }
+
+    private static void luaM_freemem(lua_State* L, void* b, long s)
+    {
+        luaM_free_(L, b, s);
+    }
+
+    private static void luaM_free<T>(lua_State* L, T* b)
+        where T : unmanaged
+    {
+        luaM_free_(L, b, sizeof(T));
+    }
 
     private static void luaM_freearray<T>(lua_State* L, T* b, long n)
         where T : unmanaged
@@ -85,9 +95,18 @@ public static unsafe partial class Lua
         return luaM_newvector<byte>(L, size);
     }
 
-    // #define luaM_growvector(L,v,nelems,size,t,limit,e) \
-// 	((v)=cast(t *, luaM_growaux_(L,v,nelems,&(size),sizeof(t), \
-//                          luaM_limitN(limit,t),e)))
+    private static T* luaM_growvector<T>(lua_State* L, ref T* v, int nelems, ref int size, long limit, string e)
+        where T : unmanaged
+    {
+        return v = (T*)luaM_growaux_(
+            L,
+            v,
+            nelems,
+            ref size,
+            sizeof(T),
+            checked((int)luaM_limitN<T>(limit)),
+            e);
+    }
 
     private static T* luaM_reallocvector<T>(lua_State* L, void* v, long oldn, long n)
         where T : unmanaged
@@ -109,15 +128,20 @@ public static unsafe partial class Lua
 
     /* not to be called directly */
     private static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size);
-    
-// LUAI_FUNC void *luaM_saferealloc_ (lua_State *L, void *block, size_t oldsize,
-//                                                               size_t size);
+
+    private static partial void* luaM_saferealloc_(lua_State* L, void* block, long oldsize, long size);
 
     private static partial void luaM_free_(lua_State* L, void* block, long osize);
 
-// LUAI_FUNC void *luaM_growaux_ (lua_State *L, void *block, int nelems,
-//                                int *size, unsigned size_elem, int limit,
-//                                const char *what);
+    private static partial void* luaM_growaux_(
+        lua_State* L,
+        void* block,
+        int nelems,
+        ref int psize,
+        int size_elem,
+        int limit,
+        string what);
+    
 // LUAI_FUNC void *luaM_shrinkvector_ (lua_State *L, void *block, int *nelem,
 //                                     int final_n, unsigned size_elem);
     private static partial void* luaM_malloc_(lua_State* L, long size, int tag);

@@ -329,7 +329,7 @@ static luaL_Reg ct_funcs[] = {
   {"wrap",	ct_wrap },
   {"yield",	ct_yield },
   {"lightud",	ct_lightud },
-  {NULL, NULL}
+  {null, null}
 };
 
 LUA_API int luaopen_ctest(lua_State *L)

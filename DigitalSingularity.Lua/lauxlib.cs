@@ -11,12 +11,12 @@ public static unsafe partial class Lua
     // #define LUA_ERRFILE     (LUA_ERRERR+1)
     
     /* key, in the registry, for table of loaded modules */
-    private const string LUA_LOADED_TABLE = "_LOADED";
+    public const string LUA_LOADED_TABLE = "_LOADED";
     
     /* key, in the registry, for table of preloaded loaders */
-    private const string LUA_PRELOAD_TABLE = "_PRELOAD";
+    public const string LUA_PRELOAD_TABLE = "_PRELOAD";
 
-    private struct luaL_Reg(string name, lua_CFunction func)
+    public struct luaL_Reg(string name, lua_CFunction func)
     {
         public string name = name;
         public lua_CFunction func = func;
@@ -36,21 +36,21 @@ public static unsafe partial class Lua
     // LUALIB_API const char *(luaL_optlstring) (lua_State *L, int arg,
     //                                           const char *def, size_t *l);
 
-    private static partial double luaL_checknumber(lua_State* L, int arg);
+    public static partial double luaL_checknumber(lua_State* L, int arg);
 
-    private static partial double luaL_optnumber(lua_State* L, int arg, double def);
+    public static partial double luaL_optnumber(lua_State* L, int arg, double def);
     
     // LUALIB_API lua_Integer (luaL_checkinteger) (lua_State *L, int arg);
     // LUALIB_API lua_Integer (luaL_optinteger) (lua_State *L, int arg,
     //                                           lua_Integer def);
 
-    private static partial void luaL_checkstack(lua_State* L, int sz, string msg);
+    public static partial void luaL_checkstack(lua_State* L, int sz, string msg);
     // LUALIB_API void (luaL_checktype) (lua_State *L, int arg, int t);
     // LUALIB_API void (luaL_checkany) (lua_State *L, int arg);
 
-    private static partial int luaL_newmetatable(lua_State* L, string tname);
+    public static partial int luaL_newmetatable(lua_State* L, string tname);
 
-    private static partial void luaL_setmetatable(lua_State* L, string tname);
+    public static partial void luaL_setmetatable(lua_State* L, string tname);
         
     // LUALIB_API void *(luaL_testudata) (lua_State *L, int ud, const char *tname);
     // LUALIB_API void *(luaL_checkudata) (lua_State *L, int ud, const char *tname);
@@ -72,12 +72,14 @@ public static unsafe partial class Lua
     //
     // LUALIB_API int (luaL_ref) (lua_State *L, int t);
     // LUALIB_API void (luaL_unref) (lua_State *L, int t, int ref);
-    //
-    // LUALIB_API int (luaL_loadfilex) (lua_State *L, const char *filename,
-    //                                                const char *mode);
-    //
-    // #define luaL_loadfile(L,f)	luaL_loadfilex(L,f,NULL)
-    //
+
+    public static partial int luaL_loadfilex(lua_State* L, string? filename, string? mode);
+
+    public static int luaL_loadfile(lua_State* L, string? f)
+    {
+        return luaL_loadfilex(L, f, null);
+    }
+
     // LUALIB_API int (luaL_loadbufferx) (lua_State *L, const char *buff, size_t sz,
     //                                    const char *name, const char *mode);
     // LUALIB_API int (luaL_loadstring) (lua_State *L, const char *s);
@@ -93,14 +95,14 @@ public static unsafe partial class Lua
     // LUALIB_API const char *(luaL_gsub) (lua_State *L, const char *s,
     //                                     const char *p, const char *r);
 
-    private static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup);
+    public static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup);
 
-    private static partial bool luaL_getsubtable(lua_State* L, int idx, string fname);
+    public static partial bool luaL_getsubtable(lua_State* L, int idx, string fname);
     
     // LUALIB_API void (luaL_traceback) (lua_State *L, lua_State *L1,
     //                                   const char *msg, int level);
 
-    private static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb);
+    public static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb);
 
     /*
     ** ===============================================================
@@ -108,12 +110,12 @@ public static unsafe partial class Lua
     ** ===============================================================
     */
 
-    private static void luaL_newlibtable<T>(lua_State* L, ReadOnlySpan<T> l)
+    public static void luaL_newlibtable<T>(lua_State* L, ReadOnlySpan<T> l)
     {
         lua_createtable(L, 0, l.Length);
     }
 
-    private static void luaL_newlib(lua_State* L, ReadOnlySpan<luaL_Reg> l)
+    public static void luaL_newlib(lua_State* L, ReadOnlySpan<luaL_Reg> l)
     {
         luaL_checkversion(L, LUA_VERSION_NUM, LUAL_NUMSIZES);
         luaL_newlibtable(L, l);
@@ -126,8 +128,8 @@ public static unsafe partial class Lua
     // #define luaL_argexpected(L,cond,arg,tname)	\
     // 	((void)(luai_likely(cond) || luaL_typeerror(L, (arg), (tname))))
     //
-    // #define luaL_checkstring(L,n)	(luaL_checklstring(L, (n), NULL))
-    // #define luaL_optstring(L,n,d)	(luaL_optlstring(L, (n), (d), NULL))
+    // #define luaL_checkstring(L,n)	(luaL_checklstring(L, (n), null))
+    // #define luaL_optstring(L,n,d)	(luaL_optlstring(L, (n), (d), null))
     //
     // #define luaL_typename(L,i)	lua_typename(L, lua_type(L,(i)))
     //
@@ -137,7 +139,7 @@ public static unsafe partial class Lua
     // #define luaL_dostring(L, s) \
     // 	(luaL_loadstring(L, s) || lua_pcall(L, 0, LUA_MULTRET, 0))
 
-    private static int luaL_getmetatable(lua_State* L, string n)
+    public static int luaL_getmetatable(lua_State* L, string n)
     {
         return lua_getfield(L, LUA_REGISTRYINDEX, n);
     }
@@ -147,7 +149,7 @@ public static unsafe partial class Lua
     //     return lua_isnoneornil(L, n) ? d : f(L, n);
     // }
 
-    // #define luaL_loadbuffer(L,s,sz,n)	luaL_loadbufferx(L,s,sz,n,NULL)
+    // #define luaL_loadbuffer(L,s,sz,n)	luaL_loadbufferx(L,s,sz,n,null)
     //
     //
     // /*
@@ -222,12 +224,12 @@ public static unsafe partial class Lua
     ** after that initial structure).
     */
 
-    private const string LUA_FILEHANDLE = "FILE*";
+    public const string LUA_FILEHANDLE = "FILE*";
 
     private struct luaL_Stream
     {
-        public nint f; /* stream (NULL for incompletely created streams) */
-        public lua_CFunction closef; /* to close stream (NULL for closed streams) */
+        public nint f; /* stream (null for incompletely created streams) */
+        public lua_CFunction closef; /* to close stream (null for closed streams) */
     }
 
     /* }====================================================== */

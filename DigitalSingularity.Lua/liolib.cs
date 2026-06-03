@@ -43,7 +43,7 @@ public static unsafe partial class Lua
 //
 // /* Check whether 'mode' matches '[rwa]%+?[L_MODEEXT]*' */
 // static int l_checkmode (const char *mode) {
-//   return (*mode != '\0' && strchr("rwa", *(mode++)) != NULL &&
+//   return (*mode != '\0' && strchr("rwa", *(mode++)) != null &&
 //          (*mode != '+' || ((void)(++mode), 1)) &&  /* skip if char is '+' */
 //          (strspn(mode, L_MODEEXT) == strlen(mode)));  /* check extensions */
 // }
@@ -61,7 +61,7 @@ public static unsafe partial class Lua
 //
 // #if defined(LUA_USE_POSIX)	/* { */
 //
-// #define l_popen(L,c,m)		(fflush(NULL), popen(c,m))
+// #define l_popen(L,c,m)		(fflush(null), popen(c,m))
 // #define l_pclose(L,file)	(pclose(file))
 //
 // #elif defined(LUA_USE_WINDOWS)	/* }{ */
@@ -159,14 +159,14 @@ public static unsafe partial class Lua
 //
 // #define tolstream(L)	((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
 //
-// #define isclosed(p)	((p)->closef == NULL)
+// #define isclosed(p)	((p)->closef == null)
 
     private static int io_type(lua_State* L)
     {
 //   LStream *p;
 //   luaL_checkany(L, 1);
 //   p = (LStream *)luaL_testudata(L, 1, LUA_FILEHANDLE);
-//   if (p == NULL)
+//   if (p == null)
 //     luaL_pushfail(L);  /* not a file */
 //   else if (isclosed(p))
 //     lua_pushliteral(L, "closed file");
@@ -191,7 +191,7 @@ public static unsafe partial class Lua
 //   LStream *p = tolstream(L);
 //   if (l_unlikely(isclosed(p)))
 //     luaL_error(L, "attempt to use a closed file");
-//   lua_assert(p->f);
+//   Debug.Assert(p->f);
 //   return p->f;
 // }
 
@@ -216,7 +216,7 @@ public static unsafe partial class Lua
 // static int aux_close (lua_State *L) {
 //   LStream *p = tolstream(L);
 //   volatile lua_CFunction cf = p->closef;
-//   p->closef = NULL;  /* mark stream as closed */
+//   p->closef = null;  /* mark stream as closed */
 //   return (*cf)(L);  /* close it */
 // }
 
@@ -238,7 +238,7 @@ public static unsafe partial class Lua
     private static int f_gc(lua_State* L)
     {
 //   LStream *p = tolstream(L);
-//   if (!isclosed(p) && p->f != NULL)
+//   if (!isclosed(p) && p->f != null)
 //     aux_close(L);  /* ignore closed and incompletely open files */
 //   return 0;
         throw new NotImplementedException();
@@ -251,13 +251,13 @@ public static unsafe partial class Lua
     {
 //   LStream *p = tolstream(L);
 //   errno = 0;
-//   return luaL_fileresult(L, (fclose(p->f) == 0), NULL);
+//   return luaL_fileresult(L, (fclose(p->f) == 0), null);
         throw new NotImplementedException();
     }
 
 // static LStream *newfile (lua_State *L) {
 //   LStream *p = newprefile(L);
-//   p->f = NULL;
+//   p->f = null;
 //   p->closef = &io_fclose;
 //   return p;
 // }
@@ -266,7 +266,7 @@ public static unsafe partial class Lua
 // static void opencheck (lua_State *L, const char *fname, const char *mode) {
 //   LStream *p = newfile(L);
 //   p->f = fopen(fname, mode);
-//   if (l_unlikely(p->f == NULL))
+//   if (l_unlikely(p->f == null))
 //     luaL_error(L, "cannot open file '%s' (%s)", fname, strerror(errno));
 // }
 
@@ -279,7 +279,7 @@ public static unsafe partial class Lua
 //   luaL_argcheck(L, l_checkmode(md), 2, "invalid mode");
 //   errno = 0;
 //   p->f = fopen(filename, mode);
-//   return (p->f == NULL) ? luaL_fileresult(L, 0, filename) : 1;
+//   return (p->f == null) ? luaL_fileresult(L, 0, filename) : 1;
         throw new NotImplementedException();
     }
 
@@ -303,7 +303,7 @@ public static unsafe partial class Lua
 //   errno = 0;
 //   p->f = l_popen(L, filename, mode);
 //   p->closef = &io_pclose;
-//   return (p->f == NULL) ? luaL_fileresult(L, 0, filename) : 1;
+//   return (p->f == null) ? luaL_fileresult(L, 0, filename) : 1;
         throw new NotImplementedException();
     }
 
@@ -312,7 +312,7 @@ public static unsafe partial class Lua
 //   LStream *p = newfile(L);
 //   errno = 0;
 //   p->f = tmpfile();
-//   return (p->f == NULL) ? luaL_fileresult(L, 0, NULL) : 1;
+//   return (p->f == null) ? luaL_fileresult(L, 0, null) : 1;
         throw new NotImplementedException();
     }
 
@@ -617,7 +617,7 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   if (ferror(f))
-//     return luaL_fileresult(L, 0, NULL);
+//     return luaL_fileresult(L, 0, null);
 //   if (!success) {
 //     lua_pop(L, 1);  /* remove last result */
 //     luaL_pushfail(L);  /* push nil instead */
@@ -652,7 +652,7 @@ public static unsafe partial class Lua
 //   for (i = 1; i <= n; i++)  /* push arguments to 'g_read' */
 //     lua_pushvalue(L, lua_upvalueindex(3 + i));
 //   n = g_read(L, p->f, 2);  /* 'n' is number of results */
-//   lua_assert(n > 0);  /* should return at least a nil */
+//   Debug.Assert(n > 0);  /* should return at least a nil */
 //   if (lua_toboolean(L, -n))  /* read at least one value? */
 //     return n;  /* return them */
 //   else {  /* first result is false: EOF or error */
@@ -691,7 +691,7 @@ public static unsafe partial class Lua
 //     numbytes = fwrite(s, sizeof(char), len, f);
 //     totalbytes += numbytes;
 //     if (numbytes < len) {  /* write error? */
-//       int n = luaL_fileresult(L, 0, NULL);
+//       int n = luaL_fileresult(L, 0, null);
 //       lua_pushinteger(L, cast_st2S(totalbytes));
 //       return n + 1;  /* return fail, error msg., error code, and counter */
 //     }
@@ -716,7 +716,7 @@ public static unsafe partial class Lua
     private static int f_seek(lua_State* L)
     {
 //   static const int mode[] = {SEEK_SET, SEEK_CUR, SEEK_END};
-//   static const char *const modenames[] = {"set", "cur", "end", NULL};
+//   static const char *const modenames[] = {"set", "cur", "end", null};
 //   FILE *f = tofile(L);
 //   int op = luaL_checkoption(L, 2, "cur", modenames);
 //   lua_Integer p3 = luaL_optinteger(L, 3, 0);
@@ -726,7 +726,7 @@ public static unsafe partial class Lua
 //   errno = 0;
 //   op = l_fseek(f, offset, mode[op]);
 //   if (l_unlikely(op))
-//     return luaL_fileresult(L, 0, NULL);  /* error */
+//     return luaL_fileresult(L, 0, null);  /* error */
 //   else {
 //     lua_pushinteger(L, (lua_Integer)l_ftell(f));
 //     return 1;
@@ -737,20 +737,20 @@ public static unsafe partial class Lua
     private static int f_setvbuf(lua_State* L)
     {
 //   static const int mode[] = {_IONBF, _IOFBF, _IOLBF};
-//   static const char *const modenames[] = {"no", "full", "line", NULL};
+//   static const char *const modenames[] = {"no", "full", "line", null};
 //   FILE *f = tofile(L);
-//   int op = luaL_checkoption(L, 2, NULL, modenames);
+//   int op = luaL_checkoption(L, 2, null, modenames);
 //   lua_Integer sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
 //   int res;
 //   errno = 0;
-//   res = setvbuf(f, NULL, mode[op], (size_t)sz);
-//   return luaL_fileresult(L, res == 0, NULL);
+//   res = setvbuf(f, null, mode[op], (size_t)sz);
+//   return luaL_fileresult(L, res == 0, null);
         throw new NotImplementedException();
     }
 
 // static int aux_flush (lua_State *L, FILE *f) {
 //   errno = 0;
-//   return luaL_fileresult(L, fflush(f) == 0, NULL);
+//   return luaL_fileresult(L, fflush(f) == 0, null);
 // }
 
     private static int f_flush(lua_State* L)

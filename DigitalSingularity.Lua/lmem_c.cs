@@ -34,15 +34,15 @@ public static unsafe partial class Lua
 // ** void *frealloc (void *ud, void *ptr, size_t osize, size_t nsize);
 // ** ('osize' is the old size, 'nsize' is the new size)
 // **
-// ** - frealloc(ud, p, x, 0) frees the block 'p' and returns NULL.
-// ** Particularly, frealloc(ud, NULL, 0, 0) does nothing,
-// ** which is equivalent to free(NULL) in ISO C.
+// ** - frealloc(ud, p, x, 0) frees the block 'p' and returns null.
+// ** Particularly, frealloc(ud, null, 0, 0) does nothing,
+// ** which is equivalent to free(null) in ISO C.
 // **
-// ** - frealloc(ud, NULL, x, s) creates a new block of size 's'
-// ** (no matter 'x'). Returns NULL if it cannot create the new block.
+// ** - frealloc(ud, null, x, s) creates a new block of size 's'
+// ** (no matter 'x'). Returns null if it cannot create the new block.
 // **
 // ** - otherwise, frealloc(ud, b, x, y) reallocates the block 'b' from
-// ** size 'x' to size 'y'. Returns NULL if it cannot reallocate the
+// ** size 'x' to size 'y'. Returns null if it cannot reallocate the
 // ** block to the new size.
 // */
 
@@ -72,7 +72,7 @@ public static unsafe partial class Lua
 // */
 // static void *firsttry (global_State *g, void *block, size_t os, size_t ns) {
 //   if (ns > 0 && cantryagain(g))
-//     return NULL;  /* fail */
+//     return null;  /* fail */
 //   else  /* normal allocation */
 //     return callfrealloc(g, block, os, ns);
 // }
@@ -83,45 +83,65 @@ public static unsafe partial class Lua
     }
 #endif
     
-// /*
-// ** {==================================================================
-// ** Functions to allocate/deallocate arrays for the Parser
-// ** ===================================================================
-// */
-//
-// /*
-// ** Minimum size for arrays during parsing, to avoid overhead of
-// ** reallocating to size 1, then 2, and then 4. All these arrays
-// ** will be reallocated to exact sizes or erased when parsing ends.
-// */
-// #define MINSIZEARRAY	4
-//
-//
-// void *luaM_growaux_ (lua_State *L, void *block, int nelems, int *psize,
-//                      unsigned size_elems, int limit, const char *what) {
-//   void *newblock;
-//   int size = *psize;
-//   if (nelems + 1 <= size)  /* does one extra element still fit? */
-//     return block;  /* nothing to be done */
-//   if (size >= limit / 2) {  /* cannot double it? */
-//     if (l_unlikely(size >= limit))  /* cannot grow even a little? */
+    /*
+    ** {==================================================================
+    ** Functions to allocate/deallocate arrays for the Parser
+    ** ===================================================================
+    */
+
+    /*
+    ** Minimum size for arrays during parsing, to avoid overhead of
+    ** reallocating to size 1, then 2, and then 4. All these arrays
+    ** will be reallocated to exact sizes or erased when parsing ends.
+    */
+    private const int MINSIZEARRAY = 4;
+
+    private static partial void* luaM_growaux_(
+        lua_State* L,
+        void* block,
+        int nelems,
+        ref int psize,
+        int size_elem,
+        int limit,
+        string what)
+    {
+        int size = psize;
+        if (nelems + 1 <= size) /* does one extra element still fit? */
+        {
+            return block; /* nothing to be done */
+        }
+
+        if (size >= limit / 2)
+        {
+            /* cannot double it? */
+            if (size >= limit) /* cannot grow even a little? */
+            {
 //       luaG_runerror(L, "too many %s (limit is %d)", what, limit);
-//     size = limit;  /* still have at least one free place */
-//   }
-//   else {
-//     size *= 2;
-//     if (size < MINSIZEARRAY)
-//       size = MINSIZEARRAY;  /* minimum size */
-//   }
-//   lua_assert(nelems + 1 <= size && size <= limit);
-//   /* 'limit' ensures that multiplication will not overflow */
-//   newblock = luaM_saferealloc_(L, block, cast_sizet(*psize) * size_elems,
-//                                          cast_sizet(size) * size_elems);
-//   *psize = size;  /* update only when everything else is OK */
-//   return newblock;
-// }
-//
-//
+                throw new NotImplementedException();
+            }
+
+            size = limit; /* still have at least one free place */
+        }
+        else
+        {
+            size *= 2;
+            if (size < MINSIZEARRAY)
+            {
+                size = MINSIZEARRAY; /* minimum size */
+            }
+        }
+
+        Debug.Assert(nelems + 1 <= size && size <= limit);
+        /* 'limit' ensures that multiplication will not overflow */
+        void* newblock = luaM_saferealloc_(
+            L,
+            block,
+            (long)psize * size_elem,
+            (long)size * size_elem);
+        psize = size; /* update only when everything else is OK */
+        return newblock;
+    }
+
 // /*
 // ** In prototypes, the size of the array is also its number of
 // ** elements (to save memory). So, if it cannot shrink an array
@@ -133,7 +153,7 @@ public static unsafe partial class Lua
 //   void *newblock;
 //   size_t oldsize = cast_sizet(*size) * size_elem;
 //   size_t newsize = cast_sizet(final_n) * size_elem;
-//   lua_assert(newsize <= oldsize);
+//   Debug.Assert(newsize <= oldsize);
 //   newblock = luaM_saferealloc_(L, block, oldsize, newsize);
 //   *size = final_n;
 //   return newblock;
@@ -184,7 +204,7 @@ public static unsafe partial class Lua
     private static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size)
     {
         global_State* g = G(L);
-        Debug.Assert(oldsize == 0 == (block == null));
+        Debug.Assert((oldsize == 0) == (block == null));
         void* newblock = firsttry(g, block, oldsize, size);
         if (newblock == null && size > 0)
         {
@@ -199,14 +219,17 @@ public static unsafe partial class Lua
         g->GCdebt -= size - oldsize;
         return newblock;
     }
-    
-    // void *luaM_saferealloc_ (lua_State *L, void *block, size_t osize,
-//                                                     size_t nsize) {
-//   void *newblock = luaM_realloc_(L, block, osize, nsize);
-//   if (l_unlikely(newblock == NULL && nsize > 0))  /* allocation failed? */
-//     luaM_error(L);
-//   return newblock;
-// }
+
+    private static partial void* luaM_saferealloc_(lua_State* L, void* block, long osize, long nsize)
+    {
+        void* newblock = luaM_realloc_(L, block, osize, nsize);
+        if (newblock == null && nsize > 0) /* allocation failed? */
+        {
+            luaM_error(L);
+        }
+
+        return newblock;
+    }
 
     private static partial void* luaM_malloc_(lua_State* L, long size, int tag)
     {

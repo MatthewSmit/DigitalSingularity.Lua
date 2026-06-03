@@ -458,7 +458,7 @@ do
     ffi.cast("int *", ffi.new("double", 1.5))
   end, x)
 
-  -- nil sets a pointer to NULL
+  -- nil sets a pointer to null
   x.pi = nil
   assert(tonumber(ffi.cast("uintptr_t", x.pi)) == 0)
 

@@ -1,6 +1,5 @@
 ﻿namespace DigitalSingularity.Lua;
 
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua

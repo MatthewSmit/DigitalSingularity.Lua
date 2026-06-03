@@ -1,13 +1,15 @@
 ﻿global using unsafe lua_Alloc = delegate* managed<void*, void*, long, long, void*>;
 global using unsafe lua_Hook = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, DigitalSingularity.Lua.Lua.lua_Debug*, void>;
-global using unsafe lua_WarnFunction = delegate* managed<void*, byte*, int, void>;
+global using unsafe lua_WarnFunction = delegate* managed<void*, string, bool, void>;
 global using unsafe lua_CFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int>;
 global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, void*, int>;
 global using unsafe StkId = DigitalSingularity.Lua.Lua.StackValue*;
+global using unsafe lua_Reader = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, long*, byte*>;
 
 namespace DigitalSingularity.Lua;
 
 using System.Globalization;
+using System.Text;
 
 public static unsafe partial class Lua
 {
@@ -20,11 +22,11 @@ public static unsafe partial class Lua
     public const int LUA_VERSION_NUM = LUA_VERSION_MAJOR_N * 100 + LUA_VERSION_MINOR_N;
     public const int LUA_VERSION_RELEASE_NUM = LUA_VERSION_NUM * 100 + LUA_VERSION_RELEASE_N;
 
-// /* mark for precompiled code ('<esc>Lua') */
-// #define LUA_SIGNATURE	"\x1bLua"
+    /* mark for precompiled code ('<esc>Lua') */
+    public const string LUA_SIGNATURE = "\e" + "Lua";
 
     /* option for multiple returns in 'lua_pcall' and 'lua_call' */
-    private const int LUA_MULTRET = -1;
+    public const int LUA_MULTRET = -1;
 
     /*
     ** Pseudo-indices
@@ -86,12 +88,6 @@ public static unsafe partial class Lua
 // */
 // typedef int (*lua_KFunction) (lua_State *L, int status, lua_KContext ctx);
 //
-//
-// /*
-// ** Type for functions that read/write blocks when loading/dumping Lua chunks
-// */
-// typedef const char * (*lua_Reader) (lua_State *L, void *ud, size_t *sz);
-//
 // typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
 
 // /*
@@ -132,8 +128,8 @@ public static unsafe partial class Lua
     ** basic stack manipulation
     */
     public static partial int lua_absindex(lua_State* L, int idx);
-    
-// LUA_API int   (lua_gettop) (lua_State *L);
+
+    public static partial int lua_gettop(lua_State* L);
 
     public static partial void lua_settop(lua_State* L, int idx);
 
@@ -167,8 +163,9 @@ public static unsafe partial class Lua
     public static partial long lua_tointegerx(lua_State* L, int idx, out bool isnum);
 
     public static partial bool lua_toboolean(lua_State* L, int idx);
+
+    public static partial byte* lua_tolstring(lua_State* L, int idx, out long len);
     
-// LUA_API const char     *(lua_tolstring) (lua_State *L, int idx, size_t *len);
 // LUA_API lua_Unsigned    (lua_rawlen) (lua_State *L, int idx);
 // LUA_API lua_CFunction   (lua_tocfunction) (lua_State *L, int idx);
 
@@ -215,7 +212,7 @@ public static unsafe partial class Lua
 
     public static partial void lua_pushinteger(lua_State* L, long n);
 
-// LUA_API const char *(lua_pushlstring) (lua_State *L, const char *s, size_t len);
+    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<char> s);
 
     public static partial void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
 
@@ -300,9 +297,8 @@ public static unsafe partial class Lua
         return lua_pcallk(L, n, r, f, 0, null);
     }
 
-    // LUA_API int   (lua_load) (lua_State *L, lua_Reader reader, void *dt,
-//                           const char *chunkname, const char *mode);
-//
+    public static partial int lua_load(lua_State* L, lua_Reader reader, void* dt, string? chunkname, string? mode);
+
 // LUA_API int (lua_dump) (lua_State *L, lua_Writer writer, void *data, int strip);
 //
 //
@@ -316,15 +312,15 @@ public static unsafe partial class Lua
 // LUA_API int  (lua_status)     (lua_State *L);
 // LUA_API int (lua_isyieldable) (lua_State *L);
 //
-// #define lua_yield(L,n)		lua_yieldk(L, (n), 0, NULL)
+// #define lua_yield(L,n)		lua_yieldk(L, (n), 0, null)
 
 
     /*
     ** Warning-related functions
     */
     public static partial void lua_setwarnf(lua_State* L, lua_WarnFunction f, void* ud);
-    
-// LUA_API void (lua_warning)  (lua_State *L, const char *msg, int tocont);
+
+    public static partial void lua_warning(lua_State* L, string msg, bool tocont);
 
     /*
     ** garbage-collection options
@@ -373,25 +369,26 @@ public static unsafe partial class Lua
     public const int LUA_N2SBUFFSZ = 64;
 // LUA_API unsigned  (lua_numbertocstring) (lua_State *L, int idx, char *buff);
 // LUA_API size_t  (lua_stringtonumber) (lua_State *L, const char *s);
-//
-// LUA_API lua_Alloc (lua_getallocf) (lua_State *L, void **ud);
-// LUA_API void      (lua_setallocf) (lua_State *L, lua_Alloc f, void *ud);
-//
+
+    public static partial lua_Alloc lua_getallocf(lua_State* L, out void* ud);
+    
+    public static partial void lua_setallocf(lua_State* L, lua_Alloc f, void* ud);
+
 // LUA_API void (lua_toclose) (lua_State *L, int idx);
 // LUA_API void (lua_closeslot) (lua_State *L, int idx);
 
-/*
-** {==============================================================
-** some useful macros
-** ===============================================================
-*/
+    /*
+    ** {==============================================================
+    ** some useful macros
+    ** ===============================================================
+    */
 
     public static void* lua_getextraspace(lua_State* L)
     {
         return (byte*)L - LUA_EXTRASPACE;
     }
 
-    // #define lua_tonumber(L,i)	lua_tonumberx(L,(i),NULL)
+    // #define lua_tonumber(L,i)	lua_tonumberx(L,(i),null)
     
     public static long lua_tointeger(lua_State* L, int i)
     {
@@ -437,10 +434,19 @@ public static unsafe partial class Lua
         lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
     }
 
-    // #define lua_tostring(L,i)	lua_tolstring(L, (i), NULL)
-//
-//
-// #define lua_insert(L,idx)	lua_rotate(L, (idx), 1)
+    public static byte* lua_tostringp(lua_State* L, int i)
+    {
+        return lua_tolstring(L, i, out _);
+    }
+
+    public static string lua_tostring(lua_State* L, int i)
+    {
+        byte* tmp = lua_tolstring(L, i, out long size);
+        ReadOnlySpan<byte> span = new(tmp, checked((int)size));
+        return Encoding.UTF8.GetString(span);
+    }
+
+    // #define lua_insert(L,idx)	lua_rotate(L, (idx), 1)
 
     public static void lua_remove(lua_State* L, int idx)
     {
@@ -463,7 +469,7 @@ public static unsafe partial class Lua
 // #define lua_getuservalue(L,idx)	lua_getiuservalue(L,idx,1)
 // #define lua_setuservalue(L,idx)	lua_setiuservalue(L,idx,1)
 //
-// #define lua_resetthread(L)	lua_closethread(L,NULL)
+// #define lua_resetthread(L)	lua_closethread(L,null)
 //
 // /* }============================================================== */
 //

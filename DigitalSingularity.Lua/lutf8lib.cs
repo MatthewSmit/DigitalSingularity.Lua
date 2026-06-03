@@ -47,7 +47,7 @@ public static unsafe partial class Lua
 //
 //
 // /*
-// ** Decode one UTF-8 sequence, returning NULL if byte sequence is
+// ** Decode one UTF-8 sequence, returning null if byte sequence is
 // ** invalid.  The array 'limits' stores the minimum value for each
 // ** sequence length, to check for overlong representations. Its first
 // ** entry forces an error for non-ASCII bytes with no continuation
@@ -65,30 +65,30 @@ public static unsafe partial class Lua
 //     for (; c & 0x40; c <<= 1) {  /* while it needs continuation bytes... */
 //       unsigned int cc = (unsigned char)s[++count];  /* read next byte */
 //       if (!iscont(cc))  /* not a continuation byte? */
-//         return NULL;  /* invalid byte sequence */
+//         return null;  /* invalid byte sequence */
 //       res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
 //     }
 //     res |= ((l_uint32)(c & 0x7F) << (count * 5));  /* add first byte */
 //     if (count > 5 || res > MAXUTF || res < limits[count])
-//       return NULL;  /* invalid byte sequence */
+//       return null;  /* invalid byte sequence */
 //     s += count;  /* skip continuation bytes read */
 //   }
 //   if (strict) {
 //     /* check for invalid code points; too large or surrogates */
 //     if (res > MAXUNICODE || (0xD800u <= res && res <= 0xDFFFu))
-//       return NULL;
+//       return null;
 //   }
 //   if (val) *val = res;
 //   return s + 1;  /* +1 to include first byte */
 // }
-//
-//
-// /*
-// ** utf8len(s [, i [, j [, lax]]]) --> number of characters that
-// ** start in the range [i,j], or nil + current position if 's' is not
-// ** well formed in that interval
-// */
-// static int utflen (lua_State *L) {
+
+    /*
+    ** utf8len(s [, i [, j [, lax]]]) --> number of characters that
+    ** start in the range [i,j], or nil + current position if 's' is not
+    ** well formed in that interval
+    */
+    private static int utflen(lua_State* L)
+    {
 //   lua_Integer n = 0;  /* counter for the number of characters */
 //   size_t len;  /* string length in bytes */
 //   const char *s = luaL_checklstring(L, 1, &len);
@@ -100,8 +100,8 @@ public static unsafe partial class Lua
 //   luaL_argcheck(L, --posj < (lua_Integer)len, 3,
 //                    "final position out of bounds");
 //   while (posi <= posj) {
-//     const char *s1 = utf8_decode(s + posi, NULL, !lax);
-//     if (s1 == NULL) {  /* conversion error? */
+//     const char *s1 = utf8_decode(s + posi, null, !lax);
+//     if (s1 == null) {  /* conversion error? */
 //       luaL_pushfail(L);  /* return fail ... */
 //       lua_pushinteger(L, posi + 1);  /* ... and current position */
 //       return 2;
@@ -111,14 +111,15 @@ public static unsafe partial class Lua
 //   }
 //   lua_pushinteger(L, n);
 //   return 1;
-// }
-//
-//
-// /*
-// ** codepoint(s, [i, [j [, lax]]]) -> returns codepoints for all
-// ** characters that start in the range [i,j]
-// */
-// static int codepoint (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** codepoint(s, [i, [j [, lax]]]) -> returns codepoints for all
+     ** characters that start in the range [i,j]
+     */
+    private static int codepoint(lua_State* L)
+    {
 //   size_t len;
 //   const char *s = luaL_checklstring(L, 1, &len);
 //   lua_Integer posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
@@ -138,26 +139,28 @@ public static unsafe partial class Lua
 //   for (s += posi - 1; s < se;) {
 //     l_uint32 code;
 //     s = utf8_decode(s, &code, !lax);
-//     if (s == NULL)
+//     if (s == null)
 //       return luaL_error(L, MSGInvalid);
 //     lua_pushinteger(L, l_castU2S(code));
 //     n++;
 //   }
 //   return n;
-// }
-//
-//
-// static void pushutfchar (lua_State *L, int arg) {
+        throw new NotImplementedException();
+    }
+
+    private static void pushutfchar(lua_State* L, int arg)
+    {
 //   lua_Unsigned code = (lua_Unsigned)luaL_checkinteger(L, arg);
 //   luaL_argcheck(L, code <= MAXUTF, arg, "value out of range");
 //   lua_pushfstring(L, "%U", (long)code);
-// }
-//
-//
-// /*
-// ** utfchar(n1, n2, ...)  -> char(n1)..char(n2)...
-// */
-// static int utfchar (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** utfchar(n1, n2, ...)  -> char(n1)..char(n2)...
+     */
+    private static int utfchar(lua_State* L)
+    {
 //   int n = lua_gettop(L);  /* number of arguments */
 //   if (n == 1)  /* optimize common case of single char */
 //     pushutfchar(L, 1);
@@ -172,14 +175,15 @@ public static unsafe partial class Lua
 //     luaL_pushresult(&b);
 //   }
 //   return 1;
-// }
-//
-//
-// /*
-// ** offset(s, n, [i])  -> indices where n-th character counting from
-// **   position 'i' starts and ends; 0 means character at 'i'.
-// */
-// static int byteoffset (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** offset(s, n, [i])  -> indices where n-th character counting from
+     **   position 'i' starts and ends; 0 means character at 'i'.
+     */
+    private static int byteoffset(lua_State* L)
+    {
 //   size_t len;
 //   const char *s = luaL_checklstring(L, 1, &len);
 //   lua_Integer n  = luaL_checkinteger(L, 2);
@@ -226,10 +230,11 @@ public static unsafe partial class Lua
 //   /* else one-byte character: final position is the initial one */
 //   lua_pushinteger(L, posi + 1);  /* 'posi' now is the final position */
 //   return 2;
-// }
-//
-//
-// static int iter_aux (lua_State *L, int strict) {
+        throw new NotImplementedException();
+    }
+
+    private static int iter_aux(lua_State* L, bool strict)
+    {
 //   size_t len;
 //   const char *s = luaL_checklstring(L, 1, &len);
 //   lua_Unsigned n = (lua_Unsigned)lua_tointeger(L, 2);
@@ -241,25 +246,27 @@ public static unsafe partial class Lua
 //   else {
 //     l_uint32 code;
 //     const char *next = utf8_decode(s + n, &code, strict);
-//     if (next == NULL || iscontp(next))
+//     if (next == null || iscontp(next))
 //       return luaL_error(L, MSGInvalid);
 //     lua_pushinteger(L, l_castU2S(n + 1));
 //     lua_pushinteger(L, l_castU2S(code));
 //     return 2;
 //   }
-// }
-//
-//
-// static int iter_auxstrict (lua_State *L) {
-//   return iter_aux(L, 1);
-// }
-//
-// static int iter_auxlax (lua_State *L) {
-//   return iter_aux(L, 0);
-// }
-//
-//
-// static int iter_codes (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    private static int iter_auxstrict(lua_State* L)
+    {
+        return iter_aux(L, true);
+    }
+
+    private static int iter_auxlax(lua_State* L)
+    {
+        return iter_aux(L, false);
+    }
+
+    private static int iter_codes(lua_State* L)
+    {
 //   int lax = lua_toboolean(L, 2);
 //   const char *s = luaL_checkstring(L, 1);
 //   luaL_argcheck(L, !iscontp(s), 1, MSGInvalid);
@@ -267,30 +274,28 @@ public static unsafe partial class Lua
 //   lua_pushvalue(L, 1);
 //   lua_pushinteger(L, 0);
 //   return 3;
-// }
-//
-//
-// /* pattern to match a single UTF-8 character */
-// #define UTF8PATT	"[\0-\x7F\xC2-\xFD][\x80-\xBF]*"
-//
-//
-// static const luaL_Reg funcs[] = {
-//   {"offset", byteoffset},
-//   {"codepoint", codepoint},
-//   {"char", utfchar},
-//   {"len", utflen},
-//   {"codes", iter_codes},
-//   /* placeholders */
-//   {"charpattern", NULL},
-//   {NULL, NULL}
-// };
+        throw new NotImplementedException();
+    }
+
+    /* pattern to match a single UTF-8 character */
+    private const string UTF8PATT = "[\0-\x7F\xC2-\xFD][\x80-\xBF]*";
+
+    private static luaL_Reg[] funcs =
+    [
+        new("offset", &byteoffset),
+        new("codepoint", &codepoint),
+        new("char", &utfchar),
+        new("len", &utflen),
+        new("codes", &iter_codes),
+        /* placeholders */
+        new("charpattern", null),
+    ];
 
     private static partial int luaopen_utf8(lua_State* L)
     {
-//   luaL_newlib(L, funcs);
-//   lua_pushlstring(L, UTF8PATT, sizeof(UTF8PATT)/sizeof(char) - 1);
-//   lua_setfield(L, -2, "charpattern");
-//   return 1;
-        throw new NotImplementedException();
+        luaL_newlib(L, funcs);
+        lua_pushlstring(L, UTF8PATT);
+        lua_setfield(L, -2, "charpattern");
+        return 1;
     }
 }

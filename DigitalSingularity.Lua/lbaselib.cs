@@ -53,12 +53,12 @@ public static unsafe partial class Lua
 //   if (*s == '-') { s++; neg = 1; }  /* handle sign */
 //   else if (*s == '+') s++;
 //   if (!isalnum(cast_uchar(*s)))  /* no digit? */
-//     return NULL;
+//     return null;
 //   do {
 //     unsigned digit = cast_uint(isdigit(cast_uchar(*s))
 //                                ? *s - '0'
 //                                : (toupper(cast_uchar(*s)) - 'A') + 10);
-//     if (digit >= base) return NULL;  /* invalid numeral */
+//     if (digit >= base) return null;  /* invalid numeral */
 //     n = n * base + digit;
 //     s++;
 //   } while (isalnum(cast_uchar(*s)));
@@ -77,7 +77,7 @@ public static unsafe partial class Lua
 //     else {
 //       size_t l;
 //       const char *s = lua_tolstring(L, 1, &l);
-//       if (s != NULL && lua_stringtonumber(L, s) == l + 1)
+//       if (s != null && lua_stringtonumber(L, s) == l + 1)
 //         return 1;  /* successful conversion to number */
 //       /* else not a number */
 //       luaL_checkany(L, 1);  /* (but there must be some parameter) */
@@ -199,7 +199,7 @@ public static unsafe partial class Lua
     {
 //   static const char *const opts[] = {"stop", "restart", "collect",
 //     "count", "step", "isrunning", "generational", "incremental",
-//     "param", NULL};
+//     "param", null};
 //   static const char optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
 //     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC,
 //     LUA_GCPARAM};
@@ -234,11 +234,11 @@ public static unsafe partial class Lua
 //     case LUA_GCPARAM: {
 //       static const char *const params[] = {
 //         "minormul", "majorminor", "minormajor",
-//         "pause", "stepmul", "stepsize", NULL};
+//         "pause", "stepmul", "stepsize", null};
 //       static const char pnum[] = {
 //         LUA_GCPMINORMUL, LUA_GCPMAJORMINOR, LUA_GCPMINORMAJOR,
 //         LUA_GCPPAUSE, LUA_GCPSTEPMUL, LUA_GCPSTEPSIZE};
-//       int p = pnum[luaL_checkoption(L, 2, NULL, params)];
+//       int p = pnum[luaL_checkoption(L, 2, null, params)];
 //       lua_Integer value = luaL_optinteger(L, 3, -1);
 //       lua_pushinteger(L, lua_gc(L, o, p, (int)value));
 //       return 1;
@@ -343,14 +343,14 @@ public static unsafe partial class Lua
 
 // static const char *getMode (lua_State *L, int idx) {
 //   const char *mode = luaL_optstring(L, idx, "bt");
-//   if (strchr(mode, 'B') != NULL)  /* Lua code cannot use fixed buffers */
+//   if (strchr(mode, 'B') != null)  /* Lua code cannot use fixed buffers */
 //     luaL_argerror(L, idx, "invalid mode");
 //   return mode;
 // }
 
     private static int luaB_loadfile(lua_State* L)
     {
-//   const char *fname = luaL_optstring(L, 1, NULL);
+//   const char *fname = luaL_optstring(L, 1, null);
 //   const char *mode = getMode(L, 2);
 //   int env = (!lua_isnone(L, 3) ? 3 : 0);  /* 'env' index or 0 if no 'env' */
 //   int status = luaL_loadfilex(L, fname, mode);
@@ -386,7 +386,7 @@ public static unsafe partial class Lua
 //   if (lua_isnil(L, -1)) {
 //     lua_pop(L, 1);  /* pop result */
 //     *size = 0;
-//     return NULL;
+//     return null;
 //   }
 //   else if (l_unlikely(!lua_isstring(L, -1)))
 //     luaL_error(L, "reader function must return a string");
@@ -401,7 +401,7 @@ public static unsafe partial class Lua
 //   const char *s = lua_tolstring(L, 1, &l);
 //   const char *mode = getMode(L, 3);
 //   int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
-//   if (s != NULL) {  /* loading a string? */
+//   if (s != null) {  /* loading a string? */
 //     const char *chunkname = luaL_optstring(L, 2, s);
 //     status = luaL_loadbufferx(L, s, l, chunkname, mode);
 //   }
@@ -409,7 +409,7 @@ public static unsafe partial class Lua
 //     const char *chunkname = luaL_optstring(L, 2, "=(load)");
 //     luaL_checktype(L, 1, LUA_TFUNCTION);
 //     lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
-//     status = lua_load(L, generic_reader, NULL, chunkname, mode);
+//     status = lua_load(L, generic_reader, null, chunkname, mode);
 //   }
 //   return load_aux(L, status, env);
         throw new NotImplementedException();
@@ -424,7 +424,7 @@ public static unsafe partial class Lua
 
     private static int luaB_dofile(lua_State* L)
     {
-//   const char *fname = luaL_optstring(L, 1, NULL);
+//   const char *fname = luaL_optstring(L, 1, null);
 //   lua_settop(L, 1);
 //   if (l_unlikely(luaL_loadfile(L, fname) != LUA_OK))
 //     return lua_error(L);
@@ -513,7 +513,7 @@ public static unsafe partial class Lua
     private static int luaB_tostring(lua_State* L)
     {
 //   luaL_checkany(L, 1);
-//   luaL_tolstring(L, 1, NULL);
+//   luaL_tolstring(L, 1, null);
 //   return 1;
         throw new NotImplementedException();
     }

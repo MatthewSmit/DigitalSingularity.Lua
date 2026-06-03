@@ -23,10 +23,10 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Clear all bits of fast-access metamethods, which means that the table
-    ** may have any of these metamethods. (First access that fails after the
-    ** clearing will set the bit again.)
-    */
+     ** Clear all bits of fast-access metamethods, which means that the table
+     ** may have any of these metamethods. (First access that fails after the
+     ** clearing will set the bit again.)
+     */
     private static void invalidateTMcache(Table* t)
     {
         t->flags &= unchecked((byte)~maskflags);
@@ -70,12 +70,12 @@ public static unsafe partial class Lua
             tag = *getArrTag(t, u);
             if (!tagisempty(tag))
             {
-                farr2val(t, u, tag, res); 
+                farr2val(t, u, tag, res);
             }
         }
         else
         {
-            tag = luaH_getint(t, k, res); 
+            tag = luaH_getint(t, k, res);
         }
     }
 
@@ -168,10 +168,10 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Often, we need to check the tag of a value before moving it. The
-    ** following macros also move TValues to/from arrays, but receive the
-    ** precomputed tag value or address as an extra argument.
-    */
+     ** Often, we need to check the tag of a value before moving it. The
+     ** following macros also move TValues to/from arrays, but receive the
+     ** precomputed tag value or address as an extra argument.
+     */
     private static void farr2val(Table* h, ulong k, byte tag, TValue* res)
     {
         res->tt_ = tag;
@@ -180,9 +180,9 @@ public static unsafe partial class Lua
 
     // #define fval2arr(h,k,tag,val)  \
 //   (*tag = (val)->tt_, *getArrVal(h,(k)) = (val)->value_)
-//
-//
-// LUAI_FUNC lu_byte luaH_get (Table *t, const TValue *key, TValue *res);
+
+    private static partial byte luaH_get(Table* t, TValue* key, TValue* res);
+    
 // LUAI_FUNC lu_byte luaH_getshortstr (Table *t, TString *key, TValue *res);
     private static partial byte luaH_getstr(Table* t, TString* key, TValue* res);
 
@@ -197,30 +197,29 @@ public static unsafe partial class Lua
 
     private static partial int luaH_psetstr(Table* t, TString* key, TValue* val);
 
-// LUAI_FUNC int luaH_pset (Table *t, const TValue *key, TValue *val);
+    private static partial int luaH_pset(Table* t, TValue* key, TValue* val);
 
     private static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value);
 
-// LUAI_FUNC void luaH_set (lua_State *L, Table *t, const TValue *key,
-//                                                  TValue *value);
+    private static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value);
 
     private static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres);
 
     private static partial Table* luaH_new(lua_State* L);
 
     private static partial void luaH_resize(lua_State* L, Table* t, uint nasize, uint nhsize);
-    
+
 // LUAI_FUNC void luaH_resizearray (lua_State *L, Table *t, unsigned nasize);
-// LUAI_FUNC lu_mem luaH_size (Table *t);
-// LUAI_FUNC void luaH_free (lua_State *L, Table *t);
+
+    private static partial long luaH_size(Table* t);
+
+    private static partial void luaH_free(lua_State* L, Table* t);
+
 // LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
 // LUAI_FUNC lua_Unsigned luaH_getn (lua_State *L, Table *t);
 //
 //
 // #if defined(LUA_DEBUG)
 // LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
-// #endif
-//
-//
 // #endif
 }

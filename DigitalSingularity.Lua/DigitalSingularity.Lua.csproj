@@ -11,16 +11,4 @@
         <DefineConstants>TRACE;LUA_TEST;HARDSTACKTESTS;LUAI_STRICT_ADDRESS;LUA_COMPAT_MATHLIB</DefineConstants>
     </PropertyGroup>
 
-    <ItemGroup>
-        <ClCompile Include="lcode.c" />
-        <ClCompile Include="lctype.c" />
-        <ClCompile Include="ldump.c" />
-        <ClCompile Include="loadlib.c" />
-        <ClCompile Include="lopcodes.c" />
-        <ClCompile Include="lparser.c" />
-        <ClCompile Include="lundump.c" />
-        <ClCompile Include="lzio.c" />
-        <ClCompile Include="onelua.c" />
-    </ItemGroup>
-
 </Project>

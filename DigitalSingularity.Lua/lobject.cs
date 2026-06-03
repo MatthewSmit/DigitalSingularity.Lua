@@ -3,15 +3,16 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static unsafe partial class Lua
 {
     /*
-    ** Extra types for collectable non-values
-    */
-    private const int LUA_TUPVAL = LUA_NUMTYPES;  /* upvalues */
-    private const int LUA_TPROTO = LUA_NUMTYPES + 1;  /* function prototypes */
-    private const int LUA_TDEADKEY = LUA_NUMTYPES + 2;  /* removed keys in tables */
+     ** Extra types for collectable non-values
+     */
+    private const int LUA_TUPVAL = LUA_NUMTYPES; /* upvalues */
+    private const int LUA_TPROTO = LUA_NUMTYPES + 1; /* function prototypes */
+    private const int LUA_TDEADKEY = LUA_NUMTYPES + 2; /* removed keys in tables */
 
 // /*
 // ** number of all possible types (including LUA_TNONE but excluding DEADKEY)
@@ -33,16 +34,16 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Union of all Lua values
-    */
+     ** Union of all Lua values
+     */
     [StructLayout(LayoutKind.Explicit)]
     internal struct Value
     {
         [FieldOffset(0)] public GCObject* gc; /* collectable objects */
         [FieldOffset(0)] public void* p; /* light userdata */
         [FieldOffset(0)] public lua_CFunction f; /* light C functions */
-        [FieldOffset(0)] public long i;   /* integer numbers */
-        [FieldOffset(0)] public double n;    /* float numbers */
+        [FieldOffset(0)] public long i; /* integer numbers */
+        [FieldOffset(0)] public double n; /* float numbers */
     }
 
 // /*
@@ -116,7 +117,7 @@ public static unsafe partial class Lua
     /*
      ** Any value being manipulated by the program either is non
      ** collectable, or the collectable object has the right tag
-     ** and it is not dead. The option 'L == NULL' allows other
+     ** and it is not dead. The option 'L == null' allows other
      ** macros using this one to be used where L is not available.
      */
     private static void checkliveness(lua_State* L, TValue* obj)
@@ -164,6 +165,7 @@ public static unsafe partial class Lua
     {
         setobj(L, obj1, obj2);
     }
+
     /* to new object */
     private static void setobj2n(lua_State* L, TValue* obj1, TValue* obj2)
     {
@@ -187,8 +189,7 @@ public static unsafe partial class Lua
     [StructLayout(LayoutKind.Explicit)]
     internal struct StackValue
     {
-        [FieldOffset(0)]
-        public TValue val;
+        [FieldOffset(0)] public TValue val;
         //struct {
         //  TValuefields;
         //  unsigned short delta;
@@ -196,9 +197,9 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** When reallocating the stack, change all pointers to the stack into
-    ** proper offsets.
-    */
+     ** When reallocating the stack, change all pointers to the stack into
+     ** proper offsets.
+     */
     internal struct StkIdRel
     {
         public StkId p; /* actual pointer */
@@ -236,11 +237,11 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Macro to test the result of a table access. Formally, it should
-    ** distinguish between LUA_VEMPTY/LUA_VABSTKEY/LUA_VNOTABLE and
-    ** other tags. As currently nil is equivalent to LUA_VEMPTY, it is
-    ** simpler to just test whether the value is nil.
-    */
+     ** Macro to test the result of a table access. Formally, it should
+     ** distinguish between LUA_VEMPTY/LUA_VABSTKEY/LUA_VNOTABLE and
+     ** other tags. As currently nil is equivalent to LUA_VEMPTY, it is
+     ** simpler to just test whether the value is nil.
+     */
     private static bool tagisempty(byte tag)
     {
         return novariant(tag) == LUA_TNIL;
@@ -289,10 +290,10 @@ public static unsafe partial class Lua
     /* }================================================================== */
 
     /*
-    ** {==================================================================
-    ** Booleans
-    ** ===================================================================
-    */
+     ** {==================================================================
+     ** Booleans
+     ** ===================================================================
+     */
 
     private const byte LUA_VFALSE = LUA_TBOOLEAN;
     private const byte LUA_VTRUE = LUA_TBOOLEAN | 1 << 4;
@@ -316,7 +317,7 @@ public static unsafe partial class Lua
     {
         return ttisfalse(o) || ttisnil(o);
     }
-    
+
     // #define tagisfalse(t)	((t) == LUA_VFALSE || novariant(t) == LUA_TNIL)
 
     private static void setbfvalue(TValue* obj)
@@ -332,12 +333,12 @@ public static unsafe partial class Lua
     // /* }================================================================== */
 
     /*
-    ** {==================================================================
-    ** Threads
-    ** ===================================================================
-    */
+     ** {==================================================================
+     ** Threads
+     ** ===================================================================
+     */
 
-    private static readonly byte LUA_VTHREAD = makevariant(LUA_TTHREAD, 0);
+    private const byte LUA_VTHREAD = LUA_TTHREAD;
 
     // #define ttisthread(o)		checktag((o), ctb(LUA_VTHREAD))
 //
@@ -407,10 +408,10 @@ public static unsafe partial class Lua
 // /* }================================================================== */
 
 /*
-** {==================================================================
-** Numbers
-** ===================================================================
-*/
+ ** {==================================================================
+ ** Numbers
+ ** ===================================================================
+ */
 
     /* Variant tags for numbers */
     private const byte LUA_VNUMINT = LUA_TNUMBER;
@@ -456,7 +457,7 @@ public static unsafe partial class Lua
     }
 
 // #define chgfltvalue(obj,x) \
-//   { TValue *io=(obj); lua_assert(ttisfloat(io)); val_(io).n=(x); }
+//   { TValue *io=(obj); Debug.Assert(ttisfloat(io)); val_(io).n=(x); }
 
     private static void setivalue(TValue* obj, long x)
     {
@@ -465,19 +466,19 @@ public static unsafe partial class Lua
     }
 
 // #define chgivalue(obj,x) \
-//   { TValue *io=(obj); lua_assert(ttisinteger(io)); val_(io).i=(x); }
+//   { TValue *io=(obj); Debug.Assert(ttisinteger(io)); val_(io).i=(x); }
 //
 // /* }================================================================== */
 
     /*
-    ** {==================================================================
-    ** Strings
-    ** ===================================================================
-    */
+     ** {==================================================================
+     ** Strings
+     ** ===================================================================
+     */
 
     /* Variant tags for strings */
-    private const byte LUA_VSHRSTR = LUA_TSTRING;  /* short strings */
-    private const byte LUA_VLNGSTR = LUA_TSTRING | 1 << 4;  /* long strings */
+    private const byte LUA_VSHRSTR = LUA_TSTRING; /* short strings */
+    private const byte LUA_VLNGSTR = LUA_TSTRING | 1 << 4; /* long strings */
     private const byte LUA_VLNGSTR_C = LUA_VLNGSTR | BIT_ISCOLLECTABLE;
 
     private static bool ttisstring(TValue* o)
@@ -520,31 +521,31 @@ public static unsafe partial class Lua
 // #define setsvalue2n	setsvalue
 
     /* Kinds of long strings (stored in 'shrlen') */
-    private const sbyte LSTRREG = -1;  /* regular long string */
-    private const sbyte LSTRFIX = -2;  /* fixed external long string */
-    private const sbyte LSTRMEM = -3;  /* external long string with deallocation */
+    private const sbyte LSTRREG = -1; /* regular long string */
+    private const sbyte LSTRFIX = -2; /* fixed external long string */
+    private const sbyte LSTRMEM = -3; /* external long string with deallocation */
 
     /*
-    ** Header for a string value.
-    */
+     ** Header for a string value.
+     */
     internal struct TString
     {
         [StructLayout(LayoutKind.Explicit)]
         public struct U
         {
-            [FieldOffset(0)] public long lnglen;  /* length for long strings */
+            [FieldOffset(0)] public long lnglen; /* length for long strings */
             [FieldOffset(0)] public TString* hnext; /* linked list for hash table */
         }
-        
+
         public GCObject* next;
         public byte tt;
         public byte marked;
-        public byte extra;  /* reserved words for short strings; "has hash" for longs */
+        public byte extra; /* reserved words for short strings; "has hash" for longs */
         public sbyte shrlen; /* length for short strings, negative for long strings */
         public uint hash;
         public U u;
         public byte* contents; /* pointer to content in long strings */
-        public lua_Alloc falloc;  /* deallocation function for external strings */
+        public lua_Alloc falloc; /* deallocation function for external strings */
         public void* ud; /* user data for external strings */
     }
 
@@ -584,32 +585,44 @@ public static unsafe partial class Lua
         return strisshr(ts) ? rawgetshrstr(ts) : ts->contents;
     }
 
+    private static string getnetstr(TString* ts)
+    {
+        ReadOnlySpan<byte> tmp = new(getstr(ts), checked((int)tsslen(ts)));
+        return Encoding.UTF8.GetString(tmp);
+    }
+
     /* get string length from 'TString *ts' */
     private static long tsslen(TString* ts)
     {
         return strisshr(ts) ? ts->shrlen : ts->u.lnglen;
     }
 
-    // /*
-// ** Get string and length */
-// #define getlstr(ts, len)  \
-// 	(strisshr(ts) \
-// 	? (cast_void((len) = cast_sizet((ts)->shrlen)), rawgetshrstr(ts)) \
-// 	: (cast_void((len) = (ts)->u.lnglen), (ts)->contents))
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Userdata
-// ** ===================================================================
-// */
+    /*
+     ** Get string and length */
+    private static byte* getlstr(TString* ts, out long len)
+    {
+        if (strisshr(ts))
+        {
+            len = ts->shrlen;
+            return rawgetshrstr(ts);
+        }
+
+        len = ts->u.lnglen;
+        return ts->contents;
+    }
+
+    /* }================================================================== */
 
     /*
-    ** Light userdata should be a variant of userdata, but for compatibility
-    ** reasons they are also different types.
-    */
+     ** {==================================================================
+     ** Userdata
+     ** ===================================================================
+     */
+
+    /*
+     ** Light userdata should be a variant of userdata, but for compatibility
+     ** reasons they are also different types.
+     */
     private const byte LUA_VLIGHTUSERDATA = LUA_TLIGHTUSERDATA;
 
     private const byte LUA_VUSERDATA = LUA_TUSERDATA;
@@ -650,7 +663,7 @@ public static unsafe partial class Lua
         settt_(obj, ctb(LUA_VUSERDATA));
         checkliveness(L, obj);
     }
-    
+
 // /* Ensures that addresses after this type are always fully aligned. */
 // typedef union UValue {
 //   TValue uv;
@@ -658,36 +671,37 @@ public static unsafe partial class Lua
 // } UValue;
 
     /*
-    ** Header for userdata with user values;
-    ** memory area follows the end of this structure.
-    */
+     ** Header for userdata with user values;
+     ** memory area follows the end of this structure.
+     */
     private struct Udata
     {
         public GCObject* next;
         public byte tt;
         public byte marked;
-        public ushort nuvalue;  /* number of user values */
-        public long len;  /* number of bytes */
+        public ushort nuvalue; /* number of user values */
+        public long len; /* number of bytes */
         public Table* metatable;
         public GCObject* gclist;
         public fixed byte uv[1]; /* user values */
     }
 
     /*
-    ** Header for userdata with no user values. These userdata do not need
-    ** to be gray during GC, and therefore do not need a 'gclist' field.
-    ** To simplify, the code always use 'Udata' for both kinds of userdata,
-    ** making sure it never accesses 'gclist' on userdata with no user values.
-    ** This structure here is used only to compute the correct size for
-    ** this representation. (The 'bindata' field in its end ensures correct
-    ** alignment for binary data following this header.)
-    */
-    private struct Udata0 {
+     ** Header for userdata with no user values. These userdata do not need
+     ** to be gray during GC, and therefore do not need a 'gclist' field.
+     ** To simplify, the code always use 'Udata' for both kinds of userdata,
+     ** making sure it never accesses 'gclist' on userdata with no user values.
+     ** This structure here is used only to compute the correct size for
+     ** this representation. (The 'bindata' field in its end ensures correct
+     ** alignment for binary data following this header.)
+     */
+    private struct Udata0
+    {
         public GCObject* next;
         public byte tt;
         public byte marked;
-        public ushort nuvalue;  /* number of user values */
-        public long len;  /* number of bytes */
+        public ushort nuvalue; /* number of user values */
+        public long len; /* number of bytes */
         public Table* metatable;
         public long bindata;
     }
@@ -700,7 +714,7 @@ public static unsafe partial class Lua
     {
         return nuv == 0 ? Udata0_bindata_offset : Udata_uv_offset + sizeof(TValue) * nuv;
     }
-    
+
     /* get the address of the memory block inside 'Udata' */
     private static void* getudatamem(Udata* u)
     {
@@ -713,66 +727,64 @@ public static unsafe partial class Lua
         return udatamemoffset(nuv) + nb;
     }
 
-    // /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Prototypes
-// ** ===================================================================
-// */
-//
-// #define LUA_VPROTO	makevariant(LUA_TPROTO, 0)
-//
-//
+    /* }================================================================== */
+
+
+    /*
+     ** {==================================================================
+     ** Prototypes
+     ** ===================================================================
+     */
+
+    private const byte LUA_VPROTO = LUA_TPROTO;
+
 // typedef l_uint32 Instruction;
-//
-//
-// /*
-// ** Description of an upvalue for function prototypes
-// */
-// typedef struct Upvaldesc {
-//   TString *name;  /* upvalue name (for debug information) */
-//   lu_byte instack;  /* whether it is in stack (register) */
-//   lu_byte idx;  /* index of upvalue (in stack or in outer function's list) */
-//   lu_byte kind;  /* kind of corresponding variable */
-// } Upvaldesc;
-//
-//
-// /*
-// ** Description of a local variable for function prototypes
-// ** (used for debug information)
-// */
-// typedef struct LocVar {
-//   TString *varname;
-//   int startpc;  /* first point where variable is active */
-//   int endpc;    /* first point where variable is dead */
-// } LocVar;
-//
-//
-// /*
-// ** Associates the absolute line source for a given instruction ('pc').
-// ** The array 'lineinfo' gives, for each instruction, the difference in
-// ** lines from the previous instruction. When that difference does not
-// ** fit into a byte, Lua saves the absolute line for that instruction.
-// ** (Lua also saves the absolute line periodically, to speed up the
-// ** computation of a line number: we can use binary search in the
-// ** absolute-line array, but we must traverse the 'lineinfo' array
-// ** linearly to compute a line.)
-// */
-// typedef struct AbsLineInfo {
-//   int pc;
-//   int line;
-// } AbsLineInfo;
-//
-//
-// /*
-// ** Flags in Prototypes
-// */
-// #define PF_VAHID	1  /* function has hidden vararg arguments */
-// #define PF_VATAB	2  /* function has vararg table */
-// #define PF_FIXED	4  /* prototype has parts in fixed memory */
-//
+
+/*
+ ** Description of an upvalue for function prototypes
+ */
+    private struct Upvaldesc
+    {
+        public TString* name; /* upvalue name (for debug information) */
+        public byte instack; /* whether it is in stack (register) */
+        public byte idx; /* index of upvalue (in stack or in outer function's list) */
+        public byte kind; /* kind of corresponding variable */
+    }
+
+    /*
+     ** Description of a local variable for function prototypes
+     ** (used for debug information)
+     */
+    private struct LocVar
+    {
+        public TString* varname;
+        public int startpc; /* first point where variable is active */
+        public int endpc; /* first point where variable is dead */
+    }
+
+    /*
+     ** Associates the absolute line source for a given instruction ('pc').
+     ** The array 'lineinfo' gives, for each instruction, the difference in
+     ** lines from the previous instruction. When that difference does not
+     ** fit into a byte, Lua saves the absolute line for that instruction.
+     ** (Lua also saves the absolute line periodically, to speed up the
+     ** computation of a line number: we can use binary search in the
+     ** absolute-line array, but we must traverse the 'lineinfo' array
+     ** linearly to compute a line.)
+     */
+    private struct AbsLineInfo
+    {
+        public int pc;
+        public int line;
+    }
+
+    /*
+    ** Flags in Prototypes
+    */
+    private const int PF_VAHID = 1;  /* function has hidden vararg arguments */
+    private const int PF_VATAB = 2;  /* function has vararg table */
+    private const int PF_FIXED = 4;  /* prototype has parts in fixed memory */
+
 // /* a vararg function either has hidden args. or a vararg table */
 // #define isvararg(p)	((p)->flag & (PF_VAHID | PF_VATAB))
 //
@@ -781,50 +793,52 @@ public static unsafe partial class Lua
 // ** be cleared later.)
 // */
 // #define needvatab(p)	((p)->flag |= PF_VATAB)
-//
-// /*
-// ** Function Prototypes
-// */
-// typedef struct Proto {
-//   CommonHeader;
-//   lu_byte numparams;  /* number of fixed (named) parameters */
-//   lu_byte flag;
-//   lu_byte maxstacksize;  /* number of registers needed by this function */
-//   int sizeupvalues;  /* size of 'upvalues' */
-//   int sizek;  /* size of 'k' */
-//   int sizecode;
-//   int sizelineinfo;
-//   int sizep;  /* size of 'p' */
-//   int sizelocvars;
-//   int sizeabslineinfo;  /* size of 'abslineinfo' */
-//   int linedefined;  /* debug information  */
-//   int lastlinedefined;  /* debug information  */
-//   TValue *k;  /* constants used by the function */
-//   Instruction *code;  /* opcodes */
-//   struct Proto **p;  /* functions defined inside the function */
-//   Upvaldesc *upvalues;  /* upvalue information */
-//   ls_byte *lineinfo;  /* information about source lines (debug information) */
-//   AbsLineInfo *abslineinfo;  /* idem */
-//   LocVar *locvars;  /* information about local variables (debug information) */
-//   TString  *source;  /* used for debug information */
-//   GCObject *gclist;
-// } Proto;
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Functions
-// ** ===================================================================
-// */
-//
-// #define LUA_VUPVAL	makevariant(LUA_TUPVAL, 0)
+
+    /*
+     ** Function Prototypes
+     */
+    private struct Proto
+    {
+        public GCObject* next;
+        public byte tt;
+        public byte marked;
+        public byte numparams; /* number of fixed (named) parameters */
+        public byte flag;
+        public byte maxstacksize; /* number of registers needed by this function */
+        public int sizeupvalues; /* size of 'upvalues' */
+        public int sizek; /* size of 'k' */
+        public int sizecode;
+        public int sizelineinfo;
+        public int sizep; /* size of 'p' */
+        public int sizelocvars;
+        public int sizeabslineinfo; /* size of 'abslineinfo' */
+        public int linedefined; /* debug information  */
+        public int lastlinedefined; /* debug information  */
+        public TValue* k; /* constants used by the function */
+        public uint* code; /* opcodes */
+        public Proto** p; /* functions defined inside the function */
+        public Upvaldesc* upvalues; /* upvalue information */
+        public sbyte* lineinfo; /* information about source lines (debug information) */
+        public AbsLineInfo* abslineinfo; /* idem */
+        public LocVar* locvars; /* information about local variables (debug information) */
+        public TString* source; /* used for debug information */
+        public GCObject* gclist;
+    }
+
+    /* }================================================================== */
+
+    /*
+     ** {==================================================================
+     ** Functions
+     ** ===================================================================
+     */
+
+    private const byte LUA_VUPVAL = LUA_TUPVAL;
 
     /* Variant tags for functions */
-    private const byte LUA_VLCL = LUA_TFUNCTION;  /* Lua closure */
-    private const byte LUA_VLCF = LUA_TFUNCTION | 1 << 4;  /* light C function */
-    private const byte LUA_VCCL = LUA_TFUNCTION | 2 << 4;  /* C closure */
+    private const byte LUA_VLCL = LUA_TFUNCTION; /* Lua closure */
+    private const byte LUA_VLCF = LUA_TFUNCTION | 1 << 4; /* light C function */
+    private const byte LUA_VCCL = LUA_TFUNCTION | 2 << 4; /* C closure */
 
     private static bool ttisfunction(TValue* o)
     {
@@ -851,17 +865,22 @@ public static unsafe partial class Lua
         Debug.Assert(ttislcf(o));
         return val_(o).f;
     }
-    
+
     // #define clCvalue(o)	check_exp(ttisCclosure(o), gco2ccl(val_(o).gc))
 //
 // #define fvalueraw(v)	((v).f)
-//
-// #define setclLvalue(L,obj,x) \
-//   { TValue *io = (obj); LClosure *x_ = (x); \
-//     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_VLCL)); \
-//     checkliveness(L,io); }
-//
-// #define setclLvalue2s(L,o,cl)	setclLvalue(L,s2v(o),cl)
+
+    private static void setclLvalue(lua_State* L, TValue* obj, LClosure* x)
+    {
+        val_(obj).gc = obj2gco(x);
+        settt_(obj, ctb(LUA_VLCL));
+        checkliveness(L, obj);
+    }
+
+    private static void setclLvalue2s(lua_State* L, StkId o, LClosure* cl)
+    {
+        setclLvalue(L, s2v(o), cl);
+    }
 
     private static void setfvalue(TValue* obj, lua_CFunction x)
     {
@@ -900,7 +919,7 @@ public static unsafe partial class Lua
             [FieldOffset(0)] public UOpen open; /* (when open) */
             [FieldOffset(0)] public TValue value; /* the value (when closed) */
         }
-        
+
         public GCObject* next;
         public byte tt;
         public byte marked;
@@ -925,12 +944,6 @@ public static unsafe partial class Lua
         public TValueArray upvalue; /* list of upvalues */
     }
 
-    [InlineArray(1)]
-    private struct UpValArray
-    {
-        private UpVal element0;
-    }
-
     private struct LClosure
     {
         public GCObject* next;
@@ -938,27 +951,28 @@ public static unsafe partial class Lua
         public byte marked;
         public byte nupvalues;
         public GCObject* gclist;
-        // public Proto* p;
-        public UpValArray upvals; /* list of upvalues */
+        public Proto* p;
+        public UpVal* upvals; /* list of upvalues */
     }
-    
-// typedef union Closure {
-//   CClosure c;
-//   LClosure l;
-// } Closure;
-//
-//
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct Closure
+    {
+        [FieldOffset(0)] public CClosure c;
+        [FieldOffset(0)] public LClosure l;
+    }
+
 // #define getproto(o)	(clLvalue(o)->p)
 
     /* }================================================================== */
 
     /*
-    ** {==================================================================
-    ** Tables
-    ** ===================================================================
-    */
+     ** {==================================================================
+     ** Tables
+     ** ===================================================================
+     */
 
-    private static readonly byte LUA_VTABLE = makevariant(LUA_TTABLE, 0);
+    private const byte LUA_VTABLE = LUA_TTABLE;
 
     private static bool ttistable(TValue* o)
     {
@@ -1036,8 +1050,8 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Macros to manipulate keys inserted in nodes
-    */
+     ** Macros to manipulate keys inserted in nodes
+     */
     private static ref byte keytt(Node* node)
     {
         return ref node->u.key_tt;
@@ -1078,19 +1092,28 @@ public static unsafe partial class Lua
         keytt(node) = LUA_TNIL;
     }
 
-    // #define keyiscollectable(n)	(keytt(n) & BIT_ISCOLLECTABLE)
-//
-// #define gckey(n)	(keyval(n).gc)
-// #define gckeyN(n)	(keyiscollectable(n) ? gckey(n) : NULL)
-//
-//
-// /*
-// ** Dead keys in tables have the tag DEADKEY but keep their original
-// ** gcvalue. This distinguishes them from regular keys but allows them to
-// ** be found when searched in a special way. ('next' needs that to find
-// ** keys removed from a table during a traversal.)
-// */
-// #define setdeadkey(node)	(keytt(node) = LUA_TDEADKEY)
+    private static bool keyiscollectable(Node* n)
+    {
+        return (keytt(n) & BIT_ISCOLLECTABLE) != 0;
+    }
+
+    private static GCObject* gckey(Node* n)
+    {
+        return keyval(n).gc;
+    }
+
+    // #define gckeyN(n)	(keyiscollectable(n) ? gckey(n) : null)
+
+    /*
+     ** Dead keys in tables have the tag DEADKEY but keep their original
+     ** gcvalue. This distinguishes them from regular keys but allows them to
+     ** be found when searched in a special way. ('next' needs that to find
+     ** keys removed from a table during a traversal.)
+     */
+    private static void setdeadkey(Node* node)
+    {
+        keytt(node) = LUA_TDEADKEY;
+    }
 
     private static bool keyisdead(Node* node)
     {
@@ -1100,14 +1123,14 @@ public static unsafe partial class Lua
     /* }================================================================== */
 
     /*
-    ** 'module' operation for hashing (size is always a power of 2)
-    */
+     ** 'module' operation for hashing (size is always a power of 2)
+     */
     private static uint lmod(uint s, int size)
     {
         Debug.Assert((size & size - 1) == 0);
         return s & (uint)(size - 1);
     }
-    
+
     private static uint lmod(uint s, uint size)
     {
         Debug.Assert((size & size - 1) == 0);
@@ -1143,8 +1166,8 @@ public static unsafe partial class Lua
 
     private static partial byte luaO_codeparam(uint p);
 
-// LUAI_FUNC l_mem luaO_applyparam (lu_byte p, l_mem x);
-//
+    private static partial long luaO_applyparam(byte p, long x);
+
 // LUAI_FUNC int luaO_rawarith (lua_State *L, int op, const TValue *p1,
 //                              const TValue *p2, TValue *res);
 // LUAI_FUNC void luaO_arith (lua_State *L, int op, const TValue *p1,
@@ -1155,6 +1178,6 @@ public static unsafe partial class Lua
 // LUAI_FUNC void luaO_tostring (lua_State *L, TValue *obj);
 
     private static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args);
-    
+
 // LUAI_FUNC void luaO_chunkid (char *out, const char *source, size_t srclen);
 }

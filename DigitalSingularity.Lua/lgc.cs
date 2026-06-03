@@ -1,5 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
 // /*
@@ -66,8 +68,12 @@ public static unsafe partial class Lua
         return (byte)(1 << b);
     }
 
-// #define l_setbit(x,b)		setbits(x, bitmask(b))
-// #define resetbit(x,b)		resetbits(x, bitmask(b))
+    private static void l_setbit(ref byte x, byte b)
+    {
+        setbits(ref x, bitmask(b));
+    }
+
+    // #define resetbit(x,b)		resetbits(x, bitmask(b))
     private static bool testbit(byte x, byte b)
     {
         return testbits(x, bitmask(b));
@@ -97,10 +103,12 @@ public static unsafe partial class Lua
         return testbit(x->marked, BLACKBIT);
     }
 
-    // #define isgray(x)  /* neither white nor black */  \
-// 	(!testbits((x)->marked, WHITEBITS | bitmask(BLACKBIT)))
-//
-// #define tofinalize(x)	testbit((x)->marked, FINALIZEDBIT)
+    private static bool isgrey(GCObject* x) /* neither white nor black */
+    {
+        return !testbits(x->marked, (byte)(WHITEBITS | bitmask(BLACKBIT)));
+    }
+
+    // #define tofinalize(x)	testbit((x)->marked, FINALIZEDBIT)
 
     private static byte otherwhite(global_State* g)
     {
@@ -121,9 +129,12 @@ public static unsafe partial class Lua
     {
         x->marked ^= WHITEBITS;
     }
-    
-    // #define nw2black(x)  \
-// 	check_exp(!iswhite(x), l_setbit((x)->marked, BLACKBIT))
+
+    private static void nw2black(GCObject* x)
+    {
+        Debug.Assert(!iswhite(x));
+        l_setbit(ref x->marked, BLACKBIT);
+    }
 
     private static byte luaC_white(global_State* g)
     {
@@ -237,10 +248,13 @@ public static unsafe partial class Lua
     {
         g->gcparams[p] = luaO_codeparam(v);
     }
-    
-    // #define applygcparam(g,p,x)  luaO_applyparam(g->gcparams[LUA_GCP##p], x)
-//
-// /* }====================================================== */
+
+    private static long applygcparam(global_State* g, int p, long x)
+    {
+        return luaO_applyparam(g->gcparams[p], x);
+    }
+
+    /* }====================================================== */
 
     /*
     ** Control when GC is running:
@@ -288,12 +302,21 @@ public static unsafe partial class Lua
         }
     }
 
-    // #define luaC_objbarrier(L,p,o) (  \
-// 	(isblack(p) && iswhite(o)) ? \
-// 	luaC_barrier_(L,obj2gco(p),obj2gco(o)) : cast_void(0))
-//
-// #define luaC_barrier(L,p,v) (  \
-// 	iscollectable(v) ? luaC_objbarrier(L,p,gcvalue(v)) : cast_void(0))
+    private static void luaC_objbarrier(lua_State* L, GCObject* p, GCObject* o)
+    {
+        if (isblack(p) && iswhite(o))
+        {
+            luaC_barrier_(L, obj2gco(p), obj2gco(o));
+        }
+    }
+
+    private static void luaC_barrier(lua_State* L, GCObject* p, TValue* v)
+    {
+        if (iscollectable(v))
+        {
+            luaC_objbarrier(L, p, gcvalue(v));
+        }
+    }
 
     private static void luaC_objbarrierback(lua_State* L, GCObject* p, GCObject* o)
     {
@@ -317,18 +340,19 @@ public static unsafe partial class Lua
 
     private static partial void luaC_step(lua_State* L);
 
-// LUAI_FUNC void luaC_runtilstate (lua_State *L, int state, int fast);
+    private static partial void luaC_runtilstate(lua_State* L, int state, bool fast);
 
     private static partial void luaC_fullgc(lua_State* L, bool isemergency);
 
     private static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz);
 
     private static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset);
-    
-// LUAI_FUNC void luaC_barrier_ (lua_State *L, GCObject *o, GCObject *v);
+
+    private static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v);
 
     private static partial void luaC_barrierback_(lua_State* L, GCObject* o);
 
 // LUAI_FUNC void luaC_checkfinalizer (lua_State *L, GCObject *o, Table *mt);
-// LUAI_FUNC void luaC_changemode (lua_State *L, int newmode);
+
+    private static partial void luaC_changemode(lua_State* L, int newmode);
 }

@@ -14,21 +14,21 @@ public static unsafe partial class Lua
     ** at every check.
     */
 
-// #if !defined(HARDSTACKTESTS)
-// #define condmovestack(L,pre,pos)	((void)0)
-// #else
-// /* realloc stack keeping its size */
-// #define condmovestack(L,pre,pos)  \
-//   { int sz_ = stacksize(L); pre; luaD_reallocstack((L), sz_, 0); pos; }
-// #endif
-//
-// #define luaD_checkstackaux(L,n,pre,pos)  \
-// 	if (l_unlikely(L->stack_last.p - L->top.p <= (n))) \
-// 	  { pre; luaD_growstack(L, n, 1); pos; } \
-// 	else { condmovestack(L,pre,pos); }
-//
-// /* In general, 'pre'/'pos' are empty (nothing to save) */
-// #define luaD_checkstack(L,n)	luaD_checkstackaux(L,n,(void)0,(void)0)
+    /* In general, 'pre'/'pos' are empty (nothing to save) */
+    private static void luaD_checkstack(lua_State* L, int n)
+    {
+        if (L->stack_last.p - L->top.p <= n)
+        {
+            luaD_growstack(L, n, true);
+        }
+        else
+        {
+#if HARDSTACKTESTS
+            int sz_ = stacksize(L);
+            luaD_reallocstack(L, sz_, false);
+#endif
+        }
+    }
 
     private static nint savestack(lua_State* L, StackValue* pt)
     {
@@ -68,13 +68,16 @@ public static unsafe partial class Lua
      ** fit in a 16-bit unsigned integer. It must also be compatible with
      ** the size of the C stack.)
      */
-    private const int LUAI_MAXCCALLS = 200;
+    private const int LUAI_MAXCCALLS =
+#if LUA_TEST
+        180;
+#else
+        200;
+#endif
 
 // LUAI_FUNC l_noret luaD_errerr (lua_State *L);
 // LUAI_FUNC void luaD_seterrorobj (lua_State *L, TStatus errcode, StkId oldtop);
-// LUAI_FUNC TStatus luaD_protectedparser (lua_State *L, ZIO *z,
-//                                                   const char *name,
-//                                                   const char *mode);
+    private static partial byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode);
 
     private static partial void luaD_hook(lua_State* L, int @event, int line, int fTransfer, int nTransfer);
     
@@ -96,10 +99,12 @@ public static unsafe partial class Lua
     private static partial bool luaD_reallocstack(lua_State* L, int newsize, bool raiseerror);
 
     private static partial bool luaD_growstack(lua_State* L, int n, bool raiseerror);
-    
-// LUAI_FUNC void luaD_shrinkstack (lua_State *L);
-// LUAI_FUNC void luaD_inctop (lua_State *L);
-// LUAI_FUNC int luaD_checkminstack (lua_State *L);
+
+    private static partial void luaD_shrinkstack(lua_State* L);
+
+    private static partial void luaD_inctop(lua_State* L);
+
+    private static partial bool luaD_checkminstack(lua_State* L);
 
     [DoesNotReturn]
     private static partial void luaD_throw(lua_State* L, byte errcode);

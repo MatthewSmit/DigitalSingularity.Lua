@@ -117,7 +117,7 @@ static luaL_Reg ct_funcs[] = {
   {"throw",	ct_throw },
   {"wrapon",	ct_wrapon },
   {"wrapoff",	ct_wrapoff },
-  {NULL, NULL}
+  {null, null}
 };
 
 extern "C" {

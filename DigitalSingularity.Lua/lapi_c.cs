@@ -159,9 +159,10 @@ public static unsafe partial class Lua
             : (int)(L->top.p - L->ci->func.p) + idx;
     }
 
-// LUA_API int lua_gettop (lua_State *L) {
-//   return cast_int(L->top.p - (L->ci->func.p + 1));
-// }
+    public static partial int lua_gettop(lua_State* L)
+    {
+        return (int)(L->top.p - (L->ci->func.p + 1));
+    }
 
     public static partial void lua_settop(lua_State* L, int idx)
     {
@@ -397,28 +398,27 @@ public static unsafe partial class Lua
         return !l_isfalse(o);
     }
 
-// LUA_API const char *lua_tolstring (lua_State *L, int idx, size_t *len) {
-//   TValue *o;
-//   lua_lock(L);
-//   o = index2value(L, idx);
-//   if (!ttisstring(o)) {
+    public static partial byte* lua_tolstring(lua_State* L, int idx, out long len)
+    {
+        lua_lock(L);
+        TValue* o = index2value(L, idx);
+        if (!ttisstring(o))
+        {
 //     if (!cvt2str(o)) {  /* not convertible? */
-//       if (len != NULL) *len = 0;
+//       if (len != null) *len = 0;
 //       lua_unlock(L);
-//       return NULL;
+//       return null;
 //     }
 //     luaO_tostring(L, o);
 //     luaC_checkGC(L);
 //     o = index2value(L, idx);  /* previous call may reallocate the stack */
-//   }
-//   lua_unlock(L);
-//   if (len != NULL)
-//     return getlstr(tsvalue(o), *len);
-//   else
-//     return getstr(tsvalue(o));
-// }
-//
-//
+            throw new NotImplementedException();
+        }
+
+        lua_unlock(L);
+        return getlstr(tsvalue(o), out len);
+    }
+
 // LUA_API lua_Unsigned lua_rawlen (lua_State *L, int idx) {
 //   const TValue *o = index2value(L, idx);
 //   switch (ttypetag(o)) {
@@ -442,7 +442,7 @@ public static unsafe partial class Lua
 //   if (ttislcf(o)) return fvalue(o);
 //   else if (ttisCclosure(o))
 //     return clCvalue(o)->f;
-//   else return NULL;  /* not a C function */
+//   else return null;  /* not a C function */
 // }
 
     private static void* touserdata(TValue* o)
@@ -463,7 +463,7 @@ public static unsafe partial class Lua
 
 // LUA_API lua_State *lua_tothread (lua_State *L, int idx) {
 //   const TValue *o = index2value(L, idx);
-//   return (!ttisthread(o)) ? NULL : thvalue(o);
+//   return (!ttisthread(o)) ? null : thvalue(o);
 // }
 //
 //
@@ -484,7 +484,7 @@ public static unsafe partial class Lua
 //       if (iscollectable(o))
 //         return gcvalue(o);
 //       else
-//         return NULL;
+//         return null;
 //     }
 //   }
 // }
@@ -517,21 +517,34 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-// /*
-// ** Pushes on the stack a string with given length. Avoid using 's' when
-// ** 'len' == 0 (as 's' can be NULL in that case), due to later use of
-// ** 'memcmp' and 'memcpy'.
-// */
-// LUA_API const char *lua_pushlstring (lua_State *L, const char *s, size_t len) {
-//   TString *ts;
-//   lua_lock(L);
-//   ts = (len == 0) ? luaS_new(L, "") : luaS_newlstr(L, s, len);
-//   setsvalue2s(L, L->top.p, ts);
-//   api_incr_top(L);
-//   luaC_checkGC(L);
-//   lua_unlock(L);
-//   return getstr(ts);
-// }
+    /*
+    ** Pushes on the stack a string with given length. Avoid using 's' when
+    ** 'len' == 0 (as 's' can be null in that case), due to later use of
+    ** 'memcmp' and 'memcpy'.
+    */
+    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<char> s)
+    {
+        lua_lock(L);
+        TString* ts;
+        if (s.IsEmpty)
+        {
+            ts = luaS_new(L, "");
+        }
+        else
+        {
+            byte[] data = new byte[Encoding.UTF8.GetByteCount(s)];
+            Encoding.UTF8.GetBytes(s, data);
+            fixed (byte* ptr = data)
+            {
+                ts = luaS_newlstr(L, ptr, data.Length);
+            }
+        }
+
+        setsvalue2s(L, L->top.p, ts);
+        api_incr_top(L);
+        luaC_checkGC(L);
+        lua_unlock(L);
+    }
 
     public static partial void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
     {
@@ -791,7 +804,7 @@ public static unsafe partial class Lua
 //       mt = G(L)->mt[ttype(obj)];
 //       break;
 //   }
-//   if (mt != NULL) {
+//   if (mt != null) {
 //     sethvalue2s(L, L->top.p, mt);
 //     api_incr_top(L);
 //     res = 1;
@@ -956,7 +969,7 @@ public static unsafe partial class Lua
                 hvalue(obj)->metatable = mt;
                 if (mt != null)
                 {
-//         luaC_objbarrier(L, gcvalue(obj), mt);
+                    luaC_objbarrier(L, gcvalue(obj), (GCObject*)mt);
 //         luaC_checkfinalizer(L, gcvalue(obj), mt);
                     throw new NotImplementedException();
                 }
@@ -967,7 +980,7 @@ public static unsafe partial class Lua
                 uvalue(obj)->metatable = mt;
                 if (mt != null)
                 {
-//         luaC_objbarrier(L, uvalue(obj), mt);
+                    luaC_objbarrier(L, (GCObject*)uvalue(obj), (GCObject*)mt);
 //         luaC_checkfinalizer(L, gcvalue(obj), mt);
                 }
 
@@ -1122,14 +1135,17 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// LUA_API int lua_load (lua_State *L, lua_Reader reader, void *data,
-//                       const char *chunkname, const char *mode) {
-//   ZIO z;
-//   TStatus status;
-//   lua_lock(L);
-//   if (!chunkname) chunkname = "?";
-//   luaZ_init(L, &z, reader, data);
-//   status = luaD_protectedparser(L, &z, chunkname, mode);
+    public static partial int lua_load(lua_State* L, lua_Reader reader, void* data, string? chunkname, string? mode)
+    {
+        lua_lock(L);
+        if (string.IsNullOrEmpty(chunkname))
+        {
+            chunkname = "?";
+        }
+
+        Zio z;
+        luaZ_init(L, &z, reader, data);
+        byte status = luaD_protectedparser(L, &z, chunkname, mode);
 //   if (status == LUA_OK) {  /* no errors? */
 //     LClosure *f = clLvalue(s2v(L->top.p - 1));  /* get new function */
 //     if (f->nupvalues >= 1) {  /* does it have an upvalue? */
@@ -1143,9 +1159,9 @@ public static unsafe partial class Lua
 //   }
 //   lua_unlock(L);
 //   return APIstatus(status);
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // /*
 // ** Dump a Lua function, calling 'writer' to write its parts. Ensure
 // ** the stack returns with its original size.
@@ -1189,18 +1205,17 @@ public static unsafe partial class Lua
                 break;
 
             case LUA_GCRESTART:
-                {
-//       luaE_setdebt(g, 0);
-//       g->gcstp = 0;  /* (other bits must be zero here) */
-//       break;
-                    throw new NotImplementedException();
-                }
+                luaE_setdebt(g, 0);
+                g->gcstp = 0; /* (other bits must be zero here) */
+                break;
+            
             case LUA_GCCOLLECT:
                 {
 //       luaC_fullgc(L, 0);
 //       break;
                     throw new NotImplementedException();
                 }
+            
             case LUA_GCCOUNT:
                 {
 //       /* GC values are expressed in Kbytes: #bytes/2^10 */
@@ -1208,12 +1223,14 @@ public static unsafe partial class Lua
 //       break;
                     throw new NotImplementedException();
                 }
+            
             case LUA_GCCOUNTB:
                 {
 //       res = cast_int(gettotalbytes(g) & 0x3ff);
 //       break;
                     throw new NotImplementedException();
                 }
+            
             case LUA_GCSTEP:
                 {
 //       lu_byte oldstp = g->gcstp;
@@ -1230,19 +1247,19 @@ public static unsafe partial class Lua
 //       break;
                     throw new NotImplementedException();
                 }
+            
             case LUA_GCISRUNNING:
                 {
 //       res = gcrunning(g);
 //       break;
                     throw new NotImplementedException();
                 }
+
             case LUA_GCGEN:
-                {
-//       res = (g->gckind == KGC_INC) ? LUA_GCINC : LUA_GCGEN;
-//       luaC_changemode(L, KGC_GENMINOR);
-//       break;
-                    throw new NotImplementedException();
-                }
+                res = (g->gckind == KGC_INC) ? LUA_GCINC : LUA_GCGEN;
+                luaC_changemode(L, KGC_GENMINOR);
+                break;
+
             case LUA_GCINC:
                 {
 //       res = (g->gckind == KGC_INC) ? LUA_GCINC : LUA_GCGEN;
@@ -1250,6 +1267,7 @@ public static unsafe partial class Lua
 //       break;
                     throw new NotImplementedException();
                 }
+            
             case LUA_GCPARAM:
                 {
 //       int param = va_arg(argp, int);
@@ -1261,6 +1279,7 @@ public static unsafe partial class Lua
 //       break;
                     throw new NotImplementedException();
                 }
+            
             default:
                 res = -1; /* invalid option */
                 break;
@@ -1340,24 +1359,24 @@ public static unsafe partial class Lua
 //   api_incr_top(L);
 //   lua_unlock(L);
 // }
-//
-//
-// LUA_API lua_Alloc lua_getallocf (lua_State *L, void **ud) {
-//   lua_Alloc f;
-//   lua_lock(L);
-//   if (ud) *ud = G(L)->ud;
-//   f = G(L)->frealloc;
-//   lua_unlock(L);
-//   return f;
-// }
-//
-//
-// LUA_API void lua_setallocf (lua_State *L, lua_Alloc f, void *ud) {
-//   lua_lock(L);
-//   G(L)->ud = ud;
-//   G(L)->frealloc = f;
-//   lua_unlock(L);
-// }
+
+    public static partial lua_Alloc lua_getallocf(lua_State* L, out void* ud)
+    {
+        lua_Alloc f;
+        lua_lock(L);
+        ud = G(L)->ud;
+        f = G(L)->frealloc;
+        lua_unlock(L);
+        return f;
+    }
+
+    public static partial void lua_setallocf(lua_State* L, lua_Alloc f, void* ud)
+    {
+        lua_lock(L);
+        G(L)->ud = ud;
+        G(L)->frealloc = f;
+        lua_unlock(L);
+    }
 
     public static partial void lua_setwarnf(lua_State* L, lua_WarnFunction f, void* ud)
     {
@@ -1367,11 +1386,12 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-// void lua_warning (lua_State *L, const char *msg, int tocont) {
-//   lua_lock(L);
-//   luaE_warning(L, msg, tocont);
-//   lua_unlock(L);
-// }
+    public static partial void lua_warning(lua_State* L, string msg, bool tocont)
+    {
+        lua_lock(L);
+        luaE_warning(L, msg, tocont);
+        lua_unlock(L);
+    }
 
     public static partial void* lua_newuserdatauv(lua_State* L, long size, int nuvalue)
     {
@@ -1391,7 +1411,7 @@ public static unsafe partial class Lua
 //     case LUA_VCCL: {  /* C closure */
 //       CClosure *f = clCvalue(fi);
 //       if (!(cast_uint(n) - 1u < cast_uint(f->nupvalues)))
-//         return NULL;  /* 'n' not in [1, f->nupvalues] */
+//         return null;  /* 'n' not in [1, f->nupvalues] */
 //       *val = &f->upvalue[n-1];
 //       if (owner) *owner = obj2gco(f);
 //       return "";
@@ -1401,22 +1421,22 @@ public static unsafe partial class Lua
 //       TString *name;
 //       Proto *p = f->p;
 //       if (!(cast_uint(n) - 1u  < cast_uint(p->sizeupvalues)))
-//         return NULL;  /* 'n' not in [1, p->sizeupvalues] */
+//         return null;  /* 'n' not in [1, p->sizeupvalues] */
 //       *val = f->upvals[n-1]->v.p;
 //       if (owner) *owner = obj2gco(f->upvals[n - 1]);
 //       name = p->upvalues[n-1].name;
-//       return (name == NULL) ? "(no name)" : getstr(name);
+//       return (name == null) ? "(no name)" : getstr(name);
 //     }
-//     default: return NULL;  /* not a closure */
+//     default: return null;  /* not a closure */
 //   }
 // }
 //
 //
 // LUA_API const char *lua_getupvalue (lua_State *L, int funcindex, int n) {
 //   const char *name;
-//   TValue *val = NULL;  /* to avoid warnings */
+//   TValue *val = null;  /* to avoid warnings */
 //   lua_lock(L);
-//   name = aux_upvalue(index2value(L, funcindex), n, &val, NULL);
+//   name = aux_upvalue(index2value(L, funcindex), n, &val, null);
 //   if (name) {
 //     setobj2s(L, L->top.p, val);
 //     api_incr_top(L);
@@ -1428,8 +1448,8 @@ public static unsafe partial class Lua
 //
 // LUA_API const char *lua_setupvalue (lua_State *L, int funcindex, int n) {
 //   const char *name;
-//   TValue *val = NULL;  /* to avoid warnings */
-//   GCObject *owner = NULL;  /* to avoid warnings */
+//   TValue *val = null;  /* to avoid warnings */
+//   GCObject *owner = null;  /* to avoid warnings */
 //   TValue *fi;
 //   lua_lock(L);
 //   fi = index2value(L, funcindex);
@@ -1446,7 +1466,7 @@ public static unsafe partial class Lua
 //
 //
 // static UpVal **getupvalref (lua_State *L, int fidx, int n, LClosure **pf) {
-//   static const UpVal *const nullup = NULL;
+//   static const UpVal *const nullup = null;
 //   LClosure *f;
 //   TValue *fi = index2value(L, fidx);
 //   api_check(L, ttisLclosure(fi), "Lua function expected");
@@ -1463,7 +1483,7 @@ public static unsafe partial class Lua
 //   TValue *fi = index2value(L, fidx);
 //   switch (ttypetag(fi)) {
 //     case LUA_VLCL: {  /* lua closure */
-//       return *getupvalref(L, fidx, n, NULL);
+//       return *getupvalref(L, fidx, n, null);
 //     }
 //     case LUA_VCCL: {  /* C closure */
 //       CClosure *f = clCvalue(fi);
@@ -1472,10 +1492,10 @@ public static unsafe partial class Lua
 //       /* else */
 //     }  /* FALLTHROUGH */
 //     case LUA_VLCF:
-//       return NULL;  /* light C functions have no upvalues */
+//       return null;  /* light C functions have no upvalues */
 //     default: {
 //       api_check(L, 0, "function expected");
-//       return NULL;
+//       return null;
 //     }
 //   }
 // }
@@ -1485,8 +1505,8 @@ public static unsafe partial class Lua
 //                                             int fidx2, int n2) {
 //   LClosure *f1;
 //   UpVal **up1 = getupvalref(L, fidx1, n1, &f1);
-//   UpVal **up2 = getupvalref(L, fidx2, n2, NULL);
-//   api_check(L, *up1 != NULL && *up2 != NULL, "invalid upvalue index");
+//   UpVal **up2 = getupvalref(L, fidx2, n2, null);
+//   api_check(L, *up1 != null && *up2 != null, "invalid upvalue index");
 //   *up1 = *up2;
 //   luaC_objbarrier(L, f1, *up1);
 // }

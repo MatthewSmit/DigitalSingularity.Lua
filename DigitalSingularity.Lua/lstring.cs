@@ -10,7 +10,7 @@ public static unsafe partial class Lua
     ** Memory-allocation error message must be preallocated (it cannot
     ** be created after memory is exhausted)
     */
-    private static readonly string MEMERRMSG = "not enough memory";
+    private const string MEMERRMSG = "not enough memory";
 
     /*
     ** Maximum length for short strings, that is, strings that are
@@ -40,14 +40,17 @@ public static unsafe partial class Lua
         }
     }
 
-    // /*
-// ** test whether a string is a reserved word
-// */
-// #define isreserved(s)	(strisshr(s) && (s)->extra > 0)
+    /*
+    ** test whether a string is a reserved word
+    */
+    private static bool isreserved(TString* s)
+    {
+        return strisshr(s) && s->extra > 0;
+    }
 
     /*
-    ** equality for short strings, which are always internalised
-    */
+     ** equality for short strings, which are always internalised
+     */
     private static bool eqshrstr(TString* a, TString* b)
     {
         Debug.Assert(a->tt == LUA_VSHRSTR);
@@ -58,12 +61,12 @@ public static unsafe partial class Lua
 // LUAI_FUNC int luaS_eqstr (TString *a, TString *b);
 
     private static partial void luaS_resize(lua_State* L, int newsize);
-    
-// LUAI_FUNC void luaS_clearcache (global_State *g);
+
+    private static partial void luaS_clearcache(global_State* g);
 
     private static partial void luaS_init(lua_State* L);
-    
-// LUAI_FUNC void luaS_remove (lua_State *L, TString *ts);
+
+    private static partial void luaS_remove(lua_State* L, TString* ts);
 
     private static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue);
 

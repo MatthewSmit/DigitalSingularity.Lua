@@ -83,8 +83,8 @@ public static unsafe partial class Lua
 //     setsvalue2s(L, oldtop, G(L)->memerrmsg); /* reuse preregistered msg. */
 //   }
 //   else {
-//     lua_assert(errorstatus(errcode));  /* must be a real error */
-//     lua_assert(!ttisnil(s2v(L->top.p - 1)));  /* with a non-nil object */
+//     Debug.Assert(errorstatus(errcode));  /* must be a real error */
+//     Debug.Assert(!ttisnil(s2v(L->top.p - 1)));  /* with a non-nil object */
 //     setobjs2s(L, oldtop, L->top.p - 1);  /* move it to 'oldtop' */
 //   }
 //   L->top.p = oldtop + 1;  /* top goes back to old top plus error object */
@@ -119,7 +119,7 @@ public static unsafe partial class Lua
 // l_noret luaD_throwbaselevel (lua_State *L, TStatus errcode) {
 //   if (L->errorJmp) {
 //     /* unroll error entries up to the first level */
-//     while (L->errorJmp->previous != NULL)
+//     while (L->errorJmp->previous != null)
 //       L->errorJmp = L->errorJmp->previous;
 //   }
 //   luaD_throw(L, errcode);
@@ -207,29 +207,28 @@ public static unsafe partial class Lua
 //   L->top.p++;  /* assume EXTRA_STACK */
 //   luaD_throw(L, LUA_ERRERR);
 // }
-//
-//
-// /*
-// ** Check whether stack has enough space to run a simple function (such
-// ** as a finalizer): At least BASIC_STACK_SIZE in the Lua stack and
-// ** 2 slots in the C stack.
-// */
-// int luaD_checkminstack (lua_State *L) {
-//   return ((stacksize(L) < MAXSTACK - BASIC_STACK_SIZE) &&
-//           (getCcalls(L) < LUAI_MAXCCALLS - 2));
-// }
+
+    /*
+    ** Check whether stack has enough space to run a simple function (such
+    ** as a finaliser): At least BASIC_STACK_SIZE in the Lua stack and
+    ** 2 slots in the C stack.
+    */
+    private static partial bool luaD_checkminstack(lua_State* L)
+    {
+        return stacksize(L) < MAXSTACK - BASIC_STACK_SIZE && getCcalls(L) < LUAI_MAXCCALLS - 2;
+    }
 
 
     /*
-    ** In ISO C, any pointer use after the pointer has been deallocated is
-    ** undefined behavior. So, before a stack reallocation, all pointers
-    ** should be changed to offsets, and after the reallocation they should
-    ** be changed back to pointers. As during the reallocation the pointers
-    ** are invalid, the reallocation cannot run emergency collections.
-    ** Alternatively, we can use the old address after the deallocation.
-    ** That is not strict ISO C, but seems to work fine everywhere.
-    ** The following macro chooses how strict is the code.
-    */
+     ** In ISO C, any pointer use after the pointer has been deallocated is
+     ** undefined behavior. So, before a stack reallocation, all pointers
+     ** should be changed to offsets, and after the reallocation they should
+     ** be changed back to pointers. As during the reallocation the pointers
+     ** are invalid, the reallocation cannot run emergency collections.
+     ** Alternatively, we can use the old address after the deallocation.
+     ** That is not strict ISO C, but seems to work fine everywhere.
+     ** The following macro chooses how strict is the code.
+     */
 #if LUAI_STRICT_ADDRESS
     /*
     ** Change all pointers to the stack into offsets.
@@ -293,9 +292,9 @@ public static unsafe partial class Lua
 //     return;
 //   L->top.p = L->top.p - oldstack + newstack;
 //   L->tbclist.p = L->tbclist.p - oldstack + newstack;
-//   for (up = L->openupval; up != NULL; up = up->u.open.next)
+//   for (up = L->openupval; up != null; up = up->u.open.next)
 //     up->v.p = s2v(uplevel(up) - oldstack + newstack);
-//   for (ci = L->ci; ci != NULL; ci = ci->previous) {
+//   for (ci = L->ci; ci != null; ci = ci->previous) {
 //     ci->top.p = ci->top.p - oldstack + newstack;
 //     ci->func.p = ci->func.p - oldstack + newstack;
 //     if (isLua(ci))
@@ -313,10 +312,10 @@ public static unsafe partial class Lua
     {
         int oldsize = stacksize(L);
         StkId oldstack = L->stack.p;
-        byte oldgcstop = G(L)->gcstopem;
+        bool oldgcstop = G(L)->gcstopem;
         Debug.Assert(newsize is <= MAXSTACK or ERRORSTACKSIZE);
         relstack(L); /* change pointers to offsets */
-        G(L)->gcstopem = 1; /* stop emergency collection */
+        G(L)->gcstopem = true; /* stop emergency collection */
         StkId newstack = luaM_reallocvector<StackValue>(L, oldstack, oldsize + EXTRA_STACK, newsize + EXTRA_STACK);
         G(L)->gcstopem = oldgcstop; /* restore emergency collection */
         if (newstack == null)
@@ -356,7 +355,7 @@ public static unsafe partial class Lua
 //     /* if stack is larger than maximum, thread is already using the
 //        extra space reserved for errors, that is, thread is handling
 //        a stack error; cannot grow further than that. */
-//     lua_assert(stacksize(L) == ERRORSTACKSIZE);
+//     Debug.Assert(stacksize(L) == ERRORSTACKSIZE);
 //     if (raiseerror)
 //       luaD_errerr(L);  /* stack error inside message handler */
 //     return 0;  /* if not 'raiseerror', just signal it */
@@ -380,55 +379,69 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Compute how much of the stack is being used, by computing the
-// ** maximum top of all call frames in the stack and the current top.
-// */
-// static int stackinuse (lua_State *L) {
-//   CallInfo *ci;
-//   int res;
-//   StkId lim = L->top.p;
-//   for (ci = L->ci; ci != NULL; ci = ci->previous) {
-//     if (lim < ci->top.p) lim = ci->top.p;
-//   }
-//   lua_assert(lim <= L->stack_last.p + EXTRA_STACK);
-//   res = cast_int(lim - L->stack.p) + 1;  /* part of stack in use */
-//   if (res < LUA_MINSTACK)
-//     res = LUA_MINSTACK;  /* ensure a minimum size */
-//   return res;
-// }
-//
-//
-// /*
-// ** If stack size is more than 3 times the current use, reduce that size
-// ** to twice the current use. (So, the final stack size is at most 2/3 the
-// ** previous size, and half of its entries are empty.)
-// ** As a particular case, if stack was handling a stack overflow and now
-// ** it is not, 'max' (limited by MAXSTACK) will be smaller than
-// ** stacksize (equal to ERRORSTACKSIZE in this case), and so the stack
-// ** will be reduced to a "regular" size.
-// */
-// void luaD_shrinkstack (lua_State *L) {
-//   int inuse = stackinuse(L);
-//   int max = (inuse > MAXSTACK / 3) ? MAXSTACK : inuse * 3;
-//   /* if thread is currently not handling a stack overflow and its
-//      size is larger than maximum "reasonable" size, shrink it */
-//   if (inuse <= MAXSTACK && stacksize(L) > max) {
-//     int nsize = (inuse > MAXSTACK / 2) ? MAXSTACK : inuse * 2;
-//     luaD_reallocstack(L, nsize, 0);  /* ok if that fails */
-//   }
-//   else  /* don't change stack */
-//     condmovestack(L,(void)0,(void)0);  /* (change only for debugging) */
-//   luaE_shrinkCI(L);  /* shrink CI list */
-// }
-//
-//
-// void luaD_inctop (lua_State *L) {
-//   L->top.p++;
-//   luaD_checkstack(L, 1);
-// }
-//
-// /* }================================================================== */
+    /*
+    ** Compute how much of the stack is being used, by computing the
+    ** maximum top of all call frames in the stack and the current top.
+    */
+    private static int stackinuse(lua_State* L)
+    {
+        StkId lim = L->top.p;
+        for (CallInfo* ci = L->ci; ci != null; ci = ci->previous)
+        {
+            if (lim < ci->top.p)
+            {
+                lim = ci->top.p;
+            }
+        }
+
+        Debug.Assert(lim <= L->stack_last.p + EXTRA_STACK);
+        int res = (int)(lim - L->stack.p) + 1; /* part of stack in use */
+        if (res < LUA_MINSTACK)
+        {
+            res = LUA_MINSTACK; /* ensure a minimum size */
+        }
+
+        return res;
+    }
+
+    /*
+     ** If stack size is more than 3 times the current use, reduce that size
+     ** to twice the current use. (So, the final stack size is at most 2/3 the
+     ** previous size, and half of its entries are empty.)
+     ** As a particular case, if stack was handling a stack overflow and now
+     ** it is not, 'max' (limited by MAXSTACK) will be smaller than
+     ** stacksize (equal to ERRORSTACKSIZE in this case), and so the stack
+     ** will be reduced to a "regular" size.
+     */
+    private static partial void luaD_shrinkstack(lua_State* L)
+    {
+        int inuse = stackinuse(L);
+        int max = (inuse > MAXSTACK / 3) ? MAXSTACK : inuse * 3;
+        /* if thread is currently not handling a stack overflow and its
+          size is larger than maximum "reasonable" size, shrink it */
+        if (inuse <= MAXSTACK && stacksize(L) > max)
+        {
+            int nsize = (inuse > MAXSTACK / 2) ? MAXSTACK : inuse * 2;
+            luaD_reallocstack(L, nsize, false); /* ok if that fails */
+        }
+        else /* don't change stack */
+        {
+#if HARDSTACKTESTS
+            int sz_ = stacksize(L);
+            luaD_reallocstack(L, sz_, false);
+#endif
+        }
+
+        luaE_shrinkCI(L);  /* shrink CI list */
+    }
+
+    private static partial void luaD_inctop(lua_State* L)
+    {
+        L->top.p++;
+        luaD_checkstack(L, 1);
+    }
+
+    /* }================================================================== */
     
     /*
     ** Call a hook for the given event. Make sure there is a hook to be
@@ -460,7 +473,7 @@ public static unsafe partial class Lua
 //     lua_unlock(L);
 //     (*hook)(L, &ar);
 //     lua_lock(L);
-//     lua_assert(!L->allowhook);
+//     Debug.Assert(!L->allowhook);
 //     L->allowhook = 1;
 //     ci->top.p = restorestack(L, ci_top);
 //     L->top.p = restorestack(L, top);
@@ -711,7 +724,7 @@ public static unsafe partial class Lua
 //       for (; narg1 <= nfixparams; narg1++)
 //         setnilvalue(s2v(func + narg1));  /* complete missing arguments */
 //       ci->top.p = func + 1 + fsize;  /* top for new function */
-//       lua_assert(ci->top.p <= L->stack_last.p);
+//       Debug.Assert(ci->top.p <= L->stack_last.p);
 //       ci->u.l.savedpc = p->code;  /* starting point */
 //       ci->callstatus |= CIST_TAIL;
 //       L->top.p = func + narg1;  /* set top */
@@ -731,7 +744,7 @@ public static unsafe partial class Lua
     ** the call. The function to be called is at '*func'.  The arguments
     ** are on the stack, right after the function.  Returns the CallInfo
     ** to be executed, if it was a Lua function. Otherwise (a C function)
-    ** returns NULL, with all the results on the stack, starting at the
+    ** returns null, with all the results on the stack, starting at the
     ** original function position.
     */
     private static partial CallInfo* luaD_precall(lua_State* L, StkId func, int nresults)
@@ -744,7 +757,7 @@ public static unsafe partial class Lua
         {
             case LUA_VCCL: /* C closure */
 //       precallC(L, func, status, clCvalue(s2v(func))->f);
-//       return NULL;
+//       return null;
                 throw new NotImplementedException();
 
             case LUA_VLCF: /* light C function */
@@ -764,7 +777,7 @@ public static unsafe partial class Lua
 //       ci->u.l.savedpc = p->code;  /* starting point */
 //       for (; narg < nfixparams; narg++)
 //         setnilvalue(s2v(L->top.p++));  /* complete missing arguments */
-//       lua_assert(ci->top.p <= L->stack_last.p);
+//       Debug.Assert(ci->top.p <= L->stack_last.p);
 //       return ci;
                     throw new NotImplementedException();
                 }
@@ -876,7 +889,7 @@ public static unsafe partial class Lua
 // static void finishCcall (lua_State *L, CallInfo *ci) {
 //   int n;  /* actual number of results from C function */
 //   if (ci->callstatus & CIST_CLSRET) {  /* was closing TBC variable? */
-//     lua_assert(ci->callstatus & CIST_TBC);
+//     Debug.Assert(ci->callstatus & CIST_TBC);
 //     n = ci->u2.nres;  /* just redo 'luaD_poscall' */
 //     /* don't need to reset CIST_CLSRET, as it will be set again anyway */
 //   }
@@ -884,7 +897,7 @@ public static unsafe partial class Lua
 //     TStatus status = LUA_YIELD;  /* default if there were no errors */
 //     lua_KFunction kf = ci->u.c.k;  /* continuation function */
 //     /* must have a continuation and must be able to call it */
-//     lua_assert(kf != NULL && yieldable(L));
+//     Debug.Assert(kf != null && yieldable(L));
 //     if (ci->callstatus & CIST_YPCALL)   /* was inside a 'lua_pcallk'? */
 //       status = finishpcallk(L, ci);  /* finish it */
 //     adjustresults(L, LUA_MULTRET);  /* finish 'lua_callk' */
@@ -922,11 +935,11 @@ public static unsafe partial class Lua
 // */
 // static CallInfo *findpcall (lua_State *L) {
 //   CallInfo *ci;
-//   for (ci = L->ci; ci != NULL; ci = ci->previous) {  /* search for a pcall */
+//   for (ci = L->ci; ci != null; ci = ci->previous) {  /* search for a pcall */
 //     if (ci->callstatus & CIST_YPCALL)
 //       return ci;
 //   }
-//   return NULL;  /* no pending pcall */
+//   return null;  /* no pending pcall */
 // }
 //
 //
@@ -959,18 +972,18 @@ public static unsafe partial class Lua
 //   if (L->status == LUA_OK)  /* starting a coroutine? */
 //     ccall(L, firstArg - 1, LUA_MULTRET, 0);  /* just call its body */
 //   else {  /* resuming from previous yield */
-//     lua_assert(L->status == LUA_YIELD);
+//     Debug.Assert(L->status == LUA_YIELD);
 //     L->status = LUA_OK;  /* mark that it is running (again) */
 //     if (isLua(ci)) {  /* yielded inside a hook? */
 //       /* undo increment made by 'luaG_traceexec': instruction was not
 //          executed yet */
-//       lua_assert(ci->callstatus & CIST_HOOKYIELD);
+//       Debug.Assert(ci->callstatus & CIST_HOOKYIELD);
 //       ci->u.l.savedpc--;
 //       L->top.p = firstArg;  /* discard arguments */
 //       luaV_execute(L, ci);  /* just continue running Lua code */
 //     }
 //     else {  /* 'common' yield */
-//       if (ci->u.c.k != NULL) {  /* does it have a continuation function? */
+//       if (ci->u.c.k != null) {  /* does it have a continuation function? */
 //         lua_unlock(L);
 //         n = (*ci->u.c.k)(L, LUA_YIELD, ci->u.c.ctx); /* call continuation */
 //         lua_lock(L);
@@ -978,7 +991,7 @@ public static unsafe partial class Lua
 //       }
 //       luaD_poscall(L, ci, n);  /* finish 'luaD_call' */
 //     }
-//     unroll(L, NULL);  /* run continuation */
+//     unroll(L, null);  /* run continuation */
 //   }
 // }
 //
@@ -993,10 +1006,10 @@ public static unsafe partial class Lua
 // */
 // static TStatus precover (lua_State *L, TStatus status) {
 //   CallInfo *ci;
-//   while (errorstatus(status) && (ci = findpcall(L)) != NULL) {
+//   while (errorstatus(status) && (ci = findpcall(L)) != null) {
 //     L->ci = ci;  /* go down to recovery functions */
 //     setcistrecst(ci, status);  /* status to finish 'pcall' */
-//     status = luaD_rawrunprotected(L, unroll, NULL);
+//     status = luaD_rawrunprotected(L, unroll, null);
 //   }
 //   return status;
 // }
@@ -1024,7 +1037,7 @@ public static unsafe partial class Lua
 //    /* continue running after recoverable errors */
 //   status = precover(L, status);
 //   if (l_likely(!errorstatus(status)))
-//     lua_assert(status == L->status);  /* normal end or yield */
+//     Debug.Assert(status == L->status);  /* normal end or yield */
 //   else {  /* unrecoverable error */
 //     L->status = status;  /* mark thread as 'dead' */
 //     luaD_seterrorobj(L, status, L->top.p);  /* push error message */
@@ -1058,16 +1071,16 @@ public static unsafe partial class Lua
 //   L->status = LUA_YIELD;
 //   ci->u2.nyield = nresults;  /* save number of results */
 //   if (isLua(ci)) {  /* inside a hook? */
-//     lua_assert(!isLuacode(ci));
+//     Debug.Assert(!isLuacode(ci));
 //     api_check(L, nresults == 0, "hooks cannot yield values");
-//     api_check(L, k == NULL, "hooks cannot continue after yielding");
+//     api_check(L, k == null, "hooks cannot continue after yielding");
 //   }
 //   else {
-//     if ((ci->u.c.k = k) != NULL)  /* is there a continuation? */
+//     if ((ci->u.c.k = k) != null)  /* is there a continuation? */
 //       ci->u.c.ctx = ctx;  /* save context */
 //     luaD_throw(L, LUA_YIELD);
 //   }
-//   lua_assert(ci->callstatus & CIST_HOOKED);  /* must be inside a hook */
+//   Debug.Assert(ci->callstatus & CIST_HOOKED);  /* must be inside a hook */
 //   lua_unlock(L);
 //   return 0;  /* return to 'luaD_hook' */
 // }
@@ -1138,68 +1151,85 @@ public static unsafe partial class Lua
         return status;
     }
 
-// /*
-// ** Execute a protected parser.
-// */
-// struct SParser {  /* data to 'f_parser' */
-//   ZIO *z;
-//   Mbuffer buff;  /* dynamic structure used by the scanner */
-//   Dyndata dyd;  /* dynamic structures used by the parser */
-//   const char *mode;
-//   const char *name;
-// };
-//
-//
-// static void checkmode (lua_State *L, const char *mode, const char *x) {
-//   if (strchr(mode, x[0]) == NULL) {
+    /*
+    ** Execute a protected parser.
+    */
+    private struct SParser
+    {
+        /* data to 'f_parser' */
+        public Zio* z;
+        public Mbuffer buff; /* dynamic structure used by the scanner */
+        public Dyndata dyd; /* dynamic structures used by the parser */
+        public char* mode;
+        public char* name;
+    }
+
+    private static void checkmode(lua_State* L, string mode, string x)
+    {
+        if (!mode.Contains(x[0]))
+        {
 //     luaO_pushfstring(L,
 //        "attempt to load a %s chunk (mode is '%s')", x, mode);
 //     luaD_throw(L, LUA_ERRSYNTAX);
-//   }
-// }
-//
-//
-// static void f_parser (lua_State *L, void *ud) {
-//   LClosure *cl;
-//   struct SParser *p = cast(struct SParser *, ud);
-//   const char *mode = p->mode ? p->mode : "bt";
-//   int c = zgetc(p->z);  /* read first character */
-//   if (c == LUA_SIGNATURE[0]) {
+            throw new NotImplementedException();
+        }
+    }
+
+    private static void f_parser(lua_State* L, void* ud)
+    {
+        SParser* p = (SParser*)ud;
+        string mode = p->mode != null ? new string(p->mode) : "bt";
+        int c = zgetc(p->z); /* read first character */
+
+        LClosure* cl;
+        if (c == LUA_SIGNATURE[0])
+        {
 //     int fixed = 0;
-//     if (strchr(mode, 'B') != NULL)
+//     if (strchr(mode, 'B') != null)
 //       fixed = 1;
 //     else
 //       checkmode(L, mode, "binary");
 //     cl = luaU_undump(L, p->z, p->name, fixed);
-//   }
-//   else {
-//     checkmode(L, mode, "text");
-//     cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
-//   }
-//   lua_assert(cl->nupvalues == cl->p->sizeupvalues);
+            throw new NotImplementedException();
+        }
+        else
+        {
+            checkmode(L, mode, "text");
+            cl = luaY_parser(L, p->z, &p->buff, &p->dyd, new string(p->name), c);
+        }
+
+        // Debug.Assert(cl->nupvalues == cl->p->sizeupvalues);
 //   luaF_initupvals(L, cl);
-// }
-//
-//
-// TStatus luaD_protectedparser (lua_State *L, ZIO *z, const char *name,
-//                                             const char *mode) {
-//   struct SParser p;
-//   TStatus status;
-//   incnny(L);  /* cannot yield during parsing */
-//   p.z = z; p.name = name; p.mode = mode;
-//   p.dyd.actvar.arr = NULL; p.dyd.actvar.size = 0;
-//   p.dyd.gt.arr = NULL; p.dyd.gt.size = 0;
-//   p.dyd.label.arr = NULL; p.dyd.label.size = 0;
-//   luaZ_initbuffer(L, &p.buff);
-//   status = luaD_pcall(L, f_parser, &p, savestack(L, L->top.p), L->errfunc);
+        throw new NotImplementedException();
+    }
+
+    private static partial byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode)
+    {
+        SParser p;
+        fixed (char* nameP = name)
+        {
+            fixed (char* modeP = mode)
+            {
+                incnny(L); /* cannot yield during parsing */
+                p.z = z;
+                p.name = nameP;
+                p.mode = modeP;
+                p.dyd.actvar.arr = null;
+                p.dyd.actvar.size = 0;
+                p.dyd.gt.arr = null;
+                p.dyd.gt.size = 0;
+                p.dyd.label.arr = null;
+                p.dyd.label.size = 0;
+                luaZ_initbuffer(L, &p.buff);
+                byte status = luaD_pcall(L, f_parser, &p, savestack(L, L->top.p), L->errfunc);
 //   luaZ_freebuffer(L, &p.buff);
 //   luaM_freearray(L, p.dyd.actvar.arr, cast_sizet(p.dyd.actvar.size));
 //   luaM_freearray(L, p.dyd.gt.arr, cast_sizet(p.dyd.gt.size));
 //   luaM_freearray(L, p.dyd.label.arr, cast_sizet(p.dyd.label.size));
 //   decnny(L);
 //   return status;
-// }
-//
-//
-
+                throw new NotImplementedException();
+            }
+        }
+    }
 }

@@ -86,8 +86,11 @@ public static unsafe partial class Lua
 //
 //
 // #define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2))
-//
-// #define luaV_rawequalobj(t1,t2)		luaV_equalobj(NULL,t1,t2)
+
+    private static bool luaV_rawequalobj(TValue* t1, TValue* t2)
+    {
+        return luaV_equalobj(null, t1, t2);
+    }
 
     private delegate byte FastGetDelegate<T1, T2>(Table* a, T1 b, T2 c);
 
@@ -127,10 +130,9 @@ public static unsafe partial class Lua
 // ** Shift right is the same as shift left with a negative 'y'
 // */
 // #define luaV_shiftr(x,y)	luaV_shiftl(x,intop(-, 0, y))
-//
-//
-//
-// LUAI_FUNC int luaV_equalobj (lua_State *L, const TValue *t1, const TValue *t2);
+
+    private static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2);
+    
 // LUAI_FUNC int luaV_lessthan (lua_State *L, const TValue *l, const TValue *r);
 // LUAI_FUNC int luaV_lessequal (lua_State *L, const TValue *l, const TValue *r);
 

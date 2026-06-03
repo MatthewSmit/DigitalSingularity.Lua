@@ -112,18 +112,11 @@ public static unsafe partial class Lua
 //
 // #undef LUAL_BUFFERSIZE
 // #define LUAL_BUFFERSIZE		23
-// #define MINSTRTABSIZE		2
-// #define MAXIWTHABS		3
 
     private const int STRCACHE_N = 23;
     private const int STRCACHE_M = 5;
 
 // #define MAXINDEXRK	1
-//
-// /* test mode uses more stack space */
-// #undef LUAI_MAXCCALLS
-// #define LUAI_MAXCCALLS	180
-//
 //
 // /* force Lua to use its own implementations */
 // #undef lua_strx2number

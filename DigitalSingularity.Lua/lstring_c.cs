@@ -18,8 +18,12 @@ public static unsafe partial class Lua
     ** metaevent keys + a few others). Libraries would typically add
     ** a few dozens more.
     */
-    private const int MINSTRTABSIZE = 128;
-
+    private const int MINSTRTABSIZE =
+        #if LUA_TEST
+            2;
+        #else
+            128;
+        #endif
 
 // /*
 // ** generic equality for strings
@@ -44,7 +48,7 @@ public static unsafe partial class Lua
     }
 
 // unsigned luaS_hashlongstr (TString *ts) {
-//   lua_assert(ts->tt == LUA_VLNGSTR);
+//   Debug.Assert(ts->tt == LUA_VLNGSTR);
 //   if (ts->extra == 0) {  /* no hash? */
 //     size_t len = ts->u.lnglen;
 //     ts->hash = luaS_hash(getlngstr(ts), len, ts->hash);
@@ -114,22 +118,27 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Clear API string cache. (Entries cannot be empty, so fill them with
-// ** a non-collectable string.)
-// */
-// void luaS_clearcache (global_State *g) {
-//   int i, j;
-//   for (i = 0; i < STRCACHE_N; i++)
-//     for (j = 0; j < STRCACHE_M; j++) {
-//       if (iswhite(g->strcache[i][j]))  /* will entry be collected? */
-//         g->strcache[i][j] = g->memerrmsg;  /* replace it with something fixed */
-//     }
-// }
+    /*
+    ** Clear API string cache. (Entries cannot be empty, so fill them with
+    ** a non-collectable string.)
+    */
+    private static partial void luaS_clearcache(global_State* g)
+    {
+        for (int i = 0; i < STRCACHE_N; i++)
+        {
+            for (int j = 0; j < STRCACHE_M; j++)
+            {
+                if (iswhite((GCObject*)g->strcache[i, j])) /* will entry be collected? */
+                {
+                    g->strcache[i, j] = g->memerrmsg; /* replace it with something fixed */
+                }
+            }
+        }
+    }
 
     /*
-    ** Initialise the string table and the string cache
-    */
+     ** Initialise the string table and the string cache
+     */
     private static partial void luaS_init(lua_State* L)
     {
         global_State* g = G(L);
@@ -194,14 +203,18 @@ public static unsafe partial class Lua
         return ts;
     }
 
-// void luaS_remove (lua_State *L, TString *ts) {
-//   stringtable *tb = &G(L)->strt;
-//   TString **p = &tb->hash[lmod(ts->hash, tb->size)];
-//   while (*p != ts)  /* find previous element */
-//     p = &(*p)->u.hnext;
-//   *p = (*p)->u.hnext;  /* remove element from its list */
-//   tb->nuse--;
-// }
+    private static partial void luaS_remove(lua_State* L, TString* ts)
+    {
+        stringtable* tb = &G(L)->strt;
+        TString** p = &tb->hash[lmod(ts->hash, tb->size)];
+        while (*p != ts) /* find previous element */
+        {
+            p = &(*p)->u.hnext;
+        }
+
+        *p = (*p)->u.hnext; /* remove element from its list */
+        tb->nuse--;
+    }
 
     private static void growstrtab(lua_State* L, stringtable* tb)
     {
@@ -316,6 +329,12 @@ public static unsafe partial class Lua
 
     private static partial TString* luaS_new(lua_State* L, string str)
     {
+        if (str.Length == 0)
+        {
+            byte tmp = 0;
+            return luaS_new(L, &tmp);
+        }
+
         byte[] data = Encoding.UTF8.GetBytes(str);
         fixed (byte* dataPtr = data)
         {
@@ -349,15 +368,14 @@ public static unsafe partial class Lua
         public sbyte kind;
 //   const char *s;
 //    size_t len;
-//   TString *ts;  /* output */
+        public TString* ts; /* output */
     }
 
     private static void f_newext(lua_State* L, void* ud)
     {
         NewExt* ne = (NewExt*)ud;
-//   size_t size = luaS_sizelngstr(0, ne->kind);
-//   ne->ts = createstrobj(L, size, LUA_VLNGSTR, G(L)->seed);
-        throw new NotImplementedException();
+        long size = luaS_sizelngstr(0, ne->kind);
+        ne->ts = createstrobj(L, size, LUA_VLNGSTR, G(L)->seed);
     }
 
     private static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
@@ -374,25 +392,22 @@ public static unsafe partial class Lua
             if (luaD_rawrunprotected(L, f_newext, &ne) != LUA_OK)
             {
                 /* mem. error? */
-//       (*falloc)(ud, cast_voidp(s), len + 1, 0);  /* free external string */
-//       luaM_error(L);  /* re-raise memory error */
-                throw new NotImplementedException();
+                falloc(ud, s, len + 1, 0); /* free external string */
+                luaM_error(L); /* re-raise memory error */
             }
 
-//     ne.ts->falloc = falloc;
-//     ne.ts->ud = ud;
-            throw new NotImplementedException();
+            ne.ts->falloc = falloc;
+            ne.ts->ud = ud;
         }
 
-//   ne.ts->shrlen = ne.kind;
-//   ne.ts->u.lnglen = len;
-//   ne.ts->contents = cast_charp(s);
-//   return ne.ts;
-        throw new NotImplementedException();
+        ne.ts->shrlen = ne.kind;
+        ne.ts->u.lnglen = len;
+        ne.ts->contents = s;
+        return ne.ts;
     }
 
 // /*
-// ** Normalize an external string: If it is short, internalize it.
+// ** Normalise an external string: If it is short, internalise it.
 // */
 // TString *luaS_normstr (lua_State *L, TString *ts) {
 //   size_t len = ts->u.lnglen;

@@ -21,7 +21,7 @@ struct STR {
 static void *t_freestr (void *ud, void *ptr, size_t osize, size_t nsize) {
   struct STR *blk = (struct STR*)ptr - 1;
   blk->allocf(blk->ud, blk, sizeof(struct STR) + osize, 0);
-  return NULL;
+  return null;
 }
 
 
@@ -30,9 +30,9 @@ static int newstr (lua_State *L) {
   const char *str = luaL_checklstring(L, 1, &len);
   void *ud;
   lua_Alloc allocf = lua_getallocf(L, &ud);
-  struct STR *blk = (struct STR*)allocf(ud, NULL, 0,
+  struct STR *blk = (struct STR*)allocf(ud, null, 0,
                                         len + 1 + sizeof(struct STR));
-  if (blk == NULL) {  /* allocation error? */
+  if (blk == null) {  /* allocation error? */
     lua_pushliteral(L, "not enough memory");
     lua_error(L);  /* raise a memory error */
   }
@@ -60,7 +60,7 @@ static void initstr (lua_State *L) {
 static const struct luaL_Reg funcs[] = {
   {"id", id},
   {"newstr", newstr},
-  {NULL, NULL}
+  {null, null}
 };
 
 

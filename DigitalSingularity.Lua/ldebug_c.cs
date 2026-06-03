@@ -2,7 +2,7 @@ namespace DigitalSingularity.Lua;
 
 public static unsafe partial class Lua
 {
-// #define LuaClosure(f)		((f) != NULL && (f)->c.tt == LUA_VLCL)
+// #define LuaClosure(f)		((f) != null && (f)->c.tt == LUA_VLCL)
 //
 // static const char strlocal[] = "local";
 // static const char strupval[] = "upvalue";
@@ -12,7 +12,7 @@ public static unsafe partial class Lua
 //
 //
 // static int currentpc (CallInfo *ci) {
-//   lua_assert(isLua(ci));
+//   Debug.Assert(isLua(ci));
 //   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 // }
 //
@@ -38,7 +38,7 @@ public static unsafe partial class Lua
 //   else {
 //     int i = pc / MAXIWTHABS - 1;  /* get an estimate */
 //     /* estimate must be a lower bound of the correct base */
-//     lua_assert(i < 0 ||
+//     Debug.Assert(i < 0 ||
 //               (i < f->sizeabslineinfo && f->abslineinfo[i].pc <= pc));
 //     while (i + 1 < f->sizeabslineinfo && pc >= f->abslineinfo[i + 1].pc)
 //       i++;  /* low estimate; adjust it */
@@ -54,13 +54,13 @@ public static unsafe partial class Lua
 // ** the desired instruction.
 // */
 // int luaG_getfuncline (const Proto *f, int pc) {
-//   if (f->lineinfo == NULL)  /* no debug information? */
+//   if (f->lineinfo == null)  /* no debug information? */
 //     return -1;
 //   else {
 //     int basepc;
 //     int baseline = getbaseline(f, pc, &basepc);
 //     while (basepc++ < pc) {  /* walk until given instruction */
-//       lua_assert(f->lineinfo[basepc] != ABSLINEINFO);
+//       Debug.Assert(f->lineinfo[basepc] != ABSLINEINFO);
 //       baseline += f->lineinfo[basepc];  /* correct line */
 //     }
 //     return baseline;
@@ -85,7 +85,7 @@ public static unsafe partial class Lua
 // ** has no good reasons to do that.)
 // */
 // static void settraps (CallInfo *ci) {
-//   for (; ci != NULL; ci = ci->previous)
+//   for (; ci != null; ci = ci->previous)
 //     if (isLua(ci))
 //       ci->u.l.trap = 1;
 // }
@@ -102,9 +102,9 @@ public static unsafe partial class Lua
 // ** before being called (see 'luaD_hook').
 // */
 // LUA_API void lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
-//   if (func == NULL || mask == 0) {  /* turn off hooks? */
+//   if (func == null || mask == 0) {  /* turn off hooks? */
 //     mask = 0;
-//     func = NULL;
+//     func = null;
 //   }
 //   L->hook = func;
 //   L->basehookcount = count;
@@ -149,7 +149,7 @@ public static unsafe partial class Lua
 //
 // static const char *upvalname (const Proto *p, int uv) {
 //   TString *s = check_exp(uv < p->sizeupvalues, p->upvalues[uv].name);
-//   if (s == NULL) return "?";
+//   if (s == null) return "?";
 //   else return getstr(s);
 // }
 //
@@ -162,27 +162,27 @@ public static unsafe partial class Lua
 //       return "(vararg)";  /* generic name for any vararg */
 //     }
 //   }
-//   return NULL;  /* no such vararg */
+//   return null;  /* no such vararg */
 // }
 //
 //
 // const char *luaG_findlocal (lua_State *L, CallInfo *ci, int n, StkId *pos) {
 //   StkId base = ci->func.p + 1;
-//   const char *name = NULL;
+//   const char *name = null;
 //   if (isLua(ci)) {
 //     if (n < 0)  /* access to vararg values? */
 //       return findvararg(ci, n, pos);
 //     else
 //       name = luaF_getlocalname(ci_func(ci)->p, n, currentpc(ci));
 //   }
-//   if (name == NULL) {  /* no 'standard' name? */
+//   if (name == null) {  /* no 'standard' name? */
 //     StkId limit = (ci == L->ci) ? L->top.p : ci->next->func.p;
 //     if (limit - base >= n && n > 0) {  /* is 'n' inside 'ci' stack? */
 //       /* generic name for any valid slot */
 //       name = isLua(ci) ? "(temporary)" : "(C temporary)";
 //     }
 //     else
-//       return NULL;  /* no name */
+//       return null;  /* no name */
 //   }
 //   if (pos)
 //     *pos = base + (n - 1);
@@ -193,14 +193,14 @@ public static unsafe partial class Lua
 // LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
 //   const char *name;
 //   lua_lock(L);
-//   if (ar == NULL) {  /* information about non-active function? */
+//   if (ar == null) {  /* information about non-active function? */
 //     if (!isLfunction(s2v(L->top.p - 1)))  /* not a Lua function? */
-//       name = NULL;
+//       name = null;
 //     else  /* consider live variables at function start (parameters) */
 //       name = luaF_getlocalname(clLvalue(s2v(L->top.p - 1))->p, n, 0);
 //   }
 //   else {  /* active function; get information through 'ar' */
-//     StkId pos = NULL;  /* to avoid warnings */
+//     StkId pos = null;  /* to avoid warnings */
 //     name = luaG_findlocal(L, ar->i_ci, n, &pos);
 //     if (name) {
 //       setobjs2s(L, L->top.p, pos);
@@ -213,7 +213,7 @@ public static unsafe partial class Lua
 //
 //
 // LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
-//   StkId pos = NULL;  /* to avoid warnings */
+//   StkId pos = null;  /* to avoid warnings */
 //   const char *name;
 //   lua_lock(L);
 //   name = luaG_findlocal(L, ar->i_ci, n, &pos);
@@ -271,14 +271,14 @@ public static unsafe partial class Lua
 //     Table *t = luaH_new(L);  /* new table to store active lines */
 //     sethvalue2s(L, L->top.p, t);  /* push it on stack */
 //     api_incr_top(L);
-//     if (p->lineinfo != NULL) {  /* proto with debug information? */
+//     if (p->lineinfo != null) {  /* proto with debug information? */
 //       int i;
 //       TValue v;
 //       setbtvalue(&v);  /* boolean 'true' to be the value of all indices */
 //       if (!(isvararg(p)))  /* regular function? */
 //         i = 0;  /* consider all instructions */
 //       else {  /* vararg function */
-//         lua_assert(GET_OPCODE(p->code[0]) == OP_VARARGPREP);
+//         Debug.Assert(GET_OPCODE(p->code[0]) == OP_VARARGPREP);
 //         currentline = nextline(p, currentline, 0);
 //         i = 1;  /* skip first instruction (OP_VARARGPREP) */
 //       }
@@ -293,9 +293,9 @@ public static unsafe partial class Lua
 //
 // static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
 //   /* calling function is a known function? */
-//   if (ci != NULL && !(ci->callstatus & CIST_TAIL))
+//   if (ci != null && !(ci->callstatus & CIST_TAIL))
 //     return funcnamefromcall(L, ci->previous, name);
-//   else return NULL;  /* no way to find a name */
+//   else return null;  /* no way to find a name */
 // }
 //
 //
@@ -313,7 +313,7 @@ public static unsafe partial class Lua
 //         break;
 //       }
 //       case 'u': {
-//         ar->nups = (f == NULL) ? 0 : f->c.nupvalues;
+//         ar->nups = (f == null) ? 0 : f->c.nupvalues;
 //         if (!LuaClosure(f)) {
 //           ar->isvararg = 1;
 //           ar->nparams = 0;
@@ -325,7 +325,7 @@ public static unsafe partial class Lua
 //         break;
 //       }
 //       case 't': {
-//         if (ci != NULL) {
+//         if (ci != null) {
 //           ar->istailcall = !!(ci->callstatus & CIST_TAIL);
 //           ar->extraargs =
 //                    cast_uchar((ci->callstatus & MAX_CCMT) >> CIST_CCMT);
@@ -338,14 +338,14 @@ public static unsafe partial class Lua
 //       }
 //       case 'n': {
 //         ar->namewhat = getfuncname(L, ci, &ar->name);
-//         if (ar->namewhat == NULL) {
+//         if (ar->namewhat == null) {
 //           ar->namewhat = "";  /* not found */
-//           ar->name = NULL;
+//           ar->name = null;
 //         }
 //         break;
 //       }
 //       case 'r': {
-//         if (ci == NULL || !(ci->callstatus & CIST_HOOKED))
+//         if (ci == null || !(ci->callstatus & CIST_HOOKED))
 //           ar->ftransfer = ar->ntransfer = 0;
 //         else {
 //           ar->ftransfer = L->transferinfo.ftransfer;
@@ -370,7 +370,7 @@ public static unsafe partial class Lua
 //   TValue *func;
 //   lua_lock(L);
 //   if (*what == '>') {
-//     ci = NULL;
+//     ci = null;
 //     func = s2v(L->top.p - 1);
 //     api_check(L, ttisfunction(func), "function expected");
 //     what++;  /* skip the '>' */
@@ -379,9 +379,9 @@ public static unsafe partial class Lua
 //   else {
 //     ci = ar->i_ci;
 //     func = s2v(ci->func.p);
-//     lua_assert(ttisfunction(func));
+//     Debug.Assert(ttisfunction(func));
 //   }
-//   cl = ttisclosure(func) ? clvalue(func) : NULL;
+//   cl = ttisclosure(func) ? clvalue(func) : null;
 //   status = auxgetinfo(L, what, ar, cl, ci);
 //   if (strchr(what, 'f')) {
 //     setobj2s(L, L->top.p, func);
@@ -468,7 +468,7 @@ public static unsafe partial class Lua
 //   }
 //   else {
 //     *name = "?";
-//     return NULL;
+//     return null;
 //   }
 // }
 //
@@ -500,7 +500,7 @@ public static unsafe partial class Lua
 //       default: break;
 //     }
 //   }
-//   return NULL;  /* could not find reasonable name */
+//   return null;  /* could not find reasonable name */
 // }
 //
 //
@@ -528,7 +528,7 @@ public static unsafe partial class Lua
 //     /* 'name' must be the name of a local variable (at the current
 //        level or an upvalue) */
 //     if (what != strlocal && what != strupval)
-//       name = NULL;  /* cannot be the variable _ENV */
+//       name = null;  /* cannot be the variable _ENV */
 //   }
 //   return (name && strcmp(name, LUA_ENV) == 0) ? "global" : "field";
 // }
@@ -540,7 +540,7 @@ public static unsafe partial class Lua
 // static const char *getobjname (const Proto *p, int lastpc, int reg,
 //                                const char **name) {
 //   const char *kind = basicgetobjname(p, &lastpc, reg, name);
-//   if (kind != NULL)
+//   if (kind != null)
 //     return kind;
 //   else if (lastpc != -1) {  /* could find instruction? */
 //     Instruction i = p->code[lastpc];
@@ -570,10 +570,10 @@ public static unsafe partial class Lua
 //         kname(p, k, name);
 //         return "method";
 //       }
-//       default: break;  /* go through to return NULL */
+//       default: break;  /* go through to return null */
 //     }
 //   }
-//   return NULL;  /* could not find reasonable name */
+//   return null;  /* could not find reasonable name */
 // }
 //
 //
@@ -617,7 +617,7 @@ public static unsafe partial class Lua
 //     case OP_LE: case OP_LEI: case OP_GEI: tm = TM_LE; break;
 //     case OP_CLOSE: case OP_RETURN: tm = TM_CLOSE; break;
 //     default:
-//       return NULL;  /* cannot find a reasonable name */
+//       return null;  /* cannot find a reasonable name */
 //   }
 //   *name = getshrstr(G(L)->tmname[tm]) + 2;
 //   return "metamethod";
@@ -640,7 +640,7 @@ public static unsafe partial class Lua
 //   else if (isLua(ci))
 //     return funcnamefromcode(L, ci_func(ci)->p, currentpc(ci), name);
 //   else
-//     return NULL;
+//     return null;
 // }
 //
 // /* }====================================================== */
@@ -679,13 +679,13 @@ public static unsafe partial class Lua
 //       return strupval;
 //     }
 //   }
-//   return NULL;
+//   return null;
 // }
 //
 //
 // static const char *formatvarinfo (lua_State *L, const char *kind,
 //                                                 const char *name) {
-//   if (kind == NULL)
+//   if (kind == null)
 //     return "";  /* no information */
 //   else
 //     return luaO_pushfstring(L, " (%s '%s')", kind, name);
@@ -697,8 +697,8 @@ public static unsafe partial class Lua
 // */
 // static const char *varinfo (lua_State *L, const TValue *o) {
 //   CallInfo *ci = L->ci;
-//   const char *name = NULL;  /* to avoid warnings */
-//   const char *kind = NULL;
+//   const char *name = null;  /* to avoid warnings */
+//   const char *kind = null;
 //   if (isLua(ci)) {
 //     kind = getupvalname(ci, o, &name);  /* check whether 'o' is an upvalue */
 //     if (!kind) {  /* not an upvalue? */
@@ -737,7 +737,7 @@ public static unsafe partial class Lua
 // */
 // l_noret luaG_callerror (lua_State *L, const TValue *o) {
 //   CallInfo *ci = L->ci;
-//   const char *name = NULL;  /* to avoid warnings */
+//   const char *name = null;  /* to avoid warnings */
 //   const char *kind = funcnamefromcall(L, ci, &name);
 //   const char *extra = kind ? formatvarinfo(L, kind, name) : varinfo(L, o);
 //   typeerror(L, o, "call", extra);
@@ -796,7 +796,7 @@ public static unsafe partial class Lua
 // /* add src:line information to 'msg' */
 // const char *luaG_addinfo (lua_State *L, const char *msg, TString *src,
 //                                         int line) {
-//   if (src == NULL)  /* no debug information? */
+//   if (src == null)  /* no debug information? */
 //     return luaO_pushfstring(L, "?:?: %s", msg);
 //   else {
 //     char buff[LUA_IDSIZE];
@@ -811,7 +811,7 @@ public static unsafe partial class Lua
 // l_noret luaG_errormsg (lua_State *L) {
 //   if (L->errfunc != 0) {  /* is there an error handling function? */
 //     StkId errfunc = restorestack(L, L->errfunc);
-//     lua_assert(ttisfunction(s2v(errfunc)));
+//     Debug.Assert(ttisfunction(s2v(errfunc)));
 //     setobjs2s(L, L->top.p, L->top.p - 1);  /* move argument */
 //     setobjs2s(L, L->top.p - 1, errfunc);  /* push function */
 //     L->top.p++;  /* assume EXTRA_STACK */
@@ -850,7 +850,7 @@ public static unsafe partial class Lua
 // ** so it goes directly to 'luaG_getfuncline'.
 // */
 // static int changedline (const Proto *p, int oldpc, int newpc) {
-//   if (p->lineinfo == NULL)  /* no debug information? */
+//   if (p->lineinfo == null)  /* no debug information? */
 //     return 0;
 //   if (newpc - oldpc < MAXIWTHABS / 2) {  /* not too far apart? */
 //     int delta = 0;  /* line difference */

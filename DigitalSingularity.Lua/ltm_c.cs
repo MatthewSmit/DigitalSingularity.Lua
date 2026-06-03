@@ -74,8 +74,8 @@ public static unsafe partial class Lua
 // */
 // const char *luaT_objtypename (lua_State *L, const TValue *o) {
 //   Table *mt;
-//   if ((ttistable(o) && (mt = hvalue(o)->metatable) != NULL) ||
-//       (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != NULL)) {
+//   if ((ttistable(o) && (mt = hvalue(o)->metatable) != null) ||
+//       (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != null)) {
 //     const TValue *name = luaH_Hgetshortstr(mt, luaS_new(L, "__name"));
 //     if (ttisstring(name))  /* is '__name' a string? */
 //       return getstr(tsvalue(name));  /* use it as type name */
@@ -258,17 +258,17 @@ public static unsafe partial class Lua
 //   int nfixparams = p->numparams;
 //   int nextra = totalargs - nfixparams;  /* number of extra arguments */
 //   if (p->flag & PF_VATAB) {  /* does it need a vararg table? */
-//     lua_assert(!(p->flag & PF_VAHID));
+//     Debug.Assert(!(p->flag & PF_VAHID));
 //     createvarargtab(L, ci->func.p + nfixparams + 1, nextra);
 //     /* move table to proper place (last parameter) */
 //     setobjs2s(L, ci->func.p + nfixparams + 1, L->top.p - 1);
 //   }
 //   else {  /* no table */
-//     lua_assert(p->flag & PF_VAHID);
+//     Debug.Assert(p->flag & PF_VAHID);
 //     buildhiddenargs(L, ci, p, totalargs, nfixparams, nextra);
 //     /* set vararg parameter to nil */
 //     setnilvalue(s2v(ci->func.p + nfixparams + 1));
-//     lua_assert(L->top.p <= ci->top.p && ci->top.p <= L->stack_last.p);
+//     Debug.Assert(L->top.p <= ci->top.p && ci->top.p <= L->stack_last.p);
 //   }
 // }
 //
@@ -279,7 +279,7 @@ public static unsafe partial class Lua
 //   if (tointegerns(rc, &n)) {  /* integral value? */
 //     if (l_castS2U(n) - 1 < cast_uint(nextra)) {
 //       StkId slot = ci->func.p - nextra + cast_int(n) - 1;
-//       setobjs2s(((lua_State*)NULL), ra, slot);
+//       setobjs2s(((lua_State*)null), ra, slot);
 //       return;
 //     }
 //   }
@@ -303,7 +303,7 @@ public static unsafe partial class Lua
 // ** limit).
 // */
 // static int getnumargs (lua_State *L, CallInfo *ci, Table *h) {
-//   if (h == NULL)  /* no vararg table? */
+//   if (h == null)  /* no vararg table? */
 //     return ci->u.l.nextraargs;
 //   else {
 //     TValue res;
@@ -321,7 +321,7 @@ public static unsafe partial class Lua
 // */
 // void luaT_getvarargs (lua_State *L, CallInfo *ci, StkId where, int wanted,
 //                                     int vatab) {
-//   Table *h = (vatab < 0) ? NULL : hvalue(s2v(ci->func.p + vatab + 1));
+//   Table *h = (vatab < 0) ? null : hvalue(s2v(ci->func.p + vatab + 1));
 //   int nargs = getnumargs(L, ci, h);  /* number of available vararg args. */
 //   int i, touse;  /* 'touse' is minimum between 'wanted' and 'nargs' */
 //   if (wanted < 0) {
@@ -331,7 +331,7 @@ public static unsafe partial class Lua
 //   }
 //   else
 //     touse = (nargs > wanted) ? wanted : nargs;
-//   if (h == NULL) {  /* no vararg table? */
+//   if (h == null) {  /* no vararg table? */
 //     for (i = 0; i < touse; i++)  /* get vararg values from the stack */
 //       setobjs2s(L, where + i, ci->func.p - nargs + i);
 //   }

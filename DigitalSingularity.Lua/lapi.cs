@@ -4,13 +4,6 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-// #if defined(LUA_USE_APICHECK)
-// #include <assert.h>
-// #define api_check(l,e,msg)	assert(e)
-// #else	/* for testing */
-// #define api_check(l,e,msg)	((void)(l), lua_assert((e) && msg))
-// #endif
-
     /* Increments 'L->top.p', checking for stack overflows */
     private static void api_incr_top(lua_State* L)
     {
