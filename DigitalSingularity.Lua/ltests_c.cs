@@ -20,19 +20,17 @@ public static unsafe partial class Lua
 //
 //
 // static int runC (lua_State *L, lua_State *L1, const char *pc);
-//
-//
-// static void setnameval (lua_State *L, const char *name, int val) {
-//   lua_pushinteger(L, val);
-//   lua_setfield(L, -2, name);
-// }
-//
-//
+
+    private static void setnameval(lua_State* L, string name, int val)
+    {
+        lua_pushinteger(L, val);
+        lua_setfield(L, -2, name);
+    }
+
 // static void pushobject (lua_State *L, const TValue *o) {
 //   setobj2s(L, L->top.p, o);
 //   api_incr_top(L);
 // }
-
 
     private static void badexit(string fmt, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2)
     {
@@ -55,11 +53,11 @@ public static unsafe partial class Lua
 //           0);  /* do not return to Lua */
         throw new NotImplementedException();
     }
-    
-    private static char[] buff = new char[200]; /* should be enough for tests... */
-    private static int onoff;
-    private static int mode;  /* start in normal mode */
-    private static bool lasttocont;
+
+    private static char[] warnf_buff = new char[200]; /* should be enough for tests... */
+    private static int warnf_onoff;
+    private static int warnf_mode; /* start in normal mode */
+    private static bool warnf_lasttocont;
 
     /*
      ** Warning function for tests. First, it concatenates all parts of
@@ -73,34 +71,33 @@ public static unsafe partial class Lua
      */
     private static void warnf(void* ud, string msg, bool tocont)
     {
-//   lua_State *L = cast(lua_State *, ud);
-        if (!lasttocont && !tocont && msg.StartsWith('@'))
+        if (!warnf_lasttocont && !tocont && msg.StartsWith('@'))
         {
             /* control message? */
-            if (buff[0] != 0)
+            if (warnf_buff[0] != 0)
             {
-                badexit("Control warning during warning: %s\naborting...\n", msg, buff);
+                badexit("Control warning during warning: %s\naborting...\n", msg, warnf_buff);
             }
 
             if (msg == "@off")
             {
-                onoff = 0;
+                warnf_onoff = 0;
             }
             else if (msg == "@on")
             {
-                onoff = 1;
+                warnf_onoff = 1;
             }
             else if (msg == "@normal")
             {
-                mode = 0;
+                warnf_mode = 0;
             }
             else if (msg == "@allow")
             {
-                mode = 1;
+                warnf_mode = 1;
             }
             else if (msg == "@store")
             {
-                mode = 2;
+                warnf_mode = 2;
             }
             else
             {
@@ -113,7 +110,8 @@ public static unsafe partial class Lua
             return;
         }
 
-//   lasttocont = tocont;
+        lua_State* L = (lua_State*)ud;
+        warnf_lasttocont = tocont;
 //   if (strlen(msg) >= sizeof(buff) - strlen(buff))
 //     badexit("warnf-buffer overflow (%s)\n", msg, buff);
 //   strcat(buff, msg);  /* add new message to current warning */
@@ -337,14 +335,15 @@ public static unsafe partial class Lua
 //   if (o->tt == LUA_VSHRSTR || o->tt == LUA_VLNGSTR)
 //     printf(" '%s'", getstr(gco2ts(o)));
 // }
-//
-//
-// void lua_printobj (lua_State *L, struct GCObject *o) {
+
+    private static partial void lua_printobj(lua_State* L, GCObject* o)
+    {
 //   printobj(G(L), o);
-// }
-//
-//
-// void lua_printvalue (TValue *v) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void lua_printvalue(TValue* v)
+    {
 //   switch (ttypetag(v)) {
 //     case LUA_VNUMINT: case LUA_VNUMFLT: {
 //       char buff[LUA_N2SBUFFSZ];
@@ -380,9 +379,9 @@ public static unsafe partial class Lua
 //     default:
 //       Debug.Assert(0);
 //   }
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static int testobjref (global_State *g, GCObject *f, GCObject *t) {
 //   int r1 = testobjref1(g, f, t);
 //   if (!r1) {
@@ -665,27 +664,27 @@ public static unsafe partial class Lua
 //   for (o = newl; o != survival; o = o->next) {
 //     checkobject(g, o, maybedead, G_NEW);
 //     incifingray(g, o, &total);
-//     assert(!tof == !tofinalize(o));
+//     assert(!tof == !tofinalise(o));
 //   }
 //   for (o = survival; o != old; o = o->next) {
 //     checkobject(g, o, 0, G_SURVIVAL);
 //     incifingray(g, o, &total);
-//     assert(!tof == !tofinalize(o));
+//     assert(!tof == !tofinalise(o));
 //   }
 //   for (o = old; o != reallyold; o = o->next) {
 //     checkobject(g, o, 0, G_OLD1);
 //     incifingray(g, o, &total);
-//     assert(!tof == !tofinalize(o));
+//     assert(!tof == !tofinalise(o));
 //   }
 //   for (o = reallyold; o != null; o = o->next) {
 //     checkobject(g, o, 0, G_OLD);
 //     incifingray(g, o, &total);
-//     assert(!tof == !tofinalize(o));
+//     assert(!tof == !tofinalise(o));
 //   }
 //   return total;
 // }
 
-    private static int lua_checkmemory(lua_State* L)
+    private static partial int lua_checkmemory(lua_State* L)
     {
 //   global_State *g = G(L);
 //   GCObject *o;
@@ -718,7 +717,7 @@ public static unsafe partial class Lua
 //   for (o = g->tobefnz; o != null; o = o->next) {
 //     checkobject(g, o, 0, G_NEW);
 //     incifingray(g, o, &totalshould);
-//     assert(tofinalize(o));
+//     assert(tofinalise(o));
 //     assert(o->tt == LUA_VUSERDATA || o->tt == LUA_VTABLE);
 //   }
 //   if (keepinvariant(g))
@@ -792,7 +791,8 @@ public static unsafe partial class Lua
 // }
 // #endif
 
-private static int listcode (lua_State *L) {
+    private static int listcode(lua_State* L)
+    {
 //   int pc;
 //   Proto *p;
 //   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
@@ -808,10 +808,11 @@ private static int listcode (lua_State *L) {
 //     lua_settable(L, -3);
 //   }
 //   return 1;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int printcode (lua_State *L) {
+    private static int printcode(lua_State* L)
+    {
 //   int pc;
 //   Proto *p;
 //   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
@@ -824,10 +825,11 @@ private static int printcode (lua_State *L) {
 //     printf("%s\n", buildop(p, pc, buff));
 //   }
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int listk (lua_State *L) {
+    private static int listk(lua_State* L)
+    {
 //   Proto *p;
 //   int i;
 //   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
@@ -839,10 +841,11 @@ private static int listk (lua_State *L) {
 //     lua_rawseti(L, -2, i+1);
 //   }
 //   return 1;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int listabslineinfo (lua_State *L) {
+    private static int listabslineinfo(lua_State* L)
+    {
 //   Proto *p;
 //   int i;
 //   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
@@ -857,10 +860,11 @@ private static int listabslineinfo (lua_State *L) {
 //     lua_rawseti(L, -2, 2 * i + 2);
 //   }
 //   return 1;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int listlocals (lua_State *L) {
+    private static int listlocals(lua_State* L)
+    {
 //   Proto *p;
 //   int pc = cast_int(luaL_checkinteger(L, 2)) - 1;
 //   int i = 0;
@@ -871,12 +875,13 @@ private static int listlocals (lua_State *L) {
 //   while ((name = luaF_getlocalname(p, ++i, pc)) != null)
 //     lua_pushstring(L, name);
 //   return i-1;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
     /* }====================================================== */
 
-private static void lua_printstack (lua_State *L) {
+    private static partial void lua_printstack(lua_State* L)
+    {
 //   int i;
 //   int n = lua_gettop(L);
 //   printf("stack: >>\n");
@@ -886,10 +891,11 @@ private static void lua_printstack (lua_State *L) {
 //     printf("\n");
 //   }
 //   printf("<<\n");
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int lua_printallstack (lua_State *L) {
+    private static partial int lua_printallstack(lua_State* L)
+    {
 //   StkId p;
 //   int i = 1;
 //   CallInfo *ci = &L->base_ci;
@@ -908,21 +914,23 @@ private static int lua_printallstack (lua_State *L) {
 //   }
 //   printf("<<\n");
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int get_limits (lua_State *L) {
-//   lua_createtable(L, 0, 5);
-//   setnameval(L, "IS32INT", LUAI_IS32INT);
-//   setnameval(L, "MAXARG_Ax", MAXARG_Ax);
-//   setnameval(L, "MAXARG_Bx", MAXARG_Bx);
-//   setnameval(L, "OFFSET_sBx", OFFSET_sBx);
-//   setnameval(L, "NUM_OPCODES", NUM_OPCODES);
-//   return 1;
-    throw new NotImplementedException();
-}
+    private static int get_limits(lua_State* L)
+    {
+        lua_createtable(L, 0, 5);
+        setnameval(L, "IS32INT", 1);
+        //   setnameval(L, "MAXARG_Ax", MAXARG_Ax);
+        //   setnameval(L, "MAXARG_Bx", MAXARG_Bx);
+        //   setnameval(L, "OFFSET_sBx", OFFSET_sBx);
+        //   setnameval(L, "NUM_OPCODES", NUM_OPCODES);
+        //   return 1;
+        throw new NotImplementedException();
+    }
 
-private static int get_sizes (lua_State *L) {
+    private static int get_sizes(lua_State* L)
+    {
 //   lua_newtable(L);
 //   setnameval(L, "Lua state", sizeof(lua_State));
 //   setnameval(L, "global state", sizeof(global_State));
@@ -930,10 +938,11 @@ private static int get_sizes (lua_State *L) {
 //   setnameval(L, "Node", sizeof(Node));
 //   setnameval(L, "stack Value", sizeof(StackValue));
 //   return 1;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int mem_query (lua_State *L) {
+    private static int mem_query(lua_State* L)
+    {
 //   if (lua_isnone(L, 1)) {
 //     lua_pushinteger(L, cast_Integer(l_memcontrol.total));
 //     lua_pushinteger(L, cast_Integer(l_memcontrol.numblocks));
@@ -957,33 +966,36 @@ private static int mem_query (lua_State *L) {
 //     }
 //     return luaL_error(L, "unknown type '%s'", t);
 //   }
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int alloc_count (lua_State *L) {
+    private static int alloc_count(lua_State* L)
+    {
 //   if (lua_isnone(L, 1))
 //     l_memcontrol.countlimit = cast(unsigned long, ~0L);
 //   else
 //     l_memcontrol.countlimit = cast(unsigned long, luaL_checkinteger(L, 1));
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int alloc_failnext (lua_State *L) {
+    private static int alloc_failnext(lua_State* L)
+    {
 //   UNUSED(L);
 //   l_memcontrol.failnext = 1;
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int settrick (lua_State *L) {
+    private static int settrick(lua_State* L)
+    {
 //   if (ttisnil(obj_at(L, 1)))
 //     l_Trick = null;
 //   else
 //     l_Trick = gcvalue(obj_at(L, 1));
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
     private static int gc_color(lua_State* L)
     {
@@ -1065,10 +1077,15 @@ private static int settrick (lua_State *L) {
         throw new NotImplementedException();
     }
 
-// static int tracinggc = 0;
-// void luai_tracegctest (lua_State *L, int first) {
-//   if (!tracinggc) return;
-//   else {
+    private static bool tracinggc;
+
+    private static partial void luai_tracegctest(lua_State* L, bool first)
+    {
+        if (!tracinggc)
+        {
+            return;
+        }
+
 //     global_State *g = G(L);
 //     lua_unlock(L);
 //     g->gcstp = GCSTPGC;
@@ -1078,19 +1095,22 @@ private static int settrick (lua_State *L) {
 //     lua_call(L, 1, 0);
 //     g->gcstp = 0;
 //     lua_lock(L);
-//   }
-// }
+        throw new NotImplementedException();
+    }
 
     private static int tracegc(lua_State* L)
     {
-//   if (lua_isnil(L, 1))
-//     tracinggc = 0;
-//   else {
-//     tracinggc = 1;
-//     lua_setfield(L, LUA_REGISTRYINDEX, "tracegc");
-//   }
-//   return 0;
-        throw new NotImplementedException();
+        if (lua_isnil(L, 1))
+        {
+            tracinggc = false;
+        }
+        else
+        {
+            tracinggc = true;
+            lua_setfield(L, LUA_REGISTRYINDEX, "tracegc");
+        }
+
+        return 0;
     }
 
     private static int hash_query(lua_State* L)
@@ -1121,7 +1141,7 @@ private static int settrick (lua_State *L) {
 //   lua_pushinteger(L, stacksize(L));
 //   lua_pushinteger(L, cast_Integer(L->nCcalls));
 //   lua_pushinteger(L, L->nci);
-//   lua_pushinteger(L, (lua_Integer)(size_t)&a);
+//   lua_pushinteger(L, (long)(size_t)&a);
 //   return 5;
         throw new NotImplementedException();
     }
@@ -1186,7 +1206,7 @@ private static int settrick (lua_State *L) {
 
     private static int test_codeparam(lua_State* L)
     {
-//   lua_Integer p = luaL_checkinteger(L, 1);
+//   long p = luaL_checkinteger(L, 1);
 //   lua_pushinteger(L, luaO_codeparam(cast_uint(p)));
 //   return 1;
         throw new NotImplementedException();
@@ -1194,8 +1214,8 @@ private static int settrick (lua_State *L) {
 
     private static int test_applyparam(lua_State* L)
     {
-//   lua_Integer p = luaL_checkinteger(L, 1);
-//   lua_Integer x = luaL_checkinteger(L, 2);
+//   long p = luaL_checkinteger(L, 1);
+//   long x = luaL_checkinteger(L, 2);
 //   lua_pushinteger(L, cast_Integer(luaO_applyparam(cast_byte(p), x)));
 //   return 1;
         throw new NotImplementedException();
@@ -1298,7 +1318,7 @@ private static int settrick (lua_State *L) {
 
     private static int pushuserdata(lua_State* L)
     {
-//   lua_Integer u = luaL_checkinteger(L, 1);
+//   long u = luaL_checkinteger(L, 1);
 //   lua_pushlightuserdata(L, cast_voidp(cast_sizet(u)));
 //   return 1;
         throw new NotImplementedException();
@@ -1632,7 +1652,7 @@ private static int settrick (lua_State *L) {
 //
 //
 // static int testC (lua_State *L);
-// static int Cfunck (lua_State *L, int status, lua_KContext ctx);
+// static int Cfunck (lua_State *L, int status, nint ctx);
 //
 // /*
 // ** arithmetic operation encoding for 'arith' instruction
@@ -1845,7 +1865,7 @@ private static int settrick (lua_State *L) {
 //       lua_pushnil(L1);
 //     }
 //     else if EQ("pushnum") {
-//       lua_pushnumber(L1, (lua_Number)getnum);
+//       lua_pushnumber(L1, (double)getnum);
 //     }
 //     else if EQ("pushstatus") {
 //       lua_pushstring(L1, statcodes[status]);
@@ -2049,7 +2069,8 @@ private static int settrick (lua_State *L) {
 //   return 0;
 // }
 
-private static int testC (lua_State *L) {
+    private static int testC(lua_State* L)
+    {
 //   lua_State *L1;
 //   const char *pc;
 //   if (lua_isuserdata(L, 1)) {
@@ -2065,15 +2086,16 @@ private static int testC (lua_State *L) {
 //     pc = luaL_checkstring(L, 1);
 //   }
 //   return runC(L, L1, pc);
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-// static int Cfunc (lua_State *L) {
+    private static int Cfunc(lua_State* L)
+    {
 //   return runC(L, L, lua_tostring(L, lua_upvalueindex(1)));
-// }
-//
-//
-// static int Cfunck (lua_State *L, int status, lua_KContext ctx) {
+        throw new NotImplementedException();
+    }
+
+// static int Cfunck (lua_State *L, int status, nint ctx) {
 //   lua_pushstring(L, statcodes[status]);
 //   lua_setglobal(L, "status");
 //   lua_pushinteger(L, cast_Integer(ctx));
@@ -2081,12 +2103,12 @@ private static int testC (lua_State *L) {
 //   return runC(L, L, lua_tostring(L, cast_int(ctx)));
 // }
 
-private static int makeCfunc (lua_State *L) {
-//   luaL_checkstring(L, 1);
-//   lua_pushcclosure(L, Cfunc, lua_gettop(L));
-//   return 1;
-    throw new NotImplementedException();
-}
+    private static int makeCfunc(lua_State* L)
+    {
+        luaL_checkstring(L, 1);
+        lua_pushcclosure(L, &Cfunc, lua_gettop(L));
+        return 1;
+    }
 
     /* }====================================================== */
 
@@ -2134,7 +2156,8 @@ private static int makeCfunc (lua_State *L) {
 //   lua_sethook(L, Chook, mask, count);
 // }
 
-private static int sethook (lua_State *L) {
+    private static int sethook(lua_State* L)
+    {
 //   if (lua_isnoneornil(L, 1))
 //     lua_sethook(L, null, 0, 0);  /* turn off hooks */
 //   else {
@@ -2149,10 +2172,11 @@ private static int sethook (lua_State *L) {
 //     sethookaux(L, mask, count, scpt);
 //   }
 //   return 0;
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
-private static int coresume (lua_State *L) {
+    private static int coresume(lua_State* L)
+    {
 //   int status, nres;
 //   lua_State *co = lua_tothread(L, 1);
 //   luaL_argcheck(L, co, 1, "coroutine expected");
@@ -2166,20 +2190,17 @@ private static int coresume (lua_State *L) {
 //     lua_pushboolean(L, 1);
 //     return 1;
 //   }
-    throw new NotImplementedException();
-}
+        throw new NotImplementedException();
+    }
 
+    private static int nonblock(lua_State* L)
+    {
 // #if !defined(LUA_USE_POSIX)
 //
 // #define nonblock	null
 //
 // #else
-//
-// #include <unistd.h>
-// #include <fcntl.h>
 
-    private static int nonblock(lua_State* L)
-    {
 //   FILE *f = cast(luaL_Stream*, luaL_checkudata(L, 1, LUA_FILEHANDLE))->f;
 //   int fd = fileno(f);
 //   int flags = fcntl(fd, F_GETFL, 0);
@@ -2187,8 +2208,8 @@ private static int coresume (lua_State *L) {
 //   fcntl(fd, F_SETFL, flags);
 //   return 0;
         throw new NotImplementedException();
-    }
 // #endif
+    }
 
     /* }====================================================== */
 

@@ -1,5 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
     /*
@@ -19,9 +21,6 @@ public static unsafe partial class Lua
     private const int PRINTBIT = 2;
     private const int SPACEBIT = 3;
     private const int XDIGITBIT = 4;
-
-// #define MASK(B)		(1 << (B))
-
 
     /*
      ** add 1 to char to allow index -1 (EOZ)
@@ -64,15 +63,17 @@ public static unsafe partial class Lua
         return testprop(c, 1 << XDIGITBIT);
     }
 
-    // /*
-// ** In ASCII, this 'ltolower' is correct for alphabetic characters and
-// ** for '.'. That is enough for Lua needs. ('check_exp' ensures that
-// ** the character either is an upper-case letter or is unchanged by
-// ** the transformation, which holds for lower-case letters and '.'.)
-// */
-// #define ltolower(c)  \
-//   check_exp(('A' <= (c) && (c) <= 'Z') || (c) == ((c) | ('A' ^ 'a')),  \
-//             (c) | ('A' ^ 'a'))
+    /*
+    ** In ASCII, this 'ltolower' is correct for alphabetic characters and
+    ** for '.'. That is enough for Lua needs. ('check_exp' ensures that
+    ** the character either is an upper-case letter or is unchanged by
+    ** the transformation, which holds for lower-case letters and '.'.)
+    */
+    private static char ltolower(int c)
+    {
+        Debug.Assert(c is >= 'A' and <= 'Z' || c == (c | 'A' ^ 'a'));
+        return (char)(c | 'A' ^ 'a');
+    }
 
 #if LUA_UCID
     /* accept UniCode IDentifiers? */

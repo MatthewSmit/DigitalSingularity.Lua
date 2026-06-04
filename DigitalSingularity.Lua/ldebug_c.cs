@@ -15,8 +15,7 @@ public static unsafe partial class Lua
 //   Debug.Assert(isLua(ci));
 //   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 // }
-//
-//
+
 // /*
 // ** Get a "base line" to find the line corresponding to an instruction.
 // ** Base lines are regularly placed at MAXIWTHABS intervals, so usually
@@ -46,14 +45,14 @@ public static unsafe partial class Lua
 //     return f->abslineinfo[i].line;
 //   }
 // }
-//
-//
-// /*
-// ** Get the line corresponding to instruction 'pc' in function 'f';
-// ** first gets a base line and from there does the increments until
-// ** the desired instruction.
-// */
-// int luaG_getfuncline (const Proto *f, int pc) {
+
+    /*
+     ** Get the line corresponding to instruction 'pc' in function 'f';
+     ** first gets a base line and from there does the increments until
+     ** the desired instruction.
+     */
+    private static partial int luaG_getfuncline(Proto* f, int pc)
+    {
 //   if (f->lineinfo == null)  /* no debug information? */
 //     return -1;
 //   else {
@@ -65,72 +64,81 @@ public static unsafe partial class Lua
 //     }
 //     return baseline;
 //   }
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static int getcurrentline (CallInfo *ci) {
 //   return luaG_getfuncline(ci_func(ci)->p, currentpc(ci));
 // }
-//
-//
-// /*
-// ** Set 'trap' for all active Lua frames.
-// ** This function can be called during a signal, under "reasonable"
-// ** assumptions. A new 'ci' is completely linked in the list before it
-// ** becomes part of the "active" list, and we assume that pointers are
-// ** atomic; see comment in next function.
-// ** (A compiler doing interprocedural optimizations could, theoretically,
-// ** reorder memory writes in such a way that the list could be
-// ** temporarily broken while inserting a new element. We simply assume it
-// ** has no good reasons to do that.)
-// */
-// static void settraps (CallInfo *ci) {
-//   for (; ci != null; ci = ci->previous)
-//     if (isLua(ci))
-//       ci->u.l.trap = 1;
-// }
-//
-//
-// /*
-// ** This function can be called during a signal, under "reasonable"
-// ** assumptions.
-// ** Fields 'basehookcount' and 'hookcount' (set by 'resethookcount')
-// ** are for debug only, and it is no problem if they get arbitrary
-// ** values (causes at most one wrong hook call). 'hookmask' is an atomic
-// ** value. We assume that pointers are atomic too (e.g., gcc ensures that
-// ** for all platforms where it runs). Moreover, 'hook' is always checked
-// ** before being called (see 'luaD_hook').
-// */
-// LUA_API void lua_sethook (lua_State *L, lua_Hook func, int mask, int count) {
-//   if (func == null || mask == 0) {  /* turn off hooks? */
-//     mask = 0;
-//     func = null;
-//   }
-//   L->hook = func;
-//   L->basehookcount = count;
-//   resethookcount(L);
-//   L->hookmask = cast_byte(mask);
-//   if (mask)
-//     settraps(L->ci);  /* to trace inside 'luaV_execute' */
-// }
-//
-//
-// LUA_API lua_Hook lua_gethook (lua_State *L) {
-//   return L->hook;
-// }
-//
-//
-// LUA_API int lua_gethookmask (lua_State *L) {
-//   return L->hookmask;
-// }
-//
-//
-// LUA_API int lua_gethookcount (lua_State *L) {
-//   return L->basehookcount;
-// }
-//
-//
-// LUA_API int lua_getstack (lua_State *L, int level, lua_Debug *ar) {
+
+    /*
+     ** Set 'trap' for all active Lua frames.
+     ** This function can be called during a signal, under "reasonable"
+     ** assumptions. A new 'ci' is completely linked in the list before it
+     ** becomes part of the "active" list, and we assume that pointers are
+     ** atomic; see comment in next function.
+     ** (A compiler doing interprocedural optimizations could, theoretically,
+     ** reorder memory writes in such a way that the list could be
+     ** temporarily broken while inserting a new element. We simply assume it
+     ** has no good reasons to do that.)
+     */
+    private static void settraps(CallInfo* ci)
+    {
+        for (; ci != null; ci = ci->previous)
+        {
+            if (isLua(ci))
+            {
+                ci->u.l.trap = 1;
+            }
+        }
+    }
+
+    /*
+     ** This function can be called during a signal, under "reasonable"
+     ** assumptions.
+     ** Fields 'basehookcount' and 'hookcount' (set by 'resethookcount')
+     ** are for debug only, and it is no problem if they get arbitrary
+     ** values (causes at most one wrong hook call). 'hookmask' is an atomic
+     ** value. We assume that pointers are atomic too (e.g. gcc ensures that
+     ** for all platforms where it runs). Moreover, 'hook' is always checked
+     ** before being called (see 'luaD_hook').
+     */
+    public static partial void lua_sethook(lua_State* L, lua_Hook func, byte mask, int count)
+    {
+        if (func == null || mask == 0)
+        {
+            /* turn off hooks? */
+            mask = 0;
+            func = null;
+        }
+
+        L->hook = func;
+        L->basehookcount = count;
+        resethookcount(L);
+        L->hookmask = mask;
+        if (mask != 0)
+        {
+            settraps(L->ci); /* to trace inside 'luaV_execute' */
+        }
+    }
+
+    public static partial lua_Hook lua_gethook(lua_State* L)
+    {
+        return L->hook;
+    }
+
+    public static partial byte lua_gethookmask(lua_State* L)
+    {
+        return L->hookmask;
+    }
+
+    public static partial int lua_gethookcount(lua_State* L)
+    {
+        return L->basehookcount;
+    }
+
+    public static partial int lua_getstack(lua_State* L, int level, lua_Debug* ar)
+    {
 //   int status;
 //   CallInfo *ci;
 //   if (level < 0) return 0;  /* invalid (negative) level */
@@ -144,9 +152,9 @@ public static unsafe partial class Lua
 //   else status = 0;  /* no such level */
 //   lua_unlock(L);
 //   return status;
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static const char *upvalname (const Proto *p, int uv) {
 //   TString *s = check_exp(uv < p->sizeupvalues, p->upvalues[uv].name);
 //   if (s == null) return "?";
@@ -164,9 +172,9 @@ public static unsafe partial class Lua
 //   }
 //   return null;  /* no such vararg */
 // }
-//
-//
-// const char *luaG_findlocal (lua_State *L, CallInfo *ci, int n, StkId *pos) {
+
+    private static partial string? luaG_findlocal(lua_State* L, CallInfo* ci, int n, StkId* pos)
+    {
 //   StkId base = ci->func.p + 1;
 //   const char *name = null;
 //   if (isLua(ci)) {
@@ -187,10 +195,11 @@ public static unsafe partial class Lua
 //   if (pos)
 //     *pos = base + (n - 1);
 //   return name;
-// }
-//
-//
-// LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
+        throw new NotImplementedException();
+    }
+
+    public static partial string lua_getlocal(lua_State* L, lua_Debug* ar, int n)
+    {
 //   const char *name;
 //   lua_lock(L);
 //   if (ar == null) {  /* information about non-active function? */
@@ -209,10 +218,11 @@ public static unsafe partial class Lua
 //   }
 //   lua_unlock(L);
 //   return name;
-// }
-//
-//
-// LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
+        throw new NotImplementedException();
+    }
+
+    public static partial string lua_setlocal(lua_State* L, lua_Debug* ar, int n)
+    {
 //   StkId pos = null;  /* to avoid warnings */
 //   const char *name;
 //   lua_lock(L);
@@ -224,9 +234,9 @@ public static unsafe partial class Lua
 //   }
 //   lua_unlock(L);
 //   return name;
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static void funcinfo (lua_Debug *ar, Closure *cl) {
 //   if (!LuaClosure(cl)) {
 //     ar->source = "=[C]";
@@ -250,16 +260,14 @@ public static unsafe partial class Lua
 //   }
 //   luaO_chunkid(ar->short_src, ar->source, ar->srclen);
 // }
-//
-//
+
 // static int nextline (const Proto *p, int currentline, int pc) {
 //   if (p->lineinfo[pc] != ABSLINEINFO)
 //     return currentline + p->lineinfo[pc];
 //   else
 //     return luaG_getfuncline(p, pc);
 // }
-//
-//
+
 // static void collectvalidlines (lua_State *L, Closure *f) {
 //   if (!LuaClosure(f)) {
 //     setnilvalue(s2v(L->top.p));
@@ -289,16 +297,14 @@ public static unsafe partial class Lua
 //     }
 //   }
 // }
-//
-//
+
 // static const char *getfuncname (lua_State *L, CallInfo *ci, const char **name) {
 //   /* calling function is a known function? */
 //   if (ci != null && !(ci->callstatus & CIST_TAIL))
 //     return funcnamefromcall(L, ci->previous, name);
 //   else return null;  /* no way to find a name */
 // }
-//
-//
+
 // static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
 //                        Closure *f, CallInfo *ci) {
 //   int status = 1;
@@ -361,9 +367,9 @@ public static unsafe partial class Lua
 //   }
 //   return status;
 // }
-//
-//
-// LUA_API int lua_getinfo (lua_State *L, const char *what, lua_Debug *ar) {
+
+    public static partial int lua_getinfo(lua_State* L, string what, lua_Debug* ar)
+    {
 //   int status;
 //   Closure *cl;
 //   CallInfo *ci;
@@ -391,16 +397,15 @@ public static unsafe partial class Lua
 //     collectvalidlines(L, cl);
 //   lua_unlock(L);
 //   return status;
-// }
-//
-//
-// /*
-// ** {======================================================
-// ** Symbolic Execution
-// ** =======================================================
-// */
-//
-//
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** {======================================================
+     ** Symbolic Execution
+     ** =======================================================
+     */
+
 // static int filterpc (int pc, int jmptarget) {
 //   if (pc < jmptarget)  /* is code conditional (inside a jump)? */
 //     return -1;  /* cannot know who sets that register */
@@ -719,83 +724,92 @@ public static unsafe partial class Lua
 //   const char *t = luaT_objtypename(L, o);
 //   luaG_runerror(L, "attempt to %s a %s value%s", op, t, extra);
 // }
-//
-//
-// /*
-// ** Raise a type error with "standard" information about the faulty
-// ** object 'o' (using 'varinfo').
-// */
-// l_noret luaG_typeerror (lua_State *L, const TValue *o, const char *op) {
-//   typeerror(L, o, op, varinfo(L, o));
-// }
-//
-//
-// /*
-// ** Raise an error for calling a non-callable object. Try to find a name
-// ** for the object based on how it was called ('funcnamefromcall'); if it
-// ** cannot get a name there, try 'varinfo'.
-// */
-// l_noret luaG_callerror (lua_State *L, const TValue *o) {
-//   CallInfo *ci = L->ci;
+
+    /*
+     ** Raise a type error with "standard" information about the faulty
+     ** object 'o' (using 'varinfo').
+     */
+    private static partial void luaG_typeerror(lua_State* L, TValue* o, string opname)
+    {
+        // typeerror(L, o, op, varinfo(L, o));
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** Raise an error for calling a non-callable object. Try to find a name
+     ** for the object based on how it was called ('funcnamefromcall'); if it
+     ** cannot get a name there, try 'varinfo'.
+     */
+    private static partial void luaG_callerror(lua_State* L, TValue* o)
+    {
+        CallInfo* ci = L->ci;
 //   const char *name = null;  /* to avoid warnings */
 //   const char *kind = funcnamefromcall(L, ci, &name);
 //   const char *extra = kind ? formatvarinfo(L, kind, name) : varinfo(L, o);
 //   typeerror(L, o, "call", extra);
-// }
-//
-//
-// l_noret luaG_forerror (lua_State *L, const TValue *o, const char *what) {
-//   luaG_runerror(L, "bad 'for' %s (number expected, got %s)",
-//                    what, luaT_objtypename(L, o));
-// }
-//
-//
-// l_noret luaG_concaterror (lua_State *L, const TValue *p1, const TValue *p2) {
-//   if (ttisstring(p1) || cvt2str(p1)) p1 = p2;
-//   luaG_typeerror(L, p1, "concatenate");
-// }
-//
-//
-// l_noret luaG_opinterror (lua_State *L, const TValue *p1,
-//                          const TValue *p2, const char *msg) {
-//   if (!ttisnumber(p1))  /* first operand is wrong? */
-//     p2 = p1;  /* now second is wrong */
-//   luaG_typeerror(L, p2, msg);
-// }
-//
-//
-// /*
-// ** Error when both values are convertible to numbers, but not to integers
-// */
-// l_noret luaG_tointerror (lua_State *L, const TValue *p1, const TValue *p2) {
-//   lua_Integer temp;
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaG_forerror(lua_State* L, TValue* o, string what)
+    {
+        luaG_runerror(L, "bad 'for' %s (number expected, got %s)", what, luaT_objtypename(L, o));
+    }
+
+    private static partial void luaG_concaterror(lua_State* L, TValue* p1, TValue* p2)
+    {
+        if (ttisstring(p1) || cvt2str(p1))
+        {
+            p1 = p2;
+        }
+
+        luaG_typeerror(L, p1, "concatenate");
+    }
+
+    private static partial void luaG_opinterror(lua_State* L, TValue* p1, TValue* p2, string msg)
+    {
+        if (!ttisnumber(p1)) /* first operand is wrong? */
+        {
+            p2 = p1; /* now second is wrong */
+        }
+
+        luaG_typeerror(L, p2, msg);
+    }
+
+    /*
+     ** Error when both values are convertible to numbers, but not to integers
+     */
+    private static partial void luaG_tointerror(lua_State* L, TValue* p1, TValue* p2)
+    {
+//   long temp;
 //   if (!luaV_tointegerns(p1, &temp, LUA_FLOORN2I))
 //     p2 = p1;
 //   luaG_runerror(L, "number%s has no integer representation", varinfo(L, p2));
-// }
-//
-//
-// l_noret luaG_ordererror (lua_State *L, const TValue *p1, const TValue *p2) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaG_ordererror(lua_State* L, TValue* p1, TValue* p2)
+    {
 //   const char *t1 = luaT_objtypename(L, p1);
 //   const char *t2 = luaT_objtypename(L, p2);
 //   if (strcmp(t1, t2) == 0)
 //     luaG_runerror(L, "attempt to compare two %s values", t1);
 //   else
 //     luaG_runerror(L, "attempt to compare %s with %s", t1, t2);
-// }
-//
-//
-// l_noret luaG_errnnil (lua_State *L, LClosure *cl, int k) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaG_errnnil(lua_State* L, LClosure* cl, int k)
+    {
 //   const char *globalname = "?";  /* default name if k == 0 */
 //   if (k > 0)
 //     kname(cl->p, k - 1, &globalname);
 //   luaG_runerror(L, "global '%s' already defined", globalname);
-// }
-//
-//
-// /* add src:line information to 'msg' */
-// const char *luaG_addinfo (lua_State *L, const char *msg, TString *src,
-//                                         int line) {
+        throw new NotImplementedException();
+    }
+
+    /* add src:line information to 'msg' */
+    private static partial string luaG_addinfo(lua_State* L, string msg, TString* src, int line)
+    {
 //   if (src == null)  /* no debug information? */
 //     return luaO_pushfstring(L, "?:?: %s", msg);
 //   else {
@@ -805,10 +819,11 @@ public static unsafe partial class Lua
 //     luaO_chunkid(buff, id, idlen);
 //     return luaO_pushfstring(L, "%s:%d: %s", buff, line, msg);
 //   }
-// }
-//
-//
-// l_noret luaG_errormsg (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaG_errormsg(lua_State* L)
+    {
 //   if (L->errfunc != 0) {  /* is there an error handling function? */
 //     StkId errfunc = restorestack(L, L->errfunc);
 //     Debug.Assert(ttisfunction(s2v(errfunc)));
@@ -822,9 +837,10 @@ public static unsafe partial class Lua
 //     setsvalue2s(L, L->top.p - 1, luaS_newliteral(L, "<no error object>"));
 //   }
 //   luaD_throw(L, LUA_ERRRUN);
-// }
+        throw new NotImplementedException();
+    }
 
-    private static partial void luaG_runerror(lua_State* L, string fmt)
+    private static partial void luaG_runerror(lua_State* L, string fmt, params object[] args)
     {
 //   CallInfo *ci = L->ci;
 //   const char *msg;
@@ -841,112 +857,158 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Check whether new instruction 'newpc' is in a different line from
-// ** previous instruction 'oldpc'. More often than not, 'newpc' is only
-// ** one or a few instructions after 'oldpc' (it must be after, see
-// ** caller), so try to avoid calling 'luaG_getfuncline'. If they are
-// ** too far apart, there is a good chance of a ABSLINEINFO in the way,
-// ** so it goes directly to 'luaG_getfuncline'.
-// */
-// static int changedline (const Proto *p, int oldpc, int newpc) {
-//   if (p->lineinfo == null)  /* no debug information? */
-//     return 0;
-//   if (newpc - oldpc < MAXIWTHABS / 2) {  /* not too far apart? */
-//     int delta = 0;  /* line difference */
-//     int pc = oldpc;
-//     for (;;) {
-//       int lineinfo = p->lineinfo[++pc];
-//       if (lineinfo == ABSLINEINFO)
-//         break;  /* cannot compute delta; fall through */
-//       delta += lineinfo;
-//       if (pc == newpc)
-//         return (delta != 0);  /* delta computed successfully */
-//     }
-//   }
-//   /* either instructions are too far apart or there is an absolute line
-//      info in the way; compute line difference explicitly */
-//   return (luaG_getfuncline(p, oldpc) != luaG_getfuncline(p, newpc));
-// }
-//
-//
-// /*
-// ** Traces Lua calls. If code is running the first instruction of a function,
-// ** and function is not vararg, and it is not coming from an yield,
-// ** calls 'luaD_hookcall'. (Vararg functions will call 'luaD_hookcall'
-// ** after adjusting its variable arguments; otherwise, they could call
-// ** a line/count hook before the call hook. Functions coming from
-// ** an yield already called 'luaD_hookcall' before yielding.)
-// */
-// int luaG_tracecall (lua_State *L) {
-//   CallInfo *ci = L->ci;
-//   Proto *p = ci_func(ci)->p;
-//   ci->u.l.trap = 1;  /* ensure hooks will be checked */
-//   if (ci->u.l.savedpc == p->code) {  /* first instruction (not resuming)? */
-//     if (isvararg(p))
-//       return 0;  /* hooks will start at VARARGPREP instruction */
-//     else if (!(ci->callstatus & CIST_HOOKYIELD))  /* not yielded? */
-//       luaD_hookcall(L, ci);  /* check 'call' hook */
-//   }
-//   return 1;  /* keep 'trap' on */
-// }
-//
-//
-// /*
-// ** Traces the execution of a Lua function. Called before the execution
-// ** of each opcode, when debug is on. 'L->oldpc' stores the last
-// ** instruction traced, to detect line changes. When entering a new
-// ** function, 'npci' will be zero and will test as a new line whatever
-// ** the value of 'oldpc'.  Some exceptional conditions may return to
-// ** a function without setting 'oldpc'. In that case, 'oldpc' may be
-// ** invalid; if so, use zero as a valid value. (A wrong but valid 'oldpc'
-// ** at most causes an extra call to a line hook.)
-// ** This function is not "Protected" when called, so it should correct
-// ** 'L->top.p' before calling anything that can run the GC.
-// */
-// int luaG_traceexec (lua_State *L, const Instruction *pc) {
-//   CallInfo *ci = L->ci;
-//   lu_byte mask = cast_byte(L->hookmask);
-//   const Proto *p = ci_func(ci)->p;
-//   int counthook;
-//   if (!(mask & (LUA_MASKLINE | LUA_MASKCOUNT))) {  /* no hooks? */
-//     ci->u.l.trap = 0;  /* don't need to stop again */
-//     return 0;  /* turn off 'trap' */
-//   }
-//   pc++;  /* reference is always next instruction */
-//   ci->u.l.savedpc = pc;  /* save 'pc' */
-//   counthook = (mask & LUA_MASKCOUNT) && (--L->hookcount == 0);
-//   if (counthook)
-//     resethookcount(L);  /* reset count */
-//   else if (!(mask & LUA_MASKLINE))
-//     return 1;  /* no line hook and count != 0; nothing to be done now */
-//   if (ci->callstatus & CIST_HOOKYIELD) {  /* hook yielded last time? */
-//     ci->callstatus &= ~CIST_HOOKYIELD;  /* erase mark */
-//     return 1;  /* do not call hook again (VM yielded, so it did not move) */
-//   }
-//   if (!luaP_isIT(*(ci->u.l.savedpc - 1)))  /* top not being used? */
-//     L->top.p = ci->top.p;  /* correct top */
-//   if (counthook)
-//     luaD_hook(L, LUA_HOOKCOUNT, -1, 0, 0);  /* call count hook */
-//   if (mask & LUA_MASKLINE) {
-//     /* 'L->oldpc' may be invalid; use zero in this case */
-//     int oldpc = (L->oldpc < p->sizecode) ? L->oldpc : 0;
-//     int npci = pcRel(pc, p);
-//     if (npci <= oldpc ||  /* call hook when jump back (loop), */
-//         changedline(p, oldpc, npci)) {  /* or when enter new line */
-//       int newline = luaG_getfuncline(p, npci);
-//       luaD_hook(L, LUA_HOOKLINE, newline, 0, 0);  /* call line hook */
-//     }
-//     L->oldpc = npci;  /* 'pc' of last call to line hook */
-//   }
-//   if (L->status == LUA_YIELD) {  /* did hook yield? */
-//     if (counthook)
-//       L->hookcount = 1;  /* undo decrement to zero */
-//     ci->callstatus |= CIST_HOOKYIELD;  /* mark that it yielded */
-//     luaD_throw(L, LUA_YIELD);
-//   }
-//   return 1;  /* keep 'trap' on */
-// }
-//
+    /*
+     ** Check whether new instruction 'newpc' is in a different line from
+     ** previous instruction 'oldpc'. More often than not, 'newpc' is only
+     ** one or a few instructions after 'oldpc' (it must be after, see
+     ** caller), so try to avoid calling 'luaG_getfuncline'. If they are
+     ** too far apart, there is a good chance of a ABSLINEINFO in the way,
+     ** so it goes directly to 'luaG_getfuncline'.
+     */
+    private static bool changedline(Proto* p, int oldpc, int newpc)
+    {
+        if (p->lineinfo == null) /* no debug information? */
+        {
+            return false;
+        }
 
+        if (newpc - oldpc < MAXIWTHABS / 2)
+        {
+            /* not too far apart? */
+            int delta = 0; /* line difference */
+            int pc = oldpc;
+            for (;;)
+            {
+                int lineinfo = p->lineinfo[++pc];
+                if (lineinfo == ABSLINEINFO)
+                {
+                    break; /* cannot compute delta; fall through */
+                }
+
+                delta += lineinfo;
+                if (pc == newpc)
+                {
+                    return delta != 0; /* delta computed successfully */
+                }
+            }
+        }
+
+        /* either instructions are too far apart or there is an absolute line
+           info in the way; compute line difference explicitly */
+        return luaG_getfuncline(p, oldpc) != luaG_getfuncline(p, newpc);
+    }
+
+    /*
+     ** Traces Lua calls. If code is running the first instruction of a function,
+     ** and function is not vararg, and it is not coming from an yield,
+     ** calls 'luaD_hookcall'. (Vararg functions will call 'luaD_hookcall'
+     ** after adjusting its variable arguments; otherwise, they could call
+     ** a line/count hook before the call hook. Functions coming from
+     ** an yield already called 'luaD_hookcall' before yielding.)
+     */
+    private static partial bool luaG_tracecall(lua_State* L)
+    {
+        CallInfo* ci = L->ci;
+        Proto* p = ci_func(ci)->p;
+        ci->u.l.trap = 1; /* ensure hooks will be checked */
+        if (ci->u.l.savedpc == p->code)
+        {
+            /* first instruction (not resuming)? */
+            if (isvararg(p))
+            {
+                return false; /* hooks will start at VARARGPREP instruction */
+            }
+
+            if ((ci->callstatus & CIST_HOOKYIELD) == 0) /* not yielded? */
+            {
+                luaD_hookcall(L, ci); /* check 'call' hook */
+            }
+        }
+
+        return true; /* keep 'trap' on */
+    }
+
+    /*
+     ** Traces the execution of a Lua function. Called before the execution
+     ** of each opcode, when debug is on. 'L->oldpc' stores the last
+     ** instruction traced, to detect line changes. When entering a new
+     ** function, 'npci' will be zero and will test as a new line whatever
+     ** the value of 'oldpc'.  Some exceptional conditions may return to
+     ** a function without setting 'oldpc'. In that case, 'oldpc' may be
+     ** invalid; if so, use zero as a valid value. (A wrong but valid 'oldpc'
+     ** at most causes an extra call to a line hook.)
+     ** This function is not "Protected" when called, so it should correct
+     ** 'L->top.p' before calling anything that can run the GC.
+     */
+    private static partial bool luaG_traceexec(lua_State* L, uint* pc)
+    {
+        CallInfo* ci = L->ci;
+        byte mask = L->hookmask;
+        Proto* p = ci_func(ci)->p;
+        if ((mask & (LUA_MASKLINE | LUA_MASKCOUNT)) == 0)
+        {
+            /* no hooks? */
+            ci->u.l.trap = 0; /* don't need to stop again */
+            return false; /* turn off 'trap' */
+        }
+
+        pc++; /* reference is always next instruction */
+        ci->u.l.savedpc = pc; /* save 'pc' */
+        bool counthook = (mask & LUA_MASKCOUNT) != 0 && --L->hookcount == 0;
+        if (counthook)
+        {
+            resethookcount(L); /* reset count */
+        }
+        else if ((mask & LUA_MASKLINE) == 0)
+        {
+            return true; /* no line hook and count != 0; nothing to be done now */
+        }
+
+        if ((ci->callstatus & CIST_HOOKYIELD) != 0)
+        {
+            /* hook yielded last time? */
+            ci->callstatus &= ~CIST_HOOKYIELD; /* erase mark */
+            return true; /* do not call hook again (VM yielded, so it did not move) */
+        }
+
+        if (!luaP_isIT(*(ci->u.l.savedpc - 1))) /* top not being used? */
+        {
+            L->top.p = ci->top.p; /* correct top */
+        }
+
+        if (counthook)
+        {
+            luaD_hook(L, LUA_HOOKCOUNT, -1, 0, 0); /* call count hook */
+        }
+
+        if ((mask & LUA_MASKLINE) != 0)
+        {
+            /* 'L->oldpc' may be invalid; use zero in this case */
+            int oldpc = L->oldpc < p->sizecode ? L->oldpc : 0;
+            int npci = pcRel(pc, p);
+            if (npci <= oldpc || /* call hook when jump back (loop), */
+                changedline(p, oldpc, npci))
+            {
+                /* or when enter new line */
+                int newline = luaG_getfuncline(p, npci);
+                luaD_hook(L, LUA_HOOKLINE, newline, 0, 0); /* call line hook */
+            }
+
+            L->oldpc = npci; /* 'pc' of last call to line hook */
+        }
+
+        if (L->status == LUA_YIELD)
+        {
+            /* did hook yield? */
+            if (counthook)
+            {
+                L->hookcount = 1; /* undo decrement to zero */
+            }
+
+            ci->callstatus |= CIST_HOOKYIELD; /* mark that it yielded */
+            luaD_throw(L, LUA_YIELD);
+        }
+
+        return true; /* keep 'trap' on */
+    }
 }

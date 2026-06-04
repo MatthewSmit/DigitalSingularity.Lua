@@ -25,16 +25,16 @@ public static unsafe partial class Lua
             128;
         #endif
 
-// /*
-// ** generic equality for strings
-// */
-// int luaS_eqstr (TString *a, TString *b) {
-//   size_t len1, len2;
-//   const char *s1 = getlstr(a, len1);
-//   const char *s2 = getlstr(b, len2);
-//   return ((len1 == len2) &&  /* equal length and ... */
-//           (memcmp(s1, s2, len1) == 0));  /* equal contents */
-// }
+    /*
+    ** generic equality for strings
+    */
+    private static partial bool luaS_eqstr(TString* a, TString* b)
+    {
+        byte* s1 = getlstr(a, out long len1);
+        byte* s2 = getlstr(b, out long len2);
+        return len1 == len2 && /* equal length and ... */
+               memcmp(s1, s2, len1) == 0; /* equal contents */
+    }
 
     private static uint luaS_hash(byte* str, long l, uint seed)
     {
@@ -47,15 +47,19 @@ public static unsafe partial class Lua
         return h;
     }
 
-// unsigned luaS_hashlongstr (TString *ts) {
-//   Debug.Assert(ts->tt == LUA_VLNGSTR);
-//   if (ts->extra == 0) {  /* no hash? */
-//     size_t len = ts->u.lnglen;
-//     ts->hash = luaS_hash(getlngstr(ts), len, ts->hash);
-//     ts->extra = 1;  /* now it has its hash */
-//   }
-//   return ts->hash;
-// }
+    private static partial uint luaS_hashlongstr(TString* ts)
+    {
+        Debug.Assert(ts->tt == LUA_VLNGSTR);
+        if (ts->extra == 0)
+        {
+            /* no hash? */
+            long len = ts->u.lnglen;
+            ts->hash = luaS_hash(getlngstr(ts), len, ts->hash);
+            ts->extra = 1; /* now it has its hash */
+        }
+
+        return ts->hash;
+    }
 
     private static void tablerehash(TString** vect, int osize, int nsize)
     {
@@ -236,7 +240,7 @@ public static unsafe partial class Lua
     /*
      ** Checks whether short string exists and reuses it or creates a new one.
      */
-    private static TString* internshrstr(lua_State* L, byte* str, int l)
+    private static TString* internshrstr(lua_State* L, byte* str, long l)
     {
         global_State* g = G(L);
         stringtable* tb = &g->strt;
@@ -406,16 +410,18 @@ public static unsafe partial class Lua
         return ne.ts;
     }
 
-// /*
-// ** Normalise an external string: If it is short, internalise it.
-// */
-// TString *luaS_normstr (lua_State *L, TString *ts) {
-//   size_t len = ts->u.lnglen;
-//   if (len > LUAI_MAXSHORTLEN)
-//     return ts;  /* long string; keep the original */
-//   else {
-//     const char *str = getlngstr(ts);
-//     return internshrstr(L, str, len);
-//   }
-// }
+    /*
+    ** Normalise an external string: If it is short, internalise it.
+    */
+    private static partial TString* luaS_normstr(lua_State* L, TString* ts)
+    {
+        long len = ts->u.lnglen;
+        if (len > LUAI_MAXSHORTLEN)
+        {
+            return ts; /* long string; keep the original */
+        }
+
+        byte* str = getlngstr(ts);
+        return internshrstr(L, str, len);
+    }
 }

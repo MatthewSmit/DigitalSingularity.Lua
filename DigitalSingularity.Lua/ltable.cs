@@ -55,12 +55,17 @@ public static unsafe partial class Lua
         t->flags |= BITDUMMY;
     }
 
-    // /* allocated size for hash nodes */
-// #define allocsizenode(t)	(isdummy(t) ? 0 : sizenode(t))
-//
-//
-// /* returns the Node, given the value of a table entry */
-// #define nodefromval(v)	cast(Node *, (v))
+    /* allocated size for hash nodes */
+    private static uint allocsizenode(Table* t)
+    {
+        return isdummy(t) ? 0 : sizenode(t);
+    }
+
+    /* returns the Node, given the value of a table entry */
+    private static Node* nodefromval(TValue* v)
+    {
+        return (Node*)v;
+    }
 
     private static void luaH_fastgeti(Table* t, long k, TValue* res, out byte tag)
     {
@@ -79,14 +84,27 @@ public static unsafe partial class Lua
         }
     }
 
-// #define luaH_fastseti(t,k,val,hres) \
-//   { Table *h = t; lua_Unsigned u = l_castS2U(k) - 1u; \
-//     if ((u < h->asize)) { \
-//       lu_byte *tag = getArrTag(h, u); \
-//       if (checknoTM(h->metatable, TM_NEWINDEX) || !tagisempty(*tag)) \
-//         { fval2arr(h, u, tag, val); hres = HOK; } \
-//       else hres = ~cast_int(u); } \
-//     else { hres = luaH_psetint(h, k, val); }}
+    private static void luaH_fastseti(Table* t, long k, TValue* val, out int hres)
+    {
+        ulong u = (ulong)k - 1u;
+        if (u < t->asize)
+        {
+            byte* tag = getArrTag(t, u);
+            if (checknoTM(t->metatable, TMS.NEWINDEX) || !tagisempty(*tag))
+            {
+                fval2arr(t, u, tag, val);
+                hres = HOK;
+            }
+            else
+            {
+                hres = ~(int)u;
+            }
+        }
+        else
+        {
+            hres = luaH_psetint(t, k, val); 
+        }
+    }
 
     /* results from pset */
     private const int HOK = 0;
@@ -94,44 +112,43 @@ public static unsafe partial class Lua
     private const int HNOTATABLE = 2;
     private const int HFIRSTNODE = 3;
 
-// /*
-// ** 'luaH_get*' operations set 'res', unless the value is absent, and
-// ** return the tag of the result.
-// ** The 'luaH_pset*' (pre-set) operations set the given value and return
-// ** HOK, unless the original value is absent. In that case, if the key
-// ** is really absent, they return HNOTFOUND. Otherwise, if there is a
-// ** slot with that key but with no value, 'luaH_pset*' return an encoding
-// ** of where the key is (usually called 'hres'). (pset cannot set that
-// ** value because there might be a metamethod.) If the slot is in the
-// ** hash part, the encoding is (HFIRSTNODE + hash index); if the slot is
-// ** in the array part, the encoding is (~array index), a negative value.
-// ** The value HNOTATABLE is used by the fast macros to signal that the
-// ** value being indexed is not a table.
-// ** (The size for the array part is limited by the maximum power of two
-// ** that fits in an unsigned integer; that is INT_MAX+1. So, the C-index
-// ** ranges from 0, which encodes to -1, to INT_MAX, which encodes to
-// ** INT_MIN. The size of the hash part is limited by the maximum power of
-// ** two that fits in a signed integer; that is (INT_MAX+1)/2. So, it is
-// ** safe to add HFIRSTNODE to any index there.)
-// */
-//
-//
-// /*
-// ** The array part of a table is represented by an inverted array of
-// ** values followed by an array of tags, to avoid wasting space with
-// ** padding. In between them there is an unsigned int, explained later.
-// ** The 'array' pointer points between the two arrays, so that values are
-// ** indexed with negative indices and tags with non-negative indices.
-//
-//              Values                              Tags
-//   --------------------------------------------------------
-//   ...  |   Value 1     |   Value 0     |unsigned|0|1|...
-//   --------------------------------------------------------
-//                                        ^ t->array
-//
-// ** All accesses to 't->array' should be through the macros 'getArrTag'
-// ** and 'getArrVal'.
-// */
+    /*
+    ** 'luaH_get*' operations set 'res', unless the value is absent, and
+    ** return the tag of the result.
+    ** The 'luaH_pset*' (pre-set) operations set the given value and return
+    ** HOK, unless the original value is absent. In that case, if the key
+    ** is really absent, they return HNOTFOUND. Otherwise, if there is a
+    ** slot with that key but with no value, 'luaH_pset*' return an encoding
+    ** of where the key is (usually called 'hres'). (pset cannot set that
+    ** value because there might be a metamethod.) If the slot is in the
+    ** hash part, the encoding is (HFIRSTNODE + hash index); if the slot is
+    ** in the array part, the encoding is (~array index), a negative value.
+    ** The value HNOTATABLE is used by the fast macros to signal that the
+    ** value being indexed is not a table.
+    ** (The size for the array part is limited by the maximum power of two
+    ** that fits in an unsigned integer; that is INT_MAX+1. So, the C-index
+    ** ranges from 0, which encodes to -1, to INT_MAX, which encodes to
+    ** INT_MIN. The size of the hash part is limited by the maximum power of
+    ** two that fits in a signed integer; that is (INT_MAX+1)/2. So, it is
+    ** safe to add HFIRSTNODE to any index there.)
+    */
+
+    /*
+    ** The array part of a table is represented by an inverted array of
+    ** values followed by an array of tags, to avoid wasting space with
+    ** padding. In between them there is an unsigned int, explained later.
+    ** The 'array' pointer points between the two arrays, so that values are
+    ** indexed with negative indices and tags with non-negative indices.
+
+                 Values                              Tags
+      --------------------------------------------------------
+      ...  |   Value 1     |   Value 0     |unsigned|0|1|...
+      --------------------------------------------------------
+                                           ^ t->array
+
+    ** All accesses to 't->array' should be through the macros 'getArrTag'
+    ** and 'getArrVal'.
+    */
 
     /* Computes the address of the tag for the abstract C-index 'k' */
     private static byte* getArrTag(Table* t, ulong k)
@@ -155,11 +172,14 @@ public static unsafe partial class Lua
         return (uint*)t->array;
     }
 
-    // /*
-// ** Move TValues to/from arrays, using C indices
-// */
-// #define arr2obj(h,k,val)  \
-//   ((val)->tt_ = *getArrTag(h,(k)), (val)->value_ = *getArrVal(h,(k)))
+    /*
+    ** Move TValues to/from arrays, using C indices
+    */
+    private static void arr2obj(Table* h, ulong k, TValue* val)
+    {
+        val->tt_ = *getArrTag(h, k);
+        val->value_ = *getArrVal(h, k);
+    }
 
     private static void obj2arr(Table* h, uint k, TValue* val)
     {
@@ -178,12 +198,16 @@ public static unsafe partial class Lua
         res->value_ = *getArrVal(h, k);
     }
 
-    // #define fval2arr(h,k,tag,val)  \
-//   (*tag = (val)->tt_, *getArrVal(h,(k)) = (val)->value_)
+    private static void fval2arr(Table* h, ulong k, byte* tag, TValue* val)
+    {
+        *tag = val->tt_;
+        *getArrVal(h, k) = val->value_;
+    }
 
     private static partial byte luaH_get(Table* t, TValue* key, TValue* res);
-    
-// LUAI_FUNC lu_byte luaH_getshortstr (Table *t, TString *key, TValue *res);
+
+    private static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res);
+
     private static partial byte luaH_getstr(Table* t, TString* key, TValue* res);
 
     private static partial byte luaH_getint(Table* t, long key, TValue* res);
@@ -191,7 +215,7 @@ public static unsafe partial class Lua
     /* Special get for metamethods */
     private static partial TValue* luaH_Hgetshortstr(Table* t, TString* key);
 
-// LUAI_FUNC int luaH_psetint (Table *t, lua_Integer key, TValue *val);
+    private static partial int luaH_psetint(Table* t, long key, TValue* val);
 
     private static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val);
 
@@ -209,17 +233,17 @@ public static unsafe partial class Lua
 
     private static partial void luaH_resize(lua_State* L, Table* t, uint nasize, uint nhsize);
 
-// LUAI_FUNC void luaH_resizearray (lua_State *L, Table *t, unsigned nasize);
+    private static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize);
 
     private static partial long luaH_size(Table* t);
 
     private static partial void luaH_free(lua_State* L, Table* t);
 
-// LUAI_FUNC int luaH_next (lua_State *L, Table *t, StkId key);
-// LUAI_FUNC lua_Unsigned luaH_getn (lua_State *L, Table *t);
-//
-//
-// #if defined(LUA_DEBUG)
-// LUAI_FUNC Node *luaH_mainposition (const Table *t, const TValue *key);
-// #endif
+    private static partial int luaH_next(lua_State* L, Table* t, StkId key);
+
+    private static partial ulong luaH_getn(lua_State* L, Table* t);
+
+#if LUA_DEBUG
+    private static partial Node* luaH_mainposition(Table* t, TValue* key);
+#endif
 }

@@ -14,5 +14,7 @@ public static unsafe partial class Lua
         dummynode->u.key_tt = LUA_TDEADKEY;
         
         absentkey->tt_ = LUA_VABSTKEY;
+
+        *invalidinstruction = ~0u;
     }
 }

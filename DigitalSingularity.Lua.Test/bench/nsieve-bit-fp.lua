@@ -1,7 +1,7 @@
 
 local floor, ceil = math.floor, math.ceil
 
-local precision = 50 -- Maximum precision of lua_Number (minus safety margin).
+local precision = 50 -- Maximum precision of double (minus safety margin).
 local onebits = (2^precision)-1
 
 local function nsieve(p, m)

@@ -4,19 +4,19 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-// /*
-// ** Collectable objects may have one of three colors: white, which means
-// ** the object is not marked; gray, which means the object is marked, but
-// ** its references may be not marked; and black, which means that the
-// ** object and all its references are marked.  The main invariant of the
-// ** garbage collector, while marking objects, is that a black object can
-// ** never point to a white one. Moreover, any gray object must be in a
-// ** "gray list" (gray, grayagain, weak, allweak, ephemeron) so that it
-// ** can be visited again before finishing the collection cycle. (Open
-// ** upvalues are an exception to this rule, as they are attached to
-// ** a corresponding thread.)  These lists have no meaning when the
-// ** invariant is not being enforced (e.g., sweep phase).
-// */
+    /*
+    ** Collectable objects may have one of three colours: white, which means
+    ** the object is not marked; grey, which means the object is marked, but
+    ** its references may be not marked; and black, which means that the
+    ** object and all its references are marked.  The main invariant of the
+    ** garbage collector, while marking objects, is that a black object can
+    ** never point to a white one. Moreover, any grey object must be in a
+    ** "grey list" (grey, greyagain, weak, allweak, ephemeron) so that it
+    ** can be visited again before finishing the collection cycle. (Open
+    ** upvalues are an exception to this rule, as they are attached to
+    ** a corresponding thread.)  These lists have no meaning when the
+    ** invariant is not being enforced (e.g. sweep phase).
+    */
 
     /*
     ** Possible states of the Garbage Collector
@@ -31,19 +31,23 @@ public static unsafe partial class Lua
     private const byte GCScallfin = 7;
     private const byte GCSpause = 8;
 
-// #define issweepphase(g)  \
-// 	(GCSswpallgc <= (g)->gcstate && (g)->gcstate <= GCSswpend)
-//
-//
-// /*
-// ** macro to tell when main invariant (white objects cannot point to black
-// ** ones) must be kept. During a collection, the sweep phase may break
-// ** the invariant, as objects turned white may point to still-black
-// ** objects. The invariant is restored when sweep ends and all objects
-// ** are white again.
-// */
-//
-// #define keepinvariant(g)	((g)->gcstate <= GCSatomic)
+    private static bool issweepphase(global_State* g)
+    {
+        return GCSswpallgc <= g->gcstate && g->gcstate <= GCSswpend;
+    }
+
+    /*
+    ** macro to tell when main invariant (white objects cannot point to black
+    ** ones) must be kept. During a collection, the sweep phase may break
+    ** the invariant, as objects turned white may point to still-black
+    ** objects. The invariant is restored when sweep ends and all objects
+    ** are white again.
+    */
+
+    private static bool keepinvariant(global_State* g)
+    {
+        return g->gcstate <= GCSatomic;
+    }
 
     /*
     ** some useful bit tricks
@@ -73,7 +77,11 @@ public static unsafe partial class Lua
         setbits(ref x, bitmask(b));
     }
 
-    // #define resetbit(x,b)		resetbits(x, bitmask(b))
+    private static void resetbit(ref byte x, byte b)
+    {
+        resetbits(ref x, bitmask(b));
+    }
+
     private static bool testbit(byte x, byte b)
     {
         return testbits(x, bitmask(b));
@@ -108,7 +116,10 @@ public static unsafe partial class Lua
         return !testbits(x->marked, (byte)(WHITEBITS | bitmask(BLACKBIT)));
     }
 
-    // #define tofinalize(x)	testbit((x)->marked, FINALIZEDBIT)
+    private static bool tofinalise(GCObject* x)
+    {
+        return testbit(x->marked, FINALIZEDBIT);
+    }
 
     private static byte otherwhite(global_State* g)
     {
@@ -167,42 +178,42 @@ public static unsafe partial class Lua
         return getage(o) > G_SURVIVAL;
     }
 
-    // /*
-// ** In generational mode, objects are created 'new'. After surviving one
-// ** cycle, they become 'survival'. Both 'new' and 'survival' can point
-// ** to any other object, as they are traversed at the end of the cycle.
-// ** We call them both 'young' objects.
-// ** If a survival object survives another cycle, it becomes 'old1'.
-// ** 'old1' objects can still point to survival objects (but not to
-// ** new objects), so they still must be traversed. After another cycle
-// ** (that, being old, 'old1' objects will "survive" no matter what)
-// ** finally the 'old1' object becomes really 'old', and then they
-// ** are no more traversed.
-// **
-// ** To keep its invariants, the generational mode uses the same barriers
-// ** also used by the incremental mode. If a young object is caught in a
-// ** forward barrier, it cannot become old immediately, because it can
-// ** still point to other young objects. Instead, it becomes 'old0',
-// ** which in the next cycle becomes 'old1'. So, 'old0' objects is
-// ** old but can point to new and survival objects; 'old1' is old
-// ** but cannot point to new objects; and 'old' cannot point to any
-// ** young object.
-// **
-// ** If any old object ('old0', 'old1', 'old') is caught in a back
-// ** barrier, it becomes 'touched1' and goes into a gray list, to be
-// ** visited at the end of the cycle.  There it evolves to 'touched2',
-// ** which can point to survivals but not to new objects. In yet another
-// ** cycle then it becomes 'old' again.
-// **
-// ** The generational mode must also control the colors of objects,
-// ** because of the barriers.  While the mutator is running, young objects
-// ** are kept white. 'old', 'old1', and 'touched2' objects are kept black,
-// ** as they cannot point to new objects; exceptions are threads and open
-// ** upvalues, which age to 'old1' and 'old' but are kept gray. 'old0'
-// ** objects may be gray or black, as in the incremental mode. 'touched1'
-// ** objects are kept gray, as they must be visited again at the end of
-// ** the cycle.
-// */
+    /*
+    ** In generational mode, objects are created 'new'. After surviving one
+    ** cycle, they become 'survival'. Both 'new' and 'survival' can point
+    ** to any other object, as they are traversed at the end of the cycle.
+    ** We call them both 'young' objects.
+    ** If a survival object survives another cycle, it becomes 'old1'.
+    ** 'old1' objects can still point to survival objects (but not to
+    ** new objects), so they still must be traversed. After another cycle
+    ** (that, being old, 'old1' objects will "survive" no matter what)
+    ** finally the 'old1' object becomes really 'old', and then they
+    ** are no more traversed.
+    **
+    ** To keep its invariants, the generational mode uses the same barriers
+    ** also used by the incremental mode. If a young object is caught in a
+    ** forward barrier, it cannot become old immediately, because it can
+    ** still point to other young objects. Instead, it becomes 'old0',
+    ** which in the next cycle becomes 'old1'. So, 'old0' objects is
+    ** old but can point to new and survival objects; 'old1' is old
+    ** but cannot point to new objects; and 'old' cannot point to any
+    ** young object.
+    **
+    ** If any old object ('old0', 'old1', 'old') is caught in a back
+    ** barrier, it becomes 'touched1' and goes into a grey list, to be
+    ** visited at the end of the cycle.  There it evolves to 'touched2',
+    ** which can point to survivals but not to new objects. In yet another
+    ** cycle then it becomes 'old' again.
+    **
+    ** The generational mode must also control the colours of objects,
+    ** because of the barriers.  While the mutator is running, young objects
+    ** are kept white. 'old', 'old1', and 'touched2' objects are kept black,
+    ** as they cannot point to new objects; exceptions are threads and open
+    ** upvalues, which age to 'old1' and 'old' but are kept grey. 'old0'
+    ** objects may be grey or black, as in the incremental mode. 'touched1'
+    ** objects are kept grey, as they must be visited again at the end of
+    ** the cycle.
+    */
 
     /*
     ** {======================================================
@@ -227,7 +238,6 @@ public static unsafe partial class Lua
     ** new bytes.
     */
     private const byte LUAI_GENMINORMUL = 20;
-
 
     /* incremental */
 
@@ -268,20 +278,20 @@ public static unsafe partial class Lua
         return g->gcstp == 0;
     }
 
-    // /*
-// ** Does one step of collection when debt becomes zero. 'pre'/'pos'
-// ** allows some adjustments to be done only when needed. macro
-// ** 'condchangemem' is used only for heavy tests (forcing a full
-// ** GC cycle on every opportunity)
-// */
-//
-// #if !defined(HARDMEMTESTS)
+    /*
+    ** Does one step of collection when debt becomes zero. 'pre'/'pos'
+    ** allows some adjustments to be done only when needed. macro
+    ** 'condchangemem' is used only for heavy tests (forcing a full
+    ** GC cycle on every opportunity)
+    */
+
+// #if !defined(HARDMEMTESTS) TODO
 // #define condchangemem(L,pre,pos,emg)	((void)0)
 // #else
 // #define condchangemem(L,pre,pos,emg)  \
 // 	{ if (gcrunning(G(L))) { pre; luaC_fullgc(L, emg); pos; } }
 // #endif
-//
+
 // #define luaC_condGC(L,pre,pos) \
 // 	{ if (G(L)->GCdebt <= 0) { pre; luaC_step(L); pos;}; \
 // 	  condchangemem(L,pre,pos,0); }
@@ -335,8 +345,8 @@ public static unsafe partial class Lua
     }
 
     private static partial void luaC_fix(lua_State* L, GCObject* o);
-    
-// LUAI_FUNC void luaC_freeallobjects (lua_State *L);
+
+    private static partial void luaC_freeallobjects(lua_State* L);
 
     private static partial void luaC_step(lua_State* L);
 
@@ -352,7 +362,7 @@ public static unsafe partial class Lua
 
     private static partial void luaC_barrierback_(lua_State* L, GCObject* o);
 
-// LUAI_FUNC void luaC_checkfinalizer (lua_State *L, GCObject *o, Table *mt);
+    private static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt);
 
     private static partial void luaC_changemode(lua_State* L, int newmode);
 }

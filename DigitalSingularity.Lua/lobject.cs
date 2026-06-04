@@ -14,18 +14,12 @@ public static unsafe partial class Lua
     private const int LUA_TPROTO = LUA_NUMTYPES + 1; /* function prototypes */
     private const int LUA_TDEADKEY = LUA_NUMTYPES + 2; /* removed keys in tables */
 
-// /*
-// ** number of all possible types (including LUA_TNONE but excluding DEADKEY)
-// */
-// #define LUA_TOTALTYPES		(LUA_TPROTO + 2)
-//
-//
-// /*
-// ** tags for Tagged Values have the following use of bits:
-// ** bits 0-3: actual tag (a LUA_T* constant)
-// ** bits 4-5: variant bits
-// ** bit 6: whether value is collectable
-// */
+    /*
+     ** tags for Tagged Values have the following use of bits:
+     ** bits 0-3: actual tag (a LUA_T* constant)
+     ** bits 4-5: variant bits
+     ** bit 6: whether value is collectable
+     */
 
     /* add variant bits to a type */
     private static byte makevariant(int t, int v)
@@ -46,13 +40,6 @@ public static unsafe partial class Lua
         [FieldOffset(0)] public double n; /* float numbers */
     }
 
-// /*
-// ** Tagged Values. This is the basic representation of values in Lua:
-// ** an actual value plus a tag with its type.
-// */
-//
-// #define TValuefields	Value value_; lu_byte tt_
-
     internal struct TValue
     {
         public Value value_;
@@ -63,7 +50,6 @@ public static unsafe partial class Lua
     {
         return ref o->value_;
     }
-    // #define valraw(o)	(val_(o))
 
     /* raw type tag of a TValue */
     private static byte rawtt(TValue* o)
@@ -125,7 +111,6 @@ public static unsafe partial class Lua
         Debug.Assert(!iscollectable(obj) || righttt(obj) && (L == null || !isdead(G(L), gcvalue(obj))));
     }
 
-
     /* Macros to set values */
 
     /* set a value's tag */
@@ -143,10 +128,10 @@ public static unsafe partial class Lua
         Debug.Assert(!isnonstrictnil(obj1));
     }
 
-// /*
-// ** Different types of assignments, according to source and destination.
-// ** (They are mostly equal now, but may be different in the future.)
-// */
+    /*
+     ** Different types of assignments, according to source and destination.
+     ** (They are mostly equal now, but may be different in the future.)
+     */
 
     /* from stack to stack */
     private static void setobjs2s(lua_State* L, StkId o1, StkId o2)
@@ -189,11 +174,15 @@ public static unsafe partial class Lua
     [StructLayout(LayoutKind.Explicit)]
     internal struct StackValue
     {
+        public struct TbcList
+        {
+            public Value value_;
+            public byte tt_;
+            public ushort delta;
+        }
+
         [FieldOffset(0)] public TValue val;
-        //struct {
-        //  TValuefields;
-        //  unsigned short delta;
-        //} tbclist;
+        [FieldOffset(0)] public TbcList tbclist;
     }
 
     /*
@@ -318,7 +307,10 @@ public static unsafe partial class Lua
         return ttisfalse(o) || ttisnil(o);
     }
 
-    // #define tagisfalse(t)	((t) == LUA_VFALSE || novariant(t) == LUA_TNIL)
+    private static bool tagisfalse(byte t)
+    {
+        return t == LUA_VFALSE || novariant(t) == LUA_TNIL;
+    }
 
     private static void setbfvalue(TValue* obj)
     {
@@ -330,7 +322,7 @@ public static unsafe partial class Lua
         settt_(obj, LUA_VTRUE);
     }
 
-    // /* }================================================================== */
+    /* }================================================================== */
 
     /*
      ** {==================================================================
@@ -340,9 +332,16 @@ public static unsafe partial class Lua
 
     private const byte LUA_VTHREAD = LUA_TTHREAD;
 
-    // #define ttisthread(o)		checktag((o), ctb(LUA_VTHREAD))
-//
-// #define thvalue(o)	check_exp(ttisthread(o), gco2th(val_(o).gc))
+    private static bool ttisthread(TValue* o)
+    {
+        return checktag(o, ctb(LUA_VTHREAD));
+    }
+
+    private static lua_State* thvalue(TValue* o)
+    {
+        Debug.Assert(ttisthread(o));
+        return gco2th(val_(o).gc);
+    }
 
     private static void setthvalue(lua_State* L, TValue* obj, lua_State* x)
     {
@@ -351,22 +350,18 @@ public static unsafe partial class Lua
         checkliveness(L, obj);
     }
 
-// #define setthvalue2s(L,o,t)	setthvalue(L,s2v(o),t)
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Collectable Objects
-// ** ===================================================================
-// */
-//
-// /*
-// ** Common Header for all collectable objects (in macro form, to be
-// ** included in other objects)
-// */
-// #define CommonHeader	struct GCObject *next; lu_byte tt; lu_byte marked
+    private static void setthvalue2s(lua_State* L, StkId o, lua_State* t)
+    {
+        setthvalue(L, s2v(o), t);
+    }
+
+    /* }================================================================== */
+
+    /*
+     ** {==================================================================
+     ** Collectable Objects
+     ** ===================================================================
+     */
 
     /* Common type for all collectable objects */
     internal struct GCObject
@@ -401,17 +396,19 @@ public static unsafe partial class Lua
         return v.gc;
     }
 
-    // #define setgcovalue(L,obj,x) \
-//   { TValue *io = (obj); GCObject *i_g=(x); \
-//     val_(io).gc = i_g; settt_(io, ctb(i_g->tt)); }
-//
-// /* }================================================================== */
+    private static void setgcovalue(lua_State* L, TValue* obj, GCObject* x)
+    {
+        val_(obj).gc = x;
+        settt_(obj, ctb(x->tt));
+    }
 
-/*
- ** {==================================================================
- ** Numbers
- ** ===================================================================
- */
+    /* }================================================================== */
+
+    /*
+     ** {==================================================================
+     ** Numbers
+     ** ===================================================================
+     */
 
     /* Variant tags for numbers */
     private const byte LUA_VNUMINT = LUA_TNUMBER;
@@ -432,8 +429,11 @@ public static unsafe partial class Lua
         return checktag(o, LUA_VNUMINT);
     }
 
-    // #define nvalue(o)	check_exp(ttisnumber(o), \
-// 	(ttisinteger(o) ? cast_num(ivalue(o)) : fltvalue(o)))
+    private static double nvalue(TValue* o)
+    {
+        Debug.Assert(ttisnumber(o));
+        return ttisinteger(o) ? ivalue(o) : fltvalue(o);
+    }
 
     private static double fltvalue(TValue* o)
     {
@@ -447,8 +447,15 @@ public static unsafe partial class Lua
         return val_(o).i;
     }
 
-    // #define fltvalueraw(v)	((v).n)
-// #define ivalueraw(v)	((v).i)
+    private static double fltvalueraw(in Value v)
+    {
+        return v.n;
+    }
+
+    private static long ivalueraw(in Value v)
+    {
+        return v.i;
+    }
 
     private static void setfltvalue(TValue* obj, double x)
     {
@@ -456,8 +463,11 @@ public static unsafe partial class Lua
         settt_(obj, LUA_VNUMFLT);
     }
 
-// #define chgfltvalue(obj,x) \
-//   { TValue *io=(obj); Debug.Assert(ttisfloat(io)); val_(io).n=(x); }
+    private static void chgfltvalue(TValue* obj, double x)
+    {
+        Debug.Assert(ttisfloat(obj));
+        val_(obj).n = x;
+    }
 
     private static void setivalue(TValue* obj, long x)
     {
@@ -465,10 +475,13 @@ public static unsafe partial class Lua
         settt_(obj, LUA_VNUMINT);
     }
 
-// #define chgivalue(obj,x) \
-//   { TValue *io=(obj); Debug.Assert(ttisinteger(io)); val_(io).i=(x); }
-//
-// /* }================================================================== */
+    private static void chgivalue(TValue* obj, long x)
+    {
+        Debug.Assert(ttisinteger(obj));
+        val_(obj).i = x;
+    }
+
+    /* }================================================================== */
 
     /*
      ** {==================================================================
@@ -496,7 +509,10 @@ public static unsafe partial class Lua
         return checktag(o, ctb(LUA_VLNGSTR));
     }
 
-    // #define tsvalueraw(v)	(gco2ts((v).gc))
+    private static TString* tsvalueraw(in Value v)
+    {
+        return gco2ts(v.gc);
+    }
 
     private static TString* tsvalue(TValue* o)
     {
@@ -517,8 +533,11 @@ public static unsafe partial class Lua
         setsvalue(L, s2v(o), s);
     }
 
-    // /* set a string to a new object */
-// #define setsvalue2n	setsvalue
+    /* set a string to a new object */
+    private static void setsvalue2n(lua_State* L, TValue* obj, TString* x)
+    {
+        setsvalue(L, obj, x);
+    }
 
     /* Kinds of long strings (stored in 'shrlen') */
     private const sbyte LSTRREG = -1; /* regular long string */
@@ -649,7 +668,10 @@ public static unsafe partial class Lua
         return gco2u(val_(o).gc);
     }
 
-    // #define pvalueraw(v)	((v).p)
+    private static void* pvalueraw(in Value v)
+    {
+        return v.p;
+    }
 
     private static void setpvalue(TValue* obj, void* x)
     {
@@ -663,12 +685,6 @@ public static unsafe partial class Lua
         settt_(obj, ctb(LUA_VUSERDATA));
         checkliveness(L, obj);
     }
-
-// /* Ensures that addresses after this type are always fully aligned. */
-// typedef union UValue {
-//   TValue uv;
-//   LUAI_MAXALIGN;  /* ensures maximum alignment for udata bytes */
-// } UValue;
 
     /*
      ** Header for userdata with user values;
@@ -738,11 +754,9 @@ public static unsafe partial class Lua
 
     private const byte LUA_VPROTO = LUA_TPROTO;
 
-// typedef l_uint32 Instruction;
-
-/*
- ** Description of an upvalue for function prototypes
- */
+    /*
+     ** Description of an upvalue for function prototypes
+     */
     private struct Upvaldesc
     {
         public TString* name; /* upvalue name (for debug information) */
@@ -779,20 +793,26 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Flags in Prototypes
-    */
-    private const int PF_VAHID = 1;  /* function has hidden vararg arguments */
-    private const int PF_VATAB = 2;  /* function has vararg table */
-    private const int PF_FIXED = 4;  /* prototype has parts in fixed memory */
+     ** Flags in Prototypes
+     */
+    private const int PF_VAHID = 1; /* function has hidden vararg arguments */
+    private const int PF_VATAB = 2; /* function has vararg table */
+    private const int PF_FIXED = 4; /* prototype has parts in fixed memory */
 
-// /* a vararg function either has hidden args. or a vararg table */
-// #define isvararg(p)	((p)->flag & (PF_VAHID | PF_VATAB))
-//
-// /*
-// ** mark that a function needs a vararg table. (The flag PF_VAHID will
-// ** be cleared later.)
-// */
-// #define needvatab(p)	((p)->flag |= PF_VATAB)
+    /* a vararg function either has hidden args. or a vararg table */
+    private static bool isvararg(Proto* p)
+    {
+        return (p->flag & (PF_VAHID | PF_VATAB)) != 0;
+    }
+
+    /*
+     ** mark that a function needs a vararg table. (The flag PF_VAHID will
+     ** be cleared later.)
+     */
+    private static void needvatab(Proto* p)
+    {
+        p->flag |= PF_VATAB;
+    }
 
     /*
      ** Function Prototypes
@@ -845,20 +865,42 @@ public static unsafe partial class Lua
         return checktype(o, LUA_TFUNCTION);
     }
 
-    // #define ttisLclosure(o)		checktag((o), ctb(LUA_VLCL))
+    private static bool ttisLclosure(TValue* o)
+    {
+        return checktag(o, ctb(LUA_VLCL));
+    }
+
     private static bool ttislcf(TValue* o)
     {
         return checktag(o, LUA_VLCF);
     }
 
-    // #define ttisCclosure(o)		checktag((o), ctb(LUA_VCCL))
-// #define ttisclosure(o)         (ttisLclosure(o) || ttisCclosure(o))
-//
-//
-// #define isLfunction(o)	ttisLclosure(o)
-//
-// #define clvalue(o)	check_exp(ttisclosure(o), gco2cl(val_(o).gc))
-// #define clLvalue(o)	check_exp(ttisLclosure(o), gco2lcl(val_(o).gc))
+    private static bool ttisCclosure(TValue* o)
+    {
+        return checktag(o, ctb(LUA_VCCL));
+    }
+
+    private static bool ttisclosure(TValue* o)
+    {
+        return ttisLclosure(o) || ttisCclosure(o);
+    }
+
+    private static bool isLfunction(TValue* o)
+    {
+        return ttisLclosure(o);
+    }
+
+    private static Closure* clvalue(TValue* o)
+    {
+        Debug.Assert(ttisclosure(o));
+        return gco2cl(val_(o).gc);
+    }
+
+    private static LClosure* clLvalue(TValue* o)
+    {
+        Debug.Assert(ttisLclosure(o));
+        return gco2lcl(val_(o).gc);
+    }
 
     private static lua_CFunction fvalue(TValue* o)
     {
@@ -866,9 +908,16 @@ public static unsafe partial class Lua
         return val_(o).f;
     }
 
-    // #define clCvalue(o)	check_exp(ttisCclosure(o), gco2ccl(val_(o).gc))
-//
-// #define fvalueraw(v)	((v).f)
+    private static CClosure* clCvalue(TValue* o)
+    {
+        Debug.Assert(ttisCclosure(o));
+        return gco2ccl(val_(o).gc);
+    }
+
+    private static lua_CFunction fvalueraw(in Value v)
+    {
+        return v.f;
+    }
 
     private static void setclLvalue(lua_State* L, TValue* obj, LClosure* x)
     {
@@ -962,7 +1011,10 @@ public static unsafe partial class Lua
         [FieldOffset(0)] public LClosure l;
     }
 
-// #define getproto(o)	(clLvalue(o)->p)
+    private static Proto* getproto(TValue* o)
+    {
+        return clLvalue(o)->p;
+    }
 
     /* }================================================================== */
 
@@ -1102,7 +1154,10 @@ public static unsafe partial class Lua
         return keyval(n).gc;
     }
 
-    // #define gckeyN(n)	(keyiscollectable(n) ? gckey(n) : null)
+    private static GCObject* gckeyN(Node* n)
+    {
+        return keyiscollectable(n) ? gckey(n) : null;
+    }
 
     /*
      ** Dead keys in tables have the tag DEADKEY but keep their original
@@ -1147,8 +1202,8 @@ public static unsafe partial class Lua
         return twoto(t->lsizenode);
     }
 
-    // /* size of buffer for 'luaO_utf8esc' function */
-// #define UTF8BUFFSZ	8
+    /* size of buffer for 'luaO_utf8esc' function */
+    private const int UTF8BUFFSZ = 8;
 
     /* macro to call 'luaO_pushvfstring' correctly */
     private static void pushvfstring(lua_State* L, object[] argp, string fmt, out string msg)
@@ -1160,7 +1215,7 @@ public static unsafe partial class Lua
         }
     }
 
-// LUAI_FUNC int luaO_utf8esc (char *buff, l_uint32 x);
+    private static partial int luaO_utf8esc(byte* buff, uint x);
 
     private static partial byte luaO_ceillog2(uint x);
 
@@ -1168,16 +1223,19 @@ public static unsafe partial class Lua
 
     private static partial long luaO_applyparam(byte p, long x);
 
-// LUAI_FUNC int luaO_rawarith (lua_State *L, int op, const TValue *p1,
-//                              const TValue *p2, TValue *res);
-// LUAI_FUNC void luaO_arith (lua_State *L, int op, const TValue *p1,
-//                            const TValue *p2, StkId res);
-// LUAI_FUNC size_t luaO_str2num (const char *s, TValue *o);
-// LUAI_FUNC unsigned luaO_tostringbuff (const TValue *obj, char *buff);
-// LUAI_FUNC lu_byte luaO_hexavalue (int c);
-// LUAI_FUNC void luaO_tostring (lua_State *L, TValue *obj);
+    private static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res);
+
+    private static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res);
+
+    private static partial long luaO_str2num(byte* s, TValue* o);
+
+    private static partial uint luaO_tostringbuff(TValue* obj, byte* buff);
+
+    private static partial byte luaO_hexavalue(int c);
+
+    private static partial void luaO_tostring(lua_State* L, TValue* obj);
 
     private static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args);
 
-// LUAI_FUNC void luaO_chunkid (char *out, const char *source, size_t srclen);
+    private static partial void luaO_chunkid(byte* @out, byte* source, long srclen);
 }

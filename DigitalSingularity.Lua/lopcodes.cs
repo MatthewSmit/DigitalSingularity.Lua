@@ -1,5 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
     /*
@@ -69,31 +71,21 @@ public static unsafe partial class Lua
     private const int POS_sJ = POS_A;
 
 
-// /*
-// ** limits for opcode arguments.
-// ** we use (signed) 'int' to manipulate most arguments,
-// ** so they must fit in ints.
-// */
-//
-// /*
-// ** Check whether type 'int' has at least 'b' + 1 bits.
-// ** 'b' < 32; +1 for the sign bit.
-// */
-// #define L_INTHASBITS(b)		((UINT_MAX >> (b)) >= 1)
+    /*
+    ** limits for opcode arguments.
+    ** we use (signed) 'int' to manipulate most arguments,
+    ** so they must fit in ints.
+    */
 
     private const int MAXARG_Bx = (1 << SIZE_Bx) - 1;
-    
-// #define OFFSET_sBx	(MAXARG_Bx>>1)         /* 'sBx' is signed */
+
+    private const int OFFSET_sBx = MAXARG_Bx >> 1;         /* 'sBx' is signed */
 
     private const int MAXARG_Ax = (1 << SIZE_Ax) - 1;
     
-// #if L_INTHASBITS(SIZE_sJ)
-// #define MAXARG_sJ	((1 << SIZE_sJ) - 1)
-// #else
-// #define MAXARG_sJ	INT_MAX
-// #endif
-//
-// #define OFFSET_sJ	(MAXARG_sJ >> 1)
+    private const int MAXARG_sJ = (1 << SIZE_sJ) - 1;
+
+    private const int OFFSET_sJ = MAXARG_sJ >> 1;
 
     private const int MAXARG_A = (1 << SIZE_A) - 1;
     private const int MAXARG_B = (1 << SIZE_B) - 1;
@@ -102,9 +94,20 @@ public static unsafe partial class Lua
     private const int MAXARG_vC = (1 << SIZE_vC) - 1;
     private const int OFFSET_sC = MAXARG_C >> 1;
 
-// #define int2sC(i)	((i) + OFFSET_sC)
-// #define sC2int(i)	((i) - OFFSET_sC)
+    private static int int2sC(int i)
+    {
+        return i + OFFSET_sC;
+    }
 
+    private static uint int2sC(uint i)
+    {
+        return i + OFFSET_sC;
+    }
+
+    private static uint sC2int(uint i)
+    {
+        return i - OFFSET_sC;
+    }
 
     /* creates a mask with 'n' 1 bits at position 'p' */
     private static uint MASK1(int n, int p)
@@ -118,18 +121,31 @@ public static unsafe partial class Lua
         return ~MASK1(n, p);
     }
 
-    // /*
-// ** the following macros help to manipulate instructions
-// */
-//
-// #define GET_OPCODE(i)	(cast(OpCode, ((i)>>POS_OP) & MASK1(SIZE_OP,0)))
-// #define SET_OPCODE(i,o)	((i) = (((i)&MASK0(SIZE_OP,POS_OP)) | \
-// 		((cast_Inst(o)<<POS_OP)&MASK1(SIZE_OP,POS_OP))))
-//
-// #define checkopm(i,m)	(getOpMode(GET_OPCODE(i)) == m)
-//
-//
-// #define getarg(i,pos,size)	(cast_int(((i)>>(pos)) & MASK1(size,0)))
+    /*
+    ** the following macros help to manipulate instructions
+    */
+
+    private static OpCode GET_OPCODE(uint i)
+    {
+        return (OpCode)(i >> POS_OP & MASK1(SIZE_OP, 0));
+    }
+
+    private static void SET_OPCODE(ref uint i, OpCode o)
+    {
+        i = i & MASK0(SIZE_OP, POS_OP) |
+            (uint)o << POS_OP & MASK1(SIZE_OP, POS_OP);
+    }
+
+    private static bool checkopm(uint i, OpMode m)
+    {
+        return getOpMode(GET_OPCODE(i)) == m;
+    }
+
+    private static int getarg(uint i, int pos, int size)
+    {
+        return (int)(i >> pos & MASK1(size, 0));
+    }
+
     private static void setarg(ref uint i, int v, int pos, int size)
     {
         i = i & MASK0(size, pos) |
@@ -137,67 +153,146 @@ public static unsafe partial class Lua
             MASK1(size, pos);
     }
 
-    // #define GETARG_A(i)	getarg(i, POS_A, SIZE_A)
+    private static int GETARG_A(uint i)
+    {
+        return getarg(i, POS_A, SIZE_A);
+    }
 
     private static void SETARG_A(ref uint i, int v)
     {
         setarg(ref i, v, POS_A, SIZE_A);
     }
 
-    // #define GETARG_B(i)  \
-// 	check_exp(checkopm(i, iABC), getarg(i, POS_B, SIZE_B))
-// #define GETARG_vB(i)  \
-// 	check_exp(checkopm(i, ivABC), getarg(i, POS_vB, SIZE_vB))
-// #define GETARG_sB(i)	sC2int(GETARG_B(i))
-// #define SETARG_B(i,v)	setarg(i, v, POS_B, SIZE_B)
-// #define SETARG_vB(i,v)	setarg(i, v, POS_vB, SIZE_vB)
-//
-// #define GETARG_C(i)  \
-// 	check_exp(checkopm(i, iABC), getarg(i, POS_C, SIZE_C))
-// #define GETARG_vC(i)  \
-// 	check_exp(checkopm(i, ivABC), getarg(i, POS_vC, SIZE_vC))
-// #define GETARG_sC(i)	sC2int(GETARG_C(i))
+    private static int GETARG_B(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.iABC));
+        return getarg(i, POS_B, SIZE_B);
+    }
+
+    private static int GETARG_vB(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.ivABC));
+        return getarg(i, POS_vB, SIZE_vB);
+    }
+
+    private static uint GETARG_sB(uint i)
+    {
+        return sC2int((uint)GETARG_B(i));
+    }
+
+    private static void SETARG_B(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_B, SIZE_B);
+    }
+
+    private static void SETARG_vB(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_vB, SIZE_vB);
+    }
+
+    private static uint GETARG_C(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.iABC));
+        return (uint)getarg(i, POS_C, SIZE_C);
+    }
+
+    private static int GETARG_vC(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.ivABC));
+        return getarg(i, POS_vC, SIZE_vC);
+    }
+
+    private static uint GETARG_sC(uint i)
+    {
+        return sC2int(GETARG_C(i));
+    }
 
     private static void SETARG_C(ref uint i, int v)
     {
         setarg(ref i, v, POS_C, SIZE_C);
     }
 
-    // #define SETARG_vC(i,v)	setarg(i, v, POS_vC, SIZE_vC)
-//
-// #define TESTARG_k(i)	(cast_int(((i) & (1u << POS_k))))
-// #define GETARG_k(i)	getarg(i, POS_k, 1)
-// #define SETARG_k(i,v)	setarg(i, v, POS_k, 1)
-//
-// #define GETARG_Bx(i)	check_exp(checkopm(i, iABx), getarg(i, POS_Bx, SIZE_Bx))
-// #define SETARG_Bx(i,v)	setarg(i, v, POS_Bx, SIZE_Bx)
-//
-// #define GETARG_Ax(i)	check_exp(checkopm(i, iAx), getarg(i, POS_Ax, SIZE_Ax))
-// #define SETARG_Ax(i,v)	setarg(i, v, POS_Ax, SIZE_Ax)
-//
-// #define GETARG_sBx(i)  \
-// 	check_exp(checkopm(i, iAsBx), getarg(i, POS_Bx, SIZE_Bx) - OFFSET_sBx)
-// #define SETARG_sBx(i,b)	SETARG_Bx((i),cast_uint((b)+OFFSET_sBx))
-//
-// #define GETARG_sJ(i)  \
-// 	check_exp(checkopm(i, isJ), getarg(i, POS_sJ, SIZE_sJ) - OFFSET_sJ)
-// #define SETARG_sJ(i,j) \
-// 	setarg(i, cast_uint((j)+OFFSET_sJ), POS_sJ, SIZE_sJ)
+    private static void SETARG_vC(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_vC, SIZE_vC);
+    }
+
+    private static int TESTARG_k(uint i)
+    {
+        return (int)(i & 1u << POS_k);
+    }
+
+    private static int GETARG_k(uint i)
+    {
+        return getarg(i, POS_k, 1);
+    }
+
+    private static void SETARG_k(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_k, 1);
+    }
+
+    private static int GETARG_Bx(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.iABx));
+        return getarg(i, POS_Bx, SIZE_Bx);
+    }
+
+    private static void SETARG_Bx(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_Bx, SIZE_Bx);
+    }
+
+    private static int GETARG_Ax(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.iAx));
+        return getarg(i, POS_Ax, SIZE_Ax);
+    }
+
+    private static void SETARG_Ax(ref uint i, int v)
+    {
+        setarg(ref i, v, POS_Ax, SIZE_Ax);
+    }
+
+    private static int GETARG_sBx(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.iAsBx));
+        return getarg(i, POS_Bx, SIZE_Bx) - OFFSET_sBx;
+    }
+
+    private static void SETARG_sBx(ref uint i, int b)
+    {
+        SETARG_Bx(ref i, b + OFFSET_sBx);
+    }
+
+    private static int GETARG_sJ(uint i)
+    {
+        Debug.Assert(checkopm(i, OpMode.isJ));
+        return getarg(i, POS_sJ, SIZE_sJ) - OFFSET_sJ;
+    }
+
+    private static void SETARG_sJ(ref uint i, int j)
+    {
+        setarg(ref i, j + OFFSET_sJ, POS_sJ, SIZE_sJ);
+    }
 
     private static uint CREATE_ABCk(OpCode o, int a, int b, int c, int k)
     {
-        return (uint)(o) << POS_OP |
-               (uint)(a) << POS_A |
-               (uint)(b) << POS_B |
-               (uint)(c) << POS_C |
-               (uint)(k) << POS_k;
+        return (uint)o << POS_OP |
+               (uint)a << POS_A |
+               (uint)b << POS_B |
+               (uint)c << POS_C |
+               (uint)k << POS_k;
     }
 
-    // #define CREATE_vABCk(o,a,b,c,k)	((cast_Inst(o)<<POS_OP) \
-// 			| (cast_Inst(a)<<POS_A) \
-// 			| (cast_Inst(b)<<POS_vB) \
-// 			| (cast_Inst(c)<<POS_vC) \
-// 			| (cast_Inst(k)<<POS_k))
+    private static uint CREATE_vABCk(OpCode o, int a, int b, int c, int k)
+    {
+        return (uint)o << POS_OP |
+               (uint)a << POS_A |
+               (uint)b << POS_vB |
+               (uint)c << POS_vC |
+               (uint)k << POS_k;
+    }
 
     private static uint CREATE_ABx(OpCode o, int a, int bc)
     {
@@ -209,11 +304,17 @@ public static unsafe partial class Lua
         return (uint)o << POS_OP | (uint)a << POS_Ax;
     }
 
-    // #define CREATE_sJ(o,j,k)	((cast_Inst(o) << POS_OP) \
-// 			| (cast_Inst(j) << POS_sJ) \
-// 			| (cast_Inst(k) << POS_k))
+    private static uint CREATE_sJ(OpCode o, int j, int k)
+    {
+        return (uint)o << POS_OP | (uint)j << POS_sJ | (uint)k << POS_k;
+    }
 
-    private const int MAXINDEXRK = MAXARG_B;
+    private const int MAXINDEXRK =
+#if LUA_TEST
+        1;
+#else
+        MAXARG_B;
+#endif
     
     /*
     ** Maximum size for the stack of a Lua function. It must fit in 8 bits.
@@ -221,33 +322,30 @@ public static unsafe partial class Lua
     */
     private const int MAX_FSTACK = MAXARG_A;
 
-// /*
-// ** Invalid register (one more than last valid register).
-// */
-// #define NO_REG		MAX_FSTACK
-//
-//
-//
-// /*
-// ** R[x] - register
-// ** K[x] - constant (in constant table)
-// ** RK(x) == if k(i) then K[x] else R[x]
-// */
-//
-//
-// /*
-// ** Grep "ORDER OP" if you change this enum.
-// ** See "Notes" below for more information about some instructions.
-// */
+    /*
+    ** Invalid register (one more than last valid register).
+    */
+    private const int NO_REG = MAX_FSTACK;
+    
+    /*
+    ** R[x] - register
+    ** K[x] - constant (in constant table)
+    ** RK(x) == if k(i) then K[x] else R[x]
+    */
+
+    /*
+    ** Grep "ORDER OP" if you change this enum.
+    ** See "Notes" below for more information about some instructions.
+    */
 
     private enum OpCode
     {
-/*----------------------------------------------------------------------
-  name		args	description
-------------------------------------------------------------------------*/
+        /*----------------------------------------------------------------------
+          name		args	description
+        ------------------------------------------------------------------------*/
         OP_MOVE, /*	A B	R[A] := R[B]					*/
         OP_LOADI, /*	A sBx	R[A] := sBx					*/
-        OP_LOADF, /*	A sBx	R[A] := (lua_Number)sBx				*/
+        OP_LOADF, /*	A sBx	R[A] := (double)sBx				*/
         OP_LOADK, /*	A Bx	R[A] := K[Bx]					*/
         OP_LOADKX, /*	A	R[A] := K[extra arg]				*/
         OP_LOADFALSE, /*	A	R[A] := false					*/
@@ -360,7 +458,7 @@ public static unsafe partial class Lua
         OP_EXTRAARG, /*	Ax	extra (larger) argument for previous opcode	*/
     }
 
-// #define NUM_OPCODES	((int)(OP_EXTRAARG) + 1)
+    private const int NUM_OPCODES = (int)OpCode.OP_EXTRAARG + 1;
 
     /*===========================================================================
       Notes:
@@ -528,13 +626,32 @@ public static unsafe partial class Lua
         return (OpMode)(luaP_opmodes[(int)m] & 7);
     }
     
-// #define testAMode(m)	(luaP_opmodes[m] & (1 << 3))
-// #define testTMode(m)	(luaP_opmodes[m] & (1 << 4))
-// #define testITMode(m)	(luaP_opmodes[m] & (1 << 5))
-// #define testOTMode(m)	(luaP_opmodes[m] & (1 << 6))
-// #define testMMMode(m)	(luaP_opmodes[m] & (1 << 7))
-//
-//
-// LUAI_FUNC int luaP_isOT (Instruction i);
-// LUAI_FUNC int luaP_isIT (Instruction i);
+    private static bool testAMode(OpMode m)
+    {
+        return (luaP_opmodes[(int)m] & (1 << 3)) != 0;
+    }
+
+    private static bool testTMode(OpMode m)
+    {
+        return (luaP_opmodes[(int)m] & (1 << 4)) != 0;
+    }
+
+    private static bool testITMode(OpCode m)
+    {
+        return (luaP_opmodes[(int)m] & (1 << 5)) != 0;
+    }
+
+    private static bool testOTMode(OpCode m)
+    {
+        return (luaP_opmodes[(int)m] & (1 << 6)) != 0;
+    }
+
+    private static bool testMMMode(OpMode m)
+    {
+        return (luaP_opmodes[(int)m] & (1 << 7)) != 0;
+    }
+
+    private static partial bool luaP_isOT(uint i);
+
+    private static partial bool luaP_isIT(uint i);
 }

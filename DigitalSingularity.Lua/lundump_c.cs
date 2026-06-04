@@ -46,7 +46,7 @@ public static unsafe partial class Lua
 // static void loadAlign (LoadState *S, unsigned align) {
 //   unsigned padding = align - cast_uint(S->offset % align);
 //   if (padding < align) {  /* (padding == align) means no padding */
-//     lua_Integer paddingContent;
+//     long paddingContent;
 //     loadBlock(S, &paddingContent, padding);
 //     Debug.Assert(S->offset % align == 0);
 //   }
@@ -101,14 +101,14 @@ public static unsafe partial class Lua
 //
 //
 //
-// static lua_Number loadNumber (LoadState *S) {
-//   lua_Number x;
+// static double loadNumber (LoadState *S) {
+//   double x;
 //   loadVar(S, x);
 //   return x;
 // }
 //
 //
-// static lua_Integer loadInteger (LoadState *S) {
+// static long loadInteger (LoadState *S) {
 //   lua_Unsigned cx = loadVarint(S, LUA_MAXUNSIGNED);
 //   /* decode unsigned to signed */
 //   if ((cx & 1) != 0)
@@ -366,15 +366,15 @@ public static unsafe partial class Lua
 //   checkliteral(S, LUAC_DATA, "corrupted chunk");
 //   checknum(S, int, LUAC_INT, "int");
 //   checknum(S, Instruction, LUAC_INST, "instruction");
-//   checknum(S, lua_Integer, LUAC_INT, "Lua integer");
-//   checknum(S, lua_Number, LUAC_NUM, "Lua number");
+//   checknum(S, long, LUAC_INT, "Lua integer");
+//   checknum(S, double, LUAC_NUM, "Lua number");
 // }
-//
-//
-// /*
-// ** Load precompiled chunk.
-// */
-// LClosure *luaU_undump (lua_State *L, ZIO *Z, const char *name, int fixed) {
+
+    /*
+    ** Load precompiled chunk.
+    */
+    private static partial LClosure* luaU_undump(lua_State* L, Zio* Z, string name, int @fixed)
+    {
 //   LoadState S;
 //   LClosure *cl;
 //   if (*name == '@' || *name == '=')
@@ -402,7 +402,6 @@ public static unsafe partial class Lua
 //   luai_verifycode(L, cl->p);
 //   L->top.p--;  /* pop table */
 //   return cl;
-// }
-//
-
+        throw new NotImplementedException();
+    }
 }

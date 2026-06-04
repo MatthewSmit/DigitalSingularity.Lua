@@ -21,7 +21,7 @@ public static unsafe partial class Lua
     {
 //   size_t l;
 //   luaL_checklstring(L, 1, &l);
-//   lua_pushinteger(L, (lua_Integer)l);
+//   lua_pushinteger(L, (long)l);
 //   return 1;
         throw new NotImplementedException();
     }
@@ -29,17 +29,17 @@ public static unsafe partial class Lua
 // /*
 // ** translate a relative initial string position
 // ** (negative means back from end): clip result to [1, inf).
-// ** The length of any string in Lua must fit in a lua_Integer,
+// ** The length of any string in Lua must fit in a long,
 // ** so there are no overflows in the casts.
 // ** The inverted comparison avoids a possible overflow
 // ** computing '-pos'.
 // */
-// static size_t posrelatI (lua_Integer pos, size_t len) {
+// static size_t posrelatI (long pos, size_t len) {
 //   if (pos > 0)
 //     return (size_t)pos;
 //   else if (pos == 0)
 //     return 1;
-//   else if (pos < -(lua_Integer)len)  /* inverted comparison */
+//   else if (pos < -(long)len)  /* inverted comparison */
 //     return 1;  /* clip to 1 */
 //   else return len + (size_t)pos + 1;
 // }
@@ -50,14 +50,14 @@ public static unsafe partial class Lua
 // ** with default value 'def'.
 // ** Negative means back from end: clip result to [0, len]
 // */
-// static size_t getendpos (lua_State *L, int arg, lua_Integer def,
+// static size_t getendpos (lua_State *L, int arg, long def,
 //                          size_t len) {
-//   lua_Integer pos = luaL_optinteger(L, arg, def);
-//   if (pos > (lua_Integer)len)
+//   long pos = luaL_optinteger(L, arg, def);
+//   if (pos > (long)len)
 //     return len;
 //   else if (pos >= 0)
 //     return (size_t)pos;
-//   else if (pos < -(lua_Integer)len)
+//   else if (pos < -(long)len)
 //     return 0;
 //   else return len + (size_t)pos + 1;
 // }
@@ -117,14 +117,14 @@ public static unsafe partial class Lua
     }
 
     /*
-     ** MAX_SIZE is limited both by size_t and lua_Integer.
-     ** When x <= MAX_SIZE, x can be safely cast to size_t or lua_Integer.
+     ** MAX_SIZE is limited both by size_t and long.
+     ** When x <= MAX_SIZE, x can be safely cast to size_t or long.
      */
     private static int str_rep(lua_State* L)
     {
 //   size_t len, lsep;
 //   const char *s = luaL_checklstring(L, 1, &len);
-//   lua_Integer n = luaL_checkinteger(L, 2);
+//   long n = luaL_checkinteger(L, 2);
 //   const char *sep = luaL_optlstring(L, 3, "", &lsep);
 //   if (n <= 0)
 //     lua_pushliteral(L, "");
@@ -152,7 +152,7 @@ public static unsafe partial class Lua
     {
 //   size_t l;
 //   const char *s = luaL_checklstring(L, 1, &l);
-//   lua_Integer pi = luaL_optinteger(L, 2, 1);
+//   long pi = luaL_optinteger(L, 2, 1);
 //   size_t posi = posrelatI(pi, l);
 //   size_t pose = getendpos(L, 3, pi, l);
 //   int n, i;
@@ -951,9 +951,9 @@ public static unsafe partial class Lua
 //   const char *lastmatch = null;  /* end of last match */
 //   int tr = lua_type(L, 3);  /* replacement type */
 //   /* max replacements */
-//   lua_Integer max_s = luaL_optinteger(L, 4, cast_st2S(srcl) + 1);
+//   long max_s = luaL_optinteger(L, 4, cast_st2S(srcl) + 1);
 //   int anchor = (*p == '^');
-//   lua_Integer n = 0;  /* replacement count */
+//   long n = 0;  /* replacement count */
 //   int changed = 0;  /* change flag */
 //   MatchState ms;
 //   luaL_Buffer b;
@@ -1018,17 +1018,17 @@ public static unsafe partial class Lua
 // /*
 // ** Add integer part of 'x' to buffer and return new 'x'
 // */
-// static lua_Number adddigit (char *buff, unsigned n, lua_Number x) {
-//   lua_Number dd = l_mathop(floor)(x);  /* get integer part from 'x' */
+// static double adddigit (char *buff, unsigned n, double x) {
+//   double dd = (floor)(x);  /* get integer part from 'x' */
 //   int d = (int)dd;
 //   buff[n] = cast_char(d < 10 ? d + '0' : d - 10 + 'a');  /* add to buffer */
 //   return x - dd;  /* return what is left */
 // }
 //
 //
-// static int num2straux (char *buff, unsigned sz, lua_Number x) {
+// static int num2straux (char *buff, unsigned sz, double x) {
 //   /* if 'inf' or 'NaN', format it like '%g' */
-//   if (x != x || x == (lua_Number)HUGE_VAL || x == -(lua_Number)HUGE_VAL)
+//   if (x != x || x == (double)HUGE_VAL || x == -(double)HUGE_VAL)
 //     return l_sprintf(buff, sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)x);
 //   else if (x == 0) {  /* can be -0... */
 //     /* create "0" or "-0" followed by exponent */
@@ -1036,7 +1036,7 @@ public static unsafe partial class Lua
 //   }
 //   else {
 //     int e;
-//     lua_Number m = l_mathop(frexp)(x, &e);  /* 'x' fraction and exponent */
+//     double m = (frexp)(x, &e);  /* 'x' fraction and exponent */
 //     unsigned n = 0;  /* character count */
 //     if (m < 0) {  /* is number negative? */
 //       buff[n++] = '-';  /* add sign */
@@ -1059,7 +1059,7 @@ public static unsafe partial class Lua
 //
 //
 // static int lua_number2strx (lua_State *L, char *buff, unsigned sz,
-//                             const char *fmt, lua_Number x) {
+//                             const char *fmt, double x) {
 //   int n = num2straux(buff, sz, x);
 //   if (fmt[SIZELENMOD] == 'A') {
 //     int i;
@@ -1153,11 +1153,11 @@ public static unsafe partial class Lua
 // ** (to preserve precision); inf, -inf, and NaN are handled separately.
 // ** (NaN cannot be expressed as a numeral, so we write '(0/0)' for it.)
 // */
-// static int quotefloat (lua_State *L, char *buff, lua_Number n) {
+// static int quotefloat (lua_State *L, char *buff, double n) {
 //   const char *s;  /* for the fixed representations */
-//   if (n == (lua_Number)HUGE_VAL)  /* inf? */
+//   if (n == (double)HUGE_VAL)  /* inf? */
 //     s = "1e9999";
-//   else if (n == -(lua_Number)HUGE_VAL)  /* -inf? */
+//   else if (n == -(double)HUGE_VAL)  /* -inf? */
 //     s = "-1e9999";
 //   else if (n != n)  /* NaN? */
 //     s = "(0/0)";
@@ -1191,7 +1191,7 @@ public static unsafe partial class Lua
 //       if (!lua_isinteger(L, arg))  /* float? */
 //         nb = quotefloat(L, buff, lua_tonumber(L, arg));
 //       else {  /* integers */
-//         lua_Integer n = lua_tointeger(L, arg);
+//         long n = lua_tointeger(L, arg);
 //         const char *format = (n == LUA_MININTEGER)  /* corner case? */
 //                            ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hex */
 //                            : LUA_INTEGER_FMT;  /* else use default format */
@@ -1312,7 +1312,7 @@ public static unsafe partial class Lua
 //         case 'o': case 'x': case 'X':
 //           flags = L_FMTFLAGSX;
 //          intcase: {
-//           lua_Integer n = luaL_checkinteger(L, arg);
+//           long n = luaL_checkinteger(L, arg);
 //           checkformat(L, form, flags, 1);
 //           addlenmod(form, LUA_INTEGER_FRMLEN);
 //           nb = l_sprintf(buff, maxitem, form, (LUAI_UACINT)n);
@@ -1329,7 +1329,7 @@ public static unsafe partial class Lua
 //           buff = luaL_prepbuffsize(&b, maxitem);
 //           /* FALLTHROUGH */
 //         case 'e': case 'E': case 'g': case 'G': {
-//           lua_Number n = luaL_checknumber(L, arg);
+//           double n = luaL_checknumber(L, arg);
 //           checkformat(L, form, L_FMTFLAGSF, 1);
 //           addlenmod(form, LUA_NUMBER_FRMLEN);
 //           nb = l_sprintf(buff, maxitem, form, (LUAI_UACNUMBER)n);
@@ -1405,8 +1405,8 @@ public static unsafe partial class Lua
 // /* mask for one character (NB 1's) */
 // #define MC	((1 << NB) - 1)
 //
-// /* size of a lua_Integer */
-// #define SZINT	((int)sizeof(lua_Integer))
+// /* size of a long */
+// #define SZINT	((int)sizeof(long))
 //
 //
 // /* dummy union to get native endianness */
@@ -1501,11 +1501,11 @@ public static unsafe partial class Lua
 //     case 'H': *size = sizeof(short); return Kuint;
 //     case 'l': *size = sizeof(long); return Kint;
 //     case 'L': *size = sizeof(long); return Kuint;
-//     case 'j': *size = sizeof(lua_Integer); return Kint;
-//     case 'J': *size = sizeof(lua_Integer); return Kuint;
+//     case 'j': *size = sizeof(long); return Kint;
+//     case 'J': *size = sizeof(long); return Kuint;
 //     case 'T': *size = sizeof(size_t); return Kuint;
 //     case 'f': *size = sizeof(float); return Kfloat;
-//     case 'n': *size = sizeof(lua_Number); return Knumber;
+//     case 'n': *size = sizeof(double); return Knumber;
 //     case 'd': *size = sizeof(double); return Kdouble;
 //     case 'i': *size = getnumlimit(h, fmt, sizeof(int)); return Kint;
 //     case 'I': *size = getnumlimit(h, fmt, sizeof(int)); return Kuint;
@@ -1629,16 +1629,16 @@ public static unsafe partial class Lua
 //     arg++;
 //     switch (opt) {
 //       case Kint: {  /* signed integers */
-//         lua_Integer n = luaL_checkinteger(L, arg);
+//         long n = luaL_checkinteger(L, arg);
 //         if (size < SZINT) {  /* need overflow check? */
-//           lua_Integer lim = (lua_Integer)1 << ((size * NB) - 1);
+//           long lim = (long)1 << ((size * NB) - 1);
 //           luaL_argcheck(L, -lim <= n && n < lim, arg, "integer overflow");
 //         }
 //         packint(&b, (lua_Unsigned)n, h.islittle, cast_uint(size), (n < 0));
 //         break;
 //       }
 //       case Kuint: {  /* unsigned integers */
-//         lua_Integer n = luaL_checkinteger(L, arg);
+//         long n = luaL_checkinteger(L, arg);
 //         if (size < SZINT)  /* need overflow check? */
 //           luaL_argcheck(L, (lua_Unsigned)n < ((lua_Unsigned)1 << (size * NB)),
 //                            arg, "unsigned overflow");
@@ -1654,7 +1654,7 @@ public static unsafe partial class Lua
 //         break;
 //       }
 //       case Knumber: {  /* Lua float */
-//         lua_Number f = luaL_checknumber(L, arg);  /* get argument */
+//         double f = luaL_checknumber(L, arg);  /* get argument */
 //         char *buff = luaL_prepbuffsize(&b, sizeof(f));
 //         /* move 'f' to final result, correcting endianness if needed */
 //         copywithendian(buff, (char *)&f, sizeof(f), h.islittle);
@@ -1744,7 +1744,7 @@ public static unsafe partial class Lua
 // ** it must check the unread bytes to see whether they do not cause an
 // ** overflow.
 // */
-// static lua_Integer unpackint (lua_State *L, const char *str,
+// static long unpackint (lua_State *L, const char *str,
 //                               int islittle, int size, int issigned) {
 //   lua_Unsigned res = 0;
 //   int i;
@@ -1753,20 +1753,20 @@ public static unsafe partial class Lua
 //     res <<= NB;
 //     res |= (lua_Unsigned)(unsigned char)str[islittle ? i : size - 1 - i];
 //   }
-//   if (size < SZINT) {  /* real size smaller than lua_Integer? */
+//   if (size < SZINT) {  /* real size smaller than long? */
 //     if (issigned) {  /* needs sign extension? */
 //       lua_Unsigned mask = (lua_Unsigned)1 << (size*NB - 1);
 //       res = ((res ^ mask) - mask);  /* do sign extension */
 //     }
 //   }
 //   else if (size > SZINT) {  /* must check unread bytes */
-//     int mask = (!issigned || (lua_Integer)res >= 0) ? 0 : MC;
+//     int mask = (!issigned || (long)res >= 0) ? 0 : MC;
 //     for (i = limit; i < size; i++) {
 //       if (l_unlikely((unsigned char)str[islittle ? i : size - 1 - i] != mask))
 //         luaL_error(L, "%d-byte integer does not fit into Lua Integer", size);
 //     }
 //   }
-//   return (lua_Integer)res;
+//   return (long)res;
 // }
 
     private static int str_unpack(lua_State* L)
@@ -1792,7 +1792,7 @@ public static unsafe partial class Lua
 //     switch (opt) {
 //       case Kint:
 //       case Kuint: {
-//         lua_Integer res = unpackint(L, data + pos, h.islittle,
+//         long res = unpackint(L, data + pos, h.islittle,
 //                                        cast_int(size), (opt == Kint));
 //         lua_pushinteger(L, res);
 //         break;
@@ -1800,11 +1800,11 @@ public static unsafe partial class Lua
 //       case Kfloat: {
 //         float f;
 //         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
-//         lua_pushnumber(L, (lua_Number)f);
+//         lua_pushnumber(L, (double)f);
 //         break;
 //       }
 //       case Knumber: {
-//         lua_Number f;
+//         double f;
 //         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
 //         lua_pushnumber(L, f);
 //         break;
@@ -1812,7 +1812,7 @@ public static unsafe partial class Lua
 //       case Kdouble: {
 //         double f;
 //         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
-//         lua_pushnumber(L, (lua_Number)f);
+//         lua_pushnumber(L, (double)f);
 //         break;
 //       }
 //       case Kchar: {

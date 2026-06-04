@@ -2,27 +2,12 @@ namespace DigitalSingularity.Lua;
 
 public static unsafe partial class Lua
 {
-//     /*
-// ** $Id: lcorolib.c $
-// ** Coroutine Library
-// ** See Copyright Notice in lua.h
-// */
-//
-// #define lcorolib_c
-// #define LUA_LIB
-//
-// #include "lprefix.h"
-//
-//
-// #include <stdlib.h>
-//
-// #include "lua.h"
-//
-// #include "lauxlib.h"
-// #include "lualib.h"
-// #include "llimits.h"
-//
-//
+    /*
+    ** $Id: lcorolib.c $
+    ** Coroutine Library
+    ** See Copyright Notice in lua.h
+    */
+    
 // static lua_State *getco (lua_State *L) {
 //   lua_State *co = lua_tothread(L, 1);
 //   luaL_argexpected(L, co, 1, "thread");

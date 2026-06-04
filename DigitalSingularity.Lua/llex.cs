@@ -82,9 +82,11 @@ public static unsafe partial class Lua
 
     private static partial TString* luaX_newstring(LexState* ls, byte* str, long l);
 
+    private static partial TString* luaX_newstring(LexState* ls, string str);
+
     private static partial void luaX_next(LexState* ls);
-    
-// LUAI_FUNC int luaX_lookahead (LexState *ls);
+
+    private static partial int luaX_lookahead(LexState* ls);
 
     [DoesNotReturn]
     private static partial void luaX_syntaxerror(LexState* ls, string msg);

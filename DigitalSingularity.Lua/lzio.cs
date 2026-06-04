@@ -8,7 +8,6 @@ public static unsafe partial class Lua
      ** See Copyright Notice in lua.h
      */
 
-
     private static int zgetc(Zio* z)
     {
         return z->n-- > 0 ? *z->p++ : luaZ_fill(z);
@@ -42,7 +41,10 @@ public static unsafe partial class Lua
         return ref buff->n;
     }
 
-    // #define luaZ_buffremove(buff,i)	((buff)->n -= cast_sizet(i))
+    private static void luaZ_buffremove(Mbuffer* buff, int i)
+    {
+        buff->n -= i;
+    }
 
     private static void luaZ_resetbuffer(Mbuffer* buff)
     {
@@ -59,13 +61,16 @@ public static unsafe partial class Lua
         buff->buffsize = size;
     }
 
-    // #define luaZ_freebuffer(L, buff)	luaZ_resizebuffer(L, buff, 0)
+    private static void luaZ_freebuffer(lua_State* L, Mbuffer* buff)
+    {
+        luaZ_resizebuffer(L, buff, 0);
+    }
 
     private static partial void luaZ_init(lua_State* L, Zio* z, lua_Reader reader, void* data);
-    
-//     LUAI_FUNC size_t luaZ_read (ZIO* z, void *b, size_t n);	/* read next n bytes */
-//
-//     LUAI_FUNC const void *luaZ_getaddr (ZIO* z, size_t n);
+
+    private static partial long luaZ_read(Zio* z, void* b, long n);	/* read next n bytes */
+
+    private static partial void* luaZ_getaddr(Zio* z, long n);
 
     /* --------- Private Part ------------------ */
 

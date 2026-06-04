@@ -1,6 +1,6 @@
 ﻿namespace DigitalSingularity.Lua;
 
-public static unsafe partial class Lua
+public static partial class Lua
 {
     /*
     ** $Id: lopcodes.c $
@@ -18,33 +18,32 @@ public static unsafe partial class Lua
                       (int)m);
     }
 
-    // /*
-// ** Check whether instruction sets top for next instruction, that is,
-// ** it results in multiple values.
-// */
-// int luaP_isOT (Instruction i) {
-//   OpCode op = GET_OPCODE(i);
-//   switch (op) {
-//     case OP_TAILCALL: return 1;
-//     default:
-//       return testOTMode(op) && GETARG_C(i) == 0;
-//   }
-// }
-//
-//
-// /*
-// ** Check whether instruction uses top from previous instruction, that is,
-// ** it accepts multiple results.
-// */
-// int luaP_isIT (Instruction i) {
-//   OpCode op = GET_OPCODE(i);
-//   switch (op) {
-//     case OP_SETLIST:
-//       return testITMode(GET_OPCODE(i)) && GETARG_vB(i) == 0;
-//     default:
-//       return testITMode(GET_OPCODE(i)) && GETARG_B(i) == 0;
-//   }
-// }
-//
+    /*
+    ** Check whether instruction sets top for next instruction, that is,
+    ** it results in multiple values.
+    */
+    private static partial bool luaP_isOT(uint i)
+    {
+        OpCode op = GET_OPCODE(i);
 
+        return op switch
+        {
+            OpCode.OP_TAILCALL => true,
+            _ => testOTMode(op) && GETARG_C(i) == 0,
+        };
+    }
+
+    /*
+    ** Check whether instruction uses top from previous instruction, that is,
+    ** it accepts multiple results.
+    */
+    private static partial bool luaP_isIT(uint i)
+    {
+        OpCode op = GET_OPCODE(i);
+        return op switch
+        {
+            OpCode.OP_SETLIST => testITMode(GET_OPCODE(i)) && GETARG_vB(i) == 0,
+            _ => testITMode(GET_OPCODE(i)) && GETARG_B(i) == 0,
+        };
+    }
 }

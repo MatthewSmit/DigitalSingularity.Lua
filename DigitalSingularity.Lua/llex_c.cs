@@ -74,23 +74,23 @@ public static unsafe partial class Lua
         if (token < FIRST_RESERVED)
         {
             /* single-byte symbols? */
-//     if (lisprint(token))
-//       return luaO_pushfstring(ls->L, "'%c'", token);
-//     else  /* control character */
-//       return luaO_pushfstring(ls->L, "'<\\%d>'", token);
-            throw new NotImplementedException();
-        }
-        else
-        {
-            string s = luaX_tokens[token - FIRST_RESERVED];
-            if (token < (int)RESERVED.TK_EOS) /* fixed format (symbols and reserved words)? */
+            if (lisprint(token))
             {
-                return luaO_pushfstring(ls->L, "'%s'", s);
+                return luaO_pushfstring(ls->L, "'%c'", token);
             }
 
-            /* names, strings, and numerals */
-            return s;
+            /* control character */
+            return luaO_pushfstring(ls->L, "'<\\%d>'", token);
         }
+
+        string s = luaX_tokens[token - FIRST_RESERVED];
+        if (token < (int)RESERVED.TK_EOS) /* fixed format (symbols and reserved words)? */
+        {
+            return luaO_pushfstring(ls->L, "'%s'", s);
+        }
+
+        /* names, strings, and numerals */
+        return s;
     }
 
 // static const char *txtToken (LexState *ls, int token) {
@@ -119,11 +119,11 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Anchors a string in scanner's table so that it will not be collected
-    ** until the end of the compilation; by that time it should be anchored
-    ** somewhere. It also internalises long strings, ensuring there is only
-    ** one copy of each unique string.
-    */
+     ** Anchors a string in scanner's table so that it will not be collected
+     ** until the end of the compilation; by that time it should be anchored
+     ** somewhere. It also internalises long strings, ensuring there is only
+     ** one copy of each unique string.
+     */
     private static TString* anchorstr(LexState* ls, TString* ts)
     {
         lua_State* L = ls->L;
@@ -145,11 +145,16 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Creates a new string and anchors it in scanner's table.
-    */
+     ** Creates a new string and anchors it in scanner's table.
+     */
     private static partial TString* luaX_newstring(LexState* ls, byte* str, long l)
     {
         return anchorstr(ls, luaS_newlstr(ls->L, str, checked((int)l)));
+    }
+
+    private static partial TString* luaX_newstring(LexState* ls, string str)
+    {
+        return anchorstr(ls, luaS_new(ls->L, str));
     }
 
     /*
@@ -213,191 +218,262 @@ public static unsafe partial class Lua
     }
 
 
-// /*
-// ** Check whether current char is in set 'set' (with two chars) and
-// ** saves it
-// */
-// static int check_next2 (LexState *ls, const char *set) {
-//   Debug.Assert(set[2] == '\0');
-//   if (ls->current == set[0] || ls->current == set[1]) {
-//     save_and_next(ls);
-//     return 1;
-//   }
-//   else return 0;
-// }
-//
-//
-// /* LUA_NUMBER */
-// /*
-// ** This function is quite liberal in what it accepts, as 'luaO_str2num'
-// ** will reject ill-formed numerals. Roughly, it accepts the following
-// ** pattern:
-// **
-// **   %d(%x|%.|([Ee][+-]?))* | 0[Xx](%x|%.|([Pp][+-]?))*
-// **
-// ** The only tricky part is to accept [+-] only after a valid exponent
-// ** mark, to avoid reading '3-4' or '0xe+1' as a single number.
-// **
-// ** The caller might have already read an initial dot.
-// */
-// static int read_numeral (LexState *ls, SemInfo *seminfo) {
-//   TValue obj;
-//   const char *expo = "Ee";
-//   int first = ls->current;
-//   Debug.Assert(lisdigit(ls->current));
-//   save_and_next(ls);
-//   if (first == '0' && check_next2(ls, "xX"))  /* hexadecimal? */
-//     expo = "Pp";
-//   for (;;) {
-//     if (check_next2(ls, expo))  /* exponent mark? */
-//       check_next2(ls, "-+");  /* optional exponent sign */
-//     else if (lisxdigit(ls->current) || ls->current == '.')  /* '%x|%.' */
-//       save_and_next(ls);
-//     else break;
-//   }
-//   if (lislalpha(ls->current))  /* is numeral touching a letter? */
-//     save_and_next(ls);  /* force an error */
-//   save(ls, '\0');
-//   if (luaO_str2num(luaZ_buffer(ls->buff), &obj) == 0)  /* format error? */
-//     lexerror(ls, "malformed number", TK_FLT);
-//   if (ttisinteger(&obj)) {
-//     seminfo->i = ivalue(&obj);
-//     return TK_INT;
-//   }
-//   else {
-//     Debug.Assert(ttisfloat(&obj));
-//     seminfo->r = fltvalue(&obj);
-//     return TK_FLT;
-//   }
-// }
-//
-//
-// /*
-// ** read a sequence '[=*[' or ']=*]', leaving the last bracket. If
-// ** sequence is well formed, return its number of '='s + 2; otherwise,
-// ** return 1 if it is a single bracket (no '='s and no 2nd bracket);
-// ** otherwise (an unfinished '[==...') return 0.
-// */
-// static size_t skip_sep (LexState *ls) {
-//   size_t count = 0;
-//   int s = ls->current;
-//   Debug.Assert(s == '[' || s == ']');
-//   save_and_next(ls);
-//   while (ls->current == '=') {
-//     save_and_next(ls);
-//     count++;
-//   }
-//   return (ls->current == s) ? count + 2
-//          : (count == 0) ? 1
-//          : 0;
-// }
-//
-//
-// static void read_long_string (LexState *ls, SemInfo *seminfo, size_t sep) {
-//   int line = ls->linenumber;  /* initial line (for error message) */
-//   save_and_next(ls);  /* skip 2nd '[' */
-//   if (currIsNewline(ls))  /* string starts with a newline? */
-//     inclinenumber(ls);  /* skip it */
-//   for (;;) {
-//     switch (ls->current) {
-//       case EOZ: {  /* error */
+    /*
+     ** Check whether current char is in set 'set' (with two chars) and
+     ** saves it
+     */
+    private static bool check_next2(LexState* ls, string set)
+    {
+        Debug.Assert(set.Length == 2);
+        if (ls->current == set[0] || ls->current == set[1])
+        {
+            save_and_next(ls);
+            return true;
+        }
+
+        return false;
+    }
+
+    /* LUA_NUMBER */
+    /*
+     ** This function is quite liberal in what it accepts, as 'luaO_str2num'
+     ** will reject ill-formed numerals. Roughly, it accepts the following
+     ** pattern:
+     **
+     **   %d(%x|%.|([Ee][+-]?))* | 0[Xx](%x|%.|([Pp][+-]?))*
+     **
+     ** The only tricky part is to accept [+-] only after a valid exponent
+     ** mark, to avoid reading '3-4' or '0xe+1' as a single number.
+     **
+     ** The caller might have already read an initial dot.
+     */
+    private static int read_numeral(LexState* ls, SemInfo* seminfo)
+    {
+        string expo = "Ee";
+        int first = ls->current;
+        Debug.Assert(lisdigit(ls->current));
+        save_and_next(ls);
+        if (first == '0' && check_next2(ls, "xX")) /* hexadecimal? */
+        {
+            expo = "Pp";
+        }
+
+        while (true)
+        {
+            if (check_next2(ls, expo)) /* exponent mark? */
+            {
+                check_next2(ls, "-+"); /* optional exponent sign */
+            }
+            else if (lisxdigit(ls->current) || ls->current == '.') /* '%x|%.' */
+            {
+                save_and_next(ls);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (lislalpha(ls->current)) /* is numeral touching a letter? */
+        {
+            save_and_next(ls); /* force an error */
+        }
+
+        save(ls, '\0');
+
+        TValue obj;
+        if (luaO_str2num(luaZ_buffer(ls->buff), &obj) == 0) /* format error? */
+        {
+            lexerror(ls, "malformed number", (int)RESERVED.TK_FLT);
+        }
+
+        if (ttisinteger(&obj))
+        {
+            seminfo->i = ivalue(&obj);
+            return (int)RESERVED.TK_INT;
+        }
+
+        Debug.Assert(ttisfloat(&obj));
+        seminfo->r = fltvalue(&obj);
+        return (int)RESERVED.TK_FLT;
+    }
+
+    /*
+     ** read a sequence '[=*[' or ']=*]', leaving the last bracket. If
+     ** sequence is well formed, return its number of '='s + 2; otherwise,
+     ** return 1 if it is a single bracket (no '='s and no 2nd bracket);
+     ** otherwise (an unfinished '[==...') return 0.
+     */
+    private static long skip_sep(LexState* ls)
+    {
+        long count = 0;
+        int s = ls->current;
+        Debug.Assert(s is '[' or ']');
+        save_and_next(ls);
+        while (ls->current == '=')
+        {
+            save_and_next(ls);
+            count++;
+        }
+
+        return (ls->current == s) ? count + 2
+            : (count == 0) ? 1
+            : 0;
+    }
+
+    private static void read_long_string(LexState* ls, SemInfo* seminfo, long sep)
+    {
+        int line = ls->linenumber; /* initial line (for error message) */
+        save_and_next(ls); /* skip 2nd '[' */
+        if (currIsNewline(ls)) /* string starts with a newline? */
+        {
+            inclinenumber(ls); /* skip it */
+        }
+
+        while (true)
+        {
+            switch (ls->current)
+            {
+                case -1:
+                    {
+                        /* error */
 //         const char *what = (seminfo ? "string" : "comment");
 //         const char *msg = luaO_pushfstring(ls->L,
 //                      "unfinished long %s (starting at line %d)", what, line);
 //         lexerror(ls, msg, TK_EOS);
 //         break;  /* to avoid warnings */
-//       }
-//       case ']': {
-//         if (skip_sep(ls) == sep) {
-//           save_and_next(ls);  /* skip 2nd ']' */
-//           goto endloop;
-//         }
-//         break;
-//       }
-//       case '\n': case '\r': {
-//         save(ls, '\n');
-//         inclinenumber(ls);
-//         if (!seminfo) luaZ_resetbuffer(ls->buff);  /* avoid wasting space */
-//         break;
-//       }
-//       default: {
-//         if (seminfo) save_and_next(ls);
-//         else next(ls);
-//       }
-//     }
-//   } endloop:
-//   if (seminfo)
-//     seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + sep,
-//                                      luaZ_bufflen(ls->buff) - 2 * sep);
-// }
-//
-//
-// static void esccheck (LexState *ls, int c, const char *msg) {
-//   if (!c) {
-//     if (ls->current != EOZ)
-//       save_and_next(ls);  /* add current to buffer for error message */
-//     lexerror(ls, msg, TK_STRING);
-//   }
-// }
-//
-//
-// static int gethexa (LexState *ls) {
-//   save_and_next(ls);
-//   esccheck (ls, lisxdigit(ls->current), "hexadecimal digit expected");
-//   return luaO_hexavalue(ls->current);
-// }
+                    }
+                    throw new NotImplementedException();
+
+                case ']':
+                    if (skip_sep(ls) == sep)
+                    {
+                        save_and_next(ls); /* skip 2nd ']' */
+                        goto endloop;
+                    }
+
+                    break;
+
+                case '\n':
+                case '\r':
+                    save(ls, '\n');
+                    inclinenumber(ls);
+                    if (seminfo == null)
+                    {
+                        luaZ_resetbuffer(ls->buff); /* avoid wasting space */
+                    }
+
+                    break;
+
+                default:
+                    if (seminfo != null)
+                    {
+                        save_and_next(ls);
+                    }
+                    else
+                    {
+                        next(ls);
+                    }
+
+                    break;
+            }
+        }
+
+        endloop:
+        if (seminfo != null)
+        {
+            seminfo->ts = luaX_newstring(
+                ls,
+                luaZ_buffer(ls->buff) + sep,
+                luaZ_bufflen(ls->buff) - 2 * sep);
+        }
+    }
+
+    private static void esccheck(LexState* ls, bool c, string msg)
+    {
+        if (!c)
+        {
+            if (ls->current >= 0)
+            {
+                save_and_next(ls); /* add current to buffer for error message */
+            }
+
+            lexerror(ls, msg, (int)RESERVED.TK_STRING);
+        }
+    }
+
+    private static int gethexa(LexState* ls)
+    {
+        save_and_next(ls);
+        esccheck(ls, lisxdigit(ls->current), "hexadecimal digit expected");
+        return luaO_hexavalue(ls->current);
+    }
 
     private static int readhexaesc(LexState* ls)
     {
-//   int r = gethexa(ls);
-//   r = (r << 4) + gethexa(ls);
-//   luaZ_buffremove(ls->buff, 2);  /* remove saved chars from buffer */
-//   return r;
-        throw new NotImplementedException();
+        int r = gethexa(ls);
+        r = (r << 4) + gethexa(ls);
+        luaZ_buffremove(ls->buff, 2); /* remove saved chars from buffer */
+        return r;
     }
 
-// /*
-// ** When reading a UTF-8 escape sequence, save everything to the buffer
-// ** for error reporting in case of errors; 'i' counts the number of
-// ** saved characters, so that they can be removed if case of success.
-// */
-// static l_uint32 readutf8esc (LexState *ls) {
-//   l_uint32 r;
-//   int i = 4;  /* number of chars to be removed: start with #"\u{X" */
-//   save_and_next(ls);  /* skip 'u' */
-//   esccheck(ls, ls->current == '{', "missing '{'");
-//   r = cast_uint(gethexa(ls));  /* must have at least one digit */
-//   while (cast_void(save_and_next(ls)), lisxdigit(ls->current)) {
-//     i++;
-//     esccheck(ls, r <= (0x7FFFFFFFu >> 4), "UTF-8 value too large");
-//     r = (r << 4) + luaO_hexavalue(ls->current);
-//   }
-//   esccheck(ls, ls->current == '}', "missing '}'");
-//   next(ls);  /* skip '}' */
-//   luaZ_buffremove(ls->buff, i);  /* remove saved chars from buffer */
-//   return r;
-// }
+    /*
+     ** When reading a UTF-8 escape sequence, save everything to the buffer
+     ** for error reporting in case of errors; 'i' counts the number of
+     ** saved characters, so that they can be removed if case of success.
+     */
+    private static uint readutf8esc(LexState* ls)
+    {
+        uint r;
+        int i = 4; /* number of chars to be removed: start with #"\u{X" */
+        save_and_next(ls); /* skip 'u' */
+        esccheck(ls, ls->current == '{', "missing '{'");
+        r = (uint)gethexa(ls); /* must have at least one digit */
+
+        while (true)
+        {
+            save_and_next(ls);
+            if (!lisxdigit(ls->current))
+            {
+                break;
+            }
+
+            i++;
+            esccheck(ls, r <= (0x7FFFFFFFu >> 4), "UTF-8 value too large");
+            r = (r << 4) + luaO_hexavalue(ls->current);
+        }
+
+        esccheck(ls, ls->current == '}', "missing '}'");
+        next(ls); /* skip '}' */
+        luaZ_buffremove(ls->buff, i); /* remove saved chars from buffer */
+        return r;
+    }
 
     private static void utf8esc(LexState* ls)
     {
-//   char buff[UTF8BUFFSZ];
-//   int n = luaO_utf8esc(buff, readutf8esc(ls));
-//   for (; n > 0; n--)  /* add 'buff' to string */
-//     save(ls, buff[UTF8BUFFSZ - n]);
-        throw new NotImplementedException();
+        byte* buff = stackalloc byte[UTF8BUFFSZ];
+        int n = luaO_utf8esc(buff, readutf8esc(ls));
+        for (; n > 0; n--) /* add 'buff' to string */
+        {
+            save(ls, buff[UTF8BUFFSZ - n]);
+        }
     }
 
-// static int readdecesc (LexState *ls) {
-//   int i;
-//   int r = 0;  /* result accumulator */
-//   for (i = 0; i < 3 && lisdigit(ls->current); i++) {  /* read up to 3 digits */
-//     r = 10*r + ls->current - '0';
-//     save_and_next(ls);
-//   }
-//   esccheck(ls, r <= UCHAR_MAX, "decimal escape too large");
-//   luaZ_buffremove(ls->buff, i);  /* remove read digits from buffer */
-//   return r;
-// }
+    private static int readdecesc(LexState* ls)
+    {
+        int i;
+        int r = 0; /* result accumulator */
+        for (i = 0; i < 3 && lisdigit(ls->current); i++)
+        {
+            /* read up to 3 digits */
+            r = 10 * r + ls->current - '0';
+            save_and_next(ls);
+        }
+
+        esccheck(ls, r <= byte.MaxValue, "decimal escape too large");
+        luaZ_buffremove(ls->buff, i); /* remove read digits from buffer */
+        return r;
+    }
 
     private static void read_string(LexState* ls, int del, SemInfo* seminfo)
     {
@@ -425,70 +501,84 @@ public static unsafe partial class Lua
                             case 'a':
                                 c = '\a';
                                 goto read_save;
+
                             case 'b':
                                 c = '\b';
                                 goto read_save;
+
                             case 'f':
                                 c = '\f';
                                 goto read_save;
+
                             case 'n':
                                 c = '\n';
                                 goto read_save;
+
                             case 'r':
                                 c = '\r';
                                 goto read_save;
+
                             case 't':
                                 c = '\t';
                                 goto read_save;
+
                             case 'v':
                                 c = '\v';
                                 goto read_save;
+
                             case 'x':
                                 c = readhexaesc(ls);
                                 goto read_save;
+
                             case 'u':
                                 utf8esc(ls);
                                 goto no_save;
+
                             case '\n':
                             case '\r':
                                 inclinenumber(ls);
                                 c = '\n';
                                 goto only_save;
+
                             case '\\':
                             case '\"':
                             case '\'':
                                 c = ls->current;
                                 goto read_save;
+
                             case -1:
                                 goto no_save; /* will raise an error next loop */
+
                             case 'z':
+                                /* zap following span of spaces */
+                                luaZ_buffremove(ls->buff, 1); /* remove '\\' */
+                                next(ls); /* skip the 'z' */
+                                while (lisspace(ls->current))
                                 {
-                                    /* zap following span of spaces */
-//             luaZ_buffremove(ls->buff, 1);  /* remove '\\' */
-//             next(ls);  /* skip the 'z' */
-//             while (lisspace(ls->current)) {
-//               if (currIsNewline(ls)) inclinenumber(ls);
-//               else next(ls);
-//             }
-//             goto no_save;
-                                    throw new NotImplementedException();
+                                    if (currIsNewline(ls))
+                                    {
+                                        inclinenumber(ls);
+                                    }
+                                    else
+                                    {
+                                        next(ls);
+                                    }
                                 }
+
+                                goto no_save;
+
                             default:
-                                {
-//             esccheck(ls, lisdigit(ls->current), "invalid escape sequence");
-//             c = readdecesc(ls);  /* digital escape '\ddd' */
-//             goto only_save;
-                                    throw new NotImplementedException();
-                                }
+                                esccheck(ls, lisdigit(ls->current), "invalid escape sequence");
+                                c = readdecesc(ls); /* digital escape '\ddd' */
+                                goto only_save;
                         }
 
                         read_save:
                         next(ls);
                         /* go through */
                         only_save:
-//          luaZ_buffremove(ls->buff, 1);  /* remove '\\' */
-//          save(ls, c);
-                        throw new NotImplementedException();
+                        luaZ_buffremove(ls->buff, 1); /* remove '\\' */
+                        save(ls, c);
                         /* go through */
                         no_save:
                         break;
@@ -538,14 +628,14 @@ public static unsafe partial class Lua
                     if (ls->current == '[')
                     {
                         /* long comment? */
-//           size_t sep = skip_sep(ls);
-//           luaZ_resetbuffer(ls->buff);  /* 'skip_sep' may dirty the buffer */
-//           if (sep >= 2) {
-//             read_long_string(ls, null, sep);  /* skip long comment */
-//             luaZ_resetbuffer(ls->buff);  /* previous call may dirty the buff. */
-//             break;
-//           }
-                        throw new NotImplementedException();
+                        long sep = skip_sep(ls);
+                        luaZ_resetbuffer(ls->buff); /* 'skip_sep' may dirty the buffer */
+                        if (sep >= 2)
+                        {
+                            read_long_string(ls, null, sep); /* skip long comment */
+                            luaZ_resetbuffer(ls->buff); /* previous call may dirty the buff. */
+                            break;
+                        }
                     }
 
                     /* else short comment */
@@ -559,16 +649,21 @@ public static unsafe partial class Lua
                 case '[':
                     {
                         /* long string or simply '[' */
-//         size_t sep = skip_sep(ls);
-//         if (sep >= 2) {
-//           read_long_string(ls, seminfo, sep);
-//           return TK_STRING;
-//         }
-//         else if (sep == 0)  /* '[=...' missing second bracket? */
-//           lexerror(ls, "invalid long string delimiter", TK_STRING);
-//         return '[';
-                        throw new NotImplementedException();
+                        long sep = skip_sep(ls);
+                        if (sep >= 2)
+                        {
+                            read_long_string(ls, seminfo, sep);
+                            return (int)RESERVED.TK_STRING;
+                        }
+
+                        if (sep == 0) /* '[=...' missing second bracket? */
+                        {
+                            lexerror(ls, "invalid long string delimiter", (int)RESERVED.TK_STRING);
+                        }
+
+                        return '[';
                     }
+
                 case '=':
                     next(ls);
                     if (check_next1(ls, '='))
@@ -591,17 +686,17 @@ public static unsafe partial class Lua
                     }
 
                     return '<';
-                
+
                 case '>':
                     next(ls);
                     if (check_next1(ls, '='))
                     {
-                        return (int)RESERVED.TK_GE;  /* '>=' */
+                        return (int)RESERVED.TK_GE; /* '>=' */
                     }
 
                     if (check_next1(ls, '>'))
                     {
-                        return (int)RESERVED.TK_SHR;  /* '>>' */
+                        return (int)RESERVED.TK_SHR; /* '>>' */
                     }
 
                     return '>';
@@ -610,25 +705,25 @@ public static unsafe partial class Lua
                     next(ls);
                     if (check_next1(ls, '/'))
                     {
-                        return (int)RESERVED.TK_IDIV;  /* '//' */
+                        return (int)RESERVED.TK_IDIV; /* '//' */
                     }
 
                     return '/';
-                
+
                 case '~':
                     next(ls);
                     if (check_next1(ls, '='))
                     {
-                        return (int)RESERVED.TK_NE;  /* '~=' */
+                        return (int)RESERVED.TK_NE; /* '~=' */
                     }
 
                     return '~';
-                
+
                 case ':':
                     next(ls);
                     if (check_next1(ls, ':'))
                     {
-                        return (int)RESERVED.TK_DBCOLON;  /* '::' */
+                        return (int)RESERVED.TK_DBCOLON; /* '::' */
                     }
 
                     return ':';
@@ -638,7 +733,7 @@ public static unsafe partial class Lua
                     /* short literal strings */
                     read_string(ls, ls->current, seminfo);
                     return (int)RESERVED.TK_STRING;
-                
+
                 case '.':
                     /* '.', '..', '...', or number */
                     save_and_next(ls);
@@ -657,9 +752,8 @@ public static unsafe partial class Lua
                         return '.';
                     }
 
-                    //         else return read_numeral(ls, seminfo);
-                    throw new NotImplementedException();
-                
+                    return read_numeral(ls, seminfo);
+
                 case '0':
                 case '1':
                 case '2':
@@ -670,9 +764,8 @@ public static unsafe partial class Lua
                 case '7':
                 case '8':
                 case '9':
-                    //         return read_numeral(ls, seminfo);
-                    throw new NotImplementedException();
-                
+                    return read_numeral(ls, seminfo);
+
                 case -1:
                     return (int)RESERVED.TK_EOS;
 
@@ -719,9 +812,10 @@ public static unsafe partial class Lua
         }
     }
 
-// int luaX_lookahead (LexState *ls) {
-//   Debug.Assert(ls->lookahead.token == TK_EOS);
-//   ls->lookahead.token = llex(ls, &ls->lookahead.seminfo);
-//   return ls->lookahead.token;
-// }
+    private static partial int luaX_lookahead(LexState* ls)
+    {
+        Debug.Assert(ls->lookahead.token < 0);
+        ls->lookahead.token = llex(ls, &ls->lookahead.seminfo);
+        return ls->lookahead.token;
+    }
 }

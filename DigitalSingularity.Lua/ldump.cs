@@ -51,8 +51,8 @@ public static unsafe partial class Lua
 // static void dumpAlign (DumpState *D, unsigned align) {
 //   unsigned padding = align - cast_uint(D->offset % align);
 //   if (padding < align) {  /* padding == align means no padding */
-//     static lua_Integer paddingContent = 0;
-//     Debug.Assert(align <= sizeof(lua_Integer));
+//     static long paddingContent = 0;
+//     Debug.Assert(align <= sizeof(long));
 //     dumpBlock(D, &paddingContent, padding);
 //   }
 //   Debug.Assert(D->offset % align == 0);
@@ -98,7 +98,7 @@ public static unsafe partial class Lua
 // }
 //
 //
-// static void dumpNumber (DumpState *D, lua_Number x) {
+// static void dumpNumber (DumpState *D, double x) {
 //   dumpVar(D, x);
 // }
 //
@@ -109,7 +109,7 @@ public static unsafe partial class Lua
 // ** A non-negative x is coded as 2x; a negative x is coded as -2x - 1.
 // ** (0 => 0; -1 => 1; 1 => 2; -2 => 3; 2 => 4; ...)
 // */
-// static void dumpInteger (DumpState *D, lua_Integer x) {
+// static void dumpInteger (DumpState *D, long x) {
 //   lua_Unsigned cx = (x >= 0) ? 2u * l_castS2U(x)
 //                              : (2u * ~l_castS2U(x)) + 1;
 //   dumpVarint(D, cx);
@@ -262,16 +262,15 @@ public static unsafe partial class Lua
 //   dumpLiteral(D, LUAC_DATA);
 //   dumpNumInfo(D, int, LUAC_INT);
 //   dumpNumInfo(D, Instruction, LUAC_INST);
-//   dumpNumInfo(D, lua_Integer, LUAC_INT);
-//   dumpNumInfo(D, lua_Number, LUAC_NUM);
+//   dumpNumInfo(D, long, LUAC_INT);
+//   dumpNumInfo(D, double, LUAC_NUM);
 // }
-//
-//
-// /*
-// ** dump Lua function as precompiled chunk
-// */
-// int luaU_dump (lua_State *L, const Proto *f, lua_Writer w, void *data,
-//                int strip) {
+
+    /*
+    ** dump Lua function as precompiled chunk
+    */
+    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, int strip)
+    {
 //   DumpState D;
 //   D.h = luaH_new(L);  /* aux. table to keep strings already dumped */
 //   sethvalue2s(L, L->top.p, D.h);  /* anchor it */
@@ -288,7 +287,6 @@ public static unsafe partial class Lua
 //   dumpFunction(&D, f);
 //   dumpBlock(&D, null, 0);  /* signal end of dump */
 //   return D.status;
-// }
-//
-
+        throw new NotImplementedException();
+    }
 }

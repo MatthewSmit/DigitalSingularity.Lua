@@ -5,9 +5,9 @@ using System.Diagnostics;
 public static unsafe partial class Lua
 {
     /*
-     ** Standard Libraries. (Must be listed in the same ORDER of their
-     ** respective constants LUA_<libname>K.)
-     */
+    ** Standard Libraries. (Must be listed in the same ORDER of their
+    ** respective constants LUA_<libname>K.)
+    */
     private static readonly luaL_Reg[] stdlibs =
     [
         new(LUA_GNAME, &luaopen_base),
@@ -46,7 +46,7 @@ public static unsafe partial class Lua
             }
         }
 
-        Debug.Assert((mask >> 1) == LUA_UTF8LIBK);
+        Debug.Assert(mask >> 1 == LUA_UTF8LIBK);
         lua_pop(L, 1); /* remove PRELOAD table */
     }
 }

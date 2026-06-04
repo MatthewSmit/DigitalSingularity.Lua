@@ -69,9 +69,15 @@ public static unsafe partial class Lua
         VVARARG, /* vararg expression; info = instruction pc */
     }
 
+    private static bool vkisvar(expkind k)
+    {
+        return k is >= expkind.VLOCAL and <= expkind.VINDEXSTR;
+    }
 
-// #define vkisvar(k)	(VLOCAL <= (k) && (k) <= VINDEXSTR)
-// #define vkisindexed(k)	(VINDEXED <= (k) && (k) <= VINDEXSTR)
+    private static bool vkisindexed(expkind k)
+    {
+        return k is >= expkind.VINDEXED and <= expkind.VINDEXSTR;
+    }
 
     private struct expdesc
     {
@@ -79,7 +85,7 @@ public static unsafe partial class Lua
         {
             public short idx; /* index (R or "long" K) */
             public byte t; /* table (register or upvalue) */
-            public byte ro; /* true if variable is read-only */
+            public bool ro; /* true if variable is read-only */
             public int keystr; /* index in 'k' of string key, or -1 if not a string */
         }
 
@@ -152,7 +158,7 @@ public static unsafe partial class Lua
         public int pc; /* position in code */
         public int line; /* line where it appeared */
         public short nactvar; /* number of active variables in that position */
-        public byte close; /* true for goto that escapes upvalues */
+        public bool close; /* true for goto that escapes upvalues */
     }
 
     /* list of labels or gotos */
@@ -200,7 +206,7 @@ public static unsafe partial class Lua
         public byte nups; /* number of upvalues */
         public byte freereg; /* first free register */
         public byte iwthabs; /* instructions issued since last absolute line info */
-        public byte needclose; /* function needs to close upvalues when returning */
+        public bool needclose; /* function needs to close upvalues when returning */
     }
 
     private static partial byte luaY_nvarstack(FuncState* fs);

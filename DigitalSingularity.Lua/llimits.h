@@ -23,16 +23,8 @@
 ** computations.) 'lu_mem' is a corresponding unsigned type.  Usually,
 ** 'ptrdiff_t' should work, but we use 'long' for 16-bit machines.
 */
-#if defined(LUAI_MEM)		/* { external definitions? */
-typedef LUAI_MEM l_mem;
-typedef LUAI_UMEM lu_mem;
-#elif LUAI_IS32INT	/* }{ */
 typedef ptrdiff_t l_mem;
 typedef size_t lu_mem;
-#else  /* 16-bit ints */	/* }{ */
-typedef long l_mem;
-typedef unsigned long lu_mem;
-#endif				/* } */
 
 #define MAX_LMEM  \
 	cast(l_mem, (cast(lu_mem, 1) << (l_numbits(l_mem) - 1)) - 1)
@@ -45,9 +37,9 @@ typedef unsigned long lu_mem;
 
 /*
 ** Maximum size for strings and userdata visible for Lua; should be
-** representable as a lua_Integer and as a size_t.
+** representable as a long and as a size_t.
 */
-#define MAX_SIZE	(sizeof(size_t) < sizeof(lua_Integer) ? MAX_SIZET \
+#define MAX_SIZE	(sizeof(size_t) < sizeof(long) ? MAX_SIZET \
 			  : cast_sizet(LUA_MAXINTEGER))
 
 /*
@@ -82,20 +74,9 @@ typedef unsigned long lu_mem;
 
 
 
-/* types of 'usual argument conversions' for lua_Number and lua_Integer */
+/* types of 'usual argument conversions' for double and long */
 typedef LUAI_UACNUMBER l_uacNumber;
 typedef LUAI_UACINT l_uacInt;
-
-
-/*
-** Internal assertions for in-house debugging
-*/
-#if defined LUAI_ASSERT
-#undef NDEBUG
-#include <assert.h>
-#define lua_assert(c)           assert(c)
-#define assert_code(c)		c
-#endif
 
 #if defined(lua_assert)
 #else
@@ -119,7 +100,7 @@ typedef LUAI_UACINT l_uacInt;
 
 #define cast_void(i)	cast(void, (i))
 #define cast_voidp(i)	cast(void *, (i))
-#define cast_num(i)	cast(lua_Number, (i))
+#define cast_num(i)	cast(double, (i))
 #define cast_int(i)	cast(int, (i))
 #define cast_short(i)	cast(short, (i))
 #define cast_uint(i)	cast(unsigned int, (i))
@@ -128,36 +109,36 @@ typedef LUAI_UACINT l_uacInt;
 #define cast_char(i)	cast(char, (i))
 #define cast_charp(i)	cast(char *, (i))
 #define cast_sizet(i)	cast(size_t, (i))
-#define cast_Integer(i)	cast(lua_Integer, (i))
+#define cast_Integer(i)	cast(long, (i))
 #define cast_Inst(i)	cast(Instruction, (i))
 
 
-/* cast a signed lua_Integer to lua_Unsigned */
+/* cast a signed long to lua_Unsigned */
 #if !defined(l_castS2U)
 #define l_castS2U(i)	((lua_Unsigned)(i))
 #endif
 
 /*
-** cast a lua_Unsigned to a signed lua_Integer; this cast is
+** cast a lua_Unsigned to a signed long; this cast is
 ** not strict ISO C, but two-complement architectures should
 ** work fine.
 */
 #if !defined(l_castU2S)
-#define l_castU2S(i)	((lua_Integer)(i))
+#define l_castU2S(i)	((long)(i))
 #endif
 
 /*
-** cast a size_t to lua_Integer: These casts are always valid for
+** cast a size_t to long: These casts are always valid for
 ** sizes of Lua objects (see MAX_SIZE)
 */
-#define cast_st2S(sz)	((lua_Integer)(sz))
+#define cast_st2S(sz)	((long)(sz))
 
 /* Cast a ptrdiff_t to size_t, when it is known that the minuend
 ** comes from the subtrahend (the base)
 */
 #define ct_diff2sz(df)	((size_t)(df))
 
-/* ptrdiff_t to lua_Integer */
+/* ptrdiff_t to long */
 #define ct_diff2S(df)	cast_st2S(ct_diff2sz(df))
 
 /*
@@ -210,16 +191,6 @@ typedef void (*voidf)(void);
 
 
 /*
-** An unsigned with (at least) 4 bytes
-*/
-#if LUAI_IS32INT
-typedef unsigned int l_uint32;
-#else
-typedef unsigned long l_uint32;
-#endif
-
-
-/*
 ** The luai_num* macros define the primitive operations over numbers.
 */
 
@@ -246,14 +217,14 @@ typedef unsigned long l_uint32;
 */
 #if !defined(luai_nummod)
 #define luai_nummod(L,a,b,m)  \
-  { (void)L; (m) = l_mathop(fmod)(a,b); \
+  { (void)L; (m) = (fmod)(a,b); \
     if (((m) > 0) ? (b) < 0 : ((m) < 0 && (b) > 0)) (m) += (b); }
 #endif
 
 /* exponentiation */
 #if !defined(luai_numpow)
 #define luai_numpow(L,a,b)  \
-  ((void)L, (b == 2) ? (a)*(a) : l_mathop(pow)(a,b))
+  ((void)L, (b == 2) ? (a)*(a) : (pow)(a,b))
 #endif
 
 /* the others are quite standard operations */
@@ -275,7 +246,7 @@ typedef unsigned long l_uint32;
 /*
 ** lua_numbertointeger converts a float number with an integral value
 ** to an integer, or returns 0 if the float is not within the range of
-** a lua_Integer.  (The range comparisons are tricky because of
+** a long.  (The range comparisons are tricky because of
 ** rounding. The tests here assume a two-complement representation,
 ** where MININTEGER always has an exact representation as a float;
 ** MAXINTEGER may not have one, and therefore its conversion to float

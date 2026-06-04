@@ -47,10 +47,11 @@ public static unsafe partial class Lua
 //         }
 //         return 1;  /* now buffer has something */
 //     }
-//
-//
-//     size_t luaZ_read (ZIO *z, void *b, size_t n) {
-//         while (n) {
+
+    private static partial long luaZ_read(Zio* z, void* b, long n)
+    {
+        while (n > 0)
+        {
 //             size_t m;
 //             if (!checkbuffer(z))
 //                 return n;  /* no more input; return number of missing bytes */
@@ -60,12 +61,14 @@ public static unsafe partial class Lua
 //             z->p += m;
 //             b = (char *)b + m;
 //             n -= m;
-//         }
-//         return 0;
-//     }
-//
-//
-//     const void *luaZ_getaddr (ZIO* z, size_t n) {
+            throw new NotImplementedException();
+        }
+
+        return 0;
+    }
+
+    private static partial void* luaZ_getaddr(Zio* z, long n)
+    {
 //         const void *res;
 //         if (!checkbuffer(z))
 //             return null;  /* no more input */
@@ -75,5 +78,6 @@ public static unsafe partial class Lua
 //         z->n -= n;  /* consume these bytes */
 //         z->p += n;
 //         return res;
-//     }
+        throw new NotImplementedException();
+    }
 }

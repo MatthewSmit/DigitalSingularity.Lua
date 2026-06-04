@@ -5,9 +5,11 @@ global using unsafe lua_CFunction = delegate* managed<DigitalSingularity.Lua.Lua
 global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, void*, int>;
 global using unsafe StkId = DigitalSingularity.Lua.Lua.StackValue*;
 global using unsafe lua_Reader = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, long*, byte*>;
+global using unsafe lua_Writer = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, long, void*, int>;
 
 namespace DigitalSingularity.Lua;
 
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 
@@ -34,7 +36,11 @@ public static unsafe partial class Lua
     ** space after that to help overflow detection.)
     */
     public const int LUA_REGISTRYINDEX = -(int.MaxValue / 2 + 1000);
-// #define lua_upvalueindex(i)	(LUA_REGISTRYINDEX - (i))
+
+    public static int lua_upvalueindex(int i)
+    {
+        return LUA_REGISTRYINDEX - i;
+    }
 
     /* thread status */
     public const byte LUA_OK = 0;
@@ -70,55 +76,44 @@ public static unsafe partial class Lua
     private static byte LUA_RIDX_MAINTHREAD = 3;
     private static byte LUA_RIDX_LAST = 3;
 
-// /* type of numbers in Lua */
-// typedef LUA_NUMBER lua_Number;
+// /* type of numbers in Lua */ TODO
+// typedef LUA_NUMBER double;
 //
 //
 // /* type for integer functions */
-// typedef LUA_INTEGER lua_Integer;
+// typedef LUA_INTEGER long;
 //
 // /* unsigned integer type */
 // typedef LUA_UNSIGNED lua_Unsigned;
-//
-// /* type for continuation-function contexts */
-// typedef LUA_KCONTEXT lua_KContext;
-//
+
 // /*
-// ** Type for continuation functions
+// ** Type for continuation functions TODO
 // */
-// typedef int (*lua_KFunction) (lua_State *L, int status, lua_KContext ctx);
-//
-// typedef int (*lua_Writer) (lua_State *L, const void *p, size_t sz, void *ud);
+// typedef int (*lua_KFunction) (lua_State *L, int status, nint ctx);
 
 // /*
 // ** Type used by the debug API to collect debug information
 // */
-// typedef struct lua_Debug lua_Debug;
-//
-//
-//
-// /*
-// ** generic extra include file
-// */
-// #if defined(LUA_USER_H)
-// #include LUA_USER_H
-// #endif
-//
-//
-// /*
-// ** RCS ident string
-// */
-// extern const char lua_ident[];
-//
+// typedef struct lua_Debug lua_Debug; TODO
+
+    /*
+    ** RCS ident string
+    */
+    public static readonly ImmutableArray<string> lua_ident =
+    [
+        $"$LuaVersion: {LUA_COPYRIGHT} $",
+        $"$LuaAuthors: {LUA_AUTHORS} $",
+    ];
 
     // state manipulation
     
     public static partial lua_State* lua_newstate(delegate* managed<void*, void*, long, long, void*> f, void* ud, uint seed);
 
     public static partial void lua_close(lua_State* L);
-    
-// LUA_API lua_State *(lua_newthread) (lua_State *L);
-// LUA_API int        (lua_closethread) (lua_State *L, lua_State *from);
+
+    public static partial lua_State* lua_newthread(lua_State* L);
+
+    public static partial int lua_closethread(lua_State* L, lua_State* from);
 
     public static partial lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf);
 
@@ -136,27 +131,30 @@ public static unsafe partial class Lua
     public static partial void lua_pushvalue(lua_State* L, int idx);
 
     public static partial void lua_rotate(lua_State* L, int idx, int n);
-    
-// LUA_API void  (lua_copy) (lua_State *L, int fromidx, int toidx);
+
+    public static partial void lua_copy(lua_State* L, int fromidx, int toidx);
 
     public static partial bool lua_checkstack(lua_State* L, int n);
 
-// LUA_API void  (lua_xmove) (lua_State *from, lua_State *to, int n);
-//
-//
-// /*
-// ** access functions (stack -> C)
-// */
-//
-// LUA_API int             (lua_isnumber) (lua_State *L, int idx);
-// LUA_API int             (lua_isstring) (lua_State *L, int idx);
-// LUA_API int             (lua_iscfunction) (lua_State *L, int idx);
-// LUA_API int             (lua_isinteger) (lua_State *L, int idx);
-// LUA_API int             (lua_isuserdata) (lua_State *L, int idx);
+    public static partial void lua_xmove(lua_State* from, lua_State* to, int n);
+
+    /*
+    ** access functions (stack -> C)
+    */
+
+    public static partial bool lua_isnumber(lua_State* L, int idx);
+
+    public static partial bool lua_isstring(lua_State* L, int idx);
+
+    public static partial bool lua_iscfunction(lua_State* L, int idx);
+
+    public static partial bool lua_isinteger(lua_State* L, int idx);
+
+    public static partial bool lua_isuserdata(lua_State* L, int idx);
 
     public static partial int lua_type(lua_State* L, int idx);
 
-// LUA_API const char     *(lua_typename) (lua_State *L, int tp);
+    public static partial string lua_typename(lua_State* L, int tp);
 
     public static partial double lua_tonumberx(lua_State* L, int idx, out bool isnum);
 
@@ -165,43 +163,45 @@ public static unsafe partial class Lua
     public static partial bool lua_toboolean(lua_State* L, int idx);
 
     public static partial byte* lua_tolstring(lua_State* L, int idx, out long len);
-    
-// LUA_API lua_Unsigned    (lua_rawlen) (lua_State *L, int idx);
-// LUA_API lua_CFunction   (lua_tocfunction) (lua_State *L, int idx);
+
+    public static partial ulong lua_rawlen(lua_State* L, int idx);
+
+    public static partial lua_CFunction lua_tocfunction(lua_State* L, int idx);
 
     public static partial void* lua_touserdata(lua_State* L, int idx);
 
-// LUA_API lua_State      *(lua_tothread) (lua_State *L, int idx);
-// LUA_API const void     *(lua_topointer) (lua_State *L, int idx);
-//
-//
-// /*
-// ** Comparison and arithmetic functions
-// */
-//
-// #define LUA_OPADD	0	/* ORDER TM, ORDER OP */
-// #define LUA_OPSUB	1
-// #define LUA_OPMUL	2
-// #define LUA_OPMOD	3
-// #define LUA_OPPOW	4
-// #define LUA_OPDIV	5
-// #define LUA_OPIDIV	6
-// #define LUA_OPBAND	7
-// #define LUA_OPBOR	8
-// #define LUA_OPBXOR	9
-// #define LUA_OPSHL	10
-// #define LUA_OPSHR	11
-// #define LUA_OPUNM	12
-// #define LUA_OPBNOT	13
-//
-// LUA_API void  (lua_arith) (lua_State *L, int op);
-//
-// #define LUA_OPEQ	0
-// #define LUA_OPLT	1
-// #define LUA_OPLE	2
-//
-// LUA_API int   (lua_rawequal) (lua_State *L, int idx1, int idx2);
-// LUA_API int   (lua_compare) (lua_State *L, int idx1, int idx2, int op);
+    public static partial lua_State* lua_tothread(lua_State* L, int idx);
+
+    public static partial void* lua_topointer(lua_State* L, int idx);
+
+    /*
+    ** Comparison and arithmetic functions
+    */
+
+    public const int LUA_OPADD = 0;	/* ORDER TM, ORDER OP */
+    public const int LUA_OPSUB = 1;
+    public const int LUA_OPMUL = 2;
+    public const int LUA_OPMOD = 3;
+    public const int LUA_OPPOW = 4;
+    public const int LUA_OPDIV = 5;
+    public const int LUA_OPIDIV = 6;
+    public const int LUA_OPBAND = 7;
+    public const int LUA_OPBOR = 8;
+    public const int LUA_OPBXOR = 9;
+    public const int LUA_OPSHL = 10;
+    public const int LUA_OPSHR = 11;
+    public const int LUA_OPUNM = 12;
+    public const int LUA_OPBNOT = 13;
+
+    public static partial void lua_arith(lua_State* L, int op);
+
+    public const int LUA_OPEQ = 0;
+    public const int LUA_OPLT = 1;
+    public const int LUA_OPLE = 2;
+
+    public static partial bool lua_rawequal(lua_State* L, int index1, int index2);
+
+    public static partial int lua_compare(lua_State* L, int idx1, int idx2, int op);
 
     /*
     ** push functions (C -> stack)
@@ -226,49 +226,53 @@ public static unsafe partial class Lua
 
     public static partial void lua_pushlightuserdata(lua_State* L, void* p);
 
-// LUA_API int   (lua_pushthread) (lua_State *L);
-//
-//
-// /*
-// ** get functions (Lua -> stack)
-// */
-// LUA_API int (lua_getglobal) (lua_State *L, const char *name);
-// LUA_API int (lua_gettable) (lua_State *L, int idx);
+    public static partial bool lua_pushthread(lua_State* L);
+
+    /*
+    ** get functions (Lua -> stack)
+    */
+    public static partial int lua_getglobal(lua_State* L, string name);
+
+    public static partial int lua_gettable(lua_State* L, int idx);
 
     public static partial int lua_getfield(lua_State* L, int idx, string k);
-    
-// LUA_API int (lua_geti) (lua_State *L, int idx, lua_Integer n);
-// LUA_API int (lua_rawget) (lua_State *L, int idx);
+
+    public static partial int lua_geti(lua_State* L, int idx, long n);
+
+    public static partial int lua_rawget(lua_State* L, int idx);
 
     public static partial int lua_rawgeti(lua_State* L, int idx, long n);
 
-// LUA_API int (lua_rawgetp) (lua_State *L, int idx, const void *p);
+    public static partial int lua_rawgetp(lua_State* L, int idx, void* p);
 
     public static partial void lua_createtable(lua_State* L, int narr, int nrec);
 
     public static partial void* lua_newuserdatauv(lua_State* L, long sz, int nuvalue);
-    
-// LUA_API int   (lua_getmetatable) (lua_State *L, int objindex);
-// LUA_API int  (lua_getiuservalue) (lua_State *L, int idx, int n);
+
+    public static partial bool lua_getmetatable(lua_State* L, int objindex);
+
+    public static partial int lua_getiuservalue(lua_State* L, int idx, int n);
 
     /*
     ** set functions (stack -> Lua)
     */
     public static partial void lua_setglobal(lua_State* L, string name);
-// LUA_API void  (lua_settable) (lua_State *L, int idx);
+
+    public static partial void lua_settable(lua_State* L, int idx);
 
     public static partial void lua_setfield(lua_State* L, int idx, string k);
-    
-// LUA_API void  (lua_seti) (lua_State *L, int idx, lua_Integer n);
-// LUA_API void  (lua_rawset) (lua_State *L, int idx);
+
+    public static partial void lua_seti(lua_State* L, int idx, long n);
+
+    public static partial void lua_rawset(lua_State* L, int idx);
 
     public static partial void lua_rawseti(lua_State* L, int idx, long n);
 
-// LUA_API void  (lua_rawsetp) (lua_State *L, int idx, const void *p);
+    public static partial void lua_rawsetp(lua_State* L, int idx, void* p);
 
     public static partial int lua_setmetatable(lua_State* L, int objindex);
 
-// LUA_API int   (lua_setiuservalue) (lua_State *L, int idx, int n);
+    public static partial int lua_setiuservalue(lua_State* L, int idx, int n);
 
     /*
     ** 'load' and 'call' functions (load and run Lua code)
@@ -299,25 +303,27 @@ public static unsafe partial class Lua
 
     public static partial int lua_load(lua_State* L, lua_Reader reader, void* dt, string? chunkname, string? mode);
 
-// LUA_API int (lua_dump) (lua_State *L, lua_Writer writer, void *data, int strip);
-//
-//
-// /*
-// ** coroutine functions
-// */
-// LUA_API int  (lua_yieldk)     (lua_State *L, int nresults, lua_KContext ctx,
-//                                lua_KFunction k);
-// LUA_API int  (lua_resume)     (lua_State *L, lua_State *from, int narg,
-//                                int *nres);
-// LUA_API int  (lua_status)     (lua_State *L);
-// LUA_API int (lua_isyieldable) (lua_State *L);
-//
-// #define lua_yield(L,n)		lua_yieldk(L, (n), 0, null)
-
+    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, int strip);
 
     /*
-    ** Warning-related functions
+    ** coroutine functions
     */
+    public static partial int lua_yieldk(lua_State* L, int nresults, nint ctx, lua_KFunction k);
+
+    public static partial int lua_resume(lua_State* L, lua_State* from, int narg, int* nres);
+
+    public static partial int lua_status(lua_State* L);
+
+    public static partial bool lua_isyieldable(lua_State* L);
+
+    public static int lua_yield(lua_State* L, int n)
+    {
+        return lua_yieldk(L, n, 0, null);
+    }
+
+    /*
+     ** Warning-related functions
+     */
     public static partial void lua_setwarnf(lua_State* L, lua_WarnFunction f, void* ud);
 
     public static partial void lua_warning(lua_State* L, string msg, bool tocont);
@@ -355,27 +361,31 @@ public static unsafe partial class Lua
 
     public static partial int lua_gc(lua_State* L, int what, params object[] args);
 
-// /*
-// ** miscellaneous functions
-// */
-//
-// LUA_API int   (lua_error) (lua_State *L);
-//
-// LUA_API int   (lua_next) (lua_State *L, int idx);
-//
-// LUA_API void  (lua_concat) (lua_State *L, int n);
-// LUA_API void  (lua_len)    (lua_State *L, int idx);
+    /*
+    ** miscellaneous functions
+    */
+
+    public static partial int lua_error(lua_State* L);
+
+    public static partial int lua_next(lua_State* L, int idx);
+
+    public static partial void lua_concat(lua_State* L, int n);
+
+    public static partial void lua_len(lua_State* L, int idx);
 
     public const int LUA_N2SBUFFSZ = 64;
-// LUA_API unsigned  (lua_numbertocstring) (lua_State *L, int idx, char *buff);
-// LUA_API size_t  (lua_stringtonumber) (lua_State *L, const char *s);
+
+    public static partial uint lua_numbertocstring(lua_State* L, int idx, byte* buff);
+
+    public static partial long lua_stringtonumber(lua_State* L, string s);
 
     public static partial lua_Alloc lua_getallocf(lua_State* L, out void* ud);
     
     public static partial void lua_setallocf(lua_State* L, lua_Alloc f, void* ud);
 
-// LUA_API void (lua_toclose) (lua_State *L, int idx);
-// LUA_API void (lua_closeslot) (lua_State *L, int idx);
+    public static partial void lua_toclose(lua_State* L, int idx);
+
+    public static partial void lua_closeslot(lua_State* L, int idx);
 
     /*
     ** {==============================================================
@@ -388,11 +398,14 @@ public static unsafe partial class Lua
         return (byte*)L - LUA_EXTRASPACE;
     }
 
-    // #define lua_tonumber(L,i)	lua_tonumberx(L,(i),null)
-    
+    public static double lua_tonumber(lua_State* L, int i)
+    {
+        return lua_tonumberx(L, i, out _);
+    }
+
     public static long lua_tointeger(lua_State* L, int i)
     {
-        return lua_tointegerx(L, (i), out _);
+        return lua_tointegerx(L, i, out _);
     }
 
     public static void lua_pop(lua_State* L, int n)
@@ -405,20 +418,52 @@ public static unsafe partial class Lua
         lua_createtable(L, 0, 0);
     }
 
-    // #define lua_register(L,n,f) (lua_pushcfunction(L, (f)), lua_setglobal(L, (n)))
+    public static void lua_register(lua_State* L, string n, lua_CFunction f)
+    {
+        lua_pushcfunction(L, f);
+        lua_setglobal(L, n);
+    }
 
     public static void lua_pushcfunction(lua_State* L, lua_CFunction f)
     {
         lua_pushcclosure(L, f, 0);
     }
 
-    // #define lua_isfunction(L,n)	(lua_type(L, (n)) == LUA_TFUNCTION)
-// #define lua_istable(L,n)	(lua_type(L, (n)) == LUA_TTABLE)
-// #define lua_islightuserdata(L,n)	(lua_type(L, (n)) == LUA_TLIGHTUSERDATA)
-// #define lua_isnil(L,n)		(lua_type(L, (n)) == LUA_TNIL)
-// #define lua_isboolean(L,n)	(lua_type(L, (n)) == LUA_TBOOLEAN)
-// #define lua_isthread(L,n)	(lua_type(L, (n)) == LUA_TTHREAD)
-// #define lua_isnone(L,n)		(lua_type(L, (n)) == LUA_TNONE)
+    public static bool lua_isfunction(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TFUNCTION;
+    }
+
+    public static bool lua_istable(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TTABLE;
+    }
+
+    public static bool lua_islightuserdata(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TLIGHTUSERDATA;
+    }
+
+    public static bool lua_isnil(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TNIL;
+    }
+
+    public static bool lua_isboolean(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TBOOLEAN;
+    }
+
+    public static bool lua_isthread(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TTHREAD;
+    }
+
+    public static bool lua_isnone(lua_State* L, int n)
+    {
+        return lua_type(L, n) == LUA_TNONE;
+    }
+
     public static bool lua_isnoneornil(lua_State* L, int n)
     {
         return lua_type(L, n) <= 0;
@@ -446,7 +491,10 @@ public static unsafe partial class Lua
         return Encoding.UTF8.GetString(span);
     }
 
-    // #define lua_insert(L,idx)	lua_rotate(L, (idx), 1)
+    public static void lua_insert(lua_State* L, int idx)
+    {
+        lua_rotate(L, idx, 1);
+    }
 
     public static void lua_remove(lua_State* L, int idx)
     {
@@ -454,30 +502,47 @@ public static unsafe partial class Lua
         lua_pop(L, 1);
     }
 
-    // #define lua_replace(L,idx)	(lua_copy(L, -1, (idx)), lua_pop(L, 1))
-//
-// /* }============================================================== */
-//
-//
-// /*
-// ** {==============================================================
-// ** compatibility macros
-// ** ===============================================================
-// */
-//
-// #define lua_newuserdata(L,s)	lua_newuserdatauv(L,s,1)
-// #define lua_getuservalue(L,idx)	lua_getiuservalue(L,idx,1)
-// #define lua_setuservalue(L,idx)	lua_setiuservalue(L,idx,1)
-//
-// #define lua_resetthread(L)	lua_closethread(L,null)
-//
-// /* }============================================================== */
-//
-// /*
-// ** {======================================================================
-// ** Debug API
-// ** =======================================================================
-// */
+    private static void lua_replace(lua_State* L, int idx)
+    {
+        lua_copy(L, -1, idx);
+        lua_pop(L, 1);
+    }
+
+    /* }============================================================== */
+    
+    /*
+    ** {==============================================================
+    ** compatibility macros
+    ** ===============================================================
+    */
+
+    public static void* lua_newuserdata(lua_State* L, long s)
+    {
+        return lua_newuserdatauv(L, s, 1);
+    }
+
+    public static int lua_getuservalue(lua_State* L, int idx)
+    {
+        return lua_getiuservalue(L, idx, 1);
+    }
+
+    public static int lua_setuservalue(lua_State* L, int idx)
+    {
+        return lua_setiuservalue(L, idx, 1);
+    }
+
+    public static int lua_resetthread(lua_State* L)
+    {
+        return lua_closethread(L, null);
+    }
+
+    /* }============================================================== */
+
+    /*
+    ** {======================================================================
+    ** Debug API
+    ** =======================================================================
+    */
 
     /*
     ** Event codes
@@ -496,21 +561,29 @@ public static unsafe partial class Lua
     public const int LUA_MASKLINE = 1 << LUA_HOOKLINE;
     public const int LUA_MASKCOUNT = 1 << LUA_HOOKCOUNT;
 
-// LUA_API int (lua_getstack) (lua_State *L, int level, lua_Debug *ar);
-// LUA_API int (lua_getinfo) (lua_State *L, const char *what, lua_Debug *ar);
-// LUA_API const char *(lua_getlocal) (lua_State *L, const lua_Debug *ar, int n);
-// LUA_API const char *(lua_setlocal) (lua_State *L, const lua_Debug *ar, int n);
-// LUA_API const char *(lua_getupvalue) (lua_State *L, int funcindex, int n);
-// LUA_API const char *(lua_setupvalue) (lua_State *L, int funcindex, int n);
-//
-// LUA_API void *(lua_upvalueid) (lua_State *L, int fidx, int n);
-// LUA_API void  (lua_upvaluejoin) (lua_State *L, int fidx1, int n1,
-//                                                int fidx2, int n2);
-//
-// LUA_API void (lua_sethook) (lua_State *L, lua_Hook func, int mask, int count);
-// LUA_API lua_Hook (lua_gethook) (lua_State *L);
-// LUA_API int (lua_gethookmask) (lua_State *L);
-// LUA_API int (lua_gethookcount) (lua_State *L);
+    public static partial int lua_getstack(lua_State* L, int level, lua_Debug* ar);
+
+    public static partial int lua_getinfo(lua_State* L, string what, lua_Debug* ar);
+
+    public static partial string lua_getlocal(lua_State* L, lua_Debug* ar, int n);
+
+    public static partial string lua_setlocal(lua_State* L, lua_Debug* ar, int n);
+
+    public static partial string lua_getupvalue(lua_State* L, int funcindex, int n);
+
+    public static partial string lua_setupvalue(lua_State* L, int funcindex, int n);
+
+    public static partial void* lua_upvalueid(lua_State* L, int fidx, int n);
+    
+    public static partial void lua_upvaluejoin(lua_State* L, int fidx1, int n1, int fidx2, int n2);
+
+    public static partial void lua_sethook(lua_State* L, lua_Hook func, byte mask, int count);
+
+    public static partial lua_Hook lua_gethook(lua_State* L);
+
+    public static partial byte lua_gethookmask(lua_State* L);
+
+    public static partial int lua_gethookcount(lua_State* L);
 
     public struct lua_Debug
     {
@@ -548,30 +621,26 @@ public static unsafe partial class Lua
     public const string LUA_AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo, W. Celes";
 
 
-    // /******************************************************************************
-// * Copyright (C) 1994-2025 Lua.org, PUC-Rio.
-// *
-// * Permission is hereby granted, free of charge, to any person obtaining
-// * a copy of this software and associated documentation files (the
-// * "Software"), to deal in the Software without restriction, including
-// * without limitation the rights to use, copy, modify, merge, publish,
-// * distribute, sublicense, and/or sell copies of the Software, and to
-// * permit persons to whom the Software is furnished to do so, subject to
-// * the following conditions:
-// *
-// * The above copyright notice and this permission notice shall be
-// * included in all copies or substantial portions of the Software.
-// *
-// * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-// * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-// * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-// * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-// * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-// ******************************************************************************/
-//
-//
-// #endif
-
+    /******************************************************************************
+    * Copyright (C) 1994-2025 Lua.org, PUC-Rio.
+    *
+    * Permission is hereby granted, free of charge, to any person obtaining
+    * a copy of this software and associated documentation files (the
+    * "Software"), to deal in the Software without restriction, including
+    * without limitation the rights to use, copy, modify, merge, publish,
+    * distribute, sublicense, and/or sell copies of the Software, and to
+    * permit persons to whom the Software is furnished to do so, subject to
+    * the following conditions:
+    *
+    * The above copyright notice and this permission notice shall be
+    * included in all copies or substantial portions of the Software.
+    *
+    * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    ******************************************************************************/
 }

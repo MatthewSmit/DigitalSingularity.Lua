@@ -75,22 +75,26 @@ public static unsafe partial class Lua
         200;
 #endif
 
-// LUAI_FUNC l_noret luaD_errerr (lua_State *L);
-// LUAI_FUNC void luaD_seterrorobj (lua_State *L, TStatus errcode, StkId oldtop);
+    [DoesNotReturn]
+    private static partial void luaD_errerr(lua_State* L);
+
+    private static partial void luaD_seterrorobj(lua_State* L, byte errcode, StkId oldtop);
+
     private static partial byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode);
 
     private static partial void luaD_hook(lua_State* L, int @event, int line, int fTransfer, int nTransfer);
+
+    private static partial void luaD_hookcall(lua_State* L, CallInfo* ci);
+
+    private static partial int luaD_pretailcall(lua_State* L, CallInfo* ci, StkId func, int narg1, int delta);
     
-// LUAI_FUNC void luaD_hookcall (lua_State *L, CallInfo *ci);
-// LUAI_FUNC int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
-//                                               int narg1, int delta);
     private static partial CallInfo* luaD_precall(lua_State* L, StkId func, int nResults);
-// LUAI_FUNC void luaD_call (lua_State *L, StkId func, int nResults);
+
+    private static partial void luaD_call(lua_State* L, StkId func, int nResults);
 
     private static partial void luaD_callnoyield(lua_State* L, StackValue* func, int nResults);
 
-// LUAI_FUNC TStatus luaD_closeprotected (lua_State *L, ptrdiff_t level,
-//                                                      TStatus status);
+    private static partial byte luaD_closeprotected(lua_State* L, nint level, byte status);
 
     private static partial byte luaD_pcall(lua_State* L, Pfunc func, void* u, nint oldtop, nint ef);
 
@@ -109,7 +113,8 @@ public static unsafe partial class Lua
     [DoesNotReturn]
     private static partial void luaD_throw(lua_State* L, byte errcode);
 
-    // LUAI_FUNC l_noret luaD_throwbaselevel (lua_State *L, TStatus errcode);
+    [DoesNotReturn]
+    private static partial void luaD_throwbaselevel(lua_State* L, byte errcode);
 
     private static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
 }

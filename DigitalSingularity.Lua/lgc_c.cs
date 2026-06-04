@@ -28,9 +28,11 @@ public static unsafe partial class Lua
     /* mask with all GC bits */
     private const byte maskgcbits = maskcolours | AGEBITS;
 
-// /* macro to erase all color bits then set only the current white bit */
-// #define makewhite(g,x)	\
-//   (x->marked = cast_byte((x->marked & ~maskcolours) | luaC_white(g)))
+    /* macro to erase all colour bits then set only the current white bit */
+    private static void makewhite(global_State* g, GCObject* x)
+    {
+        x->marked = (byte)(x->marked & ~maskcolours | luaC_white(g));
+    }
 
     /* make an object grey (neither white nor black) */
     private static void set2grey(GCObject* x)
@@ -235,20 +237,26 @@ public static unsafe partial class Lua
     private static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v)
     {
         global_State* g = G(L);
-//   Debug.Assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
-//   if (keepinvariant(g)) {  /* must keep invariant? */
-//     reallymarkobject(g, v);  /* restore invariant */
-//     if (isold(o)) {
-//       Debug.Assert(!isold(v));  /* white object could not be old */
-//       setage(v, G_OLD0);  /* restore generational invariant */
-//     }
-//   }
-//   else {  /* sweep phase */
-//     Debug.Assert(issweepphase(g));
-//     if (g->gckind != KGC_GENMINOR)  /* incremental mode? */
-//       makewhite(g, o);  /* mark 'o' as white to avoid other barriers */
-//   }
-        throw new NotImplementedException();
+        Debug.Assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
+        if (keepinvariant(g))
+        {
+            /* must keep invariant? */
+            reallymarkobject(g, v); /* restore invariant */
+            if (isold(o))
+            {
+                Debug.Assert(!isold(v)); /* white object could not be old */
+                setage(v, G_OLD0); /* restore generational invariant */
+            }
+        }
+        else
+        {
+            /* sweep phase */
+            Debug.Assert(issweepphase(g));
+            if (g->gckind != KGC_GENMINOR) /* incremental mode? */
+            {
+                makewhite(g, o); /* mark 'o' as white to avoid other barriers */
+            }
+        }
     }
 
     /*
@@ -1080,7 +1088,7 @@ public static unsafe partial class Lua
 // */
 // static GCObject *udata2finalize (global_State *g) {
 //   GCObject *o = g->tobefnz;  /* get first element */
-//   Debug.Assert(tofinalize(o));
+//   Debug.Assert(tofinalise(o));
 //   g->tobefnz = o->next;  /* remove it from 'tobefnz' list */
 //   o->next = g->allgc;  /* return it to 'allgc' list */
 //   g->allgc = o;
@@ -1168,7 +1176,7 @@ public static unsafe partial class Lua
         while ((curr = *p) != g->finobjold1)
         {
             /* traverse all finalizable objects */
-//     Debug.Assert(tofinalize(curr));
+//     Debug.Assert(tofinalise(curr));
 //     if (!(iswhite(curr) || all))  /* not being collected? */
 //       p = &curr->next;  /* don't bother with it */
 //     else {
@@ -1202,15 +1210,15 @@ public static unsafe partial class Lua
 //   checkpointer(&g->reallyold, o);
 //   checkpointer(&g->firstold1, o);
 // }
-//
-//
-// /*
-// ** if object 'o' has a finalizer, remove it from 'allgc' list (must
-// ** search the list to find it) and link it in 'finobj' list.
-// */
-// void luaC_checkfinalizer (lua_State *L, GCObject *o, Table *mt) {
+
+    /*
+    ** if object 'o' has a finaliser, remove it from 'allgc' list (must
+    ** search the list to find it) and link it in 'finobj' list.
+    */
+    private static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt)
+    {
 //   global_State *g = G(L);
-//   if (tofinalize(o) ||                 /* obj. is already marked... */
+//   if (tofinalise(o) ||                 /* obj. is already marked... */
 //       gfasttm(g, mt, TM_GC) == null ||    /* or has no finalizer... */
 //       (g->gcstp & GCSTPCLS))                   /* or closing state? */
 //     return;  /* nothing to be done */
@@ -1230,33 +1238,33 @@ public static unsafe partial class Lua
 //     g->finobj = o;
 //     l_setbit(o->marked, FINALIZEDBIT);  /* mark it as such */
 //   }
-// }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Generational Collector
-// ** =======================================================
-// */
-//
-// /*
-// ** Fields 'GCmarked' and 'GCmajorminor' are used to control the pace and
-// ** the mode of the collector. They play several roles, depending on the
-// ** mode of the collector:
-// ** * KGC_INC:
-// **     GCmarked: number of marked bytes during a cycle.
-// **     GCmajorminor: not used.
-// ** * KGC_GENMINOR
-// **     GCmarked: number of bytes that became old since last major collection.
-// **     GCmajorminor: number of bytes marked in last major collection.
-// ** * KGC_GENMAJOR
-// **     GCmarked: number of bytes that became old since last major collection.
-// **     GCmajorminor: number of bytes marked in last major collection.
-// */
-//
-//
+        throw new NotImplementedException();
+    }
+    
+    /* }====================================================== */
+
+
+    /*
+    ** {======================================================
+    ** Generational Collector
+    ** =======================================================
+    */
+
+    /*
+    ** Fields 'GCmarked' and 'GCmajorminor' are used to control the pace and
+    ** the mode of the collector. They play several roles, depending on the
+    ** mode of the collector:
+    ** * KGC_INC:
+    **     GCmarked: number of marked bytes during a cycle.
+    **     GCmajorminor: not used.
+    ** * KGC_GENMINOR
+    **     GCmarked: number of bytes that became old since last major collection.
+    **     GCmajorminor: number of bytes marked in last major collection.
+    ** * KGC_GENMAJOR
+    **     GCmarked: number of bytes that became old since last major collection.
+    **     GCmajorminor: number of bytes marked in last major collection.
+    */
+    
 // /*
 // ** Set the "time" to wait before starting a new incremental cycle;
 // ** cycle will start when number of bytes in use hits the threshold of
@@ -1314,20 +1322,25 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Sweep for generational mode. Delete dead objects. (Because the
-// ** collection is not incremental, there are no "new white" objects
-// ** during the sweep. So, any white object must be dead.) For
-// ** non-dead objects, advance their ages and clear the color of
-// ** new objects. (Old objects keep their colors.)
-// ** The ages of G_TOUCHED1 and G_TOUCHED2 objects cannot be advanced
-// ** here, because these old-generation objects are usually not swept
-// ** here.  They will all be advanced in 'correctgreylist'. That function
-// ** will also remove objects turned white here from any gray list.
-// */
-// static GCObject **sweepgen (lua_State *L, global_State *g, GCObject **p,
-//                             GCObject *limit, GCObject **pfirstold1,
-//                             l_mem *paddedold) {
+    /*
+    ** Sweep for generational mode. Delete dead objects. (Because the
+    ** collection is not incremental, there are no "new white" objects
+    ** during the sweep. So, any white object must be dead.) For
+    ** non-dead objects, advance their ages and clear the colour of
+    ** new objects. (Old objects keep their colours.)
+    ** The ages of G_TOUCHED1 and G_TOUCHED2 objects cannot be advanced
+    ** here, because these old-generation objects are usually not swept
+    ** here.  They will all be advanced in 'correctgreylist'. That function
+    ** will also remove objects turned white here from any grey list.
+    */
+    private static GCObject** sweepgen(
+        lua_State* L,
+        global_State* g,
+        GCObject** p,
+        GCObject* limit,
+        GCObject** pfirstold1,
+        long* paddedold)
+    {
 //   static const lu_byte nextage[] = {
 //     G_SURVIVAL,  /* from G_NEW */
 //     G_OLD1,      /* from G_SURVIVAL */
@@ -1337,22 +1350,32 @@ public static unsafe partial class Lua
 //     G_TOUCHED1,  /* from G_TOUCHED1 (do not change) */
 //     G_TOUCHED2   /* from G_TOUCHED2 (do not change) */
 //   };
-//   l_mem addedold = 0;
-//   int white = luaC_white(g);
-//   GCObject *curr;
-//   while ((curr = *p) != limit) {
-//     if (iswhite(curr)) {  /* is 'curr' dead? */
-//       Debug.Assert(!isold(curr) && isdead(g, curr));
-//       *p = curr->next;  /* remove 'curr' from list */
-//       freeobj(L, curr);  /* erase 'curr' */
-//     }
-//     else {  /* correct mark and age */
-//       int age = getage(curr);
-//       if (age == G_NEW) {  /* new objects go back to white */
-//         int marked = curr->marked & ~maskgcbits;  /* erase GC bits */
-//         curr->marked = cast_byte(marked | G_SURVIVAL | white);
-//       }
-//       else {  /* all other objects will be old, and so keep their color */
+
+        long addedold = 0;
+        int white = luaC_white(g);
+        GCObject* curr;
+        while ((curr = *p) != limit)
+        {
+            if (iswhite(curr))
+            {
+                /* is 'curr' dead? */
+                Debug.Assert(!isold(curr) && isdead(g, curr));
+                *p = curr->next; /* remove 'curr' from list */
+                freeobj(L, curr); /* erase 'curr' */
+            }
+            else
+            {
+                /* correct mark and age */
+                int age = getage(curr);
+                if (age == G_NEW)
+                {
+                    /* new objects go back to white */
+                    int marked = curr->marked & ~maskgcbits; /* erase GC bits */
+                    curr->marked = (byte)(marked | G_SURVIVAL | white);
+                }
+                else
+                {
+                    /* all other objects will be old, and so keep their colour */
 //         Debug.Assert(age != G_OLD1);  /* advanced in 'markold' */
 //         setage(curr, nextage[age]);
 //         if (getage(curr) == G_OLD1) {
@@ -1360,13 +1383,16 @@ public static unsafe partial class Lua
 //           if (*pfirstold1 == null)
 //             *pfirstold1 = curr;  /* first OLD1 object in the list */
 //         }
-//       }
-//       p = &curr->next;  /* go to next element */
-//     }
-//   }
-//   *paddedold += addedold;
-//   return p;
-// }
+                    throw new NotImplementedException();
+                }
+
+                p = &curr->next; /* go to next element */
+            }
+        }
+
+        *paddedold += addedold;
+        return p;
+    }
 
     /*
      ** Correct a list of grey objects. Return a pointer to the last element
@@ -1443,22 +1469,28 @@ public static unsafe partial class Lua
         correctgreylist(list);
     }
 
-// /*
-// ** Mark black 'OLD1' objects when starting a new young collection.
-// ** Gray objects are already in some gray list, and so will be visited in
-// ** the atomic step.
-// */
-// static void markold (global_State *g, GCObject *from, GCObject *to) {
-//   GCObject *p;
-//   for (p = from; p != to; p = p->next) {
-//     if (getage(p) == G_OLD1) {
-//       Debug.Assert(!iswhite(p));
-//       setage(p, G_OLD);  /* now they are old */
-//       if (isblack(p))
-//         reallymarkobject(g, p);
-//     }
-//   }
-// }
+    /*
+    ** Mark black 'OLD1' objects when starting a new young collection.
+    ** Grey objects are already in some grey list, and so will be visited in
+    ** the atomic step.
+    */
+    private static void markold(global_State* g, GCObject* from, GCObject* to)
+    {
+        for (GCObject* p = from; p != to; p = p->next)
+        {
+            if (getage(p) != G_OLD1)
+            {
+                continue;
+            }
+
+            Debug.Assert(!iswhite(p));
+            setage(p, G_OLD); /* now they are old */
+            if (isblack(p))
+            {
+                reallymarkobject(g, p);
+            }
+        }
+    }
 
     /*
      ** Finish a young-generation collection.
@@ -1490,70 +1522,79 @@ public static unsafe partial class Lua
         luaE_setdebt(g, applygcparam(g, LUA_GCPSTEPSIZE, 100));
     }
 
-// /*
-// ** Decide whether to shift to major mode. It shifts if the accumulated
-// ** number of added old bytes (counted in 'GCmarked') is larger than
-// ** 'minormajor'% of the number of lived bytes after the last major
-// ** collection. (This number is kept in 'GCmajorminor'.)
-// */
-// static int checkminormajor (global_State *g) {
-//   l_mem limit = applygcparam(g, MINORMAJOR, g->GCmajorminor);
-//   if (limit == 0)
-//     return 0;  /* special case: 'minormajor' 0 stops major collections */
-//   return (g->GCmarked >= limit);
-// }
-//
-// /*
-// ** Does a young collection. First, mark 'OLD1' objects. Then does the
-// ** atomic step. Then, check whether to continue in minor mode. If so,
-// ** sweep all lists and advance pointers. Finally, finish the collection.
-// */
-// static void youngcollection (lua_State *L, global_State *g) {
-//   l_mem addedold1 = 0;
-//   l_mem marked = g->GCmarked;  /* preserve 'g->GCmarked' */
-//   GCObject **psurvival;  /* to point to first non-dead survival object */
-//   GCObject *dummy;  /* dummy out parameter to 'sweepgen' */
-//   Debug.Assert(g->gcstate == GCSpropagate);
-//   if (g->firstold1) {  /* are there regular OLD1 objects? */
-//     markold(g, g->firstold1, g->reallyold);  /* mark them */
-//     g->firstold1 = null;  /* no more OLD1 objects (for now) */
-//   }
-//   markold(g, g->finobj, g->finobjrold);
-//   markold(g, g->tobefnz, null);
-//
-//   atomic(L);  /* will lose 'g->marked' */
-//
-//   /* sweep nursery and get a pointer to its last live element */
-//   g->gcstate = GCSswpallgc;
-//   psurvival = sweepgen(L, g, &g->allgc, g->survival, &g->firstold1, &addedold1);
-//   /* sweep 'survival' */
-//   sweepgen(L, g, psurvival, g->old1, &g->firstold1, &addedold1);
-//   g->reallyold = g->old1;
-//   g->old1 = *psurvival;  /* 'survival' survivals are old now */
-//   g->survival = g->allgc;  /* all news are survivals */
-//
-//   /* repeat for 'finobj' lists */
-//   dummy = null;  /* no 'firstold1' optimization for 'finobj' lists */
-//   psurvival = sweepgen(L, g, &g->finobj, g->finobjsur, &dummy, &addedold1);
-//   /* sweep 'survival' */
-//   sweepgen(L, g, psurvival, g->finobjold1, &dummy, &addedold1);
-//   g->finobjrold = g->finobjold1;
-//   g->finobjold1 = *psurvival;  /* 'survival' survivals are old now */
-//   g->finobjsur = g->finobj;  /* all news are survivals */
-//
-//   sweepgen(L, g, &g->tobefnz, null, &dummy, &addedold1);
-//
-//   /* keep total number of added old1 bytes */
-//   g->GCmarked = marked + addedold1;
-//
-//   /* decide whether to shift to major mode */
-//   if (checkminormajor(g)) {
-//     minor2inc(L, g, KGC_GENMAJOR);  /* go to major mode */
-//     g->GCmarked = 0;  /* avoid pause in first major cycle (see 'setpause') */
-//   }
-//   else
-//     finishgencycle(L, g);  /* still in minor mode; finish it */
-// }
+    /*
+    ** Decide whether to shift to major mode. It shifts if the accumulated
+    ** number of added old bytes (counted in 'GCmarked') is larger than
+    ** 'minormajor'% of the number of lived bytes after the last major
+    ** collection. (This number is kept in 'GCmajorminor'.)
+    */
+    private static bool checkminormajor(global_State* g)
+    {
+        long limit = applygcparam(g, LUA_GCPMINORMAJOR, g->GCmajorminor);
+        if (limit == 0)
+        {
+            return false; /* special case: 'minormajor' 0 stops major collections */
+        }
+
+        return g->GCmarked >= limit;
+    }
+
+    /*
+     ** Does a young collection. First, mark 'OLD1' objects. Then does the
+     ** atomic step. Then, check whether to continue in minor mode. If so,
+     ** sweep all lists and advance pointers. Finally, finish the collection.
+     */
+    private static void youngcollection(lua_State* L, global_State* g)
+    {
+        long addedold1 = 0;
+        long marked = g->GCmarked; /* preserve 'g->GCmarked' */
+        Debug.Assert(g->gcstate == GCSpropagate);
+        if (g->firstold1 != null)
+        {
+            /* are there regular OLD1 objects? */
+            markold(g, g->firstold1, g->reallyold); /* mark them */
+            g->firstold1 = null; /* no more OLD1 objects (for now) */
+        }
+
+        markold(g, g->finobj, g->finobjrold);
+        markold(g, g->tobefnz, null);
+
+        atomic(L); /* will lose 'g->marked' */
+
+        /* sweep nursery and get a pointer to its last live element */
+        g->gcstate = GCSswpallgc;
+        GCObject** psurvival = sweepgen(L, g, &g->allgc, g->survival, &g->firstold1, &addedold1);
+        /* sweep 'survival' */
+        sweepgen(L, g, psurvival, g->old1, &g->firstold1, &addedold1);
+        g->reallyold = g->old1;
+        g->old1 = *psurvival; /* 'survival' survivals are old now */
+        g->survival = g->allgc; /* all news are survivals */
+
+        /* repeat for 'finobj' lists */
+        GCObject* dummy = null; /* no 'firstold1' optimization for 'finobj' lists */
+        psurvival = sweepgen(L, g, &g->finobj, g->finobjsur, &dummy, &addedold1);
+        /* sweep 'survival' */
+        sweepgen(L, g, psurvival, g->finobjold1, &dummy, &addedold1);
+        g->finobjrold = g->finobjold1;
+        g->finobjold1 = *psurvival; /* 'survival' survivals are old now */
+        g->finobjsur = g->finobj; /* all news are survivals */
+
+        sweepgen(L, g, &g->tobefnz, null, &dummy, &addedold1);
+
+        /* keep total number of added old1 bytes */
+        g->GCmarked = marked + addedold1;
+
+        /* decide whether to shift to major mode */
+        if (checkminormajor(g))
+        {
+            minor2inc(L, g, KGC_GENMAJOR); /* go to major mode */
+            g->GCmarked = 0; /* avoid pause in first major cycle (see 'setpause') */
+        }
+        else
+        {
+            finishgencycle(L, g); /* still in minor mode; finish it */
+        }
+    }
 
 
     /*
@@ -1703,13 +1744,13 @@ public static unsafe partial class Lua
 //     p = next;
 //   }
 // }
-//
-//
-// /*
-// ** Call all finalizers of the objects in the given Lua state, and
-// ** then free all objects, except for the main thread.
-// */
-// void luaC_freeallobjects (lua_State *L) {
+
+    /*
+    ** Call all finalisers of the objects in the given Lua state, and
+    ** then free all objects, except for the main thread.
+    */
+    private static partial void luaC_freeallobjects(lua_State* L)
+    {
 //   global_State *g = G(L);
 //   g->gcstp = GCSTPCLS;  /* no extra finalizers after here */
 //   luaC_changemode(L, KGC_INC);
@@ -1720,7 +1761,8 @@ public static unsafe partial class Lua
 //   Debug.Assert(g->finobj == null);  /* no new finalizers */
 //   deletelist(L, g->fixedgc, null);  /* collect fixed objects */
 //   Debug.Assert(g->strt.nuse == 0);
-// }
+        throw new NotImplementedException();
+    }
 
     private static partial void atomic(lua_State* L)
     {
@@ -1911,14 +1953,15 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Performs a basic incremental step. The step size is
-// ** converted from bytes to "units of work"; then the function loops
-// ** running single steps until adding that many units of work or
-// ** finishing a cycle (pause state). Finally, it sets the debt that
-// ** controls when next step will be performed.
-// */
-// static void incstep (lua_State *L, global_State *g) {
+    /*
+    ** Performs a basic incremental step. The step size is
+    ** converted from bytes to "units of work"; then the function loops
+    ** running single steps until adding that many units of work or
+    ** finishing a cycle (pause state). Finally, it sets the debt that
+    ** controls when next step will be performed.
+    */
+    private static void incstep(lua_State* L, global_State* g)
+    {
 //   l_mem stepsize = applygcparam(g, STEPSIZE, 100);
 //   l_mem work2do = applygcparam(g, STEPMUL, stepsize / cast_int(sizeof(void*)));
 //   l_mem stres;
@@ -1936,9 +1979,9 @@ public static unsafe partial class Lua
 //     setpause(g);  /* pause until next cycle */
 //   else
 //     luaE_setdebt(g, stepsize);
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // #if !defined(luai_tracegc)
 // #define luai_tracegc(L,f)		((void)0)
 // #endif
@@ -1962,18 +2005,21 @@ public static unsafe partial class Lua
         }
         else
         {
-//     luai_tracegc(L, 1);  /* for internal debugging */
-//     switch (g->gckind) {
-//       case KGC_INC: case KGC_GENMAJOR:
-//         incstep(L, g);
-//         break;
-//       case KGC_GENMINOR:
-//         youngcollection(L, g);
-//         setminordebt(g);
-//         break;
-//     }
-//     luai_tracegc(L, 0);  /* for internal debugging */
-            throw new NotImplementedException();
+            luai_tracegc(L, true); /* for internal debugging */
+            switch (g->gckind)
+            {
+                case KGC_INC:
+                case KGC_GENMAJOR:
+                    incstep(L, g);
+                    break;
+
+                case KGC_GENMINOR:
+                    youngcollection(L, g);
+                    setminordebt(g);
+                    break;
+            }
+
+            luai_tracegc(L, false); /* for internal debugging */
         }
     }
 

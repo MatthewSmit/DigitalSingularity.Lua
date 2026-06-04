@@ -4,95 +4,64 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-// /*
-// ** ===================================================================
-// ** General Configuration File for Lua
-// **
-// ** Some definitions here can be changed externally, through the compiler
-// ** (e.g., with '-D' options): They are commented out or protected
-// ** by '#if !defined' guards. However, several other definitions
-// ** should be changed directly here, either because they affect the
-// ** Lua ABI (by making the changes here, you ensure that all software
-// ** connected to Lua, such as C libraries, will be compiled with the same
-// ** configuration); or because they are seldom changed.
-// **
-// ** Search for "@@" to find all configurable definitions.
-// ** ===================================================================
-// */
-//
-//
-// /*
-// ** {====================================================================
-// ** System Configuration: macros to adapt (if needed) Lua to some
-// ** particular platform, for instance restricting it to C89.
-// ** =====================================================================
-// */
-//
-// /*
-// @@ LUA_USE_C89 controls the use of non-ISO-C89 features.
-// ** Define it if you want Lua to avoid the use of a few C99 features
-// ** or Windows-specific features on Windows.
-// */
-// /* #define LUA_USE_C89 */
-//
-//
-// /*
-// ** By default, Lua on Windows use (some) specific Windows features
-// */
-// #if !defined(LUA_USE_C89) && defined(_WIN32) && !defined(_WIN32_WCE)
-// #define LUA_USE_WINDOWS  /* enable goodies for regular Windows */
-// #endif
-//
-//
-// #if defined(LUA_USE_WINDOWS)
-// #define LUA_DL_DLL	/* enable support for DLL */
-// #define LUA_USE_C89	/* broadly, Windows is C89 */
-// #endif
-//
-//
-// /*
-// ** When POSIX DLL ('LUA_USE_DLOPEN') is enabled, the Lua stand-alone
-// ** application will try to dynamically link a 'readline' facility
-// ** for its REPL.  In that case, LUA_READLINELIB is the name of the
-// ** library it will look for those facilities.  If lua.c cannot open
-// ** the specified library, it will generate a warning and then run
-// ** without 'readline'.  If that macro is not defined, lua.c will not
-// ** use 'readline'.
-// */
-// #if defined(LUA_USE_LINUX)
-// #define LUA_USE_POSIX
-// #define LUA_USE_DLOPEN		/* needs an extra library: -ldl */
-// #define LUA_READLINELIB		"libreadline.so"
-// #endif
-//
-//
-// #if defined(LUA_USE_MACOSX)
-// #define LUA_USE_POSIX
-// #define LUA_USE_DLOPEN		/* macOS does not need -ldl */
-// #define LUA_READLINELIB		"libedit.dylib"
-// #endif
-//
-//
-// #if defined(LUA_USE_IOS)
-// #define LUA_USE_POSIX
-// #define LUA_USE_DLOPEN
-// #endif
-//
-//
-// #if defined(LUA_USE_C89) && defined(LUA_USE_POSIX)
-// #error "POSIX is not compatible with C89"
-// #endif
-//
-//
-// /*
-// @@ LUAI_IS32INT is true iff 'int' has (at least) 32 bits.
-// */
-// #define LUAI_IS32INT	((UINT_MAX >> 30) >= 3)
-//
-// /* }================================================================== */
-//
-//
-//
+    // TODO: remaining file
+    
+    /*
+    ** ===================================================================
+    ** General Configuration File for Lua
+    **
+    ** Some definitions here can be changed externally, through the compiler
+    ** (e.g., with '-D' options): They are commented out or protected
+    ** by '#if !defined' guards. However, several other definitions
+    ** should be changed directly here, either because they affect the
+    ** Lua ABI (by making the changes here, you ensure that all software
+    ** connected to Lua, such as C libraries, will be compiled with the same
+    ** configuration); or because they are seldom changed.
+    **
+    ** Search for "@@" to find all configurable definitions.
+    ** ===================================================================
+    */
+    
+    /*
+    ** {====================================================================
+    ** System Configuration: macros to adapt (if needed) Lua to some
+    ** particular platform, for instance restricting it to C89.
+    ** =====================================================================
+    */
+
+    // #if defined(LUA_USE_WINDOWS)
+    // #define LUA_DL_DLL	/* enable support for DLL */
+    // #define LUA_USE_C89	/* broadly, Windows is C89 */
+    // #endif
+
+    // /*
+    // ** When POSIX DLL ('LUA_USE_DLOPEN') is enabled, the Lua stand-alone
+    // ** application will try to dynamically link a 'readline' facility
+    // ** for its REPL.  In that case, LUA_READLINELIB is the name of the
+    // ** library it will look for those facilities.  If lua.c cannot open
+    // ** the specified library, it will generate a warning and then run
+    // ** without 'readline'.  If that macro is not defined, lua.c will not
+    // ** use 'readline'.
+    // */
+    // #if defined(LUA_USE_LINUX)
+    // #define LUA_USE_POSIX
+    // #define LUA_USE_DLOPEN		/* needs an extra library: -ldl */
+    // #define LUA_READLINELIB		"libreadline.so"
+    // #endif
+
+    // #if defined(LUA_USE_MACOSX)
+    // #define LUA_USE_POSIX
+    // #define LUA_USE_DLOPEN		/* macOS does not need -ldl */
+    // #define LUA_READLINELIB		"libedit.dylib"
+    // #endif
+
+    // #if defined(LUA_USE_IOS)
+    // #define LUA_USE_POSIX
+    // #define LUA_USE_DLOPEN
+    // #endif
+
+    /* }================================================================== */
+    
 // /*
 // ** {==================================================================
 // ** Configuration for Number types. These options should not be
@@ -131,31 +100,8 @@ public static unsafe partial class Lua
 // @@ LUA_32BITS enables Lua with 32-bit integers and 32-bit floats.
 // */
 // /* #define LUA_32BITS */
-//
-//
-// /*
-// @@ LUA_C89_NUMBERS ensures that Lua uses the largest types available for
-// ** C89 ('long' and 'double'); Windows always has '__int64', so it does
-// ** not need to use this case.
-// */
-// #if defined(LUA_USE_C89) && !defined(LUA_USE_WINDOWS)
-// #define LUA_C89_NUMBERS		1
-// #else
-// #define LUA_C89_NUMBERS		0
-// #endif
-//
-//
+
 // #if defined(LUA_32BITS)	/* { */
-// /*
-// ** 32-bit integers and 'float'
-// */
-// #if LUAI_IS32INT  /* use 'int' if big enough */
-// #define LUA_INT_TYPE	LUA_INT_INT
-// #else  /* otherwise use 'long' */
-// #define LUA_INT_TYPE	LUA_INT_LONG
-// #endif
-// #define LUA_FLOAT_TYPE	LUA_FLOAT_FLOAT
-//
 // #elif LUA_C89_NUMBERS	/* }{ */
 // /*
 // ** largest types available for C89 ('long' and 'double')
@@ -381,7 +327,7 @@ public static unsafe partial class Lua
 // @@ LUA_NUMBER_FMT_N is the format for writing floats with the minimum
 // ** number of digits that ensures tonumber(tostring(number)) == number.
 // ** (That would be LUA_NUMBER_FMT+2.)
-// @@ l_mathop allows the addition of an 'l' or 'f' to all math operations.
+// @@  allows the addition of an 'l' or 'f' to all math operations.
 // @@ l_floor takes the floor of a float.
 // @@ lua_str2number converts a decimal numeral to a number.
 // */
@@ -389,46 +335,11 @@ public static unsafe partial class Lua
 //
 // /* The following definition is good for most cases here */
 //
-// #define l_floor(x)		(l_mathop(floor)(x))
+// #define l_floor(x)		((floor)(x))
 //
 //
 // /* now the variable definitions */
-//
-// #if LUA_FLOAT_TYPE == LUA_FLOAT_FLOAT		/* { single float */
-//
-// #define LUA_NUMBER	float
-//
-// #define l_floatatt(n)		(FLT_##n)
-//
-// #define LUAI_UACNUMBER	double
-//
-// #define LUA_NUMBER_FRMLEN	""
-// #define LUA_NUMBER_FMT		"%.7g"
-// #define LUA_NUMBER_FMT_N	"%.9g"
-//
-// #define l_mathop(op)		op##f
-//
-// #define lua_str2number(s,p)	strtof((s), (p))
-//
-//
-// #elif LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE	/* }{ long double */
-//
-// #define LUA_NUMBER	long double
-//
-// #define l_floatatt(n)		(LDBL_##n)
-//
-// #define LUAI_UACNUMBER	long double
-//
-// #define LUA_NUMBER_FRMLEN	"L"
-// #define LUA_NUMBER_FMT		"%.19Lg"
-// #define LUA_NUMBER_FMT_N	"%.21Lg"
-//
-// #define l_mathop(op)		op##l
-//
-// #define lua_str2number(s,p)	strtold((s), (p))
-//
-// #elif LUA_FLOAT_TYPE == LUA_FLOAT_DOUBLE	/* }{ double */
-//
+
 // #define LUA_NUMBER	double
 //
 // #define l_floatatt(n)		(DBL_##n)
@@ -439,18 +350,8 @@ public static unsafe partial class Lua
 // #define LUA_NUMBER_FMT		"%.15g"
 // #define LUA_NUMBER_FMT_N	"%.17g"
 //
-// #define l_mathop(op)		op
-//
 // #define lua_str2number(s,p)	strtod((s), (p))
-//
-// #else						/* }{ */
-//
-// #error "numeric float type not defined"
-//
-// #endif					/* } */
-//
-//
-//
+
 // /*
 // @@ LUA_UNSIGNED is the unsigned version of LUA_INTEGER.
 // @@ LUAI_UACINT is the result of a 'default argument promotion'
@@ -588,40 +489,7 @@ public static unsafe partial class Lua
 // #define lua_number2strx(L,b,sz,f,n)  \
 // 	((void)L, l_sprintf(b,sz,f,(LUAI_UACNUMBER)(n)))
 // #endif
-//
-//
-// /*
-// ** 'strtof' and 'opf' variants for math functions are not valid in
-// ** C89. Otherwise, the macro 'HUGE_VALF' is a good proxy for testing the
-// ** availability of these variants. ('math.h' is already included in
-// ** all files that use these macros.)
-// */
-// #if defined(LUA_USE_C89) || (defined(HUGE_VAL) && !defined(HUGE_VALF))
-// #undef l_mathop  /* variants not available */
-// #undef lua_str2number
-// #define l_mathop(op)		(lua_Number)op  /* no variant */
-// #define lua_str2number(s,p)	((lua_Number)strtod((s), (p)))
-// #endif
-//
-//
-// /*
-// @@ LUA_KCONTEXT is the type of the context ('ctx') for continuation
-// ** functions.  It must be a numerical type; Lua will use 'intptr_t' if
-// ** available, otherwise it will use 'ptrdiff_t' (the nearest thing to
-// ** 'intptr_t' in C89)
-// */
-// #define LUA_KCONTEXT	ptrdiff_t
-//
-// #if !defined(LUA_USE_C89) && defined(__STDC_VERSION__) && \
-//     __STDC_VERSION__ >= 199901L
-// #include <stdint.h>
-// #if defined(INTPTR_MAX)  /* even in C99 this type is optional */
-// #undef LUA_KCONTEXT
-// #define LUA_KCONTEXT	intptr_t
-// #endif
-// #endif
-//
-//
+
 // /*
 // @@ lua_getlocaledecpoint gets the locale "radix character" (decimal point).
 // ** Change that if you do not want to use C locales. (Code using this
@@ -630,54 +498,25 @@ public static unsafe partial class Lua
 // #if !defined(lua_getlocaledecpoint)
 // #define lua_getlocaledecpoint()		(localeconv()->decimal_point[0])
 // #endif
-//
-//
-// /*
-// ** macros to improve jump prediction, used mostly for error handling
-// ** and debug facilities. (Some macros in the Lua API use these macros.
-// ** Define LUA_NOBUILTIN if you do not want '__builtin_expect' in your
-// ** code.)
-// */
-// #if !defined(luai_likely)
-//
-// #if defined(__GNUC__) && !defined(LUA_NOBUILTIN)
-// #define luai_likely(x)		(__builtin_expect(((x) != 0), 1))
-// #define luai_unlikely(x)	(__builtin_expect(((x) != 0), 0))
-// #else
-// #define luai_likely(x)		(x)
-// #define luai_unlikely(x)	(x)
-// #endif
-//
-// #endif
-//
-//
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Language Variations
-// ** =====================================================================
-// */
-//
-// /*
-// @@ LUA_NOCVTN2S/LUA_NOCVTS2N control how Lua performs some
-// ** coercions. Define LUA_NOCVTN2S to turn off automatic coercion from
-// ** numbers to strings. Define LUA_NOCVTS2N to turn off automatic
-// ** coercion from strings to numbers.
-// */
-// /* #define LUA_NOCVTN2S */
-// /* #define LUA_NOCVTS2N */
-//
-//
-// /*
-// @@ LUA_USE_APICHECK turns on several consistency checks on the C API.
-// ** Define it as a help when debugging C code.
-// */
-// /* #define LUA_USE_APICHECK */
-//
-// /* }================================================================== */
+
+    /* }================================================================== */
+
+    /*
+    ** {==================================================================
+    ** Language Variations
+    ** =====================================================================
+    */
+
+    /*
+    @@ LUA_NOCVTN2S/LUA_NOCVTS2N control how Lua performs some
+    ** coercions. Define LUA_NOCVTN2S to turn off automatic coercion from
+    ** numbers to strings. Define LUA_NOCVTS2N to turn off automatic
+    ** coercion from strings to numbers.
+    */
+    /* #define LUA_NOCVTN2S */
+    /* #define LUA_NOCVTS2N */
+
+    /* }================================================================== */
 
 
     /*
@@ -707,34 +546,22 @@ public static unsafe partial class Lua
     */
     private const int LUA_IDSIZE = 60;
 
-// /*
-// @@ LUAL_BUFFERSIZE is the initial buffer size used by the lauxlib
-// ** buffer system.
-// */
-// #define LUAL_BUFFERSIZE   ((int)(16 * sizeof(void*) * sizeof(lua_Number)))
-//
-//
+    /*
+    @@ LUAL_BUFFERSIZE is the initial buffer size used by the lauxlib
+    ** buffer system.
+    */
+    private const int LUAL_BUFFERSIZE =
+#if LUA_DEBUG
+        23;
+#else
+        16 * sizeof(long) * sizeof(double);
+#endif
+
 // /*
 // @@ LUAI_MAXALIGN defines fields that, when used in a union, ensure
 // ** maximum alignment for the other items in that union.
 // */
-// #define LUAI_MAXALIGN  lua_Number n; double u; void *s; lua_Integer i; long l
+// #define LUAI_MAXALIGN  double n; double u; void *s; long i; long l
 //
 // /* }================================================================== */
-//
-//
-//
-//
-//
-// /* =================================================================== */
-//
-// /*
-// ** Local configuration. You can use this space to add your redefinitions
-// ** without modifying the main part of the file.
-// */
-//
-//
-//
-// #endif
-//
 }

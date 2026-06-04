@@ -11,12 +11,12 @@ public static unsafe partial class Lua
     private static int math_abs(lua_State* L)
     {
 //   if (lua_isinteger(L, 1)) {
-//     lua_Integer n = lua_tointeger(L, 1);
-//     if (n < 0) n = (lua_Integer)(0u - (lua_Unsigned)n);
+//     long n = lua_tointeger(L, 1);
+//     if (n < 0) n = (long)(0u - (lua_Unsigned)n);
 //     lua_pushinteger(L, n);
 //   }
 //   else
-//     lua_pushnumber(L, l_mathop(fabs)(luaL_checknumber(L, 1)));
+//     lua_pushnumber(L, (fabs)(luaL_checknumber(L, 1)));
 //   return 1;
         throw new NotImplementedException();
     }
@@ -62,7 +62,7 @@ public static unsafe partial class Lua
     private static int math_toint(lua_State* L)
     {
 //   int valid;
-//   lua_Integer n = lua_tointegerx(L, 1, &valid);
+//   long n = lua_tointegerx(L, 1, &valid);
 //   if (l_likely(valid))
 //     lua_pushinteger(L, n);
 //   else {
@@ -75,31 +75,36 @@ public static unsafe partial class Lua
 
     private static void pushnumint(lua_State* L, double d)
     {
-//   lua_Integer n;
-//   if (lua_numbertointeger(d, &n))  /* does 'd' fit in an integer? */
-//     lua_pushinteger(L, n);  /* result is integer */
-//   else
-//     lua_pushnumber(L, d);  /* result is float */
-        throw new NotImplementedException();
+        if (lua_numbertointeger(d, out long n)) /* does 'd' fit in an integer? */
+        {
+            lua_pushinteger(L, n); /* result is integer */
+        }
+        else
+        {
+            lua_pushnumber(L, d); /* result is float */
+        }
     }
 
     private static int math_floor(lua_State* L)
     {
-//   if (lua_isinteger(L, 1))
-//     lua_settop(L, 1);  /* integer is its own floor */
-//   else {
-//     lua_Number d = l_mathop(floor)(luaL_checknumber(L, 1));
-//     pushnumint(L, d);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        if (lua_isinteger(L, 1))
+        {
+            lua_settop(L, 1); /* integer is its own floor */
+        }
+        else
+        {
+            double d = Math.Floor(luaL_checknumber(L, 1));
+            pushnumint(L, d);
+        }
+
+        return 1;
     }
 
     private static int math_ceil (lua_State *L) {
 //   if (lua_isinteger(L, 1))
 //     lua_settop(L, 1);  /* integer is its own ceiling */
 //   else {
-//     lua_Number d = l_mathop(ceil)(luaL_checknumber(L, 1));
+//     double d = (ceil)(luaL_checknumber(L, 1));
 //     pushnumint(L, d);
 //   }
 //   return 1;
@@ -108,7 +113,7 @@ public static unsafe partial class Lua
 
 private  static int math_fmod (lua_State *L) {
 //   if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
-//     lua_Integer d = lua_tointeger(L, 2);
+//     long d = lua_tointeger(L, 2);
 //     if ((lua_Unsigned)d + 1u <= 1u) {  /* special cases: -1 or 0 */
 //       luaL_argcheck(L, d != 0, 2, "zero");
 //       lua_pushinteger(L, 0);  /* avoid overflow with 0x80000... / -1 */
@@ -117,7 +122,7 @@ private  static int math_fmod (lua_State *L) {
 //       lua_pushinteger(L, lua_tointeger(L, 1) % d);
 //   }
 //   else
-//     lua_pushnumber(L, l_mathop(fmod)(luaL_checknumber(L, 1),
+//     lua_pushnumber(L, (fmod)(luaL_checknumber(L, 1),
 //                                      luaL_checknumber(L, 2)));
 //   return 1;
     throw new NotImplementedException();
@@ -125,7 +130,7 @@ private  static int math_fmod (lua_State *L) {
 
 /*
 ** next function does not use 'modf', avoiding problems with 'double*'
-** (which is not compatible with 'float*') when lua_Number is not
+** (which is not compatible with 'float*') when double is not
 ** 'double'.
 */
 private static int math_modf (lua_State *L) {
@@ -134,12 +139,12 @@ private static int math_modf (lua_State *L) {
 //     lua_pushnumber(L, 0);  /* no fractional part */
 //   }
 //   else {
-//     lua_Number n = luaL_checknumber(L, 1);
+//     double n = luaL_checknumber(L, 1);
 //     /* integer part (rounds toward zero) */
-//     lua_Number ip = (n < 0) ? l_mathop(ceil)(n) : l_mathop(floor)(n);
+//     double ip = (n < 0) ? (ceil)(n) : (floor)(n);
 //     pushnumint(L, ip);
 //     /* fractional part (test needed for inf/-inf) */
-//     lua_pushnumber(L, (n == ip) ? l_mathop(0.0) : (n - ip));
+//     lua_pushnumber(L, (n == ip) ? (0.0) : (n - ip));
 //   }
 //   return 2;
     throw new NotImplementedException();
@@ -152,29 +157,29 @@ private static int math_modf (lua_State *L) {
     }
 
 private  static int math_ult (lua_State *L) {
-//   lua_Integer a = luaL_checkinteger(L, 1);
-//   lua_Integer b = luaL_checkinteger(L, 2);
+//   long a = luaL_checkinteger(L, 1);
+//   long b = luaL_checkinteger(L, 2);
 //   lua_pushboolean(L, (lua_Unsigned)a < (lua_Unsigned)b);
 //   return 1;
     throw new NotImplementedException();
 }
 
 private static int math_log (lua_State *L) {
-//   lua_Number x = luaL_checknumber(L, 1);
-//   lua_Number res;
+//   double x = luaL_checknumber(L, 1);
+//   double res;
 //   if (lua_isnoneornil(L, 2))
-//     res = l_mathop(log)(x);
+//     res = (log)(x);
 //   else {
-//     lua_Number base = luaL_checknumber(L, 2);
+//     double base = luaL_checknumber(L, 2);
 // #if !defined(LUA_USE_C89)
-//     if (base == l_mathop(2.0))
-//       res = l_mathop(log2)(x);
+//     if (base == (2.0))
+//       res = (log2)(x);
 //     else
 // #endif
-//     if (base == l_mathop(10.0))
-//       res = l_mathop(log10)(x);
+//     if (base == (10.0))
+//       res = (log10)(x);
 //     else
-//       res = l_mathop(log)(x)/l_mathop(log)(base);
+//       res = (log)(x)/(log)(base);
 //   }
 //   lua_pushnumber(L, res);
 //   return 1;
@@ -182,36 +187,36 @@ private static int math_log (lua_State *L) {
 }
 
 private static int math_exp (lua_State *L) {
-//   lua_pushnumber(L, l_mathop(exp)(luaL_checknumber(L, 1)));
+//   lua_pushnumber(L, (exp)(luaL_checknumber(L, 1)));
 //   return 1;
     throw new NotImplementedException();
 }
 
 private static int math_deg (lua_State *L) {
-//   lua_pushnumber(L, luaL_checknumber(L, 1) * (l_mathop(180.0) / PI));
+//   lua_pushnumber(L, luaL_checknumber(L, 1) * ((180.0) / PI));
 //   return 1;
     throw new NotImplementedException();
 }
 
 private static int math_rad (lua_State *L) {
-//   lua_pushnumber(L, luaL_checknumber(L, 1) * (PI / l_mathop(180.0)));
+//   lua_pushnumber(L, luaL_checknumber(L, 1) * (PI / (180.0)));
 //   return 1;
     throw new NotImplementedException();
 }
 
 private static int math_frexp (lua_State *L) {
-//   lua_Number x = luaL_checknumber(L, 1);
+//   double x = luaL_checknumber(L, 1);
 //   int ep;
-//   lua_pushnumber(L, l_mathop(frexp)(x, &ep));
+//   lua_pushnumber(L, (frexp)(x, &ep));
 //   lua_pushinteger(L, ep);
 //   return 2;
     throw new NotImplementedException();
 }
 
 private static int math_ldexp (lua_State *L) {
-//   lua_Number x = luaL_checknumber(L, 1);
+//   double x = luaL_checknumber(L, 1);
 //   int ep = (int)luaL_checkinteger(L, 2);
-//   lua_pushnumber(L, l_mathop(ldexp)(x, ep));
+//   lua_pushnumber(L, (ldexp)(x, ep));
 //   return 1;
     throw new NotImplementedException();
 }
@@ -278,7 +283,6 @@ private static int math_type (lua_State *L) {
 // #define FIGS	64
 // #endif
 
-#if !LUA_RAND32
     /*
     ** Standard implementation, using 64-bit integers.
     ** If 'Rand64' has more than 64 bits, the extra bits do not interfere
@@ -312,7 +316,7 @@ private static int math_type (lua_State *L) {
 // ** random unsigned integer and converting that to a float.
 // ** Some old Microsoft compilers cannot cast an unsigned long
 // ** to a floating-point number, so we use a signed long as an
-// ** intermediary. When lua_Number is float or double, the shift ensures
+// ** intermediary. When double is float or double, the shift ensures
 // ** that 'sx' is non negative; in that case, a good compiler will remove
 // ** the correction.
 // */
@@ -321,13 +325,13 @@ private static int math_type (lua_State *L) {
 // #define shift64_FIG	(64 - FIGS)
 //
 // /* 2^(-FIGS) == 2^-1 / 2^(FIGS-1) */
-// #define scaleFIG	(l_mathop(0.5) / ((Rand64)1 << (FIGS - 1)))
+// #define scaleFIG	((0.5) / ((Rand64)1 << (FIGS - 1)))
 //
-// static lua_Number I2d (Rand64 x) {
+// static double I2d (Rand64 x) {
 //   SRand64 sx = (SRand64)(trim64(x) >> shift64_FIG);
-//   lua_Number res = (lua_Number)(sx) * scaleFIG;
+//   double res = (double)(sx) * scaleFIG;
 //   if (sx < 0)
-//     res += l_mathop(1.0);  /* correct the two's complement if negative */
+//     res += (1.0);  /* correct the two's complement if negative */
 //   Debug.Assert(0 <= res && res < 1);
 //   return res;
 // }
@@ -337,159 +341,6 @@ private static int math_type (lua_State *L) {
 //
 // /* convert a 'lua_Unsigned' to a 'Rand64' */
 // #define Int2I(x)	((Rand64)(x))
-#else
-// /*
-// ** Use two 32-bit integers to represent a 64-bit quantity.
-// */
-// typedef struct Rand64 {
-//   l_uint32 h;  /* higher half */
-//   l_uint32 l;  /* lower half */
-// } Rand64;
-//
-//
-// /*
-// ** If 'l_uint32' has more than 32 bits, the extra bits do not interfere
-// ** with the 32 initial bits, except in a right shift and comparisons.
-// ** Moreover, the final result has to discard the extra bits.
-// */
-//
-// /* avoid using extra bits when needed */
-// #define trim32(x)	((x) & 0xffffffffu)
-//
-//
-// /*
-// ** basic operations on 'Rand64' values
-// */
-//
-// /* build a new Rand64 value */
-// static Rand64 packI (l_uint32 h, l_uint32 l) {
-//   Rand64 result;
-//   result.h = h;
-//   result.l = l;
-//   return result;
-// }
-//
-// /* return i << n */
-// static Rand64 Ishl (Rand64 i, int n) {
-//   Debug.Assert(n > 0 && n < 32);
-//   return packI((i.h << n) | (trim32(i.l) >> (32 - n)), i.l << n);
-// }
-//
-// /* i1 ^= i2 */
-// static void Ixor (Rand64 *i1, Rand64 i2) {
-//   i1->h ^= i2.h;
-//   i1->l ^= i2.l;
-// }
-//
-// /* return i1 + i2 */
-// static Rand64 Iadd (Rand64 i1, Rand64 i2) {
-//   Rand64 result = packI(i1.h + i2.h, i1.l + i2.l);
-//   if (trim32(result.l) < trim32(i1.l))  /* carry? */
-//     result.h++;
-//   return result;
-// }
-//
-// /* return i * 5 */
-// static Rand64 times5 (Rand64 i) {
-//   return Iadd(Ishl(i, 2), i);  /* i * 5 == (i << 2) + i */
-// }
-//
-// /* return i * 9 */
-// static Rand64 times9 (Rand64 i) {
-//   return Iadd(Ishl(i, 3), i);  /* i * 9 == (i << 3) + i */
-// }
-//
-// /* return 'i' rotated left 'n' bits */
-// static Rand64 rotl (Rand64 i, int n) {
-//   Debug.Assert(n > 0 && n < 32);
-//   return packI((i.h << n) | (trim32(i.l) >> (32 - n)),
-//                (trim32(i.h) >> (32 - n)) | (i.l << n));
-// }
-//
-// /* for offsets larger than 32, rotate right by 64 - offset */
-// static Rand64 rotl1 (Rand64 i, int n) {
-//   Debug.Assert(n > 32 && n < 64);
-//   n = 64 - n;
-//   return packI((trim32(i.h) >> n) | (i.l << (32 - n)),
-//                (i.h << (32 - n)) | (trim32(i.l) >> n));
-// }
-//
-// /*
-// ** implementation of 'xoshiro256**' algorithm on 'Rand64' values
-// */
-// static Rand64 nextrand (Rand64 *state) {
-//   Rand64 res = times9(rotl(times5(state[1]), 7));
-//   Rand64 t = Ishl(state[1], 17);
-//   Ixor(&state[2], state[0]);
-//   Ixor(&state[3], state[1]);
-//   Ixor(&state[1], state[2]);
-//   Ixor(&state[0], state[3]);
-//   Ixor(&state[2], t);
-//   state[3] = rotl1(state[3], 45);
-//   return res;
-// }
-//
-//
-// /*
-// ** Converts a 'Rand64' into a float.
-// */
-//
-// /* an unsigned 1 with proper type */
-// #define UONE		((l_uint32)1)
-//
-//
-// #if FIGS <= 32
-//
-// /* 2^(-FIGS) */
-// #define scaleFIG       (l_mathop(0.5) / (UONE << (FIGS - 1)))
-//
-// /*
-// ** get up to 32 bits from higher half, shifting right to
-// ** throw out the extra bits.
-// */
-// static lua_Number I2d (Rand64 x) {
-//   lua_Number h = (lua_Number)(trim32(x.h) >> (32 - FIGS));
-//   return h * scaleFIG;
-// }
-//
-// #else	/* 32 < FIGS <= 64 */
-//
-// /* 2^(-FIGS) = 1.0 / 2^30 / 2^3 / 2^(FIGS-33) */
-// #define scaleFIG  \
-//     (l_mathop(1.0) / (UONE << 30) / l_mathop(8.0) / (UONE << (FIGS - 33)))
-//
-// /*
-// ** use FIGS - 32 bits from lower half, throwing out the other
-// ** (32 - (FIGS - 32)) = (64 - FIGS) bits
-// */
-// #define shiftLOW	(64 - FIGS)
-//
-// /*
-// ** higher 32 bits go after those (FIGS - 32) bits: shiftHI = 2^(FIGS - 32)
-// */
-// #define shiftHI		((lua_Number)(UONE << (FIGS - 33)) * l_mathop(2.0))
-//
-//
-// static lua_Number I2d (Rand64 x) {
-//   lua_Number h = (lua_Number)trim32(x.h) * shiftHI;
-//   lua_Number l = (lua_Number)(trim32(x.l) >> shiftLOW);
-//   return (h + l) * scaleFIG;
-// }
-//
-// #endif
-//
-//
-// /* convert a 'Rand64' to a 'lua_Unsigned' */
-// static lua_Unsigned I2UInt (Rand64 x) {
-//   return (((lua_Unsigned)trim32(x.h) << 31) << 1) | (lua_Unsigned)trim32(x.l);
-// }
-//
-// /* convert a 'lua_Unsigned' to a 'Rand64' */
-// static Rand64 Int2I (lua_Unsigned n) {
-//   return packI((l_uint32)((n >> 31) >> 1), (l_uint32)n);
-// }
-//
-#endif
 
     /*
     ** A state uses four 'Rand64' values.
@@ -523,7 +374,7 @@ private static int math_type (lua_State *L) {
 
     private static int math_random(lua_State* L)
     {
-//   lua_Integer low, up;
+//   long low, up;
 //   lua_Unsigned p;
 //   RanState *state = (RanState *)lua_touserdata(L, lua_upvalueindex(1));
 //   Rand64 rv = nextrand(state->s);  /* next pseudo-random value */
@@ -620,37 +471,37 @@ private static int math_type (lua_State *L) {
 #if LUA_COMPAT_MATHLIB
     private static int math_cosh(lua_State* L)
     {
-//   lua_pushnumber(L, l_mathop(cosh)(luaL_checknumber(L, 1)));
+//   lua_pushnumber(L, (cosh)(luaL_checknumber(L, 1)));
 //   return 1;
         throw new NotImplementedException();
     }
 
     private static int math_sinh(lua_State* L)
     {
-//   lua_pushnumber(L, l_mathop(sinh)(luaL_checknumber(L, 1)));
+//   lua_pushnumber(L, (sinh)(luaL_checknumber(L, 1)));
 //   return 1;
         throw new NotImplementedException();
     }
 
     private static int math_tanh(lua_State* L)
     {
-//   lua_pushnumber(L, l_mathop(tanh)(luaL_checknumber(L, 1)));
+//   lua_pushnumber(L, (tanh)(luaL_checknumber(L, 1)));
 //   return 1;
         throw new NotImplementedException();
     }
 
     private static int math_pow(lua_State* L)
     {
-//   lua_Number x = luaL_checknumber(L, 1);
-//   lua_Number y = luaL_checknumber(L, 2);
-//   lua_pushnumber(L, l_mathop(pow)(x, y));
+//   double x = luaL_checknumber(L, 1);
+//   double y = luaL_checknumber(L, 2);
+//   lua_pushnumber(L, (pow)(x, y));
 //   return 1;
         throw new NotImplementedException();
     }
 
     private static int math_log10(lua_State* L)
     {
-//   lua_pushnumber(L, l_mathop(log10)(luaL_checknumber(L, 1)));
+//   lua_pushnumber(L, (log10)(luaL_checknumber(L, 1)));
 //   return 1;
         throw new NotImplementedException();
     }

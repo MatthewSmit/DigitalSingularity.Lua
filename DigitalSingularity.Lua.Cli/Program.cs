@@ -13,7 +13,7 @@ public static unsafe class Program
 
     private static readonly string LUA_INITVARVERSION = LUA_INIT_VAR + LUA_VERSUFFIX;
 
-    // static lua_State *globalL = null;
+    private static lua_State* globalL;
 
     private static string progname = LUA_PROGNAME;
 
@@ -35,29 +35,44 @@ public static unsafe class Program
 // #define setsignal            signal
 //
 // #endif                               /* } */
-//
-//
-// /*
-// ** Hook set by signal function to stop the interpreter.
-// */
-// static void lstop (lua_State *L, lua_Debug *ar) {
+
+    /*
+    ** Hook set by signal function to stop the interpreter.
+    */
+    private static void lstop(lua_State* L, lua_Debug* ar)
+    {
 //   (void)ar;  /* unused arg. */
 //   lua_sethook(L, null, 0, 0);  /* reset hook */
 //   luaL_error(L, "interrupted!");
-// }
-//
-//
-// /*
-// ** Function to be called at a C signal. Because a C signal cannot
-// ** just change a Lua state (as there is no proper synchronization),
-// ** this function only sets a hook that, when called, will stop the
-// ** interpreter.
-// */
-// static void laction (int i) {
-//   int flag = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT;
-//   setsignal(i, SIG_DFL); /* if another SIGINT happens, terminate process */
-//   lua_sethook(globalL, lstop, flag, 1);
-// }
+        throw new NotImplementedException();
+    }
+
+    private static bool inSignal;
+
+    /*
+     ** Function to be called at a C signal. Because a C signal cannot
+     ** just change a Lua state (as there is no proper synchronisation),
+     ** this function only sets a hook that, when called, will stop the
+     ** interpreter.
+     */
+    private static void laction(PosixSignalContext obj)
+    {
+        if (inSignal)
+        {
+            Environment.Exit(1);
+        }
+
+        inSignal = true;
+        try
+        {
+            const int flag = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT;
+            lua_sethook(globalL, &lstop, flag, 1);
+        }
+        finally
+        {
+            inSignal = false;
+        }
+    }
 
     private static void print_usage(string badoption)
     {
@@ -111,10 +126,11 @@ public static unsafe class Program
         return status;
     }
 
-// /*
-// ** Message handler used to run all chunks
-// */
-// static int msghandler (lua_State *L) {
+    /*
+    ** Message handler used to run all chunks
+    */
+    private static int msghandler(lua_State* L)
+    {
 //   const char *msg = lua_tostring(L, 1);
 //   if (msg == null) {  /* is error object not a string? */
 //     if (luaL_callmeta(L, 1, "__tostring") &&  /* does it have a metamethod */
@@ -126,25 +142,30 @@ public static unsafe class Program
 //   }
 //   luaL_traceback(L, L, msg, 1);  /* append a standard traceback */
 //   return 1;  /* return the traceback */
-// }
-//
-//
-// /*
-// ** Interface to 'lua_pcall', which sets appropriate message function
-// ** and C-signal handler. Used to run all chunks.
-// */
-// static int docall (lua_State *L, int narg, int nres) {
-//   int status;
-//   int base = lua_gettop(L) - narg;  /* function index */
-//   lua_pushcfunction(L, msghandler);  /* push message handler */
-//   lua_insert(L, base);  /* put it under function and args */
-//   globalL = L;  /* to be available to 'laction' */
-//   setsignal(SIGINT, laction);  /* set C-signal handler */
-//   status = lua_pcall(L, narg, nres, base);
-//   setsignal(SIGINT, SIG_DFL); /* reset C-signal handler */
-//   lua_remove(L, base);  /* remove message handler from the stack */
-//   return status;
-// }
+        throw new NotImplementedException();
+    }
+
+    /*
+    ** Interface to 'lua_pcall', which sets appropriate message function
+    ** and C-signal handler. Used to run all chunks.
+    */
+    public static int docall(lua_State* L, int narg, int nres)
+    {
+        int @base = lua_gettop(L) - narg; /* function index */
+        lua_pushcfunction(L, &msghandler); /* push message handler */
+        lua_insert(L, @base); /* put it under function and args */
+        globalL = L; /* to be available to 'laction' */
+
+        int status;
+        
+        using (PosixSignalRegistration.Create(PosixSignal.SIGINT, laction))
+        {
+            status = lua_pcall(L, narg, nres, @base);
+        }
+        
+        lua_remove(L, @base); /* remove message handler from the stack */
+        return status;
+    }
 
     private static void print_version()
     {

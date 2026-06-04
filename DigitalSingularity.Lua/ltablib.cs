@@ -2,29 +2,12 @@ namespace DigitalSingularity.Lua;
 
 public static unsafe partial class Lua
 {
-//     /*
-// ** $Id: ltablib.c $
-// ** Library for Table Manipulation
-// ** See Copyright Notice in lua.h
-// */
-//
-// #define ltablib_c
-// #define LUA_LIB
-//
-// #include "lprefix.h"
-//
-//
-// #include <limits.h>
-// #include <stddef.h>
-// #include <string.h>
-//
-// #include "lua.h"
-//
-// #include "lauxlib.h"
-// #include "lualib.h"
-// #include "llimits.h"
-//
-//
+    /*
+    ** $Id: ltablib.c $
+    ** Library for Table Manipulation
+    ** See Copyright Notice in lua.h
+    */
+
 // /*
 // ** Operations that an object must define to mimic a table
 // ** (some functions only need some of them)
@@ -75,8 +58,8 @@ public static unsafe partial class Lua
 
     private static int tinsert(lua_State* L)
     {
-//   lua_Integer pos;  /* where to insert new element */
-//   lua_Integer e = aux_getn(L, 1, TAB_RW);
+//   long pos;  /* where to insert new element */
+//   long e = aux_getn(L, 1, TAB_RW);
 //   e = luaL_intop(+, e, 1);  /* first empty element */
 //   switch (lua_gettop(L)) {
 //     case 2: {  /* called with only 2 arguments */
@@ -84,7 +67,7 @@ public static unsafe partial class Lua
 //       break;
 //     }
 //     case 3: {
-//       lua_Integer i;
+//       long i;
 //       pos = luaL_checkinteger(L, 2);  /* 2nd argument is the position */
 //       /* check whether 'pos' is in [1, e] */
 //       luaL_argcheck(L, (lua_Unsigned)pos - 1u < (lua_Unsigned)e, 2,
@@ -106,8 +89,8 @@ public static unsafe partial class Lua
 
     private static int tremove(lua_State* L)
     {
-//   lua_Integer size = aux_getn(L, 1, TAB_RW);
-//   lua_Integer pos = luaL_optinteger(L, 2, size);
+//   long size = aux_getn(L, 1, TAB_RW);
+//   long pos = luaL_optinteger(L, 2, size);
 //   if (pos != size)  /* validate 'pos' if given */
 //     /* check whether 'pos' is in [1, size + 1] */
 //     luaL_argcheck(L, (lua_Unsigned)pos - 1u <= (lua_Unsigned)size, 2,
@@ -131,14 +114,14 @@ public static unsafe partial class Lua
      */
     private static int tmove(lua_State* L)
     {
-//   lua_Integer f = luaL_checkinteger(L, 2);
-//   lua_Integer e = luaL_checkinteger(L, 3);
-//   lua_Integer t = luaL_checkinteger(L, 4);
+//   long f = luaL_checkinteger(L, 2);
+//   long e = luaL_checkinteger(L, 3);
+//   long t = luaL_checkinteger(L, 4);
 //   int tt = !lua_isnoneornil(L, 5) ? 5 : 1;  /* destination table */
 //   checktab(L, 1, TAB_R);
 //   checktab(L, tt, TAB_W);
 //   if (e >= f) {  /* otherwise, nothing to move */
-//     lua_Integer n, i;
+//     long n, i;
 //     luaL_argcheck(L, f > 0 || e < LUA_MAXINTEGER + f, 3,
 //                   "too many elements to move");
 //     n = e - f + 1;  /* number of elements to move */
@@ -162,7 +145,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static void addfield (lua_State *L, luaL_Buffer *b, lua_Integer i) {
+// static void addfield (lua_State *L, luaL_Buffer *b, long i) {
 //   lua_geti(L, 1, i);
 //   if (l_unlikely(!lua_isstring(L, -1)))
 //     luaL_error(L, "invalid value (%s) at index %I in table for 'concat'",
@@ -173,10 +156,10 @@ public static unsafe partial class Lua
     private static int tconcat(lua_State* L)
     {
 //   luaL_Buffer b;
-//   lua_Integer last = aux_getn(L, 1, TAB_R);
+//   long last = aux_getn(L, 1, TAB_R);
 //   size_t lsep;
 //   const char *sep = luaL_optlstring(L, 2, "", &lsep);
-//   lua_Integer i = luaL_optinteger(L, 3, 1);
+//   long i = luaL_optinteger(L, 3, 1);
 //   last = luaL_optinteger(L, 4, last);
 //   luaL_buffinit(L, &b);
 //   for (; i < last; i++) {
@@ -213,8 +196,8 @@ public static unsafe partial class Lua
     private static int tunpack(lua_State* L)
     {
 //   lua_Unsigned n;
-//   lua_Integer i = luaL_optinteger(L, 2, 1);
-//   lua_Integer e = luaL_opt(L, luaL_checkinteger, 3, luaL_len(L, 1));
+//   long i = luaL_optinteger(L, 2, 1);
+//   long e = luaL_opt(L, luaL_checkinteger, 3, luaL_len(L, 1));
 //   if (i > e) return 0;  /* empty range */
 //   n = l_castS2U(e) - l_castS2U(i);  /* number of elements minus 1 */
 //   if (l_unlikely(n >= (unsigned int)INT_MAX  ||
@@ -240,7 +223,7 @@ public static unsafe partial class Lua
 
 // /*
 // ** Type for array indices. These indices are always limited by INT_MAX,
-// ** so it is safe to cast them to lua_Integer even for Lua 32 bits.
+// ** so it is safe to cast them to long even for Lua 32 bits.
 // */
 // typedef unsigned int IdxT;
 //
@@ -399,7 +382,7 @@ public static unsafe partial class Lua
 
     private static int sort(lua_State* L)
     {
-//   lua_Integer n = aux_getn(L, 1, TAB_RW);
+//   long n = aux_getn(L, 1, TAB_RW);
 //   if (n > 1) {  /* non-trivial interval? */
 //     luaL_argcheck(L, n < INT_MAX, 1, "array too big");
 //     if (!lua_isnoneornil(L, 2))  /* is there a 2nd argument? */

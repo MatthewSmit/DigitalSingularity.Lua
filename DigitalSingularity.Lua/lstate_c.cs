@@ -299,7 +299,8 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// LUA_API lua_State *lua_newthread (lua_State *L) {
+    public static partial lua_State* lua_newthread(lua_State* L)
+    {
 //   global_State *g = G(L);
 //   GCObject *o;
 //   lua_State *L1;
@@ -323,43 +324,55 @@ public static unsafe partial class Lua
 //   stack_init(L1, L);  /* init stack */
 //   lua_unlock(L);
 //   return L1;
-// }
-//
-//
-// void luaE_freethread (lua_State *L, lua_State *L1) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaE_freethread(lua_State* L, lua_State* L1)
+    {
 //   LX *l = fromstate(L1);
 //   luaF_closeupval(L1, L1->stack.p);  /* close all upvalues */
 //   Debug.Assert(L1->openupval == null);
 //   luai_userstatefree(L, L1);
 //   freestack(L1);
 //   luaM_free(L, l);
-// }
-//
-//
-// TStatus luaE_resetthread (lua_State *L, TStatus status) {
-//   resetCI(L);
-//   if (status == LUA_YIELD)
-//     status = LUA_OK;
-//   status = luaD_closeprotected(L, 1, status);
-//   if (status != LUA_OK)  /* errors? */
-//     luaD_seterrorobj(L, status, L->stack.p + 1);
-//   else
-//     L->top.p = L->stack.p + 1;
-//   luaD_reallocstack(L, cast_int(L->ci->top.p - L->stack.p), 0);
-//   return status;
-// }
-//
-//
-// LUA_API int lua_closethread (lua_State *L, lua_State *from) {
-//   TStatus status;
-//   lua_lock(L);
-//   L->nCcalls = (from) ? getCcalls(from) : 0;
-//   status = luaE_resetthread(L, L->status);
-//   if (L == from)  /* closing itself? */
-//     luaD_throwbaselevel(L, status);
-//   lua_unlock(L);
-//   return APIstatus(status);
-// }
+        throw new NotImplementedException();
+    }
+
+    private static partial byte luaE_resetthread(lua_State* L, byte status)
+    {
+        resetCI(L);
+        if (status == LUA_YIELD)
+        {
+            status = LUA_OK;
+        }
+
+        status = luaD_closeprotected(L, 1, status);
+        if (status != LUA_OK) /* errors? */
+        {
+            luaD_seterrorobj(L, status, L->stack.p + 1);
+        }
+        else
+        {
+            L->top.p = L->stack.p + 1;
+        }
+
+        luaD_reallocstack(L, (int)(L->ci->top.p - L->stack.p), false);
+        return status;
+    }
+
+    public static partial int lua_closethread(lua_State* L, lua_State* from)
+    {
+        lua_lock(L);
+        L->nCcalls = from != null ? getCcalls(from) : 0;
+        byte status = luaE_resetthread(L, L->status);
+        if (L == from) /* closing itself? */
+        {
+            luaD_throwbaselevel(L, status);
+        }
+
+        lua_unlock(L);
+        return status;
+    }
 
     public static partial lua_State* lua_newstate(
         delegate* managed<void*, void*, long, long, void*> f,
@@ -443,10 +456,11 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Generate a warning from an error message
-// */
-// void luaE_warnerror (lua_State *L, const char *where) {
+    /*
+    ** Generate a warning from an error message
+    */
+    private static partial void luaE_warnerror(lua_State* L, string where)
+    {
 //   TValue *errobj = s2v(L->top.p - 1);  /* error object */
 //   const char *msg = (ttisstring(errobj))
 //                   ? getstr(tsvalue(errobj))
@@ -457,7 +471,6 @@ public static unsafe partial class Lua
 //   luaE_warning(L, " (", 1);
 //   luaE_warning(L, msg, 1);
 //   luaE_warning(L, ")", 0);
-// }
-//
-
+        throw new NotImplementedException();
+    }
 }

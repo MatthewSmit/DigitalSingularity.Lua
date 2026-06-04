@@ -2,29 +2,12 @@ namespace DigitalSingularity.Lua;
 
 public static unsafe partial class Lua
 {
-//     /*
-// ** $Id: ldblib.c $
-// ** Interface from Lua to its debug API
-// ** See Copyright Notice in lua.h
-// */
-//
-// #define ldblib_c
-// #define LUA_LIB
-//
-// #include "lprefix.h"
-//
-//
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-//
-// #include "lua.h"
-//
-// #include "lauxlib.h"
-// #include "lualib.h"
-// #include "llimits.h"
-//
-//
+    /*
+    ** $Id: ldblib.c $
+    ** Interface from Lua to its debug API
+    ** See Copyright Notice in lua.h
+    */
+
 // /*
 // ** The hook table at registry[HOOKKEY] maps threads to their current
 // ** hook function.

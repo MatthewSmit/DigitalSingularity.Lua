@@ -6,94 +6,83 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-// /* Some header files included here need this definition */
-// typedef struct CallInfo CallInfo;
-//
-//
-// #include "lobject.h"
-// #include "ltm.h"
-// #include "lzio.h"
-//
-//
-// /*
-// ** Some notes about garbage-collected objects: All objects in Lua must
-// ** be kept somehow accessible until being freed, so all objects always
-// ** belong to one (and only one) of these lists, using field 'next' of
-// ** the 'CommonHeader' for the link:
-// **
-// ** 'allgc': all objects not marked for finalization;
-// ** 'finobj': all objects marked for finalization;
-// ** 'tobefnz': all objects ready to be finalized;
-// ** 'fixedgc': all objects that are not to be collected (currently
-// ** only small strings, such as reserved words).
-// **
-// ** For the generational collector, some of these lists have marks for
-// ** generations. Each mark points to the first element in the list for
-// ** that particular generation; that generation goes until the next mark.
-// **
-// ** 'allgc' -> 'survival': new objects;
-// ** 'survival' -> 'old': objects that survived one collection;
-// ** 'old1' -> 'reallyold': objects that became old in last collection;
-// ** 'reallyold' -> null: objects old for more than one cycle.
-// **
-// ** 'finobj' -> 'finobjsur': new objects marked for finalization;
-// ** 'finobjsur' -> 'finobjold1': survived   """";
-// ** 'finobjold1' -> 'finobjrold': just old  """";
-// ** 'finobjrold' -> null: really old       """".
-// **
-// ** All lists can contain elements older than their main ages, due
-// ** to 'luaC_checkfinalizer' and 'udata2finalize', which move
-// ** objects between the normal lists and the "marked for finalization"
-// ** lists. Moreover, barriers can age young objects in young lists as
-// ** OLD0, which then become OLD1. However, a list never contains
-// ** elements younger than their main ages.
-// **
-// ** The generational collector also uses a pointer 'firstold1', which
-// ** points to the first OLD1 object in the list. It is used to optimize
-// ** 'markold'. (Potentially OLD1 objects can be anywhere between 'allgc'
-// ** and 'reallyold', but often the list has no OLD1 objects or they are
-// ** after 'old1'.) Note the difference between it and 'old1':
-// ** 'firstold1': no OLD1 objects before this point; there can be all
-// **   ages after it.
-// ** 'old1': no objects younger than OLD1 after this point.
-// */
-//
-// /*
-// ** Moreover, there is another set of lists that control gray objects.
-// ** These lists are linked by fields 'gclist'. (All objects that
-// ** can become gray have such a field. The field is not the same
-// ** in all objects, but it always has this name.)  Any gray object
-// ** must belong to one of these lists, and all objects in these lists
-// ** must be gray (with two exceptions explained below):
-// **
-// ** 'gray': regular gray objects, still waiting to be visited.
-// ** 'grayagain': objects that must be revisited at the atomic phase.
-// **   That includes
-// **   - black objects got in a write barrier;
-// **   - all kinds of weak tables during propagation phase;
-// **   - all threads.
-// ** 'weak': tables with weak values to be cleared;
-// ** 'ephemeron': ephemeron tables with white->white entries;
-// ** 'allweak': tables with weak keys and/or weak values to be cleared.
-// **
-// ** The exceptions to that "gray rule" are:
-// ** - TOUCHED2 objects in generational mode stay in a gray list (because
-// ** they must be visited again at the end of the cycle), but they are
-// ** marked black because assignments to them must activate barriers (to
-// ** move them back to TOUCHED1).
-// ** - Open upvalues are kept gray to avoid barriers, but they stay out
-// ** of gray lists. (They don't even have a 'gclist' field.)
-// */
-//
-//
-//
-// /*
-// ** About 'nCcalls':  This count has two parts: the lower 16 bits counts
-// ** the number of recursive invocations in the C stack; the higher
-// ** 16 bits counts the number of non-yieldable calls in the stack.
-// ** (They are together so that we can change and save both with one
-// ** instruction.)
-// */
+    /*
+     ** Some notes about garbage-collected objects: All objects in Lua must
+     ** be kept somehow accessible until being freed, so all objects always
+     ** belong to one (and only one) of these lists, using field 'next' of
+     ** the 'CommonHeader' for the link:
+     **
+     ** 'allgc': all objects not marked for finalisation;
+     ** 'finobj': all objects marked for finalisation;
+     ** 'tobefnz': all objects ready to be finalised;
+     ** 'fixedgc': all objects that are not to be collected (currently
+     ** only small strings, such as reserved words).
+     **
+     ** For the generational collector, some of these lists have marks for
+     ** generations. Each mark points to the first element in the list for
+     ** that particular generation; that generation goes until the next mark.
+     **
+     ** 'allgc' -> 'survival': new objects;
+     ** 'survival' -> 'old': objects that survived one collection;
+     ** 'old1' -> 'reallyold': objects that became old in last collection;
+     ** 'reallyold' -> null: objects old for more than one cycle.
+     **
+     ** 'finobj' -> 'finobjsur': new objects marked for finalization;
+     ** 'finobjsur' -> 'finobjold1': survived   """";
+     ** 'finobjold1' -> 'finobjrold': just old  """";
+     ** 'finobjrold' -> null: really old       """".
+     **
+     ** All lists can contain elements older than their main ages, due
+     ** to 'luaC_checkfinaliser' and 'udata2finalize', which move
+     ** objects between the normal lists and the "marked for finalisation"
+     ** lists. Moreover, barriers can age young objects in young lists as
+     ** OLD0, which then become OLD1. However, a list never contains
+     ** elements younger than their main ages.
+     **
+     ** The generational collector also uses a pointer 'firstold1', which
+     ** points to the first OLD1 object in the list. It is used to optimise
+     ** 'markold'. (Potentially OLD1 objects can be anywhere between 'allgc'
+     ** and 'reallyold', but often the list has no OLD1 objects or they are
+     ** after 'old1'.) Note the difference between it and 'old1':
+     ** 'firstold1': no OLD1 objects before this point; there can be all
+     **   ages after it.
+     ** 'old1': no objects younger than OLD1 after this point.
+     */
+
+    /*
+     ** Moreover, there is another set of lists that control grey objects.
+     ** These lists are linked by fields 'gclist'. (All objects that
+     ** can become grey have such a field. The field is not the same
+     ** in all objects, but it always has this name.)  Any grey object
+     ** must belong to one of these lists, and all objects in these lists
+     ** must be grey (with two exceptions explained below):
+     **
+     ** 'grey': regular grey objects, still waiting to be visited.
+     ** 'greyagain': objects that must be revisited at the atomic phase.
+     **   That includes
+     **   - black objects got in a write barrier;
+     **   - all kinds of weak tables during propagation phase;
+     **   - all threads.
+     ** 'weak': tables with weak values to be cleared;
+     ** 'ephemeron': ephemeron tables with white->white entries;
+     ** 'allweak': tables with weak keys and/or weak values to be cleared.
+     **
+     ** The exceptions to that "grey rule" are:
+     ** - TOUCHED2 objects in generational mode stay in a grey list (because
+     ** they must be visited again at the end of the cycle), but they are
+     ** marked black because assignments to them must activate barriers (to
+     ** move them back to TOUCHED1).
+     ** - Open upvalues are kept grey to avoid barriers, but they stay out
+     ** of grey lists. (They don't even have a 'gclist' field.)
+     */
+
+    /*
+     ** About 'nCcalls':  This count has two parts: the lower 16 bits counts
+     ** the number of recursive invocations in the C stack; the higher
+     ** 16 bits counts the number of non-yieldable calls in the stack.
+     ** (They are together so that we can change and save both with one
+     ** instruction.)
+     */
 
     /* true if this thread does not have non-yieldable calls in the stack */
     private static bool yieldable(lua_State* L)
@@ -113,8 +102,11 @@ public static unsafe partial class Lua
         L->nCcalls += 0x10000;
     }
 
-    // /* Decrement the number of non-yieldable calls */
-// #define decnny(L)	((L)->nCcalls -= 0x10000)
+    /* Decrement the number of non-yieldable calls */
+    private static void decnny(lua_State* L)
+    {
+        L->nCcalls -= 0x10000;
+    }
 
     /* Non-yieldable call increment */
     private const int nyci = 0x10000 | 1;
@@ -129,23 +121,26 @@ public static unsafe partial class Lua
 // #endif
 
     /*
-    ** Extra stack space to handle TM calls and some other extras. This
-    ** space is not included in 'stack_last'. It is used only to avoid stack
-    ** checks, either because the element will be promptly popped or because
-    ** there will be a stack check soon after the push. Function frames
-    ** never use this extra space, so it does not need to be kept clean.
-    */
+     ** Extra stack space to handle TM calls and some other extras. This
+     ** space is not included in 'stack_last'. It is used only to avoid stack
+     ** checks, either because the element will be promptly popped or because
+     ** there will be a stack check soon after the push. Function frames
+     ** never use this extra space, so it does not need to be kept clean.
+     */
     private const int EXTRA_STACK = 5;
 
-// /*
-// ** Size of cache for strings in the API. 'N' is the number of
-// ** sets (better be a prime) and "M" is the size of each set.
-// ** (M == 1 makes a direct cache.)
-// */
-// #if !defined(STRCACHE_N)
-// #define STRCACHE_N              53
-// #define STRCACHE_M              2
-// #endif
+    /*
+     ** Size of cache for strings in the API. 'N' is the number of
+     ** sets (better be a prime) and "M" is the size of each set.
+     ** (M == 1 makes a direct cache.)
+     */
+#if !LUA_TEST
+    private const int STRCACHE_N = 53;
+    private const int STRCACHE_M = 2;
+#else
+    private const int STRCACHE_N = 23;
+    private const int STRCACHE_M = 5;
+#endif
 
     private const int BASIC_STACK_SIZE = 2 * LUA_MINSTACK;
 
@@ -155,13 +150,13 @@ public static unsafe partial class Lua
     }
 
     /* kinds of Garbage Collection */
-    private const byte KGC_INC = 0;	/* incremental gc */
-    private const byte KGC_GENMINOR = 1;	/* generational gc in minor (regular) mode */
-    private const byte KGC_GENMAJOR = 2;	/* generational in major mode */
+    private const byte KGC_INC = 0; /* incremental gc */
+    private const byte KGC_GENMINOR = 1; /* generational gc in minor (regular) mode */
+    private const byte KGC_GENMAJOR = 2; /* generational in major mode */
 
     internal struct stringtable
     {
-        public TString** hash;  /* array of buckets (linked lists of strings) */
+        public TString** hash; /* array of buckets (linked lists of strings) */
         public int nuse; /* number of elements */
         public int size; /* number of buckets */
     }
@@ -184,9 +179,9 @@ public static unsafe partial class Lua
         /* only for Lua functions */
         public struct L
         {
-//       const Instruction *savedpc;
-            public int trap; /* function is tracing lines/counts */
-//       volatile l_signalT trap;  /* function is tracing lines/counts */
+            public uint* savedpc;
+            public byte trap; /* function is tracing lines/counts */
+//       volatile l_signalT trap;  /* function is tracing lines/counts */ TODO
             public int nextraargs; /* # of extra arguments in vararg functions */
         }
 
@@ -194,8 +189,8 @@ public static unsafe partial class Lua
         public struct C
         {
             public lua_KFunction k; /* continuation in case of yields */
-//       ptrdiff_t old_errfunc;
-//       lua_KContext ctx;  /* context info. in case of yields */
+            public nint old_errfunc;
+            public nint ctx; /* context info. in case of yields */
         }
 
         [StructLayout(LayoutKind.Explicit)]
@@ -223,58 +218,75 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Maximum expected number of results from a function
-    ** (must fit in CIST_NRESULTS).
-    */
+     ** Maximum expected number of results from a function
+     ** (must fit in CIST_NRESULTS).
+     */
     private const int MAXRESULTS = 250;
 
     /*
-    ** Bits in CallInfo status
-    */
+     ** Bits in CallInfo status
+     */
     /* bits 0-7 are the expected number of results from this function + 1 */
     private const uint CIST_NRESULTS = 0xffu;
 
     /* bits 8-11 count call metamethods (and their extra arguments) */
-    private const int CIST_CCMT = 8;  /* the offset, not the mask */
+    private const int CIST_CCMT = 8; /* the offset, not the mask */
     private const uint MAX_CCMT = 0xfu << CIST_CCMT;
 
     /* Bits 12-14 are used for CIST_RECST (see below) */
-    private const int CIST_RECST = 12;  /* the offset, not the mask */
+    private const int CIST_RECST = 12; /* the offset, not the mask */
 
     /* call is running a C function (still in first 16 bits) */
     private const uint CIST_C = 1u << CIST_RECST + 3;
+
     /* call is on a fresh "luaV_execute" frame */
     private const uint CIST_FRESH = CIST_C << 1;
+
     /* function is closing tbc variables */
     private const uint CIST_CLSRET = CIST_FRESH << 1;
+
     /* function has tbc variables to close */
     private const uint CIST_TBC = CIST_CLSRET << 1;
+
     /* original value of 'allowhook' */
     private const uint CIST_OAH = CIST_TBC << 1;
+
     /* call is running a debug hook */
     private const uint CIST_HOOKED = CIST_OAH << 1;
+
     /* doing a yieldable protected call */
     private const uint CIST_YPCALL = CIST_HOOKED << 1;
+
     /* call was tail called */
     private const uint CIST_TAIL = CIST_YPCALL << 1;
+
     /* last hook called yielded */
     private const uint CIST_HOOKYIELD = CIST_TAIL << 1;
+
     /* function "called" a finaliser */
     private const uint CIST_FIN = CIST_HOOKYIELD << 1;
 
-// #define get_nresults(cs)  (cast_int((cs) & CIST_NRESULTS) - 1)
-//
-// /*
-// ** Field CIST_RECST stores the "recover status", used to keep the error
-// ** status while closing to-be-closed variables in coroutines, so that
-// ** Lua can correctly resume after an yield from a __close method called
-// ** because of an error.  (Three bits are enough for error status.)
-// */
-// #define getcistrecst(ci)     (((ci)->callstatus >> CIST_RECST) & 7)
-// #define setcistrecst(ci,st)  \
-//   check_exp(((st) & 7) == (st),   /* status must fit in three bits */  \
-//             ((ci)->callstatus = ((ci)->callstatus & ~(7u << CIST_RECST))  \
-//                                 | (cast(l_uint32, st) << CIST_RECST)))
+    private static int get_nresults(uint cs)
+    {
+        return (int)(cs & CIST_NRESULTS) - 1;
+    }
+
+    /*
+     ** Field CIST_RECST stores the "recover status", used to keep the error
+     ** status while closing to-be-closed variables in coroutines, so that
+     ** Lua can correctly resume after an yield from a __close method called
+     ** because of an error.  (Three bits are enough for error status.)
+     */
+    private static uint getcistrecst(CallInfo* ci)
+    {
+        return ci->callstatus >> CIST_RECST & 7;
+    }
+
+    private static void setcistrecst(CallInfo* ci, byte st)
+    {
+        Debug.Assert((st & 7) == st); /* status must fit in three bits */
+        ci->callstatus = ci->callstatus & ~(7u << CIST_RECST) | (uint)st << CIST_RECST;
+    }
 
     /* active function is a Lua function */
     private static bool isLua(CallInfo* ci)
@@ -282,18 +294,25 @@ public static unsafe partial class Lua
         return (ci->callstatus & CIST_C) == 0;
     }
 
-    // /* call is running Lua code (not a hook) */
-// #define isLuacode(ci)	(!((ci)->callstatus & (CIST_C | CIST_HOOKED)))
-//
-//
-// #define setoah(ci,v)  \
-//   ((ci)->callstatus = ((v) ? (ci)->callstatus | CIST_OAH  \
-//                            : (ci)->callstatus & ~CIST_OAH))
-// #define getoah(ci)  (((ci)->callstatus & CIST_OAH) ? 1 : 0)
+    /* call is running Lua code (not a hook) */
+    private static bool isLuacode(CallInfo* ci)
+    {
+        return (ci->callstatus & (CIST_C | CIST_HOOKED)) == 0;
+    }
 
-/*
-** 'per thread' state
-*/
+    private static void setoah(CallInfo* ci, bool v)
+    {
+        ci->callstatus = v ? ci->callstatus | CIST_OAH : ci->callstatus & ~CIST_OAH;
+    }
+
+    private static bool getoah(CallInfo* ci)
+    {
+        return (ci->callstatus & CIST_OAH) != 0;
+    }
+
+    /*
+     ** 'per thread' state
+     */
     public struct lua_State
     {
         internal GCObject* next;
@@ -301,29 +320,31 @@ public static unsafe partial class Lua
         internal byte marked;
         internal bool allowhook;
         internal byte status;
-        internal StkIdRel top;  /* first free slot in the stack */
+        internal StkIdRel top; /* first free slot in the stack */
         internal global_State* l_G;
-        internal CallInfo* ci;  /* call info for current function */
-        internal StkIdRel stack_last;  /* end of stack (last element + 1) */
-        internal StkIdRel stack;  /* stack base */
-        internal UpVal* openupval;  /* list of open upvalues in this stack */
-        internal StkIdRel tbclist;  /* list of to-be-closed variables */
+        internal CallInfo* ci; /* call info for current function */
+        internal StkIdRel stack_last; /* end of stack (last element + 1) */
+        internal StkIdRel stack; /* stack base */
+        internal UpVal* openupval; /* list of open upvalues in this stack */
+        internal StkIdRel tbclist; /* list of to-be-closed variables */
         internal GCObject* gclist;
-        internal lua_State* twups;  /* list of threads with open upvalues */
-        // struct lua_longjmp *errorJmp;  /* current error recover point */
-        internal CallInfo base_ci;  /* CallInfo for first level (C host) */
+
+        internal lua_State* twups; /* list of threads with open upvalues */
+
+        // struct lua_longjmp *errorJmp;  /* current error recover point */ TODO
+        internal CallInfo base_ci; /* CallInfo for first level (C host) */
         internal lua_Hook hook;
-        internal nint errfunc;  /* current error handling function (stack index) */
-        internal uint nCcalls;  /* number of nested non-yieldable or C calls */
-        internal int oldpc;  /* last pc traced */
-        internal int nci;  /* number of items in 'ci' list */
+        internal nint errfunc; /* current error handling function (stack index) */
+        internal uint nCcalls; /* number of nested non-yieldable or C calls */
+        internal int oldpc; /* last pc traced */
+        internal int nci; /* number of items in 'ci' list */
         internal int basehookcount;
         internal int hookcount;
-        internal int hookmask;
+        internal byte hookmask;
         // struct {  /* info about transferred values (for call/return hooks) */
         //   int ftransfer;  /* offset of first value transferred */
         //   int ntransfer;  /* number of values transferred */
-        // } transferinfo;
+        // } transferinfo; TODO
     }
 
     /// <summary>
@@ -416,50 +437,51 @@ public static unsafe partial class Lua
     internal struct global_State
     {
         public lua_Alloc frealloc; // function to reallocate memory
-
-        public void* ud;         /* auxiliary data to 'frealloc' */
-        public long GCtotalbytes;  /* number of bytes currently allocated + debt */
-        public long GCdebt;  /* bytes counted but not yet allocated */
-        public long GCmarked;  /* number of objects marked in a GC cycle */
-        public long GCmajorminor;  /* auxiliary counter to control major-minor shifts */
-        public stringtable strt;  /* hash table for strings */
+        public void* ud; /* auxiliary data to 'frealloc' */
+        public long GCtotalbytes; /* number of bytes currently allocated + debt */
+        public long GCdebt; /* bytes counted but not yet allocated */
+        public long GCmarked; /* number of objects marked in a GC cycle */
+        public long GCmajorminor; /* auxiliary counter to control major-minor shifts */
+        public stringtable strt; /* hash table for strings */
         public TValue l_registry;
-        public TValue nilvalue;  /* a nil value */
-        public uint seed;  /* randomised seed for hashes */
+        public TValue nilvalue; /* a nil value */
+        public uint seed; /* randomised seed for hashes */
         public fixed byte gcparams[LUA_GCPN];
         public byte currentwhite;
-        public byte gcstate;  /* state of garbage collector */
-        public byte gckind;  /* kind of GC running */
-        public bool gcstopem;  /* stops emergency collections */
-        public byte gcstp;  /* control whether GC is running */
-        public bool gcemergency;  /* true if this is an emergency collection */
-        public GCObject* allgc;  /* list of all collectable objects */
-        public GCObject** sweepgc;  /* current position of sweep in list */
-        public GCObject* finobj;  /* list of collectable objects with finalizers */
-        public GCObject* grey;  /* list of gray objects */
-        public GCObject* greyagain;  /* list of objects to be traversed atomically */
-        public GCObject* weak;  /* list of tables with weak values */
-        public GCObject* ephemeron;  /* list of ephemeron tables (weak keys) */
-        public GCObject* allweak;  /* list of all-weak tables */
-        public GCObject* tobefnz;  /* list of userdata to be GC */
-        public GCObject* fixedgc;  /* list of objects not to be collected */
+        public byte gcstate; /* state of garbage collector */
+        public byte gckind; /* kind of GC running */
+        public bool gcstopem; /* stops emergency collections */
+        public byte gcstp; /* control whether GC is running */
+        public bool gcemergency; /* true if this is an emergency collection */
+        public GCObject* allgc; /* list of all collectable objects */
+        public GCObject** sweepgc; /* current position of sweep in list */
+        public GCObject* finobj; /* list of collectable objects with finalizers */
+        public GCObject* grey; /* list of gray objects */
+        public GCObject* greyagain; /* list of objects to be traversed atomically */
+        public GCObject* weak; /* list of tables with weak values */
+        public GCObject* ephemeron; /* list of ephemeron tables (weak keys) */
+        public GCObject* allweak; /* list of all-weak tables */
+        public GCObject* tobefnz; /* list of userdata to be GC */
+
+        public GCObject* fixedgc; /* list of objects not to be collected */
+
         /* fields for generational collector */
-        public GCObject* survival;  /* start of objects that survived one GC cycle */
-        public GCObject* old1;  /* start of old1 objects */
-        public GCObject* reallyold;  /* objects more than one cycle old ("really old") */
-        public GCObject* firstold1;  /* first OLD1 object in the list (if any) */
-        public GCObject* finobjsur;  /* list of survival objects with finalizers */
-        public GCObject* finobjold1;  /* list of old1 objects with finalizers */
-        public GCObject* finobjrold;  /* list of really old objects with finalizers */
-        public lua_State* twups;  /* list of threads with open upvalues */
-        public lua_CFunction panic;  /* to be called in unprotected errors */
-        public TString* memerrmsg;  /* message for memory-allocation errors */
-        public TStringTagWrapper tmname;  /* array with tag-method names */
-        public TableArrayWrapper mt;  /* metatables for basic types */
-        public TStringCacheWrapper strcache;  /* cache for strings in API */
-        public lua_WarnFunction warnf;  /* warning function */
-        public void* ud_warn;         /* auxiliary data to 'warnf' */
-        public LX mainth;  /* main thread of this state */
+        public GCObject* survival; /* start of objects that survived one GC cycle */
+        public GCObject* old1; /* start of old1 objects */
+        public GCObject* reallyold; /* objects more than one cycle old ("really old") */
+        public GCObject* firstold1; /* first OLD1 object in the list (if any) */
+        public GCObject* finobjsur; /* list of survival objects with finalizers */
+        public GCObject* finobjold1; /* list of old1 objects with finalizers */
+        public GCObject* finobjrold; /* list of really old objects with finalizers */
+        public lua_State* twups; /* list of threads with open upvalues */
+        public lua_CFunction panic; /* to be called in unprotected errors */
+        public TString* memerrmsg; /* message for memory-allocation errors */
+        public TStringTagWrapper tmname; /* array with tag-method names */
+        public TableArrayWrapper mt; /* metatables for basic types */
+        public TStringCacheWrapper strcache; /* cache for strings in API */
+        public lua_WarnFunction warnf; /* warning function */
+        public void* ud_warn; /* auxiliary data to 'warnf' */
+        public LX mainth; /* main thread of this state */
     }
 
     private static ref global_State* G(lua_State* L)
@@ -467,47 +489,19 @@ public static unsafe partial class Lua
         return ref L->l_G;
     }
 
-    // #define G(L)	(L->l_G)
-
     private static lua_State* mainthread(global_State* G)
     {
         return &G->mainth.l;
     }
 
-    // /*
-// ** 'g->nilvalue' being a nil value flags that the state was completely
-// ** build.
-// */
-// #define completestate(g)	ttisnil(&g->nilvalue)
-//
-//
-// /*
-// ** Union of all collectable objects (only for conversions)
-// ** ISO C99, 6.5.2.3 p.5:
-// ** "if a union contains several structures that share a common initial
-// ** sequence [...], and if the union object currently contains one
-// ** of these structures, it is permitted to inspect the common initial
-// ** part of any of them anywhere that a declaration of the complete type
-// ** of the union is visible."
-// */
-// union GCUnion {
-//   GCObject gc;  /* common header */
-//   struct TString ts;
-//   struct Udata u;
-//   union Closure cl;
-//   struct Table h;
-//   struct Proto p;
-//   struct lua_State th;  /* thread */
-//   struct UpVal upv;
-// };
-//
-//
-// /*
-// ** ISO C99, 6.7.2.1 p.14:
-// ** "A pointer to a union object, suitably converted, points to each of
-// ** its members [...], and vice versa."
-// */
-// #define cast_u(o)	cast(union GCUnion *, (o))
+    /*
+     ** 'g->nilvalue' being a nil value flags that the state was completely
+     ** build.
+     */
+    private static bool completestate(global_State* g)
+    {
+        return ttisnil(&g->nilvalue);
+    }
 
     /* macros to convert a GCObject into a specific value */
     private static TString* gco2ts(GCObject* o)
@@ -572,31 +566,37 @@ public static unsafe partial class Lua
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+
     private static GCObject* obj2gco(GCObject* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return v;
     }
+
     private static GCObject* obj2gco(Table* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+
     private static GCObject* obj2gco(TString* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+
     private static GCObject* obj2gco(CClosure* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+
     private static GCObject* obj2gco(Udata* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
+
     private static GCObject* obj2gco(LClosure* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
@@ -610,8 +610,8 @@ public static unsafe partial class Lua
     }
 
     private static partial void luaE_setdebt(global_State* g, long debt);
-    
-// LUAI_FUNC void luaE_freethread (lua_State *L, lua_State *L1);
+
+    private static partial void luaE_freethread(lua_State* L, lua_State* L1);
 
     private static partial long luaE_threadsize(lua_State* L);
 
@@ -625,6 +625,7 @@ public static unsafe partial class Lua
 
     private static partial void luaE_warning(lua_State* L, string msg, bool tocont);
 
-// LUAI_FUNC void luaE_warnerror (lua_State *L, const char *where);
-// LUAI_FUNC TStatus luaE_resetthread (lua_State *L, TStatus status);
+    private static partial void luaE_warnerror(lua_State* L, string where);
+
+    private static partial byte luaE_resetthread(lua_State* L, byte status);
 }

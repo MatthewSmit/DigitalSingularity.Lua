@@ -57,8 +57,9 @@ public static unsafe partial class Lua
         return a == b;
     }
 
-    // LUAI_FUNC unsigned luaS_hashlongstr (TString *ts);
-// LUAI_FUNC int luaS_eqstr (TString *a, TString *b);
+    private static partial uint luaS_hashlongstr(TString* ts);
+
+    private static partial bool luaS_eqstr(TString* a, TString* b);
 
     private static partial void luaS_resize(lua_State* L, int newsize);
 
@@ -80,6 +81,6 @@ public static unsafe partial class Lua
     private static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
 
     private static partial long luaS_sizelngstr(long len, int kind);
-    
-// LUAI_FUNC TString *luaS_normstr (lua_State *L, TString *ts);
+
+    private static partial TString* luaS_normstr(lua_State* L, TString* ts);
 }

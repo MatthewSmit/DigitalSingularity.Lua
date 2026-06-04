@@ -1,28 +1,10 @@
 ﻿namespace DigitalSingularity.Lua.Test;
 
+using DigitalSingularity.Lua.Cli;
 using static Lua;
 
 public unsafe class LuaTestSuite
 {
-    /*
-    ** Interface to 'lua_pcall', which sets appropriate message function
-    ** and C-signal handler. Used to run all chunks.
-    */
-    private static int docall(lua_State* L, int narg, int nres)
-    {
-//   int status;
-//   int base = lua_gettop(L) - narg;  /* function index */
-//   lua_pushcfunction(L, msghandler);  /* push message handler */
-//   lua_insert(L, base);  /* put it under function and args */
-//   globalL = L;  /* to be available to 'laction' */
-//   setsignal(SIGINT, laction);  /* set C-signal handler */
-//   status = lua_pcall(L, narg, nres, base);
-//   setsignal(SIGINT, SIG_DFL); /* reset C-signal handler */
-//   lua_remove(L, base);  /* remove message handler from the stack */
-//   return status;
-        throw new NotImplementedException();
-    }
-
     private static int pmain(lua_State* L)
     {
         string test = lua_tostring(L, 1);
@@ -35,7 +17,7 @@ public unsafe class LuaTestSuite
         int status = luaL_loadfile(L, test);
         if (status == LUA_OK)
         {
-            status = docall(L, 0, LUA_MULTRET);
+            status = Program.docall(L, 0, LUA_MULTRET);
         }
 
         if (status != LUA_OK)

@@ -5,42 +5,19 @@ using System.Runtime.InteropServices;
 #if LUA_TEST
 public static unsafe partial class Lua
 {
-// /* test Lua with compatibility code */
-// #define LUA_COMPAT_MATHLIB
-// #undef LUA_COMPAT_GLOBAL
-//
-//
-// #define LUA_DEBUG
-//
-//
-// /* turn on assertions */
-// #define LUAI_ASSERT
-//
-//
-// /* to avoid warnings, and to make sure value is really unused */
-// #define UNUSED(x)       (x=0, (void)(x))
-//
-//
-// /* test for sizes in 'l_sprintf' (make sure whole buffer is available) */
+// /* test for sizes in 'l_sprintf' (make sure whole buffer is available) */ TODO
 // #undef l_sprintf
 // #if !defined(LUA_USE_C89)
 // #define l_sprintf(s,sz,f,i)	(memset(s,0xAB,sz), snprintf(s,sz,f,i))
 // #else
 // #define l_sprintf(s,sz,f,i)	(memset(s,0xAB,sz), sprintf(s,f,i))
 // #endif
-//
-//
+
 // /* get a chance to test code without jump tables */
-// #define LUA_USE_JUMPTABLE	0
-//
-//
-// /* use 32-bit integers in random generator */
-// #define LUA_RAND32
-//
-//
-// /* test stack reallocation without strict address use */
+// #define LUA_USE_JUMPTABLE	0 TODO
+
+// /* test stack reallocation without strict address use */ TODO
 // #define LUAI_STRICT_ADDRESS	0
-//
 
     /* memory-allocator control variables */
     private struct Memcontrol
@@ -56,39 +33,38 @@ public static unsafe partial class Lua
 
     private static Memcontrol* l_memcontrol = (Memcontrol*)NativeMemory.AllocZeroed((nuint)sizeof(Memcontrol));
 
-    // #define luai_tracegc(L,f)		luai_tracegctest(L, f)
-// extern void luai_tracegctest (lua_State *L, int first);
-//
-//
+    private static void luai_tracegc(lua_State* L, bool f)
+    {
+        luai_tracegctest(L, f);
+    }
+
+    private static partial void luai_tracegctest(lua_State* L, bool first);
+
 // /*
-// ** generic variable for debug tricks
+// ** generic variable for debug tricks TODO
 // */
 // extern void *l_Trick;
-//
-//
-// /*
-// ** Function to traverse and check all memory used by Lua
-// */
-// extern int lua_checkmemory (lua_State *L);
-//
-// /*
-// ** Function to print an object GC-friendly
-// */
-// struct GCObject;
-// extern void lua_printobj (lua_State *L, struct GCObject *o);
-//
-//
-// /*
-// ** Function to print a value
-// */
-// struct TValue;
-// extern void lua_printvalue (struct TValue *v);
-//
-// /*
-// ** Function to print the stack
-// */
-// extern void lua_printstack (lua_State *L);
-// extern int lua_printallstack (lua_State *L);
+
+    /*
+    ** Function to traverse and check all memory used by Lua
+    */
+    private static partial int lua_checkmemory(lua_State* L);
+    
+    /*
+    ** Function to print an object GC-friendly
+    */
+    private static partial void lua_printobj(lua_State* L, GCObject* o);
+    
+    /*
+    ** Function to print a value
+    */
+    private static partial void lua_printvalue(TValue* v);
+
+    /*
+    ** Function to print the stack
+    */
+    private static partial void lua_printstack(lua_State* L);
+    private static partial int lua_printallstack(lua_State* L);
 
     /* test for lock/unlock */
     private struct L_EXTRA
@@ -107,19 +83,5 @@ public static unsafe partial class Lua
         luaL_requiref(L, "T", &luaB_opentests, true);
         lua_pop(L, 1);
     }
-
-// /* change some sizes to give some bugs a chance */
-//
-// #undef LUAL_BUFFERSIZE
-// #define LUAL_BUFFERSIZE		23
-
-    private const int STRCACHE_N = 23;
-    private const int STRCACHE_M = 5;
-
-// #define MAXINDEXRK	1
-//
-// /* force Lua to use its own implementations */
-// #undef lua_strx2number
-// #undef lua_number2strx
 }
 #endif

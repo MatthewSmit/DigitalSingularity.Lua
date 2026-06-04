@@ -10,29 +10,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** This macro tests whether it is safe to multiply 'n' by the size of
-// ** type 't' without overflows. Because 'e' is always constant, it avoids
-// ** the runtime division MAX_SIZET/(e).
-// ** (The macro is somewhat complex to avoid warnings:  The 'sizeof'
-// ** comparison avoids a runtime comparison when overflow cannot occur.
-// ** The compiler should be able to optimize the real test by itself, but
-// ** when it does it, it may give a warning about "comparison is always
-// ** false due to limited range of data type"; the +1 tricks the compiler,
-// ** avoiding this warning but also this optimization.)
-// */
-// #define luaM_testsize(n,e)  \
-// 	(sizeof(n) >= sizeof(size_t) && cast_sizet((n)) + 1 > MAX_SIZET/(e))
-//
-// #define luaM_checksize(L,n,e)  \
-// 	(luaM_testsize(n,e) ? luaM_toobig(L) : cast_void(0))
-
     /*
-    ** Computes the minimum between 'n' and 'MAX_SIZET/sizeof(t)', so that
-    ** the result is not larger than 'n' and cannot overflow a 'size_t'
-    ** when multiplied by the size of type 't'. (Assumes that 'n' is an
-    ** 'int' and that 'int' is not larger than 'size_t'.)
-    */
+     ** Computes the minimum between 'n' and 'MAX_SIZET/sizeof(t)', so that
+     ** the result is not larger than 'n' and cannot overflow a 'size_t'
+     ** when multiplied by the size of type 't'. (Assumes that 'n' is an
+     ** 'int' and that 'int' is not larger than 'size_t'.)
+     */
     private static long luaM_limitN<T>(long n)
         where T : unmanaged
     {
@@ -82,8 +65,11 @@ public static unsafe partial class Lua
         return (T**)luaM_malloc_(L, (long)n * sizeof(T*), 0);
     }
 
-    // #define luaM_newvectorchecked(L,n,t) \
-//   (luaM_checksize(L,n,sizeof(t)), luaM_newvector(L,n,t))
+    private static void luaM_newvectorchecked<T>(lua_State* L, int n)
+        where T : unmanaged
+    {
+        luaM_newvector<T>(L, n);
+    }
 
     private static void* luaM_newobject(lua_State* L, int tag, long s)
     {
@@ -108,6 +94,19 @@ public static unsafe partial class Lua
             e);
     }
 
+    private static T** luaM_growvector2<T>(lua_State* L, ref T** v, int nelems, ref int size, long limit, string e)
+        where T : unmanaged
+    {
+        return v = (T**)luaM_growaux_(
+            L,
+            v,
+            nelems,
+            ref size,
+            sizeof(T*),
+            checked((int)luaM_limitN<nint>(limit)),
+            e);
+    }
+
     private static T* luaM_reallocvector<T>(lua_State* L, void* v, long oldn, long n)
         where T : unmanaged
     {
@@ -120,8 +119,17 @@ public static unsafe partial class Lua
         return (T**)luaM_realloc_(L, v, oldn * sizeof(T*), n * sizeof(T*));
     }
 
-// #define luaM_shrinkvector(L,v,size,fs,t) \
-//    ((v)=cast(t *, luaM_shrinkvector_(L, v, &(size), fs, sizeof(t))))
+    private static void luaM_shrinkvector<T>(lua_State* L, ref T* v, ref int size, int fs)
+        where T : unmanaged
+    {
+        v = (T*)luaM_shrinkvector_(L, v, ref size, fs, sizeof(T));
+    }
+
+    private static void luaM_shrinkvector<T>(lua_State* L, ref T** v, ref int size, int fs)
+        where T : unmanaged
+    {
+        v = (T**)luaM_shrinkvector_(L, v, ref size, fs, sizeof(T*));
+    }
 
     [DoesNotReturn]
     private static partial void luaM_toobig(lua_State* L);
@@ -141,8 +149,8 @@ public static unsafe partial class Lua
         int size_elem,
         int limit,
         string what);
+
+    private static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int nelem, int final_n, int size_elem);
     
-// LUAI_FUNC void *luaM_shrinkvector_ (lua_State *L, void *block, int *nelem,
-//                                     int final_n, unsigned size_elem);
     private static partial void* luaM_malloc_(lua_State* L, long size, int tag);
 }

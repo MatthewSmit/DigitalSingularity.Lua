@@ -1,6 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static unsafe partial class Lua
 {
@@ -128,10 +129,9 @@ public static unsafe partial class Lua
 //   }
 //   return le - 1;
 // }
-//
-//
-// LUALIB_API void luaL_traceback (lua_State *L, lua_State *L1,
-//                                 const char *msg, int level) {
+
+    public static partial void luaL_traceback(lua_State* L, lua_State* L1, string msg, int level)
+    {
 //   luaL_Buffer b;
 //   lua_Debug ar;
 //   int last = lastlevel(L1);
@@ -163,18 +163,19 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   luaL_pushresult(&b);
-// }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Error-report functions
-// ** =======================================================
-// */
-//
-// LUALIB_API int luaL_argerror (lua_State *L, int arg, const char *extramsg) {
+        throw new NotImplementedException();
+    }
+
+    /* }====================================================== */
+
+    /*
+    ** {======================================================
+    ** Error-report functions
+    ** =======================================================
+    */
+
+    public static partial int luaL_argerror(lua_State* L, int arg, string extramsg)
+    {
 //   lua_Debug ar;
 //   const char *argword;
 //   if (!lua_getstack(L, 0, &ar))  /* no stack frame? */
@@ -197,10 +198,11 @@ public static unsafe partial class Lua
 //     ar.name = (pushglobalfuncname(L, &ar)) ? lua_tostring(L, -1) : "?";
 //   return luaL_error(L, "bad %s #%d to '%s' (%s)",
 //                        argword, arg, ar.name, extramsg);
-// }
-//
-//
-// LUALIB_API int luaL_typeerror (lua_State *L, int arg, const char *tname) {
+        throw new NotImplementedException();
+    }
+
+    public static partial int luaL_typeerror(lua_State* L, int arg, string tname)
+    {
 //   const char *msg;
 //   const char *typearg;  /* name for the type of the actual argument */
 //   if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
@@ -211,7 +213,8 @@ public static unsafe partial class Lua
 //     typearg = luaL_typename(L, arg);  /* standard name */
 //   msg = lua_pushfstring(L, "%s expected, got %s", tname, typearg);
 //   return luaL_argerror(L, arg, msg);
-// }
+        throw new NotImplementedException();
+    }
 
     private static void tag_error(lua_State* L, int arg, int tag)
     {
@@ -219,11 +222,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** The use of 'lua_pushfstring' ensures this function does not
-// ** need reserved stack space when called.
-// */
-// LUALIB_API void luaL_where (lua_State *L, int level) {
+    /*
+    ** The use of 'lua_pushfstring' ensures this function does not
+    ** need reserved stack space when called.
+    */
+    public static partial void luaL_where(lua_State* L, int lvl)
+    {
 //   lua_Debug ar;
 //   if (lua_getstack(L, level, &ar)) {  /* check function at level */
 //     lua_getinfo(L, "Sl", &ar);  /* get info about it */
@@ -233,15 +237,16 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   lua_pushfstring(L, "");  /* else, no information available... */
-// }
-//
-//
-// /*
-// ** Again, the use of 'lua_pushvfstring' ensures this function does
-// ** not need reserved stack space when called. (At worst, it generates
-// ** a memory error instead of the given message.)
-// */
-// LUALIB_API int luaL_error (lua_State *L, const char *fmt, ...) {
+        throw new NotImplementedException();
+    }
+    
+    /*
+    ** Again, the use of 'lua_pushvfstring' ensures this function does
+    ** not need reserved stack space when called. (At worst, it generates
+    ** a memory error instead of the given message.)
+    */
+    public static partial int luaL_error(lua_State* L, string fmt, params object[] args)
+    {
 //   va_list argp;
 //   va_start(argp, fmt);
 //   luaL_where(L, 1);
@@ -249,10 +254,11 @@ public static unsafe partial class Lua
 //   va_end(argp);
 //   lua_concat(L, 2);
 //   return lua_error(L);
-// }
-//
-//
-// LUALIB_API int luaL_fileresult (lua_State *L, int stat, const char *fname) {
+        throw new NotImplementedException();
+    }
+
+    public static partial int luaL_fileresult(lua_State* L, int stat, string fname)
+    {
 //   int en = errno;  /* calls to Lua API may change this value */
 //   if (stat) {
 //     lua_pushboolean(L, 1);
@@ -269,9 +275,9 @@ public static unsafe partial class Lua
 //     lua_pushinteger(L, en);
 //     return 3;
 //   }
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+    
 // #if !defined(l_inspectstat)	/* { */
 //
 // #if defined(LUA_USE_POSIX)
@@ -292,9 +298,9 @@ public static unsafe partial class Lua
 // #endif
 //
 // #endif				/* } */
-//
-//
-// LUALIB_API int luaL_execresult (lua_State *L, int stat) {
+
+    public static partial int luaL_execresult(lua_State* L, int stat)
+    {
 //   if (stat != 0 && errno != 0)  /* error with an 'errno'? */
 //     return luaL_fileresult(L, 0, null);
 //   else {
@@ -308,9 +314,10 @@ public static unsafe partial class Lua
 //     lua_pushinteger(L, stat);
 //     return 3;  /* return true/fail,what,code */
 //   }
-// }
-//
-// /* }====================================================== */
+        throw new NotImplementedException();
+    }
+    
+    /* }====================================================== */
 
     /*
     ** {======================================================
@@ -340,7 +347,8 @@ public static unsafe partial class Lua
         lua_setmetatable(L, -2);
     }
 
-// LUALIB_API void *luaL_testudata (lua_State *L, int ud, const char *tname) {
+    public static partial void* luaL_testudata(lua_State* L, int ud, string tname)
+    {
 //   void *p = lua_touserdata(L, ud);
 //   if (p != null) {  /* value is a userdata? */
 //     if (lua_getmetatable(L, ud)) {  /* does it have a metatable? */
@@ -352,26 +360,26 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   return null;  /* value is not a userdata with a metatable */
-// }
-//
-//
-// LUALIB_API void *luaL_checkudata (lua_State *L, int ud, const char *tname) {
-//   void *p = luaL_testudata(L, ud, tname);
-//   luaL_argexpected(L, p != null, ud, tname);
-//   return p;
-// }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Argument check functions
-// ** =======================================================
-// */
-//
-// LUALIB_API int luaL_checkoption (lua_State *L, int arg, const char *def,
-//                                  const char *const lst[]) {
+        throw new NotImplementedException();
+    }
+
+    public static partial void* luaL_checkudata(lua_State* L, int ud, string tname)
+    {
+        void* p = luaL_testudata(L, ud, tname);
+        luaL_argexpected(L, p != null, ud, tname);
+        return p;
+    }
+    
+    /* }====================================================== */
+    
+    /*
+    ** {======================================================
+    ** Argument check functions
+    ** =======================================================
+    */
+
+    public static partial int luaL_checkoption(lua_State* L, int arg, string def, string[] lst)
+    {
 //   const char *name = (def) ? luaL_optstring(L, arg, def) :
 //                              luaL_checkstring(L, arg);
 //   int i;
@@ -380,7 +388,8 @@ public static unsafe partial class Lua
 //       return i;
 //   return luaL_argerror(L, arg,
 //                        lua_pushfstring(L, "invalid option '%s'", name));
-// }
+        throw new NotImplementedException();
+    }
 
     /*
     ** Ensures the stack has at least 'space' extra slots, raising an error
@@ -401,34 +410,40 @@ public static unsafe partial class Lua
         }
     }
 
-// LUALIB_API void luaL_checktype (lua_State *L, int arg, int t) {
-//   if (l_unlikely(lua_type(L, arg) != t))
-//     tag_error(L, arg, t);
-// }
-//
-//
-// LUALIB_API void luaL_checkany (lua_State *L, int arg) {
-//   if (l_unlikely(lua_type(L, arg) == LUA_TNONE))
-//     luaL_argerror(L, arg, "value expected");
-// }
-//
-//
-// LUALIB_API const char *luaL_checklstring (lua_State *L, int arg, size_t *len) {
+    public static partial void luaL_checktype(lua_State* L, int arg, int t)
+    {
+        if (lua_type(L, arg) != t)
+        {
+            tag_error(L, arg, t);
+        }
+    }
+
+    public static partial void luaL_checkany(lua_State* L, int arg)
+    {
+        if (lua_type(L, arg) == LUA_TNONE)
+        {
+            luaL_argerror(L, arg, "value expected");
+        }
+    }
+
+    public static partial byte* luaL_checklstring(lua_State* L, int arg, long* l)
+    {
 //   const char *s = lua_tolstring(L, arg, len);
 //   if (l_unlikely(!s)) tag_error(L, arg, LUA_TSTRING);
 //   return s;
-// }
-//
-//
-// LUALIB_API const char *luaL_optlstring (lua_State *L, int arg,
-//                                         const char *def, size_t *len) {
+        throw new NotImplementedException();
+    }
+
+    public static partial byte* luaL_optlstring(lua_State* L, int arg, string def, long* l)
+    {
 //   if (lua_isnoneornil(L, arg)) {
 //     if (len)
 //       *len = (def ? strlen(def) : 0);
 //     return def;
 //   }
 //   else return luaL_checklstring(L, arg, len);
-// }
+        throw new NotImplementedException();
+    }
 
     public static partial double luaL_checknumber(lua_State* L, int arg)
     {
@@ -452,32 +467,31 @@ public static unsafe partial class Lua
 //   else
 //     tag_error(L, arg, LUA_TNUMBER);
 // }
-//
-//
-// LUALIB_API lua_Integer luaL_checkinteger (lua_State *L, int arg) {
+
+    public static partial long luaL_checkinteger(lua_State* L, int arg)
+    {
 //   int isnum;
-//   lua_Integer d = lua_tointegerx(L, arg, &isnum);
+//   long d = lua_tointegerx(L, arg, &isnum);
 //   if (l_unlikely(!isnum)) {
 //     interror(L, arg);
 //   }
 //   return d;
-// }
-//
-//
-// LUALIB_API lua_Integer luaL_optinteger (lua_State *L, int arg,
-//                                                       lua_Integer def) {
-//   return luaL_opt(L, luaL_checkinteger, arg, def);
-// }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Generic Buffer manipulation
-// ** =======================================================
-// */
-//
+        throw new NotImplementedException();
+    }
+
+    public static partial long luaL_optinteger(lua_State* L, int arg, long def)
+    {
+        return lua_isnoneornil(L, arg) ? def : luaL_checkinteger(L, arg);
+    }
+    
+    /* }====================================================== */
+
+    /*
+    ** {======================================================
+    ** Generic Buffer manipulation
+    ** =======================================================
+    */
+
 // /* userdata to box arbitrary data */
 // typedef struct UBox {
 //   void *box;
@@ -680,22 +694,22 @@ public static unsafe partial class Lua
 //   luaL_buffinit(L, B);
 //   return prepbuffsize(B, sz, -1);
 // }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** Reference system
-// ** =======================================================
-// */
-//
-// /*
-// ** The previously freed references form a linked list: t[1] is the index
-// ** of a first free index, t[t[1]] is the index of the second element,
-// ** etc. A zero signals the end of the list.
-// */
-// LUALIB_API int luaL_ref (lua_State *L, int t) {
+
+    /* }====================================================== */
+
+    /*
+    ** {======================================================
+    ** Reference system
+    ** =======================================================
+    */
+
+    /*
+    ** The previously freed references form a linked list: t[1] is the index
+    ** of a first free index, t[t[1]] is the index of the second element,
+    ** etc. A zero signals the end of the list.
+    */
+    public static partial int luaL_ref(lua_State* L, int t)
+    {
 //   int ref;
 //   if (lua_isnil(L, -1)) {
 //     lua_pop(L, 1);  /* remove from stack */
@@ -719,10 +733,11 @@ public static unsafe partial class Lua
 //     ref = (int)lua_rawlen(L, t) + 1;  /* get a new reference */
 //   lua_rawseti(L, t, ref);
 //   return ref;
-// }
-//
-//
-// LUALIB_API void luaL_unref (lua_State *L, int t, int ref) {
+        throw new NotImplementedException();
+    }
+
+    public static partial void luaL_unref(lua_State* L, int t, int @ref)
+    {
 //   if (ref >= 0) {
 //     t = lua_absindex(L, t);
 //     lua_rawgeti(L, t, 1);
@@ -731,7 +746,8 @@ public static unsafe partial class Lua
 //     lua_pushinteger(L, ref);
 //     lua_rawseti(L, t, 1);  /* t[1] = ref */
 //   }
-// }
+        throw new NotImplementedException();
+    }
 
     /* }====================================================== */
 
@@ -880,15 +896,14 @@ public static unsafe partial class Lua
 
         int status = lua_load(L, &getF, &lf, lua_tostring(L, -1), mode);
 //   readstatus = ferror(lf.f);
-//   if (filename) fclose(lf.f);  /* close file (even in case of errors) */
+        f.Close();
         GCHandle.FromIntPtr(lf.f).Free();
 //   if (readstatus) {
 //     lua_settop(L, fnameindex);  /* ignore results from 'lua_load' */
 //     return errfile(L, "read", fnameindex);
 //   }
-//   lua_remove(L, fnameindex);
-//   return status;
-        throw new NotImplementedException();
+        lua_remove(L, fnameindex);
+        return status;
     }
 
 // typedef struct LoadS {
@@ -905,53 +920,61 @@ public static unsafe partial class Lua
 //   ls->size = 0;
 //   return ls->s;
 // }
-//
-//
-// LUALIB_API int luaL_loadbufferx (lua_State *L, const char *buff, size_t size,
-//                                  const char *name, const char *mode) {
-//   LoadS ls;
+
+    public static partial int luaL_loadbufferx(lua_State* L, ReadOnlySpan<byte> buff, string? name, string? mode)
+    {
+        // LoadS ls;
 //   ls.s = buff;
 //   ls.size = size;
 //   return lua_load(L, getS, &ls, name, mode);
-// }
-//
-//
-// LUALIB_API int luaL_loadstring (lua_State *L, const char *s) {
+        throw new NotImplementedException();
+    }
+
+    public static partial int luaL_loadstring(lua_State* L, string s)
+    {
 //   return luaL_loadbuffer(L, s, strlen(s), s);
-// }
-//
-// /* }====================================================== */
-//
-//
-//
-// LUALIB_API int luaL_getmetafield (lua_State *L, int obj, const char *event) {
-//   if (!lua_getmetatable(L, obj))  /* no metatable? */
-//     return LUA_TNIL;
-//   else {
-//     int tt;
-//     lua_pushstring(L, event);
-//     tt = lua_rawget(L, -2);
-//     if (tt == LUA_TNIL)  /* is metafield nil? */
-//       lua_pop(L, 2);  /* remove metatable and metafield */
-//     else
-//       lua_remove(L, -2);  /* remove only metatable */
-//     return tt;  /* return metafield type */
-//   }
-// }
-//
-//
-// LUALIB_API int luaL_callmeta (lua_State *L, int obj, const char *event) {
-//   obj = lua_absindex(L, obj);
-//   if (luaL_getmetafield(L, obj, event) == LUA_TNIL)  /* no metafield? */
-//     return 0;
-//   lua_pushvalue(L, obj);
-//   lua_call(L, 1, 1);
-//   return 1;
-// }
-//
-//
-// LUALIB_API lua_Integer luaL_len (lua_State *L, int idx) {
-//   lua_Integer l;
+        throw new NotImplementedException();
+    }
+
+    /* }====================================================== */
+
+    public static partial int luaL_getmetafield(lua_State* L, int obj, string e)
+    {
+        if (!lua_getmetatable(L, obj)) /* no metatable? */
+        {
+            return LUA_TNIL;
+        }
+
+        lua_pushstring(L, e);
+        int tt = lua_rawget(L, -2);
+        if (tt == LUA_TNIL) /* is metafield nil? */
+        {
+            lua_pop(L, 2); /* remove metatable and metafield */
+        }
+        else
+        {
+            lua_remove(L, -2); /* remove only metatable */
+        }
+
+        return tt; /* return metafield type */
+    }
+
+    public static partial bool luaL_callmeta(lua_State* L, int obj, string @event)
+    {
+        obj = lua_absindex(L, obj);
+        if (luaL_getmetafield(L, obj, @event) == LUA_TNIL) /* no metafield? */
+        {
+            return false;
+        }
+
+        lua_pushvalue(L, obj);
+        lua_call(L, 1, 1);
+        return true;
+    }
+
+    public static partial long luaL_len(lua_State* L, int idx)
+    {
+//   long l;
 //   int isnum;
 //   lua_len(L, idx);
 //   l = lua_tointegerx(L, -1, &isnum);
@@ -959,33 +982,47 @@ public static unsafe partial class Lua
 //     luaL_error(L, "object length is not an integer");
 //   lua_pop(L, 1);  /* remove object */
 //   return l;
-// }
-//
-//
-// LUALIB_API const char *luaL_tolstring (lua_State *L, int idx, size_t *len) {
-//   idx = lua_absindex(L,idx);
-//   if (luaL_callmeta(L, idx, "__tostring")) {  /* metafield? */
-//     if (!lua_isstring(L, -1))
-//       luaL_error(L, "'__tostring' must return a string");
-//   }
-//   else {
-//     switch (lua_type(L, idx)) {
-//       case LUA_TNUMBER: {
+        throw new NotImplementedException();
+    }
+
+    public static partial byte* luaL_tolstring(lua_State* L, int idx, out long len)
+    {
+        idx = lua_absindex(L, idx);
+        if (luaL_callmeta(L, idx, "__tostring"))
+        {
+            /* metafield? */
+            if (!lua_isstring(L, -1))
+            {
+                luaL_error(L, "'__tostring' must return a string");
+            }
+        }
+        else
+        {
+            switch (lua_type(L, idx))
+            {
+                case LUA_TNUMBER:
+                    {
 //         char buff[LUA_N2SBUFFSZ];
 //         lua_numbertocstring(L, idx, buff);
 //         lua_pushstring(L, buff);
 //         break;
-//       }
-//       case LUA_TSTRING:
-//         lua_pushvalue(L, idx);
-//         break;
-//       case LUA_TBOOLEAN:
-//         lua_pushstring(L, (lua_toboolean(L, idx) ? "true" : "false"));
-//         break;
-//       case LUA_TNIL:
-//         lua_pushliteral(L, "nil");
-//         break;
-//       default: {
+                    }
+                    throw new NotImplementedException();
+
+                case LUA_TSTRING:
+                    lua_pushvalue(L, idx);
+                    break;
+
+                case LUA_TBOOLEAN:
+                    lua_pushstring(L, lua_toboolean(L, idx) ? "true" : "false");
+                    break;
+
+                case LUA_TNIL:
+                    lua_pushliteral(L, "nil");
+                    break;
+
+                default:
+                    {
 //         int tt = luaL_getmetafield(L, idx, "__name");  /* try name */
 //         const char *kind = (tt == LUA_TSTRING) ? lua_tostring(L, -1) :
 //                                                  luaL_typename(L, idx);
@@ -993,11 +1030,20 @@ public static unsafe partial class Lua
 //         if (tt != LUA_TNIL)
 //           lua_remove(L, -2);  /* remove '__name' */
 //         break;
-//       }
-//     }
-//   }
-//   return lua_tolstring(L, -1, len);
-// }
+                    }
+                    throw new NotImplementedException();
+            }
+        }
+
+        return lua_tolstring(L, -1, out len);
+    }
+
+    public static partial string luaL_tonetstring(lua_State* L, int idx)
+    {
+        byte* ptr = luaL_tolstring(L, idx, out long len);
+        ReadOnlySpan<byte> span = new(ptr, checked((int)len));
+        return Encoding.UTF8.GetString(span);
+    }
 
     /*
     ** set functions from list 'l' into table at top - 'nup'; each

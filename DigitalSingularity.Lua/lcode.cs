@@ -41,8 +41,11 @@ public static unsafe partial class Lua
         OPR_NOBINOPR,
     }
 
-// /* true if operation is foldable (that is, it is arithmetic or bitwise) */
-// #define foldbinop(op)	((op) <= OPR_SHR)
+    /* true if operation is foldable (that is, it is arithmetic or bitwise) */
+    private static bool foldbinop(BinOpr op)
+    {
+        return op <= BinOpr.OPR_SHR;
+    }
 
     private static int luaK_codeABC(FuncState* fs, OpCode o, int a, int b, int c)
     {
@@ -65,7 +68,10 @@ public static unsafe partial class Lua
         luaK_setreturns(fs, e, LUA_MULTRET);
     }
 
-    // #define luaK_jumpto(fs,t)	luaK_patchlist(fs, luaK_jump(fs), t)
+    private static void luaK_jumpto(FuncState* fs, int t)
+    {
+        luaK_patchlist(fs, luaK_jump(fs), t);
+    }
 
     private static partial int luaK_code(FuncState* fs, uint i);
 
@@ -73,23 +79,23 @@ public static unsafe partial class Lua
 
     private static partial int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, int k);
 
-// LUAI_FUNC int luaK_codevABCk (FuncState *fs, OpCode o, int A, int B, int C,
-//                                              int k);
+    private static partial int luaK_codevABCk(FuncState* fs, OpCode o, int A, int B, int C, int k);
 
     private static partial bool luaK_exp2const(FuncState* fs, expdesc* e, TValue* v);
 
     private static partial void luaK_fixline(FuncState* fs, int line);
-    
-// LUAI_FUNC void luaK_nil (FuncState *fs, int from, int n);
-// LUAI_FUNC void luaK_codecheckglobal (FuncState *fs, expdesc *var, int k,
-//                                                     int line);
+
+    private static partial void luaK_nil(FuncState* fs, int from, int n);
+
+    private static partial void luaK_codecheckglobal(FuncState* fs, expdesc* var, int k, int line);
 
     private static partial void luaK_reserveregs(FuncState* fs, int n);
 
     private static partial void luaK_checkstack(FuncState* fs, int n);
 
-// LUAI_FUNC void luaK_int (FuncState *fs, int reg, lua_Integer n);
-// LUAI_FUNC void luaK_vapar2local (FuncState *fs, expdesc *var);
+    private static partial void luaK_int(FuncState* fs, int reg, long n);
+
+    private static partial void luaK_vapar2local(FuncState* fs, expdesc* var);
 
     private static partial void luaK_dischargevars(FuncState* fs, expdesc* e);
 
@@ -98,39 +104,45 @@ public static unsafe partial class Lua
     private static partial void luaK_exp2anyregup(FuncState* fs, expdesc* e);
 
     private static partial void luaK_exp2nextreg(FuncState* fs, expdesc* e);
-    
-// LUAI_FUNC void luaK_exp2val (FuncState *fs, expdesc *e);
-// LUAI_FUNC void luaK_self (FuncState *fs, expdesc *e, expdesc *key);
+
+    private static partial void luaK_exp2val(FuncState* fs, expdesc* e);
+
+    private static partial void luaK_self(FuncState* fs, expdesc* e, expdesc* key);
 
     private static partial void luaK_indexed(FuncState* fs, expdesc* t, expdesc* k);
 
-// LUAI_FUNC void luaK_goiftrue (FuncState *fs, expdesc *e);
-// LUAI_FUNC void luaK_storevar (FuncState *fs, expdesc *var, expdesc *e);
+    private static partial void luaK_goiftrue(FuncState* fs, expdesc* e);
+
+    private static partial void luaK_storevar(FuncState* fs, expdesc* var, expdesc* e);
 
     private static partial void luaK_setreturns(FuncState* fs, expdesc* e, int nresults);
 
-// LUAI_FUNC void luaK_setoneret (FuncState *fs, expdesc *e);
+    private static partial void luaK_setoneret(FuncState* fs, expdesc* e);
 
     private static partial int luaK_jump(FuncState* fs);
-    
-// LUAI_FUNC void luaK_ret (FuncState *fs, int first, int nret);
-// LUAI_FUNC void luaK_patchlist (FuncState *fs, int list, int target);
+
+    private static partial void luaK_ret(FuncState* fs, int first, int nret);
+
+    private static partial void luaK_patchlist(FuncState* fs, int list, int target);
 
     private static partial void luaK_patchtohere(FuncState* fs, int list);
 
     private static partial void luaK_concat(FuncState* fs, int* l1, int l2);
 
-// LUAI_FUNC int luaK_getlabel (FuncState *fs);
+    private static partial int luaK_getlabel(FuncState* fs);
 
     private static partial void luaK_prefix(FuncState* fs, UnOpr op, expdesc* v, int line);
 
-// LUAI_FUNC void luaK_infix (FuncState *fs, BinOpr op, expdesc *v);
-// LUAI_FUNC void luaK_posfix (FuncState *fs, BinOpr op, expdesc *v1,
-//                             expdesc *v2, int line);
-// LUAI_FUNC void luaK_settablesize (FuncState *fs, int pc,
-//                                   int ra, int asize, int hsize);
-// LUAI_FUNC void luaK_setlist (FuncState *fs, int base, int nelems, int tostore);
-// LUAI_FUNC void luaK_finish (FuncState *fs);
+    private static partial void luaK_infix(FuncState* fs, BinOpr op, expdesc* v);
+
+    private static partial void luaK_posfix(FuncState* fs, BinOpr op, expdesc* v1, expdesc* v2, int line);
+
+    private static partial void luaK_settablesize(FuncState* fs, int pc, int ra, int asize, int hsize);
+
+    private static partial void luaK_setlist(FuncState* fs, int @base, int nelems, int tostore);
+
+    private static partial void luaK_finish(FuncState* fs);
+
     [DoesNotReturn]
     private static partial void luaK_semerror(LexState* ls, string fmt, params object[] args);
 }

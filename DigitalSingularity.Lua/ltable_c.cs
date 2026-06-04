@@ -102,18 +102,23 @@ public static unsafe partial class Lua
     {
         return hashpow2(t, str->hash);
     }
-    
-    // #define hashboolean(t,p)	hashpow2(t, p)
-//
-//
-// #define hashpointer(t,p)	hashmod(t, point2uint(p))
+
+    private static Node* hashboolean(Table* t, bool p)
+    {
+        return hashpow2(t, p ? 1u : 0);
+    }
+
+    private static Node* hashpointer(Table* t, void* p)
+    {
+        return hashmod(t, (uint)p);
+    }
 
     /*
-    ** Common hash part for tables with empty hash parts. That allows all
-    ** tables to have a hash part, avoiding an extra check ("is there a hash
-    ** part?") when indexing. Its sole node has an empty value and a key
-    ** (DEADKEY, null) that is different from any valid TValue.
-    */
+     ** Common hash part for tables with empty hash parts. That allows all
+     ** tables to have a hash part, avoiding an extra check ("is there a hash
+     ** part?") when indexing. Its sole node has an empty value and a key
+     ** (DEADKEY, null) that is different from any valid TValue.
+     */
     private static readonly Node* dummynode = (Node*)NativeMemory.AllocZeroed((nuint)sizeof(Node));
     
     private static readonly TValue* absentkey = (TValue*)NativeMemory.AllocZeroed((nuint)sizeof(TValue));
@@ -135,95 +140,55 @@ public static unsafe partial class Lua
         return hashmod(t, ui);
     }
 
-// /*
-// ** Hash for floating-point numbers.
-// ** The main computation should be just
-// **     n = frexp(n, &i); return (n * INT_MAX) + i
-// ** but there are some numerical subtleties.
-// ** In a two-complement representation, INT_MAX may not have an exact
-// ** representation as a float, but INT_MIN does; because the absolute
-// ** value of 'frexp' is smaller than 1 (unless 'n' is inf/NaN), the
-// ** absolute value of the product 'frexp * -INT_MIN' is smaller or equal
-// ** to INT_MAX. Next, the use of 'unsigned int' avoids overflows when
-// ** adding 'i'; the use of '~u' (instead of '-u') avoids problems with
-// ** INT_MIN.
-// */
-// #if !defined(l_hashfloat)
-// static unsigned l_hashfloat (lua_Number n) {
+    /*
+    ** Hash for floating-point numbers.
+    ** The main computation should be just
+    **     n = frexp(n, &i); return (n * INT_MAX) + i
+    ** but there are some numerical subtleties.
+    ** In a two-complement representation, INT_MAX may not have an exact
+    ** representation as a float, but INT_MIN does; because the absolute
+    ** value of 'frexp' is smaller than 1 (unless 'n' is inf/NaN), the
+    ** absolute value of the product 'frexp * -INT_MIN' is smaller or equal
+    ** to INT_MAX. Next, the use of 'unsigned int' avoids overflows when
+    ** adding 'i'; the use of '~u' (instead of '-u') avoids problems with
+    ** INT_MIN.
+    */
+    private static uint l_hashfloat(double n)
+    {
+        return (uint)n.GetHashCode();
+        // TODO:?
 //   int i;
-//   lua_Integer ni;
-//   n = l_mathop(frexp)(n, &i) * -cast_num(INT_MIN);
+//   long ni;
+//   n = (frexp)(n, &i) * -cast_num(INT_MIN);
 //   if (!lua_numbertointeger(n, &ni)) {  /* is 'n' inf/-inf/NaN? */
-//     Debug.Assert(luai_numisnan(n) || l_mathop(fabs)(n) == cast_num(HUGE_VAL));
+//     Debug.Assert(luai_numisnan(n) || (fabs)(n) == cast_num(HUGE_VAL));
 //     return 0;
 //   }
 //   else {  /* normal case */
 //     unsigned int u = cast_uint(i) + cast_uint(ni);
 //     return (u <= cast_uint(INT_MAX) ? u : ~u);
 //   }
-// }
-// #endif
+        throw new NotImplementedException();
+    }
 
     /*
-    ** returns the 'main' position of an element in a table (that is,
-    ** the index of its hash value).
-    */
+     ** returns the 'main' position of an element in a table (that is,
+     ** the index of its hash value).
+     */
     private static Node* mainpositionTV(Table* t, TValue* key)
     {
-        switch (ttypetag(key))
+        return ttypetag(key) switch
         {
-            case LUA_VNUMINT:
-                {
-                    long i = ivalue(key);
-                    return hashint(t, i);
-                }
-            
-            case LUA_VNUMFLT:
-                {
-       double n = fltvalue(key);
-//       return hashmod(t, l_hashfloat(n));
-                }
-                throw new NotImplementedException();
-            
-            case LUA_VSHRSTR:
-                return hashstr(t, tsvalue(key));
-            
-            case LUA_VLNGSTR:
-                {
-                    TString* ts = tsvalue(key);
-//       return hashpow2(t, luaS_hashlongstr(ts));
-                }
-                throw new NotImplementedException();
-            
-            case LUA_VFALSE:
-//       return hashboolean(t, 0);
-                throw new NotImplementedException();
-            
-            case LUA_VTRUE:
-//       return hashboolean(t, 1);
-                throw new NotImplementedException();
-            
-            case LUA_VLIGHTUSERDATA:
-                {
-                    void* p = pvalue(key);
-//       return hashpointer(t, p);
-                }
-                throw new NotImplementedException();
-            
-            case LUA_VLCF:
-                {
-                    lua_CFunction f = fvalue(key);
-//       return hashpointer(t, f);
-                }
-                throw new NotImplementedException();
-            
-            default:
-                {
-                    GCObject* o = gcvalue(key);
-//       return hashpointer(t, o);
-                }
-                throw new NotImplementedException();
-        }
+            LUA_VNUMINT => hashint(t, ivalue(key)),
+            LUA_VNUMFLT => hashmod(t, l_hashfloat(fltvalue(key))),
+            LUA_VSHRSTR => hashstr(t, tsvalue(key)),
+            LUA_VLNGSTR => hashpow2(t, luaS_hashlongstr(tsvalue(key))),
+            LUA_VFALSE => hashboolean(t, false),
+            LUA_VTRUE => hashboolean(t, true),
+            LUA_VLIGHTUSERDATA => hashpointer(t, pvalue(key)),
+            LUA_VLCF => hashpointer(t, fvalue(key)),
+            _ => hashpointer(t, gcvalue(key)),
+        };
     }
 
     private static Node* mainpositionfromnode(Table* t, Node* nd)
@@ -260,50 +225,30 @@ public static unsafe partial class Lua
             if (keyisshrstr(n2) && ttislngstring(k1))
             {
                 /* an external string can be equal to a short-string key */
-//       return luaS_eqstr(tsvalue(k1), keystrval(n2));
-                throw new NotImplementedException();
+                return luaS_eqstr(tsvalue(k1), keystrval(n2));
             }
 
             if (deadok && keyisdead(n2) && iscollectable(k1))
             {
                 /* a collectable value can be equal to a dead key */
-//       return gcvalue(k1) == gcvalueraw(keyval(n2));
-                throw new NotImplementedException();
+                return gcvalue(k1) == gcvalueraw(keyval(n2));
             }
 
             return false; /* otherwise, different variants cannot be equal */
         }
 
         /* equal variants */
-        switch (keytt(n2))
+        return keytt(n2) switch
         {
-            case LUA_VNIL:
-            case LUA_VFALSE:
-            case LUA_VTRUE:
-                return true;
-
-            case LUA_VNUMINT:
-                return ivalue(k1) == keyival(n2);
-
-            case LUA_VNUMFLT:
-//         return luai_numeq(fltvalue(k1), fltvalueraw(keyval(n2)));
-                throw new NotImplementedException();
-
-            case LUA_VLIGHTUSERDATA:
-//         return pvalue(k1) == pvalueraw(keyval(n2));
-                throw new NotImplementedException();
-
-            case LUA_VLCF:
-//         return fvalue(k1) == fvalueraw(keyval(n2));
-                throw new NotImplementedException();
-
-            case LUA_VLNGSTR_C:
-//         return luaS_eqstr(tsvalue(k1), keystrval(n2));
-                throw new NotImplementedException();
-
-            default:
-                return gcvalue(k1) == gcvalueraw(keyval(n2));
-        }
+            LUA_VNIL or LUA_VFALSE or LUA_VTRUE => true,
+            LUA_VNUMINT => ivalue(k1) == keyival(n2),
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
+            LUA_VNUMFLT => fltvalue(k1) == fltvalueraw(keyval(n2)),
+            LUA_VLIGHTUSERDATA => pvalue(k1) == pvalueraw(keyval(n2)),
+            LUA_VLCF => fvalue(k1) == fvalueraw(keyval(n2)),
+            LUA_VLNGSTR_C => luaS_eqstr(tsvalue(k1), keystrval(n2)),
+            _ => gcvalue(k1) == gcvalueraw(keyval(n2)),
+        };
     }
 
     /*
@@ -341,16 +286,19 @@ public static unsafe partial class Lua
         return (ulong)k - 1u < limit ? (uint)k : 0;
     }
 
-// /*
-// ** Return the index 'k' if 'k' is an appropriate key to live in the
-// ** array part of a table, 0 otherwise.
-// */
-// #define arrayindex(k)	checkrange(k, MAXASIZE)
+    /*
+    ** Return the index 'k' if 'k' is an appropriate key to live in the
+    ** array part of a table, 0 otherwise.
+    */
+    private static uint arrayindex(long k)
+    {
+        return checkrange(k, MAXASIZE);
+    }
 
     /*
-    ** Check whether an integer key is in the array part of a table and
-    ** return its index there, or zero.
-    */
+     ** Check whether an integer key is in the array part of a table and
+     ** return its index there, or zero.
+     */
     private static uint ikeyinarray(Table* t, long k)
     {
         return checkrange(k, t->asize);
@@ -386,9 +334,9 @@ public static unsafe partial class Lua
 //     return (i + 1) + asize;
 //   }
 // }
-//
-//
-// int luaH_next (lua_State *L, Table *t, StkId key) {
+
+    private static partial int luaH_next(lua_State* L, Table* t, StkId key)
+    {
 //   unsigned int asize = t->asize;
 //   unsigned int i = findindex(L, t, s2v(key), asize);  /* find original key */
 //   for (; i < asize; i++) {  /* try first array part */
@@ -408,7 +356,8 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   return 0;  /* no more elements */
-// }
+        throw new NotImplementedException();
+    }
 
     /* Extra space in Node array if it has a lastfree entry */
     private static int extraLastfree(Table* t)
@@ -458,93 +407,110 @@ public static unsafe partial class Lua
         public fixed uint nums[MAXABITS + 1];
     }
 
-// /*
-// ** Check whether it is worth to use 'na' array entries instead of 'nh'
-// ** hash nodes. (A hash node uses ~3 times more memory than an array
-// ** entry: Two values plus 'next' versus one value.) Evaluate with size_t
-// ** to avoid overflows.
-// */
-// #define arrayXhash(na,nh)	(cast_sizet(na) <= cast_sizet(nh) * 3)
+    /*
+    ** Check whether it is worth to use 'na' array entries instead of 'nh'
+    ** hash nodes. (A hash node uses ~3 times more memory than an array
+    ** entry: Two values plus 'next' versus one value.) Evaluate with size_t
+    ** to avoid overflows.
+    */
+    private static bool arrayXhash(uint na, uint nh)
+    {
+        return na <= (long)nh * 3;
+    }
 
     /*
-    ** Compute the optimal size for the array part of table 't'.
-    ** This size maximises the number of elements going to the array part
-    ** while satisfying the condition 'arrayXhash' with the use of memory if
-    ** all those elements went to the hash part.
-    ** 'ct->na' enters with the total number of array indices in the table
-    ** and leaves with the number of keys that will go to the array part;
-    ** return the optimal size for the array part.
-    */
+     ** Compute the optimal size for the array part of table 't'.
+     ** This size maximises the number of elements going to the array part
+     ** while satisfying the condition 'arrayXhash' with the use of memory if
+     ** all those elements went to the hash part.
+     ** 'ct->na' enters with the total number of array indices in the table
+     ** and leaves with the number of keys that will go to the array part;
+     ** return the optimal size for the array part.
+     */
     private static uint computesizes(Counters* ct)
     {
-//   int i;
-//   unsigned int twotoi;  /* 2^i (candidate for optimal size) */
-//   unsigned int a = 0;  /* number of elements smaller than 2^i */
-//   unsigned int na = 0;  /* number of elements to go to array part */
-//   unsigned int optimal = 0;  /* optimal size for array part */
-//   /* traverse slices while 'twotoi' does not overflow and total of array
-//      indices still can satisfy 'arrayXhash' against the array size */
-//   for (i = 0, twotoi = 1;
-//        twotoi > 0 && arrayXhash(twotoi, ct->na);
-//        i++, twotoi *= 2) {
-//     unsigned nums = ct->nums[i];
-//     a += nums;
-//     if (nums > 0 &&  /* grows array only if it gets more elements... */
-//         arrayXhash(twotoi, a)) {  /* ...while using "less memory" */
-//       optimal = twotoi;  /* optimal size (till now) */
-//       na = a;  /* all elements up to 'optimal' will go to array part */
-//     }
-//   }
-//   ct->na = na;
-//   return optimal;
-        throw new NotImplementedException();
+        int i;
+        uint twotoi; /* 2^i (candidate for optimal size) */
+        uint a = 0; /* number of elements smaller than 2^i */
+        uint na = 0; /* number of elements to go to array part */
+        uint optimal = 0; /* optimal size for array part */
+        /* traverse slices while 'twotoi' does not overflow and total of array
+           indices still can satisfy 'arrayXhash' against the array size */
+        for (i = 0, twotoi = 1;
+             twotoi > 0 && arrayXhash(twotoi, ct->na);
+             i++, twotoi *= 2)
+        {
+            uint nums = ct->nums[i];
+            a += nums;
+            if (nums > 0 && /* grows array only if it gets more elements... */
+                arrayXhash(twotoi, a))
+            {
+                /* ...while using "less memory" */
+                optimal = twotoi; /* optimal size (till now) */
+                na = a; /* all elements up to 'optimal' will go to array part */
+            }
+        }
+
+        ct->na = na;
+        return optimal;
     }
 
     private static void countint(long key, Counters* ct)
     {
-//   unsigned int k = arrayindex(key);
-//   if (k != 0) {  /* is 'key' an array index? */
-//     ct->nums[luaO_ceillog2(k)]++;  /* count as such */
-//     ct->na++;
-//   }
-        throw new NotImplementedException();
+        uint k = arrayindex(key);
+        if (k != 0)
+        {
+            /* is 'key' an array index? */
+            ct->nums[luaO_ceillog2(k)]++; /* count as such */
+            ct->na++;
+        }
     }
 
-// l_sinline int arraykeyisempty (const Table *t, unsigned key) {
-//   int tag = *getArrTag(t, key - 1);
-//   return tagisempty(tag);
-// }
+    private static bool arraykeyisempty(Table* t, uint key)
+    {
+        byte tag = *getArrTag(t, key - 1);
+        return tagisempty(tag);
+    }
 
     /*
     ** Count keys in array part of table 't'.
     */
     private static void numusearray(Table* t, Counters* ct)
     {
-//   int lg;
-//   unsigned int ttlg;  /* 2^lg */
-//   unsigned int ause = 0;  /* summation of 'nums' */
-//   unsigned int i = 1;  /* index to traverse all array keys */
-//   unsigned int asize = t->asize;
-//   /* traverse each slice */
-//   for (lg = 0, ttlg = 1; lg <= MAXABITS; lg++, ttlg *= 2) {
-//     unsigned int lc = 0;  /* counter */
-//     unsigned int lim = ttlg;
-//     if (lim > asize) {
-//       lim = asize;  /* adjust upper limit */
-//       if (i > lim)
-//         break;  /* no more elements to count */
-//     }
-//     /* count elements in range (2^(lg - 1), 2^lg] */
-//     for (; i <= lim; i++) {
-//       if (!arraykeyisempty(t, i))
-//         lc++;
-//     }
-//     ct->nums[lg] += lc;
-//     ause += lc;
-//   }
-//   ct->total += ause;
-//   ct->na += ause;
-        throw new NotImplementedException();
+        int lg;
+        uint ttlg; /* 2^lg */
+        uint ause = 0; /* summation of 'nums' */
+        uint i = 1; /* index to traverse all array keys */
+        uint asize = t->asize;
+        /* traverse each slice */
+        for (lg = 0, ttlg = 1; lg <= MAXABITS; lg++, ttlg *= 2)
+        {
+            uint lim = ttlg;
+            if (lim > asize)
+            {
+                lim = asize; /* adjust upper limit */
+                if (i > lim)
+                {
+                    break; /* no more elements to count */
+                }
+            }
+
+            uint lc = 0; /* counter */
+            /* count elements in range (2^(lg - 1), 2^lg] */
+            for (; i <= lim; i++)
+            {
+                if (!arraykeyisempty(t, i))
+                {
+                    lc++;
+                }
+            }
+
+            ct->nums[lg] += lc;
+            ause += lc;
+        }
+
+        ct->total += ause;
+        ct->na += ause;
     }
 
     /*
@@ -824,10 +790,11 @@ public static unsafe partial class Lua
         freehash(L, &newt); /* free old hash part */
     }
 
-// void luaH_resizearray (lua_State *L, Table *t, unsigned int nasize) {
-//   unsigned nsize = allocsizenode(t);
-//   luaH_resize(L, t, nasize, nsize);
-// }
+    private static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize)
+    {
+        uint nsize = allocsizenode(t);
+        luaH_resize(L, t, nasize, nsize);
+    }
 
     /*
     ** Rehash a table. First, count its keys. If there are array indices
@@ -1115,8 +1082,7 @@ public static unsafe partial class Lua
             return tag;
         }
 
-        // return finishnodeget(getintfromhash(t, key), res);
-        throw new NotImplementedException();
+        return finishnodeget(getintfromhash(t, key), res);
     }
 
     /*
@@ -1144,17 +1110,17 @@ public static unsafe partial class Lua
         }
     }
 
-// lu_byte luaH_getshortstr (Table *t, TString *key, TValue *res) {
-//   return finishnodeget(luaH_Hgetshortstr(t, key), res);
-// }
+    private static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res)
+    {
+        return finishnodeget(luaH_Hgetshortstr(t, key), res);
+    }
 
     private static TValue* Hgetlongstr(Table* t, TString* key)
     {
-//   TValue ko;
-//   Debug.Assert(!strisshr(key));
-//   setsvalue(cast(lua_State *, null), &ko, key);
-//   return getgeneric(t, &ko, 0);  /* for long strings, use generic case */
-        throw new NotImplementedException();
+        Debug.Assert(!strisshr(key));
+        TValue ko;
+        setsvalue(null, &ko, key);
+        return getgeneric(t, &ko, false);  /* for long strings, use generic case */
     }
 
     private static TValue* Hgetstr(Table* t, TString* key)
@@ -1183,19 +1149,21 @@ public static unsafe partial class Lua
             case LUA_VSHRSTR:
                 slot = luaH_Hgetshortstr(t, tsvalue(key));
                 break;
+            
             case LUA_VNUMINT:
                 return luaH_getint(t, ivalue(key), res);
+            
             case LUA_VNIL:
                 slot = absentkey;
                 break;
+            
             case LUA_VNUMFLT:
+                if (luaV_flttointeger(fltvalue(key), out long k, F2Imod.F2Ieq)) /* integral index? */
                 {
-//       lua_Integer k;
-//       if (luaV_flttointeger(fltvalue(key), &k, F2Ieq)) /* integral index? */
-//         return luaH_getint(t, k, res);  /* use specialized version */
-//       /* else... */
-                } /* FALLTHROUGH */
-                throw new NotImplementedException();
+                    return luaH_getint(t, k, res); /* use specialised version */
+                }
+
+                goto default;
 
             default:
                 slot = getgeneric(t, key, false);
@@ -1220,14 +1188,16 @@ public static unsafe partial class Lua
         return (int)((Node*)slot - t->node) + HFIRSTNODE;
     }
 
-// static int finishnodeset (Table *t, const TValue *slot, TValue *val) {
-//   if (!ttisnil(slot)) {
-//     setobj(((lua_State*)null), cast(TValue*, slot), val);
-//     return HOK;  /* success */
-//   }
-//   else
-//     return retpsetcode(t, slot);
-// }
+    private static int finishnodeset(Table* t, TValue* slot, TValue* val)
+    {
+        if (!ttisnil(slot))
+        {
+            setobj(null, slot, val);
+            return HOK; /* success */
+        }
+
+        return retpsetcode(t, slot);
+    }
 
     private static bool rawfinishnodeset(TValue* slot, TValue* val)
     {
@@ -1240,25 +1210,25 @@ public static unsafe partial class Lua
         return true; /* success */
     }
 
-// int luaH_psetint (Table *t, lua_Integer key, TValue *val) {
-//   Debug.Assert(!ikeyinarray(t, key));
-//   return finishnodeset(t, getintfromhash(t, key), val);
-// }
-//
-//
-// static int psetint (Table *t, lua_Integer key, TValue *val) {
-//   int hres;
-//   luaH_fastseti(t, key, val, hres);
-//   return hres;
-// }
+    private static partial int luaH_psetint(Table* t, long key, TValue* val)
+    {
+        Debug.Assert(ikeyinarray(t, key) == 0);
+        return finishnodeset(t, getintfromhash(t, key), val);
+    }
+
+    private static int psetint(Table* t, long key, TValue* val)
+    {
+        luaH_fastseti(t, key, val, out int hres);
+        return hres;
+    }
 
     /*
-    ** This function could be just this:
-    **    return finishnodeset(t, luaH_Hgetshortstr(t, key), val);
-    ** However, it optimises the common case created by constructors (e.g.,
-    ** {x=1, y=2}), which creates a key in a table that has no metatable,
-    ** it is not old/black, and it already has space for the key.
-    */
+     ** This function could be just this:
+     **    return finishnodeset(t, luaH_Hgetshortstr(t, key), val);
+     ** However, it optimises the common case created by constructors (e.g.,
+     ** {x=1, y=2}), which creates a key in a table that has no metatable,
+     ** it is not old/black, and it already has space for the key.
+     */
     private static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val)
     {
         TValue* slot = luaH_Hgetshortstr(t, key);
@@ -1316,22 +1286,21 @@ public static unsafe partial class Lua
             case LUA_VSHRSTR:
                 return luaH_psetshortstr(t, tsvalue(key), val);
             case LUA_VNUMINT:
-                // return psetint(t, ivalue(key), val);
-                throw new NotImplementedException();
+                return psetint(t, ivalue(key), val);
+            
             case LUA_VNIL:
                 return HNOTFOUND;
-            case LUA_VNUMFLT:
-                {
-//       lua_Integer k;
-//       if (luaV_flttointeger(fltvalue(key), &k, F2Ieq)) /* integral index? */
-//         return psetint(t, k, val);  /* use specialized version */
-//       /* else... */
-                    throw new NotImplementedException();
-                } /* FALLTHROUGH */
             
+            case LUA_VNUMFLT:
+                if (luaV_flttointeger(fltvalue(key), out long k, F2Imod.F2Ieq)) /* integral index? */
+                {
+                    return psetint(t, k, val); /* use specialized version */
+                }
+
+                goto default;
+
             default:
-                // return finishnodeset(t, getgeneric(t, key, 0), val);
-                throw new NotImplementedException();
+                return finishnodeset(t, getgeneric(t, key, false), val);
         }
     }
 
@@ -1346,33 +1315,33 @@ public static unsafe partial class Lua
         Debug.Assert(hres != HOK);
         if (hres == HNOTFOUND)
         {
-            TValue aux;
             if (ttisnil(key))
             {
                 luaG_runerror(L, "table index is nil");
             }
             else if (ttisfloat(key))
             {
-//       lua_Number f = fltvalue(key);
-//       lua_Integer k;
-//       if (luaV_flttointeger(f, &k, F2Ieq)) {
-//         setivalue(&aux, k);  /* key is equal to an integer */
-//         key = &aux;  /* insert it as an integer */
-//       }
-//       else if (l_unlikely(luai_numisnan(f)))
-//         luaG_runerror(L, "table index is NaN");
-                throw new NotImplementedException();
+                double f = fltvalue(key);
+                if (luaV_flttointeger(f, out long k, F2Imod.F2Ieq))
+                {
+                    TValue aux;
+                    setivalue(&aux, k); /* key is equal to an integer */
+                    key = &aux; /* insert it as an integer */
+                }
+                else if (double.IsNaN(f))
+                {
+                    luaG_runerror(L, "table index is NaN");
+                }
             }
             else if (isextstr(key))
             {
                 /* external string? */
-//       /* If string is short, must internalize it to be used as table key */
-//       TString *ts = luaS_normstr(L, tsvalue(key));
-//       setsvalue2s(L, L->top.p++, ts);  /* anchor 'ts' (EXTRA_STACK) */
-//       luaH_newkey(L, t, s2v(L->top.p - 1), value);
-//       L->top.p--;
-//       return;
-                throw new NotImplementedException();
+                /* If string is short, must internalise it to be used as table key */
+                TString* ts = luaS_normstr(L, tsvalue(key));
+                setsvalue2s(L, L->top.p++, ts); /* anchor 'ts' (EXTRA_STACK) */
+                luaH_newkey(L, t, s2v(L->top.p - 1), value);
+                L->top.p--;
+                return;
             }
 
             luaH_newkey(L, t, key, value);
@@ -1493,20 +1462,20 @@ public static unsafe partial class Lua
 //   *lenhint(t) = hint;
 //   return hint;
 // }
-//
-//
-// /*
-// ** Try to find a border in table 't'. (A 'border' is an integer index
-// ** such that t[i] is present and t[i+1] is absent, or 0 if t[1] is absent,
-// ** or 'maxinteger' if t[maxinteger] is present.)
-// ** If there is an array part, try to find a border there. First try
-// ** to find it in the vicinity of the previous result (hint), to handle
-// ** cases like 't[#t + 1] = val' or 't[#t] = nil', that move the border
-// ** by one entry. Otherwise, do a binary search to find the border.
-// ** If there is no array part, or its last element is non empty, the
-// ** border may be in the hash part.
-// */
-// lua_Unsigned luaH_getn (lua_State *L, Table *t) {
+
+    /*
+    ** Try to find a border in table 't'. (A 'border' is an integer index
+    ** such that t[i] is present and t[i+1] is absent, or 0 if t[1] is absent,
+    ** or 'maxinteger' if t[maxinteger] is present.)
+    ** If there is an array part, try to find a border there. First try
+    ** to find it in the vicinity of the previous result (hint), to handle
+    ** cases like 't[#t + 1] = val' or 't[#t] = nil', that move the border
+    ** by one entry. Otherwise, do a binary search to find the border.
+    ** If there is no array part, or its last element is non empty, the
+    ** border may be in the hash part.
+    */
+    private static partial ulong luaH_getn(lua_State* L, Table* t)
+    {
 //   unsigned asize = t->asize;
 //   if (asize > 0) {  /* is there an array part? */
 //     const unsigned maxvicinity = 4;
@@ -1548,18 +1517,15 @@ public static unsafe partial class Lua
 //     return asize;  /* 'asize + 1' is empty */
 //   else  /* 'asize + 1' is also non empty */
 //     return hash_search(L, t, asize);
-// }
-//
-//
-//
-// #if defined(LUA_DEBUG)
-//
-// /* export this function for the test library */
-//
-// Node *luaH_mainposition (const Table *t, const TValue *key) {
-//   return mainpositionTV(t, key);
-// }
-//
-// #endif
+        throw new NotImplementedException();
+    }
+    
+#if LUA_DEBUG
+    /* export this function for the test library */
 
+    private static partial Node* luaH_mainposition(Table* t, TValue* key)
+    {
+        return mainpositionTV(t, key);
+    }
+#endif
 }

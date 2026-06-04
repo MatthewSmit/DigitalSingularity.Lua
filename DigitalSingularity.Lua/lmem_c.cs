@@ -142,22 +142,21 @@ public static unsafe partial class Lua
         return newblock;
     }
 
-// /*
-// ** In prototypes, the size of the array is also its number of
-// ** elements (to save memory). So, if it cannot shrink an array
-// ** to its number of elements, the only option is to raise an
-// ** error.
-// */
-// void *luaM_shrinkvector_ (lua_State *L, void *block, int *size,
-//                           int final_n, unsigned size_elem) {
-//   void *newblock;
-//   size_t oldsize = cast_sizet(*size) * size_elem;
-//   size_t newsize = cast_sizet(final_n) * size_elem;
-//   Debug.Assert(newsize <= oldsize);
-//   newblock = luaM_saferealloc_(L, block, oldsize, newsize);
-//   *size = final_n;
-//   return newblock;
-// }
+    /*
+    ** In prototypes, the size of the array is also its number of
+    ** elements (to save memory). So, if it cannot shrink an array
+    ** to its number of elements, the only option is to raise an
+    ** error.
+    */
+    private static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int size, int final_n, int size_elem)
+    {
+        long oldsize = (long)size * size_elem;
+        long newsize = (long)final_n * size_elem;
+        Debug.Assert(newsize <= oldsize);
+        void* newblock = luaM_saferealloc_(L, block, oldsize, newsize);
+        size = final_n;
+        return newblock;
+    }
 
     /* }================================================================== */
 

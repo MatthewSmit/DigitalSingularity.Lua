@@ -5,10 +5,10 @@ using System.Diagnostics;
 public static unsafe partial class Lua
 {
     /*
-    ** $Id: lfunc.h $
-    ** Auxiliary functions to manipulate prototypes and closures
-    ** See Copyright Notice in lua.h
-    */
+     ** $Id: lfunc.h $
+     ** Auxiliary functions to manipulate prototypes and closures
+     ** See Copyright Notice in lua.h
+     */
 
     private static long sizeCclosure(int n)
     {
@@ -19,7 +19,7 @@ public static unsafe partial class Lua
     {
         return sizeof(LClosure) + sizeof(UpVal*) * (uint)(n - 1);
     }
-    
+
     /* test whether thread is in 'twups' list */
     private static bool isintwups(lua_State* L)
     {
@@ -43,33 +43,31 @@ public static unsafe partial class Lua
         return (StkId)up->v.p;
     }
 
-    // /*
-// ** maximum number of misses before giving up the cache of closures
-// ** in prototypes
-// */
-// #define MAXMISS		10
-//
-//
-//
-// /* special status to close upvalues preserving the top of the stack */
-// #define CLOSEKTOP	(LUA_ERRERR + 1)
+    /* special status to close upvalues preserving the top of the stack */
+    private const byte CLOSEKTOP = LUA_ERRERR + 1;
 
     private static partial Proto* luaF_newproto(lua_State* L);
 
     private static partial CClosure* luaF_newCclosure(lua_State* L, int nupvals);
 
     private static partial LClosure* luaF_newLclosure(lua_State* L, int nupvals);
-    
-// LUAI_FUNC void luaF_initupvals (lua_State *L, LClosure *cl);
-// LUAI_FUNC UpVal *luaF_findupval (lua_State *L, StkId level);
-// LUAI_FUNC void luaF_newtbcupval (lua_State *L, StkId level);
-// LUAI_FUNC void luaF_closeupval (lua_State *L, StkId level);
-// LUAI_FUNC StkId luaF_close (lua_State *L, StkId level, TStatus status, int yy);
-// LUAI_FUNC void luaF_unlinkupval (UpVal *uv);
+
+    private static partial void luaF_initupvals(lua_State* L, LClosure* cl);
+
+    private static partial UpVal* luaF_findupval(lua_State* L, StkId level);
+
+    private static partial void luaF_newtbcupval(lua_State* L, StkId level);
+
+    private static partial void luaF_closeupval(lua_State* L, StkId level);
+
+    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, int yy);
+
+    private static partial void luaF_unlinkupval(UpVal* uv);
+
 
     private static partial long luaF_protosize(Proto* p);
 
-// LUAI_FUNC void luaF_freeproto (lua_State *L, Proto *f);
-// LUAI_FUNC const char *luaF_getlocalname (const Proto *func, int local_number,
-//                                          int pc);
+    private static partial void luaF_freeproto(lua_State* L, Proto* f);
+
+    private static partial string luaF_getlocalname(Proto* func, int local_number, int pc);
 }

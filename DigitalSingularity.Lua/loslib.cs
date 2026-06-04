@@ -41,14 +41,14 @@ public static unsafe partial class Lua
 // */
 // #if !defined(LUA_NUMTIME)	/* { */
 //
-// #define l_timet			lua_Integer
-// #define l_pushtime(L,t)		lua_pushinteger(L,(lua_Integer)(t))
+// #define l_timet			long
+// #define l_pushtime(L,t)		lua_pushinteger(L,(long)(t))
 // #define l_gettime(L,arg)	luaL_checkinteger(L, arg)
 //
 // #else				/* }{ */
 //
-// #define l_timet			lua_Number
-// #define l_pushtime(L,t)		lua_pushnumber(L,(lua_Number)(t))
+// #define l_timet			double
+// #define l_pushtime(L,t)		lua_pushnumber(L,(double)(t))
 // #define l_gettime(L,arg)	luaL_checknumber(L, arg)
 //
 // #endif				/* } */
@@ -177,7 +177,7 @@ public static unsafe partial class Lua
 
     private static int os_clock(lua_State* L)
     {
-//   lua_pushnumber(L, ((lua_Number)clock())/(lua_Number)CLOCKS_PER_SEC);
+//   lua_pushnumber(L, ((double)clock())/(double)CLOCKS_PER_SEC);
 //   return 1;
         throw new NotImplementedException();
     }
@@ -192,10 +192,10 @@ public static unsafe partial class Lua
 //
 // /*
 // ** About the overflow check: an overflow cannot occur when time
-// ** is represented by a lua_Integer, because either lua_Integer is
+// ** is represented by a long, because either long is
 // ** large enough to represent all int fields or it is not large enough
 // ** to represent a time that cause a field to overflow.  However, if
-// ** times are represented as doubles and lua_Integer is int, then the
+// ** times are represented as doubles and long is int, then the
 // ** time 0x1.e1853b0d184f6p+55 would cause an overflow when adding 1900
 // ** to compute the year.
 // */
@@ -204,7 +204,7 @@ public static unsafe partial class Lua
 //     if (l_unlikely(value > LUA_MAXINTEGER - delta))
 //       luaL_error(L, "field '%s' is out-of-bound", key);
 //   #endif
-//   lua_pushinteger(L, (lua_Integer)value + delta);
+//   lua_pushinteger(L, (long)value + delta);
 //   lua_setfield(L, -2, key);
 // }
 //
@@ -244,7 +244,7 @@ public static unsafe partial class Lua
 // static int getfield (lua_State *L, const char *key, int d, int delta) {
 //   int isnum;
 //   int t = lua_getfield(L, -1, key);  /* get field and its type */
-//   lua_Integer res = lua_tointegerx(L, -1, &isnum);
+//   long res = lua_tointegerx(L, -1, &isnum);
 //   if (!isnum) {  /* field is not an integer? */
 //     if (l_unlikely(t != LUA_TNIL))  /* some other value? */
 //       return luaL_error(L, "field '%s' is not an integer", key);
@@ -366,7 +366,7 @@ public static unsafe partial class Lua
     {
 //   time_t t1 = l_checktime(L, 1);
 //   time_t t2 = l_checktime(L, 2);
-//   lua_pushnumber(L, (lua_Number)difftime(t1, t2));
+//   lua_pushnumber(L, (double)difftime(t1, t2));
 //   return 1;
         throw new NotImplementedException();
     }

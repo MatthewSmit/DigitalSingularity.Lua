@@ -4,32 +4,12 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-// /*
-// ** $Id: liolib.c $
-// ** Standard I/O (and system) library
-// ** See Copyright Notice in lua.h
-// */
-//
-// #define liolib_c
-// #define LUA_LIB
-//
-// #include "lprefix.h"
-//
-//
-// #include <ctype.h>
-// #include <errno.h>
-// #include <locale.h>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <string.h>
-//
-// #include "lua.h"
-//
-// #include "lauxlib.h"
-// #include "lualib.h"
-// #include "llimits.h"
-//
-//
+    /*
+    ** $Id: liolib.c $
+    ** Standard I/O (and system) library
+    ** See Copyright Notice in lua.h
+    */
+
 // /*
 // ** Change this macro to accept other modes for 'fopen' besides
 // ** the standard ones.
@@ -719,16 +699,16 @@ public static unsafe partial class Lua
 //   static const char *const modenames[] = {"set", "cur", "end", null};
 //   FILE *f = tofile(L);
 //   int op = luaL_checkoption(L, 2, "cur", modenames);
-//   lua_Integer p3 = luaL_optinteger(L, 3, 0);
+//   long p3 = luaL_optinteger(L, 3, 0);
 //   l_seeknum offset = (l_seeknum)p3;
-//   luaL_argcheck(L, (lua_Integer)offset == p3, 3,
+//   luaL_argcheck(L, (long)offset == p3, 3,
 //                   "not an integer in proper range");
 //   errno = 0;
 //   op = l_fseek(f, offset, mode[op]);
 //   if (l_unlikely(op))
 //     return luaL_fileresult(L, 0, null);  /* error */
 //   else {
-//     lua_pushinteger(L, (lua_Integer)l_ftell(f));
+//     lua_pushinteger(L, (long)l_ftell(f));
 //     return 1;
 //   }
         throw new NotImplementedException();
@@ -740,7 +720,7 @@ public static unsafe partial class Lua
 //   static const char *const modenames[] = {"no", "full", "line", null};
 //   FILE *f = tofile(L);
 //   int op = luaL_checkoption(L, 2, null, modenames);
-//   lua_Integer sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
+//   long sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
 //   int res;
 //   errno = 0;
 //   res = setvbuf(f, null, mode[op], (size_t)sz);

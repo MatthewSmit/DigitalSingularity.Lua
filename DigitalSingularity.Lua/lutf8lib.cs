@@ -2,29 +2,12 @@ namespace DigitalSingularity.Lua;
 
 public static unsafe partial class Lua
 {
-//     /*
-// ** $Id: lutf8lib.c $
-// ** Standard library for UTF-8 manipulation
-// ** See Copyright Notice in lua.h
-// */
-//
-// #define lutf8lib_c
-// #define LUA_LIB
-//
-// #include "lprefix.h"
-//
-//
-// #include <limits.h>
-// #include <stdlib.h>
-// #include <string.h>
-//
-// #include "lua.h"
-//
-// #include "lauxlib.h"
-// #include "lualib.h"
-// #include "llimits.h"
-//
-//
+    /*
+    ** $Id: lutf8lib.c $
+    ** Standard library for UTF-8 manipulation
+    ** See Copyright Notice in lua.h
+    */
+
 // #define MAXUNICODE	0x10FFFFu
 //
 // #define MAXUTF		0x7FFFFFFFu
@@ -39,10 +22,10 @@ public static unsafe partial class Lua
 //
 // /* from strlib */
 // /* translate a relative string position: negative means back from end */
-// static lua_Integer u_posrelat (lua_Integer pos, size_t len) {
+// static long u_posrelat (long pos, size_t len) {
 //   if (pos >= 0) return pos;
 //   else if (0u - (size_t)pos > len) return 0;
-//   else return (lua_Integer)len + pos + 1;
+//   else return (long)len + pos + 1;
 // }
 //
 //
@@ -53,11 +36,11 @@ public static unsafe partial class Lua
 // ** entry forces an error for non-ASCII bytes with no continuation
 // ** bytes (count == 0).
 // */
-// static const char *utf8_decode (const char *s, l_uint32 *val, int strict) {
-//   static const l_uint32 limits[] =
-//         {~(l_uint32)0, 0x80, 0x800, 0x10000u, 0x200000u, 0x4000000u};
+// static const char *utf8_decode (const char *s, uint *val, int strict) {
+//   static const uint limits[] =
+//         {~(uint)0, 0x80, 0x800, 0x10000u, 0x200000u, 0x4000000u};
 //   unsigned int c = (unsigned char)s[0];
-//   l_uint32 res = 0;  /* final result */
+//   uint res = 0;  /* final result */
 //   if (c < 0x80)  /* ASCII? */
 //     res = c;
 //   else {
@@ -68,7 +51,7 @@ public static unsafe partial class Lua
 //         return null;  /* invalid byte sequence */
 //       res = (res << 6) | (cc & 0x3F);  /* add lower 6 bits from cont. byte */
 //     }
-//     res |= ((l_uint32)(c & 0x7F) << (count * 5));  /* add first byte */
+//     res |= ((uint)(c & 0x7F) << (count * 5));  /* add first byte */
 //     if (count > 5 || res > MAXUTF || res < limits[count])
 //       return null;  /* invalid byte sequence */
 //     s += count;  /* skip continuation bytes read */
@@ -89,15 +72,15 @@ public static unsafe partial class Lua
     */
     private static int utflen(lua_State* L)
     {
-//   lua_Integer n = 0;  /* counter for the number of characters */
+//   long n = 0;  /* counter for the number of characters */
 //   size_t len;  /* string length in bytes */
 //   const char *s = luaL_checklstring(L, 1, &len);
-//   lua_Integer posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
-//   lua_Integer posj = u_posrelat(luaL_optinteger(L, 3, -1), len);
+//   long posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
+//   long posj = u_posrelat(luaL_optinteger(L, 3, -1), len);
 //   int lax = lua_toboolean(L, 4);
-//   luaL_argcheck(L, 1 <= posi && --posi <= (lua_Integer)len, 2,
+//   luaL_argcheck(L, 1 <= posi && --posi <= (long)len, 2,
 //                    "initial position out of bounds");
-//   luaL_argcheck(L, --posj < (lua_Integer)len, 3,
+//   luaL_argcheck(L, --posj < (long)len, 3,
 //                    "final position out of bounds");
 //   while (posi <= posj) {
 //     const char *s1 = utf8_decode(s + posi, null, !lax);
@@ -122,22 +105,22 @@ public static unsafe partial class Lua
     {
 //   size_t len;
 //   const char *s = luaL_checklstring(L, 1, &len);
-//   lua_Integer posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
-//   lua_Integer pose = u_posrelat(luaL_optinteger(L, 3, posi), len);
+//   long posi = u_posrelat(luaL_optinteger(L, 2, 1), len);
+//   long pose = u_posrelat(luaL_optinteger(L, 3, posi), len);
 //   int lax = lua_toboolean(L, 4);
 //   int n;
 //   const char *se;
 //   luaL_argcheck(L, posi >= 1, 2, "out of bounds");
-//   luaL_argcheck(L, pose <= (lua_Integer)len, 3, "out of bounds");
+//   luaL_argcheck(L, pose <= (long)len, 3, "out of bounds");
 //   if (posi > pose) return 0;  /* empty interval; return no values */
-//   if (pose - posi >= INT_MAX)  /* (lua_Integer -> int) overflow? */
+//   if (pose - posi >= INT_MAX)  /* (long -> int) overflow? */
 //     return luaL_error(L, "string slice too long");
 //   n = (int)(pose -  posi) + 1;  /* upper bound for number of returns */
 //   luaL_checkstack(L, n, "string slice too long");
 //   n = 0;  /* count the number of returns */
 //   se = s + pose;  /* string end */
 //   for (s += posi - 1; s < se;) {
-//     l_uint32 code;
+//     uint code;
 //     s = utf8_decode(s, &code, !lax);
 //     if (s == null)
 //       return luaL_error(L, MSGInvalid);
@@ -186,10 +169,10 @@ public static unsafe partial class Lua
     {
 //   size_t len;
 //   const char *s = luaL_checklstring(L, 1, &len);
-//   lua_Integer n  = luaL_checkinteger(L, 2);
-//   lua_Integer posi = (n >= 0) ? 1 : cast_st2S(len) + 1;
+//   long n  = luaL_checkinteger(L, 2);
+//   long posi = (n >= 0) ? 1 : cast_st2S(len) + 1;
 //   posi = u_posrelat(luaL_optinteger(L, 3, posi), len);
-//   luaL_argcheck(L, 1 <= posi && --posi <= (lua_Integer)len, 3,
+//   luaL_argcheck(L, 1 <= posi && --posi <= (long)len, 3,
 //                    "position out of bounds");
 //   if (n == 0) {
 //     /* find beginning of current byte sequence */
@@ -208,7 +191,7 @@ public static unsafe partial class Lua
 //     }
 //     else {
 //       n--;  /* do not move for 1st character */
-//       while (n > 0 && posi < (lua_Integer)len) {
+//       while (n > 0 && posi < (long)len) {
 //         do {  /* find beginning of next character */
 //           posi++;
 //         } while (iscontp(s + posi));  /* (cannot pass final '\0') */
@@ -244,7 +227,7 @@ public static unsafe partial class Lua
 //   if (n >= len)  /* (also handles original 'n' being negative) */
 //     return 0;  /* no more codepoints */
 //   else {
-//     l_uint32 code;
+//     uint code;
 //     const char *next = utf8_decode(s + n, &code, strict);
 //     if (next == null || iscontp(next))
 //       return luaL_error(L, MSGInvalid);

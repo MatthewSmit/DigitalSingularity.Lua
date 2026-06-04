@@ -19,13 +19,13 @@ int _fmode;
 
 // Lua/C API
 typedef struct lua_State lua_State;
-typedef double lua_Number;
+typedef double double;
 lua_State *luaL_newstate(void);
 void luaL_openlibs(lua_State *L);
 void lua_close(lua_State *L);
 int luaL_loadstring(lua_State *L, const char *s);
 int lua_pcall(lua_State *L, int nargs, int nresults, int errfunc);
-lua_Number lua_tonumber(lua_State *L, int idx);
+double lua_tonumber(lua_State *L, int idx);
 ]]
 
 local C = ffi.C

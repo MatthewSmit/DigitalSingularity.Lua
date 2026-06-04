@@ -10,19 +10,22 @@ public static unsafe partial class Lua
 
     private static int luaB_print(lua_State* L)
     {
-//   int n = lua_gettop(L);  /* number of arguments */
-//   int i;
-//   for (i = 1; i <= n; i++) {  /* for each argument */
-//     size_t l;
-//     const char *s = luaL_tolstring(L, i, &l);  /* convert it to string */
-//     if (i > 1)  /* not the first element? */
-//       lua_writestring("\t", 1);  /* add a tab before it */
-//     lua_writestring(s, l);  /* print it */
-//     lua_pop(L, 1);  /* pop result */
-//   }
-//   lua_writeline();
-//   return 0;
-        throw new NotImplementedException();
+        int n = lua_gettop(L); /* number of arguments */
+        for (int i = 1; i <= n; i++)
+        {
+            /* for each argument */
+            string s = luaL_tonetstring(L, i); /* convert it to string */
+            if (i > 1) /* not the first element? */
+            {
+                Console.Write("\t"); /* add a tab before it */
+            }
+
+            Console.Write(s); /* print it */
+            lua_pop(L, 1); /* pop result */
+        }
+
+        Console.WriteLine();
+        return 0;
     }
 
 /*
@@ -46,7 +49,7 @@ public static unsafe partial class Lua
 
 // #define SPACECHARS	" \f\n\r\t\v"
 //
-// static const char *b_str2int (const char *s, unsigned base, lua_Integer *pn) {
+// static const char *b_str2int (const char *s, unsigned base, long *pn) {
 //   lua_Unsigned n = 0;
 //   int neg = 0;
 //   s += strspn(s, SPACECHARS);  /* skip initial spaces */
@@ -63,7 +66,7 @@ public static unsafe partial class Lua
 //     s++;
 //   } while (isalnum(cast_uchar(*s)));
 //   s += strspn(s, SPACECHARS);  /* skip trailing spaces */
-//   *pn = (lua_Integer)((neg) ? (0u - n) : n);
+//   *pn = (long)((neg) ? (0u - n) : n);
 //   return s;
 // }
 
@@ -86,8 +89,8 @@ public static unsafe partial class Lua
 //   else {
 //     size_t l;
 //     const char *s;
-//     lua_Integer n = 0;  /* to avoid warnings */
-//     lua_Integer base = luaL_checkinteger(L, 2);
+//     long n = 0;  /* to avoid warnings */
+//     long base = luaL_checkinteger(L, 2);
 //     luaL_checktype(L, 1, LUA_TSTRING);  /* no numbers as strings */
 //     s = lua_tolstring(L, 1, &l);
 //     luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
@@ -209,11 +212,11 @@ public static unsafe partial class Lua
 //       int k = lua_gc(L, o);
 //       int b = lua_gc(L, LUA_GCCOUNTB);
 //       checkvalres(k);
-//       lua_pushnumber(L, (lua_Number)k + ((lua_Number)b/1024));
+//       lua_pushnumber(L, (double)k + ((double)b/1024));
 //       return 1;
 //     }
 //     case LUA_GCSTEP: {
-//       lua_Integer n = luaL_optinteger(L, 2, 0);
+//       long n = luaL_optinteger(L, 2, 0);
 //       int res = lua_gc(L, o, cast_sizet(n));
 //       checkvalres(res);
 //       lua_pushboolean(L, res);
@@ -239,7 +242,7 @@ public static unsafe partial class Lua
 //         LUA_GCPMINORMUL, LUA_GCPMAJORMINOR, LUA_GCPMINORMAJOR,
 //         LUA_GCPPAUSE, LUA_GCPSTEPMUL, LUA_GCPSTEPSIZE};
 //       int p = pnum[luaL_checkoption(L, 2, null, params)];
-//       lua_Integer value = luaL_optinteger(L, 3, -1);
+//       long value = luaL_optinteger(L, 3, -1);
 //       lua_pushinteger(L, lua_gc(L, o, p, (int)value));
 //       return 1;
 //     }
@@ -277,7 +280,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static int pairscont (lua_State *L, int status, lua_KContext k) {
+// static int pairscont (lua_State *L, int status, nint k) {
 //   (void)L; (void)status; (void)k;  /* unused */
 //   return 4;  /* __pairs did all the work, just return its results */
 // }
@@ -303,7 +306,7 @@ public static unsafe partial class Lua
 // ** Traversal function for 'ipairs'
 // */
 // static int ipairsaux (lua_State *L) {
-//   lua_Integer i = luaL_checkinteger(L, 2);
+//   long i = luaL_checkinteger(L, 2);
 //   i = luaL_intop(+, i, 1);
 //   lua_pushinteger(L, i);
 //   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
@@ -417,7 +420,7 @@ public static unsafe partial class Lua
 
 /* }====================================================== */
 
-// static int dofilecont (lua_State *L, int d1, lua_KContext d2) {
+// static int dofilecont (lua_State *L, int d1, nint d2) {
 //   (void)d1;  (void)d2;  /* only to match 'lua_Kfunction' prototype */
 //   return lua_gettop(L) - 1;
 // }
@@ -455,7 +458,7 @@ public static unsafe partial class Lua
 //     return 1;
 //   }
 //   else {
-//     lua_Integer i = luaL_checkinteger(L, 1);
+//     long i = luaL_checkinteger(L, 1);
 //     if (i < 0) i = n + i;
 //     else if (i > n) i = n;
 //     luaL_argcheck(L, 1 <= i, 1, "index out of range");
@@ -471,7 +474,7 @@ public static unsafe partial class Lua
 // ** 'extra' values (where 'extra' is exactly the number of items to be
 // ** ignored).
 // */
-// static int finishpcall (lua_State *L, int status, lua_KContext extra) {
+// static int finishpcall (lua_State *L, int status, nint extra) {
 //   if (l_unlikely(status != LUA_OK && status != LUA_YIELD)) {  /* error? */
 //     lua_pushboolean(L, 0);  /* first result (false) */
 //     lua_pushvalue(L, -2);  /* error message */

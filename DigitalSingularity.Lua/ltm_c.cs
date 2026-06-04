@@ -4,14 +4,7 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-// static const char udatatypename[] = "userdata";
-//
-// LUAI_DDEF const char *const luaT_typenames_[LUA_TOTALTYPES] = {
-//   "no value",
-//   "nil", "boolean", udatatypename, "number",
-//   "string", "table", "function", udatatypename, "thread",
-//   "upvalue", "proto" /* these last cases are used for tests only */
-// };
+    private const string udatatypename = "userdata";
 
     private static readonly string[] luaT_eventname =
     [
@@ -30,14 +23,14 @@ public static unsafe partial class Lua
         for (int i = 0; i < (int)TMS.N; i++)
         {
             G(L)->tmname[i] = luaS_new(L, luaT_eventname[i]);
-            luaC_fix(L, obj2gco(G(L)->tmname[i]));  /* never collect these names */
+            luaC_fix(L, obj2gco(G(L)->tmname[i])); /* never collect these names */
         }
     }
 
     /*
-    ** function to be used with macro "fasttm": optimized for absence of
-    ** tag methods
-    */
+     ** function to be used with macro "fasttm": optimized for absence of
+     ** tag methods
+     */
     private static partial TValue* luaT_gettm(Table* events, TMS @event, TString* ename)
     {
         TValue* tm = luaH_Hgetshortstr(events, ename);
@@ -52,7 +45,8 @@ public static unsafe partial class Lua
         return tm;
     }
 
-// const TValue *luaT_gettmbyobj (lua_State *L, const TValue *o, TMS event) {
+    private static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event)
+    {
 //   Table *mt;
 //   switch (ttype(o)) {
 //     case LUA_TTABLE:
@@ -65,14 +59,15 @@ public static unsafe partial class Lua
 //       mt = G(L)->mt[ttype(o)];
 //   }
 //   return (mt ? luaH_Hgetshortstr(mt, G(L)->tmname[event]) : &G(L)->nilvalue);
-// }
-//
-//
-// /*
-// ** Return the name of the type of an object. For tables and userdata
-// ** with metatable, use their '__name' metafield, if present.
-// */
-// const char *luaT_objtypename (lua_State *L, const TValue *o) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** Return the name of the type of an object. For tables and userdata
+     ** with metatable, use their '__name' metafield, if present.
+     */
+    private static partial string luaT_objtypename(lua_State* L, TValue* o)
+    {
 //   Table *mt;
 //   if ((ttistable(o) && (mt = hvalue(o)->metatable) != null) ||
 //       (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != null)) {
@@ -81,11 +76,11 @@ public static unsafe partial class Lua
 //       return getstr(tsvalue(name));  /* use it as type name */
 //   }
 //   return ttypename(ttype(o));  /* else use standard type name */
-// }
-//
-//
-// void luaT_callTM (lua_State *L, const TValue *f, const TValue *p1,
-//                   const TValue *p2, const TValue *p3) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaT_callTM(lua_State* L, TValue* f, TValue* p1, TValue* p2, TValue* p3)
+    {
 //   StkId func = L->top.p;
 //   setobj2s(L, func, f);  /* push function (assume EXTRA_STACK) */
 //   setobj2s(L, func + 1, p1);  /* 1st argument */
@@ -97,11 +92,11 @@ public static unsafe partial class Lua
 //     luaD_call(L, func, 0);
 //   else
 //     luaD_callnoyield(L, func, 0);
-// }
-//
-//
-// lu_byte luaT_callTMres (lua_State *L, const TValue *f, const TValue *p1,
-//                         const TValue *p2, StkId res) {
+        throw new NotImplementedException();
+    }
+
+    private static partial byte luaT_callTMres(lua_State* L, TValue* f, TValue* p1, TValue* p2, StkId p3)
+    {
 //   ptrdiff_t result = savestack(L, res);
 //   StkId func = L->top.p;
 //   setobj2s(L, func, f);  /* push function (assume EXTRA_STACK) */
@@ -116,9 +111,9 @@ public static unsafe partial class Lua
 //   res = restorestack(L, result);
 //   setobjs2s(L, res, --L->top.p);  /* move result to its place */
 //   return ttypetag(s2v(res));  /* return tag of the result */
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // static int callbinTM (lua_State *L, const TValue *p1, const TValue *p2,
 //                       StkId res, TMS event) {
 //   const TValue *tm = luaT_gettmbyobj(L, p1, event);  /* try first operand */
@@ -129,10 +124,9 @@ public static unsafe partial class Lua
 //   else  /* call tag method and return the tag of the result */
 //     return luaT_callTMres(L, tm, p1, p2, res);
 // }
-//
-//
-// void luaT_trybinTM (lua_State *L, const TValue *p1, const TValue *p2,
-//                     StkId res, TMS event) {
+
+    private static partial void luaT_trybinTM(lua_State* L, TValue* p1, TValue* p2, StkId res, TMS @event)
+    {
 //   if (l_unlikely(callbinTM(L, p1, p2, res, event) < 0)) {
 //     switch (event) {
 //       case TM_BAND: case TM_BOR: case TM_BXOR:
@@ -147,52 +141,61 @@ public static unsafe partial class Lua
 //         luaG_opinterror(L, p1, p2, "perform arithmetic on");
 //     }
 //   }
-// }
-//
-//
-// /*
-// ** The use of 'p1' after 'callbinTM' is safe because, when a tag
-// ** method is not found, 'callbinTM' cannot change the stack.
-// */
-// void luaT_tryconcatTM (lua_State *L) {
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** The use of 'p1' after 'callbinTM' is safe because, when a tag
+     ** method is not found, 'callbinTM' cannot change the stack.
+     */
+    private static partial void luaT_tryconcatTM(lua_State* L)
+    {
 //   StkId p1 = L->top.p - 2;  /* first argument */
 //   if (l_unlikely(callbinTM(L, s2v(p1), s2v(p1 + 1), p1, TM_CONCAT) < 0))
 //     luaG_concaterror(L, s2v(p1), s2v(p1 + 1));
-// }
-//
-//
-// void luaT_trybinassocTM (lua_State *L, const TValue *p1, const TValue *p2,
-//                                        int flip, StkId res, TMS event) {
-//   if (flip)
-//     luaT_trybinTM(L, p2, p1, res, event);
-//   else
-//     luaT_trybinTM(L, p1, p2, res, event);
-// }
-//
-//
-// void luaT_trybiniTM (lua_State *L, const TValue *p1, lua_Integer i2,
-//                                    int flip, StkId res, TMS event) {
-//   TValue aux;
-//   setivalue(&aux, i2);
-//   luaT_trybinassocTM(L, p1, &aux, flip, res, event);
-// }
-//
-//
-// /*
-// ** Calls an order tag method.
-// */
-// int luaT_callorderTM (lua_State *L, const TValue *p1, const TValue *p2,
-//                       TMS event) {
+        throw new NotImplementedException();
+    }
+
+    private static partial void luaT_trybinassocTM(
+        lua_State* L,
+        TValue* p1,
+        TValue* p2,
+        bool flip,
+        StkId res,
+        TMS @event)
+    {
+        if (flip)
+        {
+            luaT_trybinTM(L, p2, p1, res, @event);
+        }
+        else
+        {
+            luaT_trybinTM(L, p1, p2, res, @event);
+        }
+    }
+
+    private static partial void luaT_trybiniTM(lua_State* L, TValue* p1, long i2, bool flip, StkId res, TMS @event)
+    {
+        TValue aux;
+        setivalue(&aux, i2);
+        luaT_trybinassocTM(L, p1, &aux, flip, res, @event);
+    }
+
+    /*
+     ** Calls an order tag method.
+     */
+    private static partial int luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event)
+    {
 //   int tag = callbinTM(L, p1, p2, L->top.p, event);  /* try original event */
 //   if (tag >= 0)  /* found tag method? */
 //     return !tagisfalse(tag);
 //   luaG_ordererror(L, p1, p2);  /* no metamethod found */
 //   return 0;  /* to avoid warnings */
-// }
-//
-//
-// int luaT_callorderiTM (lua_State *L, const TValue *p1, int v2,
-//                        int flip, int isfloat, TMS event) {
+        throw new NotImplementedException();
+    }
+
+    private static partial int luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event)
+    {
 //   TValue aux; const TValue *p2;
 //   if (isfloat) {
 //     setfltvalue(&aux, cast_num(v2));
@@ -205,14 +208,15 @@ public static unsafe partial class Lua
 //   else
 //     p2 = &aux;
 //   return luaT_callorderTM(L, p1, p2, event);
-// }
-//
-//
-// /*
-// ** Create a vararg table at the top of the stack, with 'n' elements
-// ** starting at 'f'.
-// */
-// static void createvarargtab (lua_State *L, StkId f, int n) {
+        throw new NotImplementedException();
+    }
+
+    /*
+    ** Create a vararg table at the top of the stack, with 'n' elements
+    ** starting at 'f'.
+    */
+    private static void createvarargtab(lua_State* L, StkId f, int n)
+    {
 //   int i;
 //   TValue key, value;
 //   Table *t = luaH_new(L);
@@ -227,55 +231,66 @@ public static unsafe partial class Lua
 //   for (i = 0; i < n; i++)
 //     luaH_setint(L, t, i + 1, s2v(f + i));
 //   luaC_checkGC(L);
-// }
-//
-//
-// /*
-// ** initial stack:  func arg1 ... argn extra1 ...
-// **                 ^ ci->func                    ^ L->top
-// ** final stack: func nil ... nil extra1 ... func arg1 ... argn
-// **                                          ^ ci->func
-// */
-// static void buildhiddenargs (lua_State *L, CallInfo *ci, const Proto *p,
-//                              int totalargs, int nfixparams, int nextra) {
-//   int i;
-//   ci->u.l.nextraargs = nextra;
-//   luaD_checkstack(L, p->maxstacksize + 1);
-//   /* copy function to the top of the stack, after extra arguments */
-//   setobjs2s(L, L->top.p++, ci->func.p);
-//   /* move fixed parameters to after the copied function */
-//   for (i = 1; i <= nfixparams; i++) {
-//     setobjs2s(L, L->top.p++, ci->func.p + i);
-//     setnilvalue(s2v(ci->func.p + i));  /* erase original parameter (for GC) */
-//   }
-//   ci->func.p += totalargs + 1;  /* 'func' now lives after hidden arguments */
-//   ci->top.p += totalargs + 1;
-// }
-//
-//
-// void luaT_adjustvarargs (lua_State *L, CallInfo *ci, const Proto *p) {
-//   int totalargs = cast_int(L->top.p - ci->func.p) - 1;
-//   int nfixparams = p->numparams;
-//   int nextra = totalargs - nfixparams;  /* number of extra arguments */
-//   if (p->flag & PF_VATAB) {  /* does it need a vararg table? */
-//     Debug.Assert(!(p->flag & PF_VAHID));
-//     createvarargtab(L, ci->func.p + nfixparams + 1, nextra);
-//     /* move table to proper place (last parameter) */
-//     setobjs2s(L, ci->func.p + nfixparams + 1, L->top.p - 1);
-//   }
-//   else {  /* no table */
-//     Debug.Assert(p->flag & PF_VAHID);
-//     buildhiddenargs(L, ci, p, totalargs, nfixparams, nextra);
-//     /* set vararg parameter to nil */
-//     setnilvalue(s2v(ci->func.p + nfixparams + 1));
-//     Debug.Assert(L->top.p <= ci->top.p && ci->top.p <= L->stack_last.p);
-//   }
-// }
-//
-//
-// void luaT_getvararg (CallInfo *ci, StkId ra, TValue *rc) {
+        throw new NotImplementedException();
+    }
+
+    /*
+    ** initial stack:  func arg1 ... argn extra1 ...
+    **                 ^ ci->func                    ^ L->top
+    ** final stack: func nil ... nil extra1 ... func arg1 ... argn
+    **                                          ^ ci->func
+    */
+    private static void buildhiddenargs(
+        lua_State* L,
+        CallInfo* ci,
+        Proto* p,
+        int totalargs,
+        int nfixparams,
+        int nextra)
+    {
+        ci->u.l.nextraargs = nextra;
+        luaD_checkstack(L, p->maxstacksize + 1);
+        /* copy function to the top of the stack, after extra arguments */
+        setobjs2s(L, L->top.p++, ci->func.p);
+        /* move fixed parameters to after the copied function */
+        for (int i = 1; i <= nfixparams; i++)
+        {
+            setobjs2s(L, L->top.p++, ci->func.p + i);
+            setnilvalue(s2v(ci->func.p + i)); /* erase original parameter (for GC) */
+        }
+
+        ci->func.p += totalargs + 1; /* 'func' now lives after hidden arguments */
+        ci->top.p += totalargs + 1;
+    }
+
+    private static partial void luaT_adjustvarargs(lua_State* L, CallInfo* ci, Proto* p)
+    {
+        int totalargs = (int)(L->top.p - ci->func.p) - 1;
+        int nfixparams = p->numparams;
+        int nextra = totalargs - nfixparams; /* number of extra arguments */
+        if ((p->flag & PF_VATAB) != 0)
+        {
+            /* does it need a vararg table? */
+            Debug.Assert((p->flag & PF_VAHID) == 0);
+            createvarargtab(L, ci->func.p + nfixparams + 1, nextra);
+            /* move table to proper place (last parameter) */
+            setobjs2s(L, ci->func.p + nfixparams + 1, L->top.p - 1);
+        }
+        else
+        {
+            /* no table */
+            Debug.Assert((p->flag & PF_VAHID) != 0);
+            buildhiddenargs(L, ci, p, totalargs, nfixparams, nextra);
+            /* set vararg parameter to nil */
+            setnilvalue(s2v(ci->func.p + nfixparams + 1));
+            Debug.Assert(L->top.p <= ci->top.p && ci->top.p <= L->stack_last.p);
+        }
+    }
+
+    private static partial void luaT_getvararg(CallInfo* ci, StkId ra, TValue* rc)
+    {
 //   int nextra = ci->u.l.nextraargs;
-//   lua_Integer n;
+//   long n;
 //   if (tointegerns(rc, &n)) {  /* integral value? */
 //     if (l_castS2U(n) - 1 < cast_uint(nextra)) {
 //       StkId slot = ci->func.p - nextra + cast_int(n) - 1;
@@ -292,12 +307,12 @@ public static unsafe partial class Lua
 //     }
 //   }
 //   setnilvalue(s2v(ra));  /* else produce nil */
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // /*
 // ** Get the number of extra arguments in a vararg function. If vararg
-// ** table has been optimized away, that number is in the call info.
+// ** table has been optimised away, that number is in the call info.
 // ** Otherwise, get the field 'n' from the vararg table and check that it
 // ** has a proper value (non-negative integer not larger than the stack
 // ** limit).
@@ -313,14 +328,13 @@ public static unsafe partial class Lua
 //     return cast_int(ivalue(&res));
 //   }
 // }
-//
-//
-// /*
-// ** Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
-// ** the register of the vararg table or -1 if there is no vararg table.
-// */
-// void luaT_getvarargs (lua_State *L, CallInfo *ci, StkId where, int wanted,
-//                                     int vatab) {
+
+    /*
+     ** Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
+     ** the register of the vararg table or -1 if there is no vararg table.
+     */
+    private static partial void luaT_getvarargs(lua_State* L, CallInfo* ci, StkId where, int wanted, int vatab)
+    {
 //   Table *h = (vatab < 0) ? null : hvalue(s2v(ci->func.p + vatab + 1));
 //   int nargs = getnumargs(L, ci, h);  /* number of available vararg args. */
 //   int i, touse;  /* 'touse' is minimum between 'wanted' and 'nargs' */
@@ -344,7 +358,6 @@ public static unsafe partial class Lua
 //   }
 //   for (; i < wanted; i++)   /* complete required results with nil */
 //     setnilvalue(s2v(where + i));
-// }
-//
-
+        throw new NotImplementedException();
+    }
 }
