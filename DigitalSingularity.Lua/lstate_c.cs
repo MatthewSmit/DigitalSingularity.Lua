@@ -22,16 +22,20 @@ public static unsafe partial class Lua
         getlock(l)->@lock = 0;
         getlock(l)->plock = &getlock(l)->@lock;
     }
-#else
-    private static void luai_userstateopen(lua_State* l) { }
-#endif
-
-// #define luai_userstateclose(l)  \
-//   Debug.Assert(getlock(l)->lock == 1 && getlock(l)->plock == &(getlock(l)->lock))
+    
+    private static void luai_userstateclose(lua_State* l)
+    {
+        Debug.Assert(getlock(l)->@lock == 1 && getlock(l)->plock == &getlock(l)->@lock);
+    }
+   
 // #define luai_userstatethread(l,l1) \
 //   Debug.Assert(getlock(l1)->plock == getlock(l)->plock)
 // #define luai_userstatefree(l,l1) \
 //   Debug.Assert(getlock(l)->plock == getlock(l1)->plock)
+#else
+    private static void luai_userstateopen(lua_State* l) { }
+    private static void luai_userstateclose(lua_State* l) { }
+#endif
 
     private static void lua_lock(lua_State* l)
     {
@@ -44,23 +48,6 @@ public static unsafe partial class Lua
         int result = --*getlock(l)->plock;
         Debug.Assert(result == 0);
     }
-
-    // #if !defined(luai_userstateopen)
-// #define luai_userstateopen(L)		((void)L)
-// #endif
-//
-// #if !defined(luai_userstateclose)
-// #define luai_userstateclose(L)		((void)L)
-// #endif
-//
-// #if !defined(luai_userstatethread)
-// #define luai_userstatethread(L,L1)	((void)L)
-// #endif
-//
-// #if !defined(luai_userstatefree)
-// #define luai_userstatefree(L,L1)	((void)L)
-// #endif
-
 
     /*
     ** set GCdebt to a new value keeping the real number of allocated
@@ -95,24 +82,26 @@ public static unsafe partial class Lua
         return ci;
     }
 
-// /*
-// ** free all CallInfo structures not in use by a thread
-// */
-// static void freeCI (lua_State *L) {
-//   CallInfo *ci = L->ci;
-//   CallInfo *next = ci->next;
-//   ci->next = null;
-//   while ((ci = next) != null) {
-//     next = ci->next;
-//     luaM_free(L, ci);
-//     L->nci--;
-//   }
-// }
+    /*
+    ** free all CallInfo structures not in use by a thread
+    */
+    private static void freeCI(lua_State* L)
+    {
+        CallInfo* ci = L->ci;
+        CallInfo* next = ci->next;
+        ci->next = null;
+        while ((ci = next) != null)
+        {
+            next = ci->next;
+            luaM_free(L, ci);
+            L->nci--;
+        }
+    }
 
     /*
-    ** free half of the CallInfo structures not in use by a thread,
-    ** keeping the first one.
-    */
+     ** free half of the CallInfo structures not in use by a thread,
+     ** keeping the first one.
+     */
     private static partial void luaE_shrinkCI(lua_State* L)
     {
         CallInfo* ci = L->ci->next; /* first free CallInfo */
@@ -197,19 +186,23 @@ public static unsafe partial class Lua
         L1->top.p = L1->stack.p + 1; /* +1 for 'function' entry */
     }
 
-// static void freestack (lua_State *L) {
-//   if (L->stack.p == null)
-//     return;  /* stack not completely built yet */
-//   L->ci = &L->base_ci;  /* free the entire 'ci' list */
-//   freeCI(L);
-//   Debug.Assert(L->nci == 0);
-//   /* free stack */
-//   luaM_freearray(L, L->stack.p, cast_sizet(stacksize(L) + EXTRA_STACK));
-// }
+    private static void freestack(lua_State* L)
+    {
+        if (L->stack.p == null!)
+        {
+            return; /* stack not completely built yet */
+        }
+
+        L->ci = &L->base_ci; /* free the entire 'ci' list */
+        freeCI(L);
+        Debug.Assert(L->nci == 0);
+        /* free stack */
+        luaM_freearray(L, L->stack.p, stacksize(L) + EXTRA_STACK);
+    }
 
     /*
-    ** Create registry table and its predefined values
-    */
+     ** Create registry table and its predefined values
+     */
     private static void init_registry(lua_State* L, global_State* g)
     {
         /* create registry */
@@ -282,21 +275,25 @@ public static unsafe partial class Lua
 
     private static void close_state(lua_State* L)
     {
-//   global_State *g = G(L);
-//   if (!completestate(g))  /* closing a partially built state? */
-//     luaC_freeallobjects(L);  /* just collect its objects */
-//   else {  /* closing a fully built state */
-//     resetCI(L);
-//     luaD_closeprotected(L, 1, LUA_OK);  /* close all upvalues */
-//     L->top.p = L->stack.p + 1;  /* empty the stack to run finalizers */
-//     luaC_freeallobjects(L);  /* collect all objects */
-//     luai_userstateclose(L);
-//   }
-//   luaM_freearray(L, G(L)->strt.hash, cast_sizet(G(L)->strt.size));
-//   freestack(L);
-//   Debug.Assert(gettotalbytes(g) == sizeof(global_State));
-//   (*g->frealloc)(g->ud, g, sizeof(global_State), 0);  /* free main block */
-        throw new NotImplementedException();
+        global_State* g = G(L);
+        if (!completestate(g)) /* closing a partially built state? */
+        {
+            luaC_freeallobjects(L); /* just collect its objects */
+        }
+        else
+        {
+            /* closing a fully built state */
+            resetCI(L);
+            luaD_closeprotected(L, 1, LUA_OK); /* close all upvalues */
+            L->top.p = L->stack.p + 1; /* empty the stack to run finalisers */
+            luaC_freeallobjects(L); /* collect all objects */
+            luai_userstateclose(L);
+        }
+
+        luaM_freearray(L, G(L)->strt.hash, G(L)->strt.size);
+        freestack(L);
+        Debug.Assert(gettotalbytes(g) == sizeof(global_State));
+        g->frealloc(g->ud, g, sizeof(global_State), 0); /* free main block */
     }
 
     public static partial lua_State* lua_newthread(lua_State* L)
@@ -442,9 +439,8 @@ public static unsafe partial class Lua
     public static partial void lua_close(lua_State* L)
     {
         lua_lock(L);
-        // L = mainthread(G(L)); /* only the main thread can be closed */
-        // close_state(L);
-        throw new NotImplementedException();
+        L = mainthread(G(L)); /* only the main thread can be closed */
+        close_state(L);
     }
 
     private static partial void luaE_warning(lua_State* L, string msg, bool tocont)

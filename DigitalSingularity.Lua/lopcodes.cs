@@ -217,9 +217,9 @@ public static unsafe partial class Lua
         setarg(ref i, v, POS_vC, SIZE_vC);
     }
 
-    private static int TESTARG_k(uint i)
+    private static bool TESTARG_k(uint i)
     {
-        return (int)(i & 1u << POS_k);
+        return (i & 1u << POS_k) != 0;
     }
 
     private static int GETARG_k(uint i)

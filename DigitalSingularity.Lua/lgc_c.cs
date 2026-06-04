@@ -933,11 +933,15 @@ public static unsafe partial class Lua
         }
     }
 
-// static void freeupval (lua_State *L, UpVal *uv) {
-//   if (upisopen(uv))
-//     luaF_unlinkupval(uv);
-//   luaM_free(L, uv);
-// }
+    private static void freeupval(lua_State* L, UpVal* uv)
+    {
+        if (upisopen(uv))
+        {
+            luaF_unlinkupval(uv);
+        }
+
+        luaM_free(L, uv);
+    }
 
     private static void freeobj(lua_State* L, GCObject* o)
     {
@@ -947,14 +951,12 @@ public static unsafe partial class Lua
         switch (o->tt)
         {
             case LUA_VPROTO:
-//       luaF_freeproto(L, gco2p(o));
-//       break;
-                throw new NotImplementedException();
+                luaF_freeproto(L, gco2p(o));
+                break;
 
             case LUA_VUPVAL:
-//       freeupval(L, gco2upv(o));
-//       break;
-                throw new NotImplementedException();
+                freeupval(L, gco2upv(o));
+                break;
 
             case LUA_VLCL:
                 {
@@ -1733,35 +1735,36 @@ public static unsafe partial class Lua
         g->sweepgc = sweeptolive(L, &g->allgc);
     }
 
-// /*
-// ** Delete all objects in list 'p' until (but not including) object
-// ** 'limit'.
-// */
-// static void deletelist (lua_State *L, GCObject *p, GCObject *limit) {
-//   while (p != limit) {
-//     GCObject *next = p->next;
-//     freeobj(L, p);
-//     p = next;
-//   }
-// }
+    /*
+    ** Delete all objects in list 'p' until (but not including) object
+    ** 'limit'.
+    */
+    private static void deletelist(lua_State* L, GCObject* p, GCObject* limit)
+    {
+        while (p != limit)
+        {
+            GCObject* next = p->next;
+            freeobj(L, p);
+            p = next;
+        }
+    }
 
     /*
-    ** Call all finalisers of the objects in the given Lua state, and
-    ** then free all objects, except for the main thread.
-    */
+     ** Call all finalisers of the objects in the given Lua state, and
+     ** then free all objects, except for the main thread.
+     */
     private static partial void luaC_freeallobjects(lua_State* L)
     {
-//   global_State *g = G(L);
-//   g->gcstp = GCSTPCLS;  /* no extra finalizers after here */
-//   luaC_changemode(L, KGC_INC);
-//   separatetobefnz(g, 1);  /* separate all objects with finalizers */
-//   Debug.Assert(g->finobj == null);
-//   callallpendingfinalisers(L);
-//   deletelist(L, g->allgc, obj2gco(mainthread(g)));
-//   Debug.Assert(g->finobj == null);  /* no new finalizers */
-//   deletelist(L, g->fixedgc, null);  /* collect fixed objects */
-//   Debug.Assert(g->strt.nuse == 0);
-        throw new NotImplementedException();
+        global_State* g = G(L);
+        g->gcstp = GCSTPCLS; /* no extra finalisers after here */
+        luaC_changemode(L, KGC_INC);
+        separatetobefnz(g, 1); /* separate all objects with finalisers */
+        Debug.Assert(g->finobj == null);
+        callallpendingfinalisers(L);
+        deletelist(L, g->allgc, obj2gco(mainthread(g)));
+        Debug.Assert(g->finobj == null); /* no new finalisers */
+        deletelist(L, g->fixedgc, null); /* collect fixed objects */
+        Debug.Assert(g->strt.nuse == 0);
     }
 
     private static partial void atomic(lua_State* L)

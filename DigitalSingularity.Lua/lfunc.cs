@@ -60,7 +60,7 @@ public static unsafe partial class Lua
 
     private static partial void luaF_closeupval(lua_State* L, StkId level);
 
-    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, int yy);
+    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, bool yy);
 
     private static partial void luaF_unlinkupval(UpVal* uv);
 

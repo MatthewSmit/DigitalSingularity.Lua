@@ -1,5 +1,7 @@
 namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
 // #define LuaClosure(f)		((f) != null && (f)->c.tt == LUA_VLCL)
@@ -16,35 +18,40 @@ public static unsafe partial class Lua
 //   return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
 // }
 
-// /*
-// ** Get a "base line" to find the line corresponding to an instruction.
-// ** Base lines are regularly placed at MAXIWTHABS intervals, so usually
-// ** an integer division gets the right place. When the source file has
-// ** large sequences of empty/comment lines, it may need extra entries,
-// ** so the original estimate needs a correction.
-// ** If the original estimate is -1, the initial 'if' ensures that the
-// ** 'while' will run at least once.
-// ** The assertion that the estimate is a lower bound for the correct base
-// ** is valid as long as the debug info has been generated with the same
-// ** value for MAXIWTHABS or smaller. (Previous releases use a little
-// ** smaller value.)
-// */
-// static int getbaseline (const Proto *f, int pc, int *basepc) {
-//   if (f->sizeabslineinfo == 0 || pc < f->abslineinfo[0].pc) {
-//     *basepc = -1;  /* start from the beginning */
-//     return f->linedefined;
-//   }
-//   else {
-//     int i = pc / MAXIWTHABS - 1;  /* get an estimate */
-//     /* estimate must be a lower bound of the correct base */
-//     Debug.Assert(i < 0 ||
-//               (i < f->sizeabslineinfo && f->abslineinfo[i].pc <= pc));
-//     while (i + 1 < f->sizeabslineinfo && pc >= f->abslineinfo[i + 1].pc)
-//       i++;  /* low estimate; adjust it */
-//     *basepc = f->abslineinfo[i].pc;
-//     return f->abslineinfo[i].line;
-//   }
-// }
+    /*
+    ** Get a "base line" to find the line corresponding to an instruction.
+    ** Base lines are regularly placed at MAXIWTHABS intervals, so usually
+    ** an integer division gets the right place. When the source file has
+    ** large sequences of empty/comment lines, it may need extra entries,
+    ** so the original estimate needs a correction.
+    ** If the original estimate is -1, the initial 'if' ensures that the
+    ** 'while' will run at least once.
+    ** The assertion that the estimate is a lower bound for the correct base
+    ** is valid as long as the debug info has been generated with the same
+    ** value for MAXIWTHABS or smaller. (Previous releases use a little
+    ** smaller value.)
+    */
+    private static int getbaseline(Proto* f, int pc, out int basepc)
+    {
+        if (f->sizeabslineinfo == 0 || pc < f->abslineinfo[0].pc)
+        {
+            basepc = -1; /* start from the beginning */
+            return f->linedefined;
+        }
+
+        int i = pc / MAXIWTHABS - 1; /* get an estimate */
+        /* estimate must be a lower bound of the correct base */
+        Debug.Assert(
+            i < 0 ||
+            (i < f->sizeabslineinfo && f->abslineinfo[i].pc <= pc));
+        while (i + 1 < f->sizeabslineinfo && pc >= f->abslineinfo[i + 1].pc)
+        {
+            i++; /* low estimate; adjust it */
+        }
+
+        basepc = f->abslineinfo[i].pc;
+        return f->abslineinfo[i].line;
+    }
 
     /*
      ** Get the line corresponding to instruction 'pc' in function 'f';
@@ -53,18 +60,20 @@ public static unsafe partial class Lua
      */
     private static partial int luaG_getfuncline(Proto* f, int pc)
     {
-//   if (f->lineinfo == null)  /* no debug information? */
-//     return -1;
-//   else {
-//     int basepc;
-//     int baseline = getbaseline(f, pc, &basepc);
-//     while (basepc++ < pc) {  /* walk until given instruction */
-//       Debug.Assert(f->lineinfo[basepc] != ABSLINEINFO);
-//       baseline += f->lineinfo[basepc];  /* correct line */
-//     }
-//     return baseline;
-//   }
-        throw new NotImplementedException();
+        if (f->lineinfo == null) /* no debug information? */
+        {
+            return -1;
+        }
+
+        int baseline = getbaseline(f, pc, out int basepc);
+        while (basepc++ < pc)
+        {
+            /* walk until given instruction */
+            Debug.Assert(f->lineinfo[basepc] != ABSLINEINFO);
+            baseline += f->lineinfo[basepc]; /* correct line */
+        }
+
+        return baseline;
     }
 
 // static int getcurrentline (CallInfo *ci) {

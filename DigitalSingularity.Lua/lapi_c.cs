@@ -1150,10 +1150,9 @@ public static unsafe partial class Lua
             throw new NotImplementedException();
         }
 
-//   adjustresults(L, nresults);
-//   lua_unlock(L);
-//   return APIstatus(status);
-        throw new NotImplementedException();
+        adjustresults(L, nresults);
+        lua_unlock(L);
+        return status;
     }
 
     public static partial int lua_load(lua_State* L, lua_Reader reader, void* data, string? chunkname, string? mode)

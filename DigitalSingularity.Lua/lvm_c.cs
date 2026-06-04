@@ -926,22 +926,33 @@ public static unsafe partial class Lua
      ** create a new Lua closure, push it in the stack, and initialise
      ** its upvalues.
      */
-// static void pushclosure (lua_State *L, Proto *p, UpVal **encup, StkId base,
-//                          StkId ra) {
-//   int nup = p->sizeupvalues;
-//   Upvaldesc *uv = p->upvalues;
-//   int i;
-//   LClosure *ncl = luaF_newLclosure(L, nup);
-//   ncl->p = p;
-//   setclLvalue2s(L, ra, ncl);  /* anchor new closure in stack */
-//   for (i = 0; i < nup; i++) {  /* fill in its upvalues */
-//     if (uv[i].instack)  /* upvalue refers to local variable? */
-//       ncl->upvals[i] = luaF_findupval(L, base + uv[i].idx);
-//     else  /* get upvalue from enclosing function */
-//       ncl->upvals[i] = encup[uv[i].idx];
-//     luaC_objbarrier(L, ncl, ncl->upvals[i]);
-//   }
-// }
+    private static void pushclosure(
+        lua_State* L,
+        Proto* p,
+        UpVal** encup,
+        StkId @base,
+        StkId ra)
+    {
+        int nup = p->sizeupvalues;
+        Upvaldesc* uv = p->upvalues;
+        LClosure* ncl = luaF_newLclosure(L, nup);
+        ncl->p = p;
+        setclLvalue2s(L, ra, ncl); /* anchor new closure in stack */
+        for (int i = 0; i < nup; i++)
+        {
+            /* fill in its upvalues */
+            if (uv[i].instack != 0) /* upvalue refers to local variable? */
+            {
+                (&ncl->upvals)[i] = luaF_findupval(L, @base + uv[i].idx);
+            }
+            else /* get upvalue from enclosing function */
+            {
+                (&ncl->upvals)[i] = encup[uv[i].idx];
+            }
+
+            luaC_objbarrier(L, (GCObject*)ncl, (GCObject*)(&ncl->upvals)[i]);
+        }
+    }
 
     /*
      ** finish execution of an opcode interrupted by a yield
@@ -1177,198 +1188,352 @@ public static unsafe partial class Lua
 //     Protect(cond = luaT_callorderiTM(L, ra, im, inv, isf, tm));  \
 //   }  \
 //   docondjump(); }
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Function 'luaV_execute': main interpreter loop
-// ** ===================================================================
-// */
-//
-// /*
-// ** some macros for common tasks in 'luaV_execute'
-// */
-//
-//
-// #define @base + GETARG_A(i)	(base+GETARG_A(i))
-// #define vRA(i)	s2v(@base + GETARG_A(i))
-// #define KB(i)	(k+GETARG_B(i))
-// #define KC(i)	(k+GETARG_C(i))
-// #define RKC(i)	((TESTARG_k(i)) ? k + GETARG_C(i) : s2v(base + GETARG_C(i)))
-//
-//
-// #define updatestack(ci)  \
-// 	{ if (l_unlikely(trap)) {@base = ci->func.p + 1; ra = @base + GETARG_A(i); } }
-//
-//
-// /*
-// ** Execute a jump instruction. The 'updatetrap' allows signals to stop
-// ** tight loops. (Without it, the local copy of 'trap' could never change.)
-// */
-// #define dojump(ci,i,e)	{ pc += GETARG_sJ(i) + e; trap = ci->u.l.trap; }
-//
-//
-// /* for test instructions, execute the jump instruction that follows it */
-// #define donextjump(ci)	{ Instruction ni = *pc; dojump(ci, ni, 1); }
-//
-// /*
-// ** do a conditional jump: skip next instruction if 'cond' is not what
-// ** was expected (parameter 'k'), else do next instruction, which must
-// ** be a jump.
-// */
-// #define docondjump()	if (cond != GETARG_k(i)) pc++; else donextjump(ci);
-//
-// /*
-// ** Whenever code can raise errors, the global 'pc' and the global
-// ** 'top' must be correct to report occasional errors.
-// */
-// #define savestate(L,ci)		(ci->u.l.savedpc = pc, L->top.p = ci->top.p)
-//
-//
-// /*
-// ** Protect code that, in general, can raise errors, reallocate the
-// ** stack, and change the hooks.
-// */
-// #define Protect(exp)  (savestate(L,ci), (exp), trap = ci->u.l.trap)
-//
-// /*
-// ** Protect code that can only raise errors. (That is, it cannot change
-// ** the stack or hooks.)
-// */
-// #define halfProtect(exp)  (savestate(L,ci), (exp))
-//
-// /*
-// ** macro executed during Lua functions at points where the
-// ** function can yield.
-// */
-// #if !defined(luai_threadyield)
-// #define luai_threadyield(L)	{lua_unlock(L); lua_lock(L);}
-// #endif
-//
-// /* 'c' is the limit of live values in the stack */
-// #define checkGC(L,c)  \
-// 	{ luaC_condGC(L, (ci->u.l.savedpc = pc, L->top.p = (c)), \
-//                          trap = ci->u.l.trap); \
-//            luai_threadyield(L); }
 
+    /* }================================================================== */
+    
+    /*
+    ** {==================================================================
+    ** Function 'luaV_execute': main interpreter loop
+    ** ===================================================================
+    */
+
+    /*
+    ** some macros for common tasks in 'luaV_execute'
+    */
+
+    private static StkId RA(ref ExecuteState state)
+    {
+        return state.@base + GETARG_A(state.i);
+    }
+
+    private static StkId RA(ref ExecuteState state, uint i)
+    {
+        return state.@base + GETARG_A(i);
+    }
+
+    private static TValue* vRA(ref ExecuteState state)
+    {
+        return s2v(RA(ref state));
+    }
+
+    private static StkId RB(ref ExecuteState state)
+    {
+        return state.@base + GETARG_B(state.i);
+    }
+
+    private static TValue* vRB(ref ExecuteState state)
+    {
+        return s2v(RB(ref state));
+    }
+
+    private static TValue* KB(ref ExecuteState state)
+    {
+        return state.k + GETARG_B(state.i);
+    }
+
+    private static StkId RC(ref ExecuteState state)
+    {
+        return state.@base + GETARG_C(state.i);
+    }
+
+    private static TValue* vRC(ref ExecuteState state)
+    {
+        return s2v(RC(ref state));
+    }
+
+    private static TValue* KC(ref ExecuteState state)
+    {
+        return state.k + GETARG_C(state.i);
+    }
+
+    private static TValue* RKC(ref ExecuteState state)
+    {
+        return TESTARG_k(state.i) ? state.k + GETARG_C(state.i) : s2v(state.@base + GETARG_C(state.i));
+    }
+
+    private static void updatetrap(ref ExecuteState state)
+    {
+        state.trap = state.ci->u.l.trap;
+    }
+
+    private static void updatebase(ref ExecuteState state)
+    {
+        state.@base = state.ci->func.p + 1;
+    }
+
+    // #define updatestack(ci)  \
+// 	{ if (l_unlikely(trap)) { updatebase(ci); ra = @base + GETARG_A(i); } }
+
+    /*
+    ** Execute a jump instruction. The 'updatetrap' allows signals to stop
+    ** tight loops. (Without it, the local copy of 'trap' could never change.)
+    */
+    private static void dojump(ref ExecuteState state, uint i, int e)
+    {
+        state.pc += GETARG_sJ(i) + e;
+        updatetrap(ref state);
+    }
+
+    /* for test instructions, execute the jump instruction that follows it */
+    private static void donextjump(ref ExecuteState state)
+    {
+        uint ni = *state.pc;
+        dojump(ref state, ni, 1);
+    }
+
+    /*
+     ** do a conditional jump: skip next instruction if 'cond' is not what
+     ** was expected (parameter 'k'), else do next instruction, which must
+     ** be a jump.
+     */
+    private static void docondjump(ref ExecuteState state)
+    {
+        if (state.cond != (GETARG_k(state.i) != 0))
+        {
+            state.pc++;
+        }
+        else
+        {
+            donextjump(ref state);
+        }
+    }
+
+    /*
+     ** Correct global 'pc'.
+     */
+    private static void savepc(ref ExecuteState state)
+    {
+        state.ci->u.l.savedpc = state.pc;
+    }
+
+    /*
+    ** Whenever code can raise errors, the global 'pc' and the global
+    ** 'top' must be correct to report occasional errors.
+    */
+    private static void savestate(ref ExecuteState state)
+    {
+        state.ci->u.l.savedpc = state.pc;
+        state.L->top.p = state.ci->top.p;
+    }
+
+    /*
+     ** Protect code that, in general, can raise errors, reallocate the
+     ** stack, and change the hooks.
+     */
+    private static void Protect(ref ExecuteState state, Execute exp)
+    {
+        savestate(ref state);
+        exp(ref state);
+        updatetrap(ref state);
+    }
+    
+    private static void Protect(ref ExecuteState state, Action exp)
+    {
+        savestate(ref state);
+        exp();
+        updatetrap(ref state);
+    }
+
+    private delegate void Execute(ref ExecuteState state);
+
+    /* special version that does not change the top */
+    private static void ProtectNT(ref ExecuteState state, Execute exp)
+    {
+        savepc(ref state);
+        exp(ref state);
+        updatetrap(ref state);
+    }
+    
+    private static void ProtectNT(ref ExecuteState state, Action exp)
+    {
+        savepc(ref state);
+        exp();
+        updatetrap(ref state);
+    }
+
+    /*
+    ** Protect code that can only raise errors. (That is, it cannot change
+    ** the stack or hooks.)
+    */
+    private static void halfProtect(ref ExecuteState state, Execute exp)
+    {
+        savestate(ref state);
+        exp(ref state);
+    }
+    
+    private static void halfProtect(ref ExecuteState state, Action exp)
+    {
+        savestate(ref state);
+        exp();
+    }
+    
+    /*
+    ** macro executed during Lua functions at points where the
+    ** function can yield.
+    */
+    private static void luai_threadyield(lua_State* L)
+    {
+        lua_unlock(L);
+        lua_lock(L);
+    }
+
+    /* 'c' is the limit of live values in the stack */
+    private static void checkGC(ref ExecuteState state, StkId c)
+    {
+        if (G(state.L)->GCdebt <= 0)
+        {
+            state.ci->u.l.savedpc = state.pc;
+            state.L->top.p = c;
+            luaC_step(state.L);
+            updatetrap(ref state);
+        }
+
+#if !HARDMEMTESTS
+        if (gcrunning(G(state.L)))
+        {
+            state.ci->u.l.savedpc = state.pc;
+            state.L->top.p = c;
+            luaC_fullgc(state.L, false);
+            updatetrap(ref state);
+        }
+#endif
+        
+        luai_threadyield(state.L);
+    }
+
+    private static void vmfetch(ref ExecuteState state)
+    {
+        if (state.trap != 0)
+        {
+            /* stack reallocation or hooks? */
+            state.trap = (byte)(luaG_traceexec(state.L, state.pc) ? 1 : 0); /* handle hooks */
+            updatebase(ref state); /* correct stack */
+        }
+
+        state.i = *(state.pc++);
+    }
+
+    private struct ExecuteState
+    {
+        public lua_State* L;
+        public CallInfo* ci;
+        public LClosure* cl;
+        public TValue* k;
+        public StkId @base;
+        public uint* pc;
+        public byte trap;
+        public uint i; /* instruction being executed */
+        public bool cond;
+    }
 
     private static partial void luaV_execute(lua_State* L, CallInfo* ci)
     {
+        ExecuteState state = default;
+        state.L = L;
+        state.ci = ci;
         startfunc:
-        byte trap = L->hookmask;
+        state.trap = L->hookmask;
         returning: /* trap already set */
-        LClosure* cl = ci_func(ci);
-        TValue* k = cl->p->k;
-        uint* pc = ci->u.l.savedpc;
-        if (trap != 0)
+        state.cl = ci_func(ci);
+        state.k = state.cl->p->k;
+        state.pc = ci->u.l.savedpc;
+        if (state.trap != 0)
         {
-            trap = (byte)(luaG_tracecall(L) ? 1 : 0);
+            state.trap = (byte)(luaG_tracecall(L) ? 1 : 0);
         }
 
-        StkId @base = ci->func.p + 1;
+        state.@base = ci->func.p + 1;
         /* main loop of interpreter */
         while (true)
         {
-            /* fetch an instruction and prepare its execution */
-
-            if (trap != 0)
+            vmfetch(ref state);
+#if true
             {
-                /* stack reallocation or hooks? */
-                trap = (byte)(luaG_traceexec(L, pc) ? 1 : 0); /* handle hooks */
-                @base = ci->func.p + 1; /* correct stack */
+                /* low-level line tracing for debugging Lua */
+                int pcrel = pcRel(state.pc, state.cl->p);
+                Console.WriteLine(
+                    "line: {0}; {1} ({2})",
+                    luaG_getfuncline(state.cl->p, pcrel),
+                    opnames[(int)GET_OPCODE(state.i)],
+                    pcrel);
             }
-
-            uint i = *pc++;
-
-//     #if 0
-//     { /* low-level line tracing for debugging Lua */
-//       #include "lopnames.h"
-//       int pcrel = pcRel(pc, cl->p);
-//       printf("line: %d; %s (%d)\n", luaG_getfuncline(cl->p, pcrel),
-//              opnames[GET_OPCODE(i)], pcrel);
-//     }
-//     #endif
-
-            Debug.Assert(@base == ci->func.p + 1);
-            Debug.Assert(@base <= L->top.p && L->top.p <= L->stack_last.p);
+#endif
+            Debug.Assert(state.@base == ci->func.p + 1);
+            Debug.Assert(state.@base <= L->top.p && L->top.p <= L->stack_last.p);
             /* for tests, invalidate top for instructions not expecting it */
-
-            if (luaP_isIT(i))
+            if (luaP_isIT(state.i))
             {
-                L->top.p = @base;
+                L->top.p = state.@base;
             }
 
-            switch (GET_OPCODE(i))
+            switch (GET_OPCODE(state.i))
             {
                 case OpCode.OP_MOVE:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        setobjs2s(L, ra, @base + GETARG_B(i));
+                        StkId ra = RA(ref state);
+                        setobjs2s(L, ra, RB(ref state));
                         break;
                     }
 
                 case OpCode.OP_LOADI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        long b = GETARG_sBx(i);
+                        StkId ra = RA(ref state);
+                        int b = GETARG_sBx(state.i);
                         setivalue(s2v(ra), b);
                         break;
                     }
 
                 case OpCode.OP_LOADF:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int b = GETARG_sBx(i);
+                        StkId ra = RA(ref state);
+                        int b = GETARG_sBx(state.i);
                         setfltvalue(s2v(ra), b);
                         break;
                     }
 
                 case OpCode.OP_LOADK:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = k + GETARG_Bx(i);
+                        StkId ra = RA(ref state);
+                        TValue* rb = state.k + GETARG_Bx(state.i);
                         setobj2s(L, ra, rb);
                         break;
                     }
 
                 case OpCode.OP_LOADKX:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb;
-                        rb = k + GETARG_Ax(*pc);
-                        pc++;
+                        StkId ra = RA(ref state);
+                        TValue* rb = state.k + GETARG_Ax(*state.pc);
+                        state.pc++;
                         setobj2s(L, ra, rb);
                         break;
                     }
 
                 case OpCode.OP_LOADFALSE:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         setbfvalue(s2v(ra));
                         break;
                     }
 
                 case OpCode.OP_LFALSESKIP:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         setbfvalue(s2v(ra));
-                        pc++; /* skip next instruction */
+                        state.pc++; /* skip next instruction */
                         break;
                     }
 
                 case OpCode.OP_LOADTRUE:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         setbtvalue(s2v(ra));
                         break;
                     }
 
                 case OpCode.OP_LOADNIL:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int b = GETARG_B(i);
+                        StkId ra = RA(ref state);
+                        int b = GETARG_B(state.i);
                         do
                         {
                             setnilvalue(s2v(ra++));
@@ -1379,16 +1544,16 @@ public static unsafe partial class Lua
 
                 case OpCode.OP_GETUPVAL:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int b = GETARG_B(i);
-                        setobj2s(L, ra, (&cl->upvals)[b]->v.p);
+                        StkId ra = RA(ref state);
+                        int b = GETARG_B(state.i);
+                        setobj2s(L, ra, (&state.cl->upvals)[b]->v.p);
                         break;
                     }
 
                 case OpCode.OP_SETUPVAL:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        UpVal* uv = (&cl->upvals)[GETARG_B(i)];
+                        StkId ra = RA(ref state);
+                        UpVal* uv = (&state.cl->upvals)[GETARG_B(state.i)];
                         setobj(L, uv->v.p, s2v(ra));
                         luaC_barrier(L, (GCObject*)uv, s2v(ra));
                         break;
@@ -1396,25 +1561,25 @@ public static unsafe partial class Lua
 
                 case OpCode.OP_GETTABUP:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* upval = (&cl->upvals)[GETARG_B(i)]->v.p;
-                        TValue* rc = k + GETARG_C(i);
+                        StkId ra = RA(ref state);
+                        TValue* upval = (&state.cl->upvals)[GETARG_B(state.i)]->v.p;
+                        TValue* rc = KC(ref state);
                         TString* key = tsvalue(rc); /* key must be a short string */
                         byte tag = !ttistable(upval) ? LUA_VNOTABLE : luaH_getshortstr(hvalue(upval), key, s2v(ra));
                         if (tagisempty(tag))
                         {
-                            // Protect(luaV_finishget(L, upval, rc, ra, tag));
-                            throw new NotImplementedException();
+                            Protect(ref state, () => luaV_finishget(L, upval, rc, ra, tag));
                         }
 
                         break;
                     }
+
                 case OpCode.OP_GETTABLE:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        TValue* rc = s2v(@base + GETARG_C(i));
-                        byte tag = 0;
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        TValue* rc = vRC(ref state);
+                        byte tag;
                         if (ttisinteger(rc))
                         {
                             /* fast track for integers? */
@@ -1427,155 +1592,145 @@ public static unsafe partial class Lua
 
                         if (tagisempty(tag))
                         {
-                            // Protect(luaV_finishget(L, rb, rc, ra, tag));
-                            throw new NotImplementedException();
+                            Protect(ref state, () => luaV_finishget(L, rb, rc, ra, tag));
                         }
 
                         break;
                     }
+
                 case OpCode.OP_GETI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        uint c = GETARG_C(i);
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        int c = (int)GETARG_C(state.i);
                         luaV_fastgeti(rb, c, s2v(ra), out byte tag);
                         if (tagisempty(tag))
                         {
                             TValue key;
-                            setivalue(&key, c);
-                            // Protect(luaV_finishget(L, rb, &key, ra, tag));
-                            throw new NotImplementedException();
+                            TValue* keyPtr = &key;
+                            setivalue(keyPtr, c);
+                            Protect(ref state, () => luaV_finishget(L, rb, keyPtr, ra, tag));
                         }
 
                         break;
                     }
+
                 case OpCode.OP_GETFIELD:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        // TValue* rc = KC(i);
-                        // TString* key = tsvalue(rc); /* key must be a short string */
-                        // byte tag;
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        TValue* rc = KC(ref state);
+                        TString* key = tsvalue(rc); /* key must be a short string */
+                        // lu_byte tag;
                         // luaV_fastget(rb, key, s2v(ra), luaH_getshortstr, tag);
                         // if (tagisempty(tag))
-                        // {
                         //     Protect(luaV_finishget(L, rb, rc, ra, tag));
-                        // }
-                        //
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_SETTABUP:
                     {
-                        int hres;
-                        TValue* upval = (&cl->upvals)[GETARG_A(i)]->v.p;
-                        // TValue* rb = KB(i);
-                        // TValue* rc = RKC(i);
-                        // TString* key = tsvalue(rb); /* key must be a short string */
+                        // int hres;
+                        TValue* upval = (&state.cl->upvals)[GETARG_A(state.i)]->v.p;
+                        TValue* rb = KB(ref state);
+                        TValue* rc = RKC(ref state);
+                        TString* key = tsvalue(rb); /* key must be a short string */
                         // luaV_fastset(upval, key, rc, hres, luaH_psetshortstr);
                         // if (hres == HOK)
-                        // {
                         //     luaV_finishfastset(L, upval, rc);
-                        // }
                         // else
-                        // {
                         //     Protect(luaV_finishset(L, upval, rb, rc, hres));
-                        // }
-                        //
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_SETTABLE:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state); /* key (table is in 'ra') */
+                        TValue* rc = RKC(ref state); /* value */
+
                         int hres;
-                        TValue* rb = s2v(@base + GETARG_B(i)); /* key (table is in 'ra') */
-                        // TValue* rc = RKC(i); /* value */
-                        // if (ttisinteger(rb))
-                        // {
-                        //     /* fast track for integers? */
-                        //     luaV_fastseti(s2v(ra), ivalue(rb), rc, hres);
-                        // }
-                        // else
-                        // {
-                        //     luaV_fastset(s2v(ra), rb, rc, hres, luaH_pset);
-                        // }
-                        //
-                        // if (hres == HOK)
-                        // {
-                        //     luaV_finishfastset(L, s2v(ra), rc);
-                        // }
-                        // else
-                        // {
-                        //     Protect(luaV_finishset(L, s2v(ra), rb, rc, hres));
-                        // }
-                        //
-                        // break;
-                        throw new NotImplementedException();
+                        if (ttisinteger(rb))
+                        {
+                            /* fast track for integers? */
+                            luaV_fastseti(s2v(ra), ivalue(rb), rc, out hres);
+                        }
+                        else
+                        {
+                            hres = !ttistable(s2v(ra)) ? HNOTATABLE : luaH_pset(hvalue(s2v(ra)), rb, rc);
+                        }
+
+                        if (hres == HOK)
+                        {
+                            luaV_finishfastset(L, s2v(ra), rc);
+                        }
+                        else
+                        {
+                            Protect(ref state, () => luaV_finishset(L, s2v(ra), rb, rc, hres));
+                        }
+
+                        break;
                     }
+
                 case OpCode.OP_SETI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int hres;
-                        int b = GETARG_B(i);
-                        // TValue* rc = RKC(i);
-                        // luaV_fastseti(s2v(ra), b, rc, hres);
-                        // if (hres == HOK)
-                        // {
-                        //     luaV_finishfastset(L, s2v(ra), rc);
-                        // }
-                        // else
-                        // {
-                        //     TValue key;
-                        //     setivalue(&key, b);
-                        //     Protect(luaV_finishset(L, s2v(ra), &key, rc, hres));
-                        // }
-                        //
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        int b = GETARG_B(state.i);
+                        TValue* rc = RKC(ref state);
+                        luaV_fastseti(s2v(ra), b, rc, out int hres);
+                        if (hres == HOK)
+                        {
+                            luaV_finishfastset(L, s2v(ra), rc);
+                        }
+                        else
+                        {
+                            TValue key;
+                            TValue* keyPtr = &key;
+                            setivalue(keyPtr, b);
+                            Protect(ref state, () => luaV_finishset(L, s2v(ra), keyPtr, rc, hres));
+                        }
+
+                        break;
                     }
                 case OpCode.OP_SETFIELD:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int hres;
-                        // TValue* rb = KB(i);
-                        // TValue* rc = RKC(i);
-                        // TString* key = tsvalue(rb); /* key must be a short string */
+                        StkId ra = RA(ref state);
+                        // int hres;
+                        TValue* rb = KB(ref state);
+                        TValue* rc = RKC(ref state);
+                        TString* key = tsvalue(rb); /* key must be a short string */
                         // luaV_fastset(s2v(ra), key, rc, hres, luaH_psetshortstr);
                         // if (hres == HOK)
-                        // {
                         //     luaV_finishfastset(L, s2v(ra), rc);
-                        // }
                         // else
-                        // {
                         //     Protect(luaV_finishset(L, s2v(ra), rb, rc, hres));
-                        // }
-                        //
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_NEWTABLE:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        uint b = (uint)GETARG_vB(i); /* log2(hash size) + 1 */
-                        uint c = (uint)GETARG_vC(i); /* array size */
-                        Table* t;
+                        StkId ra = RA(ref state);
+                        uint b = (uint)GETARG_vB(state.i); /* log2(hash size) + 1 */
+                        uint c = (uint)GETARG_vC(state.i); /* array size */
                         if (b > 0)
                         {
                             b = 1u << (int)(b - 1); /* hash size is 2^(b - 1) */
                         }
 
-                        if (TESTARG_k(i) != 0)
+                        if (TESTARG_k(state.i))
                         {
                             /* non-zero extra argument? */
-                            Debug.Assert(GETARG_Ax(*pc) != 0);
+                            Debug.Assert(GETARG_Ax(*state.pc) != 0);
                             /* add it to array size */
-                            c += (uint)GETARG_Ax(*pc) * (MAXARG_vC + 1);
+                            c += (uint)GETARG_Ax(*state.pc) * (MAXARG_vC + 1);
                         }
 
-                        pc++; /* skip extra argument */
+                        state.pc++; /* skip extra argument */
                         L->top.p = ra + 1; /* correct top in case of emergency GC */
-                        t = luaH_new(L); /* memory allocation */
+                        Table* t = luaH_new(L) /* memory allocation */;
                         sethvalue2s(L, ra, t);
                         if (b != 0 || c != 0)
                         {
@@ -1586,88 +1741,109 @@ public static unsafe partial class Lua
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_SELF:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        byte tag;
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        // TValue* rc = KC(i);
-                        // TString* key = tsvalue(rc); /* key must be a short string */
-                        // setobj2s(L, ra + 1, rb);
+                        StkId ra = RA(ref state);
+                        // lu_byte tag;
+                        TValue* rb = vRB(ref state);
+                        TValue* rc = KC(ref state);
+                        TString* key = tsvalue(rc); /* key must be a short string */
+                        setobj2s(L, ra + 1, rb);
                         // luaV_fastget(rb, key, s2v(ra), luaH_getshortstr, tag);
                         // if (tagisempty(tag))
-                        // {
                         //     Protect(luaV_finishget(L, rb, rc, ra, tag));
-                        // }
-                        //
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_ADDI:
-                    // op_arithI(L, l_addi, luai_numadd);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithI(L, l_addi, luai_numadd);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_ADDK:
-                    // op_arithK(L, l_addi, luai_numadd);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithK(L, l_addi, luai_numadd);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_SUBK:
-                    // op_arithK(L, l_subi, luai_numsub);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithK(L, l_subi, luai_numsub);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_MULK:
-                    // op_arithK(L, l_muli, luai_nummul);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithK(L, l_muli, luai_nummul);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_MODK:
-                    // savestate(L, ci); /* in case of division by 0 */
-                    // op_arithK(L, luaV_mod, luaV_modf);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        savestate(ref state); /* in case of division by 0 */
+                        // op_arithK(L, luaV_mod, luaV_modf);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_POWK:
-                    // op_arithfK(L, luai_numpow);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithfK(L, luai_numpow);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_DIVK:
-                    // op_arithfK(L, luai_numdiv);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithfK(L, luai_numdiv);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_IDIVK:
-                    // savestate(L, ci); /* in case of division by 0 */
-                    // op_arithK(L, luaV_idiv, luai_numidiv);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        savestate(ref state); /* in case of division by 0 */
+                        // op_arithK(L, luaV_idiv, luai_numidiv);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BANDK:
-                    // op_bitwiseK(L, l_band);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwiseK(L, l_band);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BORK:
-                    // op_bitwiseK(L, l_bor);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwiseK(L, l_bor);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BXORK:
-                    // op_bitwiseK(L, l_bxor);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwiseK(L, l_bxor);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_SHLI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        uint ic = GETARG_sC(i);
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        int ic = (int)GETARG_sC(state.i);
                         if (tointegerns(rb, out long ib))
                         {
-                            pc++;
+                            state.pc++;
                             setivalue(s2v(ra), luaV_shiftl(ic, ib));
                         }
 
@@ -1676,300 +1852,329 @@ public static unsafe partial class Lua
 
                 case OpCode.OP_SHRI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        uint ic = GETARG_sC(i);
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        int ic = (int)GETARG_sC(state.i);
                         if (tointegerns(rb, out long ib))
                         {
-                            pc++;
+                            state.pc++;
                             setivalue(s2v(ra), luaV_shiftl(ib, -ic));
                         }
 
                         break;
                     }
+
                 case OpCode.OP_ADD:
-                    // op_arith(L, l_addi, luai_numadd);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arith(L, l_addi, luai_numadd);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_SUB:
-                    // op_arith(L, l_subi, luai_numsub);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arith(L, l_subi, luai_numsub);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_MUL:
-                    // op_arith(L, l_muli, luai_nummul);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arith(L, l_muli, luai_nummul);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_MOD:
-                    // savestate(L, ci); /* in case of division by 0 */
-                    // op_arith(L, luaV_mod, luaV_modf);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        savestate(ref state); /* in case of division by 0 */
+                        // op_arith(L, luaV_mod, luaV_modf);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_POW:
-                    // op_arithf(L, luai_numpow);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_arithf(L, luai_numpow);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_DIV:
-                    /* float division (always with floats) */
-                    // op_arithf(L, luai_numdiv);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        /* float division (always with floats) */
+                        // op_arithf(L, luai_numdiv);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_IDIV:
-                    /* floor division */
-                    // savestate(L, ci); /* in case of division by 0 */
-                    // op_arith(L, luaV_idiv, luai_numidiv);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        /* floor division */
+                        savestate(ref state); /* in case of division by 0 */
+                        // op_arith(L, luaV_idiv, luai_numidiv);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BAND:
-                    // op_bitwise(L, l_band);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwise(L, l_band);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BOR:
-                    // op_bitwise(L, l_bor);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwise(L, l_bor);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_BXOR:
-                    // op_bitwise(L, l_bxor);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwise(L, l_bxor);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_SHL:
-                    // op_bitwise(L, luaV_shiftl);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwise(L, luaV_shiftl);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_SHR:
-                    // op_bitwise(L, luaV_shiftr);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_bitwise(L, luaV_shiftr);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_MMBIN:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        uint pi = *(pc - 2); /* original arith. expression */
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        TMS tm = (TMS)GETARG_C(i);
-                        StkId result = @base + GETARG_A(pi);
+                        StkId ra = RA(ref state);
+                        uint pi = *(state.pc - 2); /* original arith. expression */
+                        TValue* rb = vRB(ref state);
+                        TMS tm = (TMS)GETARG_C(state.i);
+                        StkId result = RA(ref state, pi);
                         Debug.Assert(OpCode.OP_ADD <= GET_OPCODE(pi) && GET_OPCODE(pi) <= OpCode.OP_SHR);
-                        // Protect(luaT_trybinTM(L, s2v(ra), rb, result, tm));
-                        // break;
-                        throw new NotImplementedException();
+                        Protect(ref state, () => luaT_trybinTM(L, s2v(ra), rb, result, tm));
+                        break;
                     }
+
                 case OpCode.OP_MMBINI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        uint pi = *(pc - 2); /* original arith. expression */
-                        uint imm = GETARG_sB(i);
-                        TMS tm = (TMS)GETARG_C(i);
-                        int flip = GETARG_k(i);
-                        StkId result = @base + GETARG_A(pi);
-                        // Protect(luaT_trybiniTM(L, s2v(ra), imm, flip, result, tm));
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        uint pi = *(state.pc - 2); /* original arith. expression */
+                        int imm = (int)GETARG_sB(state.i);
+                        TMS tm = (TMS)GETARG_C(state.i);
+                        bool flip = GETARG_k(state.i) != 0;
+                        StkId result = RA(ref state, pi);
+                        Protect(ref state, () => luaT_trybiniTM(L, s2v(ra), imm, flip, result, tm));
+                        break;
                     }
+
                 case OpCode.OP_MMBINK:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        uint pi = *(pc - 2); /* original arith. expression */
-                        // TValue* imm = KB(i);
-                        // TMS tm = (TMS)GETARG_C(i);
-                        // int flip = GETARG_k(i);
-                        // StkId result = @base + GETARG_A(pi);
-                        // Protect(luaT_trybinassocTM(L, s2v(ra), imm, flip, result, tm));
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        uint pi = *(state.pc - 2); /* original arith. expression */
+                        TValue* imm = KB(ref state);
+                        TMS tm = (TMS)GETARG_C(state.i);
+                        bool flip = GETARG_k(state.i) != 0;
+                        StkId result = RA(ref state, pi);
+                        Protect(ref state, () => luaT_trybinassocTM(L, s2v(ra), imm, flip, result, tm));
+                        break;
                     }
+
                 case OpCode.OP_UNM:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        double nb;
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
                         if (ttisinteger(rb))
                         {
                             long ib = ivalue(rb);
                             setivalue(s2v(ra), -ib);
                         }
-                        else if (tonumberns(rb, out nb))
+                        else if (tonumberns(rb, out double nb))
                         {
-                            // setfltvalue(s2v(ra), luai_numunm(L, nb));
+                            //     setfltvalue(s2v(ra), luai_numunm(L, nb));
                             throw new NotImplementedException();
                         }
                         else
                         {
-                            // Protect(luaT_trybinTM(L, rb, rb, ra, TM_UNM));
-                            throw new NotImplementedException();
+                            Protect(ref state, () => luaT_trybinTM(L, rb, rb, ra, TMS.UNM));
                         }
 
                         break;
                     }
+
                 case OpCode.OP_BNOT:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        if (tointegerns(rb, out long ib))
-                        {
-                            setivalue(s2v(ra), ~0L ^ ib);
-                        }
-                        else
-                        {
-                            // Protect(luaT_trybinTM(L, rb, rb, ra, TM_BNOT));
-                            throw new NotImplementedException();
-                        }
-
-                        break;
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        // lua_Integer ib;
+                        // if (tointegerns(rb, &ib))
+                        // {
+                        //     setivalue(s2v(ra), ~0L ^ ib);
+                        // }
+                        // else
+                        //     Protect(luaT_trybinTM(L, rb, rb, ra, TM_BNOT));
+                        //
+                        // break;
+                        throw new NotImplementedException();
                     }
+
                 case OpCode.OP_NOT:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        if (l_isfalse(rb))
-                        {
-                            setbtvalue(s2v(ra));
-                        }
-                        else
-                        {
-                            setbfvalue(s2v(ra));
-                        }
-
-                        break;
+                        StkId ra = RA(ref state);
+                        // TValue* rb = vRB(ref state);
+                        // if (l_isfalse(rb))
+                        //     setbtvalue(s2v(ra));
+                        // else
+                        //     setbfvalue(s2v(ra));
+                        // break;
+                        throw new NotImplementedException();
                     }
+
                 case OpCode.OP_LEN:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         // Protect(luaV_objlen(L, ra, vRB(i)));
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_CONCAT:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int n = GETARG_B(i); /* number of elements to concatenate */
+                        StkId ra = RA(ref state);
+                        int n = GETARG_B(state.i); /* number of elements to concatenate */
                         L->top.p = ra + n; /* mark the end of concat operands */
-                        ci->u.l.savedpc = pc;
-                        luaV_concat(L, n);
-                        trap = ci->u.l.trap;
+                        // ProtectNT(luaV_concat(L, n));
                         // checkGC(L, L->top.p); /* 'luaV_concat' ensures correct top */
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_CLOSE:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        Debug.Assert(GETARG_B(i) == 0); /* 'close must be alive */
+                        StkId ra = RA(ref state);
+                        Debug.Assert(GETARG_B(state.i) == 0); /* 'close must be alive */
                         // Protect(luaF_close(L, ra, LUA_OK, 1));
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_TBC:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         /* create new to-be-closed upvalue */
-                        // halfProtect(luaF_newtbcupval(L, ra));
-                        // break;
-                        throw new NotImplementedException();
+                        halfProtect(ref state, () => luaF_newtbcupval(L, ra));
+                        break;
                     }
+
                 case OpCode.OP_JMP:
-                    // dojump(ci, i, 0);
-                    // break;
-                    throw new NotImplementedException();
+                    dojump(ref state, state.i, 0);
+                    break;
 
                 case OpCode.OP_EQ:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int cond;
-                        TValue* rb = s2v(@base + GETARG_B(i));
-                        // Protect(cond = luaV_equalobj(L, s2v(ra), rb));
-                        // docondjump();
+                        StkId ra = RA(ref state);
+                        TValue* rb = vRB(ref state);
+                        Protect(ref state, (ref state) => state.cond = luaV_equalobj(L, s2v(ra), rb));
+                        docondjump(ref state);
+                        break;
+                    }
+
+                case OpCode.OP_LT:
+                    {
+                        // op_order(L, l_lti, LTnum, lessthanothers);
                         // break;
                         throw new NotImplementedException();
                     }
-                case OpCode.OP_LT:
-                    // op_order(L, l_lti, LTnum, lessthanothers);
-                    // break;
-                    throw new NotImplementedException();
 
                 case OpCode.OP_LE:
-                    // op_order(L, l_lei, LEnum, lessequalothers);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_order(L, l_lei, LEnum, lessequalothers);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_EQK:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        // TValue* rb = KB(i);
-                        // /* basic types do not use '__eq'; we can use raw equality */
-                        // int cond = luaV_rawequalobj(s2v(ra), rb);
-                        // docondjump();
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        TValue* rb = KB(ref state);
+                        /* basic types do not use '__eq'; we can use raw equality */
+                        state.cond = luaV_rawequalobj(s2v(ra), rb);
+                        docondjump(ref state);
+                        break;
                     }
+
                 case OpCode.OP_EQI:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        bool cond;
-                        uint im = GETARG_sB(i);
+                        StkId ra = RA(ref state);
+                        int im = (int)GETARG_sB(state.i);
                         if (ttisinteger(s2v(ra)))
                         {
-                            cond = ivalue(s2v(ra)) == im;
+                            state.cond = (ivalue(s2v(ra)) == im);
                         }
                         else if (ttisfloat(s2v(ra)))
                         {
-                            // cond = luai_numeq(fltvalue(s2v(ra)), cast_num(im));
+                            // state.cond = luai_numeq(fltvalue(s2v(ra)), cast_num(im));
                             throw new NotImplementedException();
                         }
                         else
                         {
-                            cond = false; /* other types cannot be equal to a number */
+                            state.cond = false; /* other types cannot be equal to a number */
                         }
 
-                        throw new NotImplementedException();
-                        // docondjump();
-                        // break;
+                        docondjump(ref state);
+                        break;
                     }
+
                 case OpCode.OP_LTI:
-                    // op_orderI(L, l_lti, luai_numlt, 0, TM_LT);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_orderI(L, l_lti, luai_numlt, 0, TM_LT);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_LEI:
-                    // op_orderI(L, l_lei, luai_numle, 0, TM_LE);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_orderI(L, l_lei, luai_numle, 0, TM_LE);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_GTI:
-                    // op_orderI(L, l_gti, luai_numgt, 1, TM_LT);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_orderI(L, l_gti, luai_numgt, 1, TM_LT);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_GEI:
-                    // op_orderI(L, l_gei, luai_numge, 1, TM_LE);
-                    // break;
-                    throw new NotImplementedException();
+                    {
+                        // op_orderI(L, l_gei, luai_numge, 1, TM_LE);
+                        // break;
+                        throw new NotImplementedException();
+                    }
 
                 case OpCode.OP_TEST:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        // int cond = !l_isfalse(s2v(ra));
-                        // docondjump();
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        state.cond = !l_isfalse(s2v(ra));
+                        docondjump(ref state);
+                        break;
                     }
+
                 case OpCode.OP_TESTSET:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rb = s2v(@base + GETARG_B(i));
+                        StkId ra = RA(ref state);
+                        // TValue* rb = vRB(ref state);
                         // if (l_isfalse(rb) == GETARG_k(i))
-                        // {
                         //     pc++;
-                        // }
                         // else
                         // {
                         //     setobj2s(L, ra, rb);
@@ -1979,22 +2184,24 @@ public static unsafe partial class Lua
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_CALL:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        CallInfo* newci;
-                        int b = GETARG_B(i);
-                        uint nresults = GETARG_C(i) - 1;
+                        StkId ra = RA(ref state);
+                        int b = GETARG_B(state.i);
+                        int nresults = (int)(GETARG_C(state.i) - 1);
                         if (b != 0) /* fixed number of arguments? */
                         {
                             L->top.p = ra + b; /* top signals number of arguments */
                         }
-
                         /* else previous instruction set top */
-                        ci->u.l.savedpc = pc; /* in case of errors */
-                        if ((newci = luaD_precall(L, ra, (int)nresults)) == null)
+
+                        savepc(ref state); /* in case of errors */
+
+                        CallInfo* newci;
+                        if ((newci = luaD_precall(L, ra, nresults)) == null)
                         {
-                            trap = ci->u.l.trap; /* C call; nothing else to be done */
+                            updatetrap(ref state); /* C call; nothing else to be done */
                         }
                         else
                         {
@@ -2005,67 +2212,59 @@ public static unsafe partial class Lua
 
                         break;
                     }
+
                 case OpCode.OP_TAILCALL:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int b = GETARG_B(i); /* number of arguments + 1 (function) */
-                        int n; /* number of results when calling a C function */
-                        uint nparams1 = GETARG_C(i);
-                        /* delta is virtual 'func' - real 'func' (vararg functions) */
-                        // int delta = nparams1 ? ci->u.l.nextraargs + nparams1 : 0;
+                        StkId ra = RA(ref state);
+                        int b = GETARG_B(state.i); /* number of arguments + 1 (function) */
+                        // int n; /* number of results when calling a C function */
+                        // int nparams1 = GETARG_C(i);
+                        // /* delta is virtual 'func' - real 'func' (vararg functions) */
+                        // int delta = (nparams1) ? ci->u.l.nextraargs + nparams1 : 0;
                         // if (b != 0)
-                        // {
                         //     L->top.p = ra + b;
-                        // }
                         // else /* previous instruction set top */
-                        // {
                         //     b = cast_int(L->top.p - ra);
-                        // }
-                        //
-                        // ci->u.l.savedpc = pc; /* several calls here can raise errors */
+                        // savepc(ci); /* several calls here can raise errors */
                         // if (TESTARG_k(i))
                         // {
                         //     luaF_closeupval(L, base); /* close upvalues from current call */
-                        //     Debug.Assert(L->tbclist.p < base); /* no pending tbc variables */
-                        //     Debug.Assert(base == ci->func.p + 1);
+                        //     lua_assert(L->tbclist.p < base); /* no pending tbc variables */
+                        //     lua_assert(base == ci->func.p + 1);
                         // }
                         //
                         // if ((n = luaD_pretailcall(L, ci, ra, b, delta)) < 0) /* Lua function? */
-                        // {
                         //     goto startfunc; /* execute the callee */
-                        // }
                         // else
                         // {
                         //     /* C function? */
                         //     ci->func.p -= delta; /* restore 'func' (if vararg) */
                         //     luaD_poscall(L, ci, n); /* finish caller */
-                        //     trap = ci->u.l.trap; /* 'luaD_poscall' can change hooks */
+                        //     updatetrap(ci); /* 'luaD_poscall' can change hooks */
                         //     goto ret; /* caller returns after the tail call */
                         // }
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_RETURN:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        int n = GETARG_B(i) - 1; /* number of results */
-                        uint nparams1 = GETARG_C(i);
+                        StkId ra = RA(ref state);
+                        int n = GETARG_B(state.i) - 1; /* number of results */
+                        int nparams1 = (int)GETARG_C(state.i);
                         if (n < 0) /* not fixed? */
                         {
                             n = (int)(L->top.p - ra); /* get what is available */
                         }
 
-                        ci->u.l.savedpc = pc;
-                        if (TESTARG_k(i) != 0)
+                        savepc(ref state);
+                        if (TESTARG_k(state.i))
                         {
                             //     /* may there be open upvalues? */
                             //     ci->u2.nres = n; /* save number of returns */
                             //     if (L->top.p < ci->top.p)
-                            //     {
                             //         L->top.p = ci->top.p;
-                            //     }
-                            //
                             //     luaF_close(L, base, CLOSEKTOP, 1);
-                            //     trap = ci->u.l.trap;
+                            //     updatetrap(ci);
                             //     updatestack(ci);
                             throw new NotImplementedException();
                         }
@@ -2074,29 +2273,29 @@ public static unsafe partial class Lua
                         {
                             ci->func.p -= ci->u.l.nextraargs + nparams1;
                         }
-                        
+
                         L->top.p = ra + n; /* set call for 'luaD_poscall' */
                         luaD_poscall(L, ci, n);
-                        trap = ci->u.l.trap; /* 'luaD_poscall' can change hooks */
-                        // goto ret;
-                        throw new NotImplementedException();
+                        updatetrap(ref state); /* 'luaD_poscall' can change hooks */
+                        goto ret;
                     }
+
                 case OpCode.OP_RETURN0:
                     {
                         if (L->hookmask != 0)
                         {
-                            StkId ra = @base + GETARG_A(i);
+                            StkId ra = RA(ref state);
                             L->top.p = ra;
-                            ci->u.l.savedpc = pc;
+                            savepc(ref state);
                             luaD_poscall(L, ci, 0); /* no hurry... */
-                            trap = 1;
+                            state.trap = 1;
                         }
                         else
                         {
                             /* do the 'poscall' here */
                             int nres = get_nresults(ci->callstatus);
                             L->ci = ci->previous; /* back to caller */
-                            L->top.p = @base - 1;
+                            L->top.p = state.@base - 1;
                             for (; nres > 0; nres--)
                             {
                                 setnilvalue(s2v(L->top.p++)); /* all results are nil */
@@ -2106,88 +2305,74 @@ public static unsafe partial class Lua
                         // goto ret;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_RETURN1:
                     {
-                        if (L->hookmask != 0)
-                        {
-                            StkId ra = @base + GETARG_A(i);
-                            L->top.p = ra + 1;
-                            ci->u.l.savedpc = pc;
-                            luaD_poscall(L, ci, 1); /* no hurry... */
-                            trap = 1;
-                        }
-                        else
-                        {
-                            /* do the 'poscall' here */
-                            int nres = get_nresults(ci->callstatus);
-                            L->ci = ci->previous; /* back to caller */
-                            if (nres == 0)
-                            {
-                                L->top.p = @base - 1; /* asked for no results */
-                            }
-                            else
-                            {
-                                StkId ra = @base + GETARG_A(i);
-                                setobjs2s(L, @base - 1, ra); /* at least this result */
-                                L->top.p = @base;
-                                for (; nres > 1; nres--)
-                                {
-                                    setnilvalue(s2v(L->top.p++)); /* complete missing results */
-                                }
-                            }
-                        }
+                        // if (l_unlikely(L->hookmask))
+                        // {
+                        //     StkId ra = RA(i);
+                        //     L->top.p = ra + 1;
+                        //     savepc(ci);
+                        //     luaD_poscall(L, ci, 1); /* no hurry... */
+                        //     trap = 1;
+                        // }
+                        // else
+                        // {
+                        //     /* do the 'poscall' here */
+                        //     int nres = get_nresults(ci->callstatus);
+                        //     L->ci = ci->previous; /* back to caller */
+                        //     if (nres == 0)
+                        //         L->top.p = base - 1; /* asked for no results */
+                        //     else
+                        //     {
+                        //         StkId ra = RA(i);
+                        //         setobjs2s(L, base - 1, ra); /* at least this result */
+                        //         L->top.p = base;
+                        //         for (; l_unlikely(nres > 1); nres--)
+                        //             setnilvalue(s2v(L->top.p++)); /* complete missing results */
+                        //     }
+                        // }
 
-                        ret: /* return from a Lua function */
-                        if ((ci->callstatus & CIST_FRESH) != 0)
-                        {
-                            return; /* end this frame */
-                        }
-                        else
-                        {
-                            ci = ci->previous;
-                            goto returning; /* continue running caller in this frame */
-                        }
+                        // goto ret;
+                        throw new NotImplementedException();
                     }
+
                 case OpCode.OP_FORLOOP:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        if (ttisinteger(s2v(ra + 1)))
-                        {
-                            /* integer loop? */
-                            ulong count = (ulong)ivalue(s2v(ra));
-                            if (count > 0)
-                            {
-                                /* still more iterations? */
-                                long step = ivalue(s2v(ra + 1));
-                                long idx = ivalue(s2v(ra + 2)); /* control variable */
-                                chgivalue(s2v(ra), (long)(count - 1)); /* update counter */
-                                idx = idx + step; /* add step to index */
-                                chgivalue(s2v(ra + 2), idx); /* update control variable */
-                                pc -= GETARG_Bx(i); /* jump back */
-                            }
-                        }
-
-                        // else if (floatforloop(ra)) /* float loop */
+                        StkId ra = RA(ref state);
+                        // if (ttisinteger(s2v(ra + 1)))
                         // {
-                        //     pc -= GETARG_Bx(i); /* jump back */
+                        //     /* integer loop? */
+                        //     lua_Unsigned count = l_castS2U(ivalue(s2v(ra)));
+                        //     if (count > 0)
+                        //     {
+                        //         /* still more iterations? */
+                        //         lua_Integer step = ivalue(s2v(ra + 1));
+                        //         lua_Integer idx = ivalue(s2v(ra + 2)); /* control variable */
+                        //         chgivalue(s2v(ra), l_castU2S(count - 1)); /* update counter */
+                        //         idx = idx + step; /* add step to index */
+                        //         chgivalue(s2v(ra + 2), idx); /* update control variable */
+                        //         pc -= GETARG_Bx(i); /* jump back */
+                        //     }
                         // }
+                        // else if (floatforloop(ra)) /* float loop */
+                        //     pc -= GETARG_Bx(i); /* jump back */
                         //
-                        // trap = ci->u.l.trap; /* allows a signal to break the loop */
+                        // updatetrap(ci); /* allows a signal to break the loop */
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_FORPREP:
                     {
-                        StkId ra = @base + GETARG_A(i);
+                        StkId ra = RA(ref state);
                         // savestate(L, ci); /* in case of errors */
                         // if (forprep(L, ra))
-                        // {
                         //     pc += GETARG_Bx(i) + 1; /* skip the loop */
-                        // }
-                        //
                         // break;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_TFORPREP:
                     {
                         /* before: 'ra' has the iterator function, 'ra + 1' has the state,
@@ -2196,19 +2381,20 @@ public static unsafe partial class Lua
                            control and the closing variables and marks the closing variable
                            as to-be-closed.
                         */
-                        StkId ra = @base + GETARG_A(i);
-                        TValue temp; /* to swap control and closing variables */
-                        setobj(L, &temp, s2v(ra + 3));
-                        setobjs2s(L, ra + 3, ra + 2);
-                        setobj2s(L, ra + 2, &temp);
-                        /* create to-be-closed upvalue (if closing var. is not nil) */
+                        StkId ra = RA(ref state);
+                        // TValue temp; /* to swap control and closing variables */
+                        // setobj(L, &temp, s2v(ra + 3));
+                        // setobjs2s(L, ra + 3, ra + 2);
+                        // setobj2s(L, ra + 2, &temp);
+                        // /* create to-be-closed upvalue (if closing var. is not nil) */
                         // halfProtect(luaF_newtbcupval(L, ra + 2));
                         // pc += GETARG_Bx(i); /* go to end of the loop */
-                        // i = *pc++; /* fetch next instruction */
-                        // Debug.Assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
+                        // i = *(pc++); /* fetch next instruction */
+                        // lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
                         // goto l_tforcall;
                         throw new NotImplementedException();
                     }
+
                 case OpCode.OP_TFORCALL:
                     {
                         l_tforcall:
@@ -2219,129 +2405,133 @@ public static unsafe partial class Lua
                                so that it preserves the first three values, and the first
                                return will be the new value for the control variable.
                             */
-                            StkId ra = @base + GETARG_A(i);
-                            setobjs2s(L, ra + 5, ra + 3); /* copy the control variable */
-                            setobjs2s(L, ra + 4, ra + 1); /* copy state */
-                            setobjs2s(L, ra + 3, ra); /* copy function */
-                            L->top.p = ra + 3 + 3;
-                            /* do the call */
-                            ci->u.l.savedpc = pc;
-                            luaD_call(L, ra + 3, (int)GETARG_C(i));
-                            trap = ci->u.l.trap;
+                            StkId ra = RA(ref state);
+                            // setobjs2s(L, ra + 5, ra + 3); /* copy the control variable */
+                            // setobjs2s(L, ra + 4, ra + 1); /* copy state */
+                            // setobjs2s(L, ra + 3, ra); /* copy function */
+                            // L->top.p = ra + 3 + 3;
+                            // ProtectNT(luaD_call(L, ra + 3, GETARG_C(i))); /* do the call */
                             // updatestack(ci); /* stack may have changed */
-                            // i = *pc++; /* go to next instruction */
-                            // Debug.Assert(GET_OPCODE(i) == OP_TFORLOOP && ra == RA(i));
+                            // i = *(pc++); /* go to next instruction */
+                            // lua_assert(GET_OPCODE(i) == OP_TFORLOOP && ra == RA(i));
                             // goto l_tforloop;
                             throw new NotImplementedException();
                         }
                     }
+
                 case OpCode.OP_TFORLOOP:
                     {
                         l_tforloop:
                         {
-                            StkId ra = @base + GETARG_A(i);
-                            if (!ttisnil(s2v(ra + 3))) /* continue loop? */
-                            {
-                                pc -= GETARG_Bx(i); /* jump back */
-                            }
-
-                            break;
+                            StkId ra = RA(ref state);
+                            // if (!ttisnil(s2v(ra + 3))) /* continue loop? */
+                            //     pc -= GETARG_Bx(i); /* jump back */
+                            // break;
+                            throw new NotImplementedException();
                         }
                     }
+
                 case OpCode.OP_SETLIST:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        uint n = (uint)GETARG_vB(i);
-                        uint last = (uint)GETARG_vC(i);
-                        Table* h = hvalue(s2v(ra));
-                        if (n == 0)
-                        {
-                            n = (uint)(L->top.p - ra) - 1; /* get up to the top */
-                        }
-                        else
-                        {
-                            L->top.p = ci->top.p; /* correct top in case of emergency GC */
-                        }
-
-                        last += n;
-                        if (TESTARG_k(i) != 0)
-                        {
-                            last += (uint)GETARG_Ax(*pc) * (MAXARG_vC + 1);
-                            pc++;
-                        }
-
-                        /* when 'n' is known, table should have proper size */
-                        if (last > h->asize)
-                        {
-                            /* needs more space? */
-                            /* fixed-size sets should have space preallocated */
-                            Debug.Assert(GETARG_vB(i) == 0);
-                            luaH_resizearray(L, h, last); /* preallocate it at once */
-                        }
-
-                        for (; n > 0; n--)
-                        {
-                            TValue* val = s2v(ra + n);
-                            obj2arr(h, last - 1, val);
-                            last--;
-                            luaC_barrierback(L, obj2gco(h), val);
-                        }
-
-                        break;
+                        StkId ra = RA(ref state);
+                        // unsigned n = cast_uint(GETARG_vB(i));
+                        // unsigned last = cast_uint(GETARG_vC(i));
+                        // Table* h = hvalue(s2v(ra));
+                        // if (n == 0)
+                        //     n = cast_uint(L->top.p - ra) - 1; /* get up to the top */
+                        // else
+                        //     L->top.p = ci->top.p; /* correct top in case of emergency GC */
+                        // last += n;
+                        // if (TESTARG_k(i))
+                        // {
+                        //     last += cast_uint(GETARG_Ax(*pc)) * (MAXARG_vC + 1);
+                        //     pc++;
+                        // }
+                        //
+                        // /* when 'n' is known, table should have proper size */
+                        // if (last > h->asize)
+                        // {
+                        //     /* needs more space? */
+                        //     /* fixed-size sets should have space preallocated */
+                        //     lua_assert(GETARG_vB(i) == 0);
+                        //     luaH_resizearray(L, h, last); /* preallocate it at once */
+                        // }
+                        //
+                        // for (; n > 0; n--)
+                        // {
+                        //     TValue* val = s2v(ra + n);
+                        //     obj2arr(h, last - 1, val);
+                        //     last--;
+                        //     luaC_barrierback(L, obj2gco(h), val);
+                        // }
+                        //
+                        // break;
+                        throw new NotImplementedException();
                     }
+
                 case OpCode.OP_CLOSURE:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        Proto* p = cl->p->p[GETARG_Bx(i)];
-                        // halfProtect(pushclosure(L, p, cl->upvals, base, ra));
-                        // checkGC(L, ra + 1);
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        Proto* p = state.cl->p->p[GETARG_Bx(state.i)];
+                        halfProtect(ref state, (ref state) => pushclosure(L, p, &state.cl->upvals, state.@base, ra));
+                        checkGC(ref state, ra + 1);
+                        break;
                     }
+
                 case OpCode.OP_VARARG:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        // int n = GETARG_C(i) - 1; /* required results (-1 means all) */
-                        // int vatab = GETARG_k(i) ? GETARG_B(i) : -1;
-                        // Protect(luaT_getvarargs(L, ci, ra, n, vatab));
-                        // break;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        int n = (int)(GETARG_C(state.i) - 1); /* required results (-1 means all) */
+                        int vatab = GETARG_k(state.i) != 0 ? GETARG_B(state.i) : -1;
+                        Protect(ref state, (ref state) => luaT_getvarargs(L, state.ci, ra, n, vatab));
+                        break;
                     }
+
                 case OpCode.OP_GETVARG:
                     {
-                        StkId ra = @base + GETARG_A(i);
-                        TValue* rc = s2v(@base + GETARG_C(i));
+                        StkId ra = RA(ref state);
+                        TValue* rc = vRC(ref state);
                         luaT_getvararg(ci, ra, rc);
                         break;
                     }
+
                 case OpCode.OP_ERRNNIL:
                     {
-                        TValue* ra = s2v(@base + GETARG_A(i));
-                        if (!ttisnil(ra))
+                        TValue* ra = vRA(ref state);
+                        // if (!ttisnil(ra))
+                        //     halfProtect(luaG_errnnil(L, cl, GETARG_Bx(i)));
+                        // break;
+                        throw new NotImplementedException();
+                    }
+
+                case OpCode.OP_VARARGPREP:
+                    {
+                        ProtectNT(ref state, (ref state) => luaT_adjustvarargs(L, ci, state.cl->p));
+                        if (state.trap != 0)
                         {
-                            // halfProtect(luaG_errnnil(L, cl, GETARG_Bx(i)));
-                            throw new NotImplementedException();
+                            /* previous "Protect" updated trap */
+                            luaD_hookcall(L, ci);
+                            L->oldpc = 1; /* next opcode will be seen as a "new" line */
                         }
 
+                        updatebase(ref state); /* function has new base after adjustment */
                         break;
                     }
-                case OpCode.OP_VARARGPREP:
-                    ci->u.l.savedpc = pc;
-                    luaT_adjustvarargs(L, ci, cl->p);
-                    trap = ci->u.l.trap;
-                    if (trap != 0)
-                    {
-                        /* previous "Protect" updated trap */
-                        luaD_hookcall(L, ci);
-                        L->oldpc = 1; /* next opcode will be seen as a "new" line */
-                    }
-
-                    @base = ci->func.p + 1; /* function has new base after adjustment */
-                    break;
 
                 case OpCode.OP_EXTRAARG:
                     throw new InvalidOperationException();
             }
+
+            continue;
+
+            ret: /* return from a Lua function */
+            if ((ci->callstatus & CIST_FRESH) != 0)
+            {
+                return; /* end this frame */
+            }
+
+            ci = ci->previous;
+            goto returning; /* continue running caller in this frame */
         }
     }
 }

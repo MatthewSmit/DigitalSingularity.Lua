@@ -94,25 +94,33 @@ public static unsafe partial class Lua
     ** boolean 'yy' controls whether the call is yieldable.
     ** (This function assumes EXTRA_STACK.)
     */
-// static void callclosemethod (lua_State *L, TValue *obj, TValue *err, int yy) {
-//   StkId top = L->top.p;
-//   StkId func = top;
-//   const TValue *tm = luaT_gettmbyobj(L, obj, TM_CLOSE);
-//   setobj2s(L, top++, tm);  /* will call metamethod... */
-//   setobj2s(L, top++, obj);  /* with 'self' as the 1st argument */
-//   if (err != null)  /* if there was an error... */
-//     setobj2s(L, top++, err);  /* then error object will be 2nd argument */
-//   L->top.p = top;  /* add function and arguments */
-//   if (yy)
-//     luaD_call(L, func, 0);
-//   else
-//     luaD_callnoyield(L, func, 0);
-// }
+    private static void callclosemethod(lua_State* L, TValue* obj, TValue* err, bool yy)
+    {
+        StkId top = L->top.p;
+        StkId func = top;
+        TValue* tm = luaT_gettmbyobj(L, obj, TMS.CLOSE);
+        setobj2s(L, top++, tm); /* will call metamethod... */
+        setobj2s(L, top++, obj); /* with 'self' as the 1st argument */
+        if (err != null) /* if there was an error... */
+        {
+            setobj2s(L, top++, err); /* then error object will be 2nd argument */
+        }
+
+        L->top.p = top; /* add function and arguments */
+        if (yy)
+        {
+            luaD_call(L, func, 0);
+        }
+        else
+        {
+            luaD_callnoyield(L, func, 0);
+        }
+    }
 
     /*
-    ** Check whether object at given level has a close metamethod and raise
-    ** an error if not.
-    */
+     ** Check whether object at given level has a close metamethod and raise
+     ** an error if not.
+     */
 // static void checkclosemth (lua_State *L, StkId level) {
 //   const TValue *tm = luaT_gettmbyobj(L, s2v(level), TM_CLOSE);
 //   if (ttisnil(tm)) {  /* no metamethod? */
@@ -130,27 +138,35 @@ public static unsafe partial class Lua
     ** the 'level' of the upvalue being closed, as everything after that
     ** won't be used again.
     */
-// static void prepcallclosemth (lua_State *L, StkId level, TStatus status,
-//                                             int yy) {
-//   TValue *uv = s2v(level);  /* value being closed */
-//   TValue *errobj;
-//   switch (status) {
-//     case LUA_OK:
-//       L->top.p = level + 1;  /* call will be at this level */
-//       /* FALLTHROUGH */
-//     case CLOSEKTOP:  /* don't need to change top */
-//       errobj = null;  /* no error object */
-//       break;
-//     default:  /* 'luaD_seterrorobj' will set top to level + 2 */
-//       errobj = s2v(level + 1);  /* error object goes after 'uv' */
-//       luaD_seterrorobj(L, status, level + 1);  /* set error object */
-//       break;
-//   }
-//   callclosemethod(L, uv, errobj, yy);
-// }
+    private static void prepcallclosemth(
+        lua_State* L,
+        StkId level,
+        byte status,
+        bool yy)
+    {
+        TValue* uv = s2v(level); /* value being closed */
+        TValue* errobj;
+        switch (status)
+        {
+            case LUA_OK:
+                L->top.p = level + 1; /* call will be at this level */
+                goto case CLOSEKTOP;
 
-// /* Maximum value for deltas in 'tbclist' */
-// #define MAXDELTA       USHRT_MAX
+            case CLOSEKTOP: /* don't need to change top */
+                errobj = null; /* no error object */
+                break;
+
+            default: /* 'luaD_seterrorobj' will set top to level + 2 */
+                errobj = s2v(level + 1); /* error object goes after 'uv' */
+                luaD_seterrorobj(L, status, level + 1); /* set error object */
+                break;
+        }
+
+        callclosemethod(L, uv, errobj, yy);
+    }
+
+    /* Maximum value for deltas in 'tbclist' */
+    private const int MAXDELTA = ushort.MaxValue;
 
     /*
     ** Insert a variable in the list of to-be-closed variables.
@@ -185,49 +201,57 @@ public static unsafe partial class Lua
     */
     private static partial void luaF_closeupval(lua_State* L, StkId level)
     {
-//   UpVal *uv;
-//   while ((uv = L->openupval) != null && uplevel(uv) >= level) {
-//     TValue *slot = &uv->u.value;  /* new position for value */
-//     Debug.Assert(uplevel(uv) < L->top.p);
-//     luaF_unlinkupval(uv);  /* remove upvalue from 'openupval' list */
-//     setobj(L, slot, uv->v.p);  /* move value to upvalue slot */
-//     uv->v.p = slot;  /* now current value lives here */
-//     if (!iswhite(uv)) {  /* neither white nor dead? */
-//       nw2black(uv);  /* closed upvalues cannot be gray */
-//       luaC_barrier(L, uv, slot);
-//     }
-//   }
-        throw new NotImplementedException();
+        UpVal* uv;
+        while ((uv = L->openupval) != null && uplevel(uv) >= level)
+        {
+            TValue* slot = &uv->u.value; /* new position for value */
+            Debug.Assert(uplevel(uv) < L->top.p);
+            luaF_unlinkupval(uv); /* remove upvalue from 'openupval' list */
+            setobj(L, slot, uv->v.p); /* move value to upvalue slot */
+            uv->v.p = slot; /* now current value lives here */
+            if (!iswhite((GCObject*)uv))
+            {
+                /* neither white nor dead? */
+                nw2black((GCObject*)uv); /* closed upvalues cannot be grey */
+                luaC_barrier(L, (GCObject*)uv, slot);
+            }
+        }
     }
-    
-    /*
-    ** Remove first element from the tbclist plus its dummy nodes.
-    */
-// static void poptbclist (lua_State *L) {
-//   StkId tbc = L->tbclist.p;
-//   Debug.Assert(tbc->tbclist.delta > 0);  /* first element cannot be dummy */
-//   tbc -= tbc->tbclist.delta;
-//   while (tbc > L->stack.p && tbc->tbclist.delta == 0)
-//     tbc -= MAXDELTA;  /* remove dummy nodes */
-//   L->tbclist.p = tbc;
-// }
 
     /*
-    ** Close all upvalues and to-be-closed variables up to the given stack
-    ** level. Return restored 'level'.
-    */
-    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, int yy)
+     ** Remove first element from the tbclist plus its dummy nodes.
+     */
+    private static void poptbclist(lua_State* L)
     {
-//   ptrdiff_t levelrel = savestack(L, level);
-//   luaF_closeupval(L, level);  /* first, close the upvalues */
-//   while (L->tbclist.p >= level) {  /* traverse tbc's down to that level */
-//     StkId tbc = L->tbclist.p;  /* get variable index */
-//     poptbclist(L);  /* remove it from list */
-//     prepcallclosemth(L, tbc, status, yy);  /* close variable */
-//     level = restorestack(L, levelrel);
-//   }
-//   return level;
-        throw new NotImplementedException();
+        StkId tbc = L->tbclist.p;
+        Debug.Assert(tbc->tbclist.delta > 0); /* first element cannot be dummy */
+        tbc -= tbc->tbclist.delta;
+        while (tbc > L->stack.p && tbc->tbclist.delta == 0)
+        {
+            tbc -= MAXDELTA; /* remove dummy nodes */
+        }
+
+        L->tbclist.p = tbc;
+    }
+
+    /*
+     ** Close all upvalues and to-be-closed variables up to the given stack
+     ** level. Return restored 'level'.
+     */
+    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, bool yy)
+    {
+        nint levelrel = savestack(L, level);
+        luaF_closeupval(L, level); /* first, close the upvalues */
+        while (L->tbclist.p >= level)
+        {
+            /* traverse tbc's down to that level */
+            StkId tbc = L->tbclist.p; /* get variable index */
+            poptbclist(L); /* remove it from list */
+            prepcallclosemth(L, tbc, status, yy); /* close variable */
+            level = restorestack(L, levelrel);
+        }
+
+        return level;
     }
 
     private static partial Proto* luaF_newproto(lua_State* L)
@@ -276,23 +300,24 @@ public static unsafe partial class Lua
 
     private static partial void luaF_freeproto(lua_State* L, Proto* f)
     {
-//   if (!(f->flag & PF_FIXED)) {
-//     luaM_freearray(L, f->code, cast_sizet(f->sizecode));
-//     luaM_freearray(L, f->lineinfo, cast_sizet(f->sizelineinfo));
-//     luaM_freearray(L, f->abslineinfo, cast_sizet(f->sizeabslineinfo));
-//   }
-//   luaM_freearray(L, f->p, cast_sizet(f->sizep));
-//   luaM_freearray(L, f->k, cast_sizet(f->sizek));
-//   luaM_freearray(L, f->locvars, cast_sizet(f->sizelocvars));
-//   luaM_freearray(L, f->upvalues, cast_sizet(f->sizeupvalues));
-//   luaM_free(L, f);
-        throw new NotImplementedException();
+        if ((f->flag & PF_FIXED) == 0)
+        {
+            luaM_freearray(L, f->code, f->sizecode);
+            luaM_freearray(L, f->lineinfo, f->sizelineinfo);
+            luaM_freearray(L, f->abslineinfo, f->sizeabslineinfo);
+        }
+
+        luaM_freearray(L, f->p, f->sizep);
+        luaM_freearray(L, f->k, f->sizek);
+        luaM_freearray(L, f->locvars, f->sizelocvars);
+        luaM_freearray(L, f->upvalues, f->sizeupvalues);
+        luaM_free(L, f);
     }
 
     /*
-    ** Look for n-th local variable at line 'line' in function 'func'.
-    ** Returns null if not found.
-    */
+     ** Look for n-th local variable at line 'line' in function 'func'.
+     ** Returns null if not found.
+     */
     private static partial string luaF_getlocalname(Proto* func, int local_number, int pc)
     {
 //   int i;

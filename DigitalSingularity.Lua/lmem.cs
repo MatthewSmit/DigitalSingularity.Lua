@@ -47,6 +47,12 @@ public static unsafe partial class Lua
         luaM_free_(L, b, n * sizeof(T));
     }
 
+    private static void luaM_freearray<T>(lua_State* L, T** b, long n)
+        where T : unmanaged
+    {
+        luaM_free_(L, b, n * sizeof(T*));
+    }
+
     private static T* luaM_new<T>(lua_State* L)
         where T : unmanaged
     {

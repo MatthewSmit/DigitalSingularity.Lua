@@ -534,10 +534,11 @@ public static unsafe partial class Lua
             int delta = 0; /* correction for vararg functions */
             if (isLua(ci))
             {
-//       Proto *p = ci_func(ci)->p;
-//       if (p->flag & PF_VAHID)
-//         delta = ci->u.l.nextraargs + p->numparams + 1;
-                throw new NotImplementedException();
+                Proto* p = ci_func(ci)->p;
+                if ((p->flag & PF_VAHID) != 0)
+                {
+                    delta = ci->u.l.nextraargs + p->numparams + 1;
+                }
             }
 
             ci->func.p += delta; /* if vararg, back to virtual 'func' */
@@ -575,29 +576,37 @@ public static unsafe partial class Lua
 //     luaG_runerror(L, "'__call' chain too long");
 //   return status + (1u << CIST_CCMT);  /* increment counter */
 // }
-//
-//
-// /* Generic case for 'moveresult' */
-// l_sinline void genmoveresults (lua_State *L, StkId res, int nres,
-//                                              int wanted) {
-//   StkId firstresult = L->top.p - nres;  /* index of first result */
-//   int i;
-//   if (nres > wanted)  /* extra results? */
-//     nres = wanted;  /* don't need them */
-//   for (i = 0; i < nres; i++)  /* move all results to correct place */
-//     setobjs2s(L, res + i, firstresult + i);
-//   for (; i < wanted; i++)  /* complete wanted number of results */
-//     setnilvalue(s2v(res + i));
-//   L->top.p = res + wanted;  /* top points after the last result */
-// }
+
+    /* Generic case for 'moveresult' */
+    private static void genmoveresults(lua_State* L, StkId res, int nres, int wanted)
+    {
+        StkId firstresult = L->top.p - nres; /* index of first result */
+        if (nres > wanted) /* extra results? */
+        {
+            nres = wanted; /* don't need them */
+        }
+
+        int i;
+        for (i = 0; i < nres; i++) /* move all results to correct place */
+        {
+            setobjs2s(L, res + i, firstresult + i);
+        }
+
+        for (; i < wanted; i++) /* complete wanted number of results */
+        {
+            setnilvalue(s2v(res + i));
+        }
+
+        L->top.p = res + wanted; /* top points after the last result */
+    }
 
     /*
-    ** Given 'nres' results at 'firstResult', move 'fwanted-1' of them
-    ** to 'res'.  Handle most typical cases (zero results for commands,
-    ** one result for expressions, multiple results for tail calls/single
-    ** parameters) separated. The flag CIST_TBC in 'fwanted', if set,
-    ** forces the switch to go to the default case.
-    */
+     ** Given 'nres' results at 'firstResult', move 'fwanted-1' of them
+     ** to 'res'.  Handle most typical cases (zero results for commands,
+     ** one result for expressions, multiple results for tail calls/single
+     ** parameters) separated. The flag CIST_TBC in 'fwanted', if set,
+     ** forces the switch to go to the default case.
+     */
     private static void moveresults(lua_State* L, StkId res, int nres, uint fwanted)
     {
         switch (fwanted)
@@ -621,9 +630,9 @@ public static unsafe partial class Lua
                 return;
 
             case LUA_MULTRET + 1:
-//       genmoveresults(L, res, nres, nres);  /* we want all results */
-//       break;
-                throw new NotImplementedException();
+                genmoveresults(L, res, nres, nres);  /* we want all results */
+                break;
+            
             default:
                 {
                     /* two/more results and/or to-be-closed variables */
@@ -1107,50 +1116,55 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
     
-// /*
-// ** Auxiliary structure to call 'luaF_close' in protected mode.
-// */
-// struct CloseP {
-//   StkId level;
-//   TStatus status;
-// };
-//
-//
-// /*
-// ** Auxiliary function to call 'luaF_close' in protected mode.
-// */
-// static void closepaux (lua_State *L, void *ud) {
-//   struct CloseP *pcl = cast(struct CloseP *, ud);
-//   luaF_close(L, pcl->level, pcl->status, 0);
-// }
-
     /*
-    ** Calls 'luaF_close' in protected mode. Return the original status
-    ** or, in case of errors, the new status.
+    ** Auxiliary structure to call 'luaF_close' in protected mode.
     */
-    private static partial byte luaD_closeprotected(lua_State* L, IntPtr level, byte status)
+    private struct CloseP
     {
-//   CallInfo *old_ci = L->ci;
-//   lu_byte old_allowhooks = L->allowhook;
-//   for (;;) {  /* keep closing upvalues until no more errors */
-//     struct CloseP pcl;
-//     pcl.level = restorestack(L, level); pcl.status = status;
-//     status = luaD_rawrunprotected(L, &closepaux, &pcl);
-//     if (l_likely(status == LUA_OK))  /* no more errors? */
-//       return pcl.status;
-//     else {  /* an error occurred; restore saved state and repeat */
-//       L->ci = old_ci;
-//       L->allowhook = old_allowhooks;
-//     }
-//   }
-        throw new NotImplementedException();
+        public StkId level;
+        public byte status;
     }
 
     /*
-    ** Call the C function 'func' in protected mode, restoring basic
-    ** thread information ('allowhook', etc.) and in particular
-    ** its stack level in case of errors.
+    ** Auxiliary function to call 'luaF_close' in protected mode.
     */
+    private static void closepaux(lua_State* L, void* ud)
+    {
+        CloseP* pcl = (CloseP*)ud;
+        luaF_close(L, pcl->level, pcl->status, false);
+    }
+
+    /*
+     ** Calls 'luaF_close' in protected mode. Return the original status
+     ** or, in case of errors, the new status.
+     */
+    private static partial byte luaD_closeprotected(lua_State* L, IntPtr level, byte status)
+    {
+        CallInfo* old_ci = L->ci;
+        bool old_allowhooks = L->allowhook;
+        while (true)
+        {
+            /* keep closing upvalues until no more errors */
+            CloseP pcl;
+            pcl.level = restorestack(L, level);
+            pcl.status = status;
+            status = luaD_rawrunprotected(L, closepaux, &pcl);
+            if (status == LUA_OK) /* no more errors? */
+            {
+                return pcl.status;
+            }
+
+            /* an error occurred; restore saved state and repeat */
+            L->ci = old_ci;
+            L->allowhook = old_allowhooks;
+        }
+    }
+
+    /*
+     ** Call the C function 'func' in protected mode, restoring basic
+     ** thread information ('allowhook', etc.) and in particular
+     ** its stack level in case of errors.
+     */
     private static partial byte luaD_pcall(lua_State* L, Pfunc func, void* u, nint oldtop, nint ef)
     {
         CallInfo* old_ci = L->ci;
