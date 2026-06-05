@@ -242,7 +242,6 @@ public static unsafe partial class Lua
         {
             LUA_VNIL or LUA_VFALSE or LUA_VTRUE => true,
             LUA_VNUMINT => ivalue(k1) == keyival(n2),
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
             LUA_VNUMFLT => fltvalue(k1) == fltvalueraw(keyval(n2)),
             LUA_VLIGHTUSERDATA => pvalue(k1) == pvalueraw(keyval(n2)),
             LUA_VLCF => fvalue(k1) == fvalueraw(keyval(n2)),
@@ -1053,10 +1052,11 @@ public static unsafe partial class Lua
         return absentkey;
     }
 
-// static int hashkeyisempty (Table *t, lua_Unsigned key) {
-//   const TValue *val = getintfromhash(t, l_castU2S(key));
-//   return isempty(val);
-// }
+    private static bool hashkeyisempty(Table* t, ulong key)
+    {
+        TValue* val = getintfromhash(t, (long)key);
+        return isempty(val);
+    }
 
     private static byte finishnodeget(TValue* val, TValue* res)
     {
@@ -1395,25 +1395,26 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Try to find a boundary in the hash part of table 't'. From the
-// ** caller, we know that 'asize + 1' is present. We want to find a larger
-// ** key that is absent from the table, so that we can do a binary search
-// ** between the two keys to find a boundary. We keep doubling 'j' until
-// ** we get an absent index.  If the doubling would overflow, we try
-// ** LUA_MAXINTEGER. If it is absent, we are ready for the binary search.
-// ** ('j', being max integer, is larger or equal to 'i', but it cannot be
-// ** equal because it is absent while 'i' is present.) Otherwise, 'j' is a
-// ** boundary. ('j + 1' cannot be a present integer key because it is not
-// ** a valid integer in Lua.)
-// ** About 'rnd': If we used a fixed algorithm, a bad actor could fill
-// ** a table with only the keys that would be probed, in such a way that
-// ** a small table could result in a huge length. To avoid that, we use
-// ** the state's seed as a source of randomness. For the first probe,
-// ** we "randomly double" 'i' by adding to it a random number roughly its
-// ** width.
-// */
-// static lua_Unsigned hash_search (lua_State *L, Table *t, unsigned asize) {
+    /*
+    ** Try to find a boundary in the hash part of table 't'. From the
+    ** caller, we know that 'asize + 1' is present. We want to find a larger
+    ** key that is absent from the table, so that we can do a binary search
+    ** between the two keys to find a boundary. We keep doubling 'j' until
+    ** we get an absent index.  If the doubling would overflow, we try
+    ** LUA_MAXINTEGER. If it is absent, we are ready for the binary search.
+    ** ('j', being max integer, is larger or equal to 'i', but it cannot be
+    ** equal because it is absent while 'i' is present.) Otherwise, 'j' is a
+    ** boundary. ('j + 1' cannot be a present integer key because it is not
+    ** a valid integer in Lua.)
+    ** About 'rnd': If we used a fixed algorithm, a bad actor could fill
+    ** a table with only the keys that would be probed, in such a way that
+    ** a small table could result in a huge length. To avoid that, we use
+    ** the state's seed as a source of randomness. For the first probe,
+    ** we "randomly double" 'i' by adding to it a random number roughly its
+    ** width.
+    */
+    private static ulong hash_search(lua_State* L, Table* t, uint asize)
+    {
 //   lua_Unsigned i = asize + 1;  /* caller ensures t[i] is present */
 //   unsigned rnd = G(L)->seed;
 //   int n = (asize > 0) ? luaO_ceillog2(asize) : 0;  /* width of 'asize' */
@@ -1442,84 +1443,113 @@ public static unsafe partial class Lua
 //     else i = m;
 //   }
 //   return i;
-// }
-//
-//
-// static unsigned int binsearch (Table *array, unsigned int i, unsigned int j) {
-//   Debug.Assert(i <= j);
-//   while (j - i > 1u) {  /* binary search */
-//     unsigned int m = (i + j) / 2;
-//     if (arraykeyisempty(array, m)) j = m;
-//     else i = m;
-//   }
-//   return i;
-// }
-//
-//
-// /* return a border, saving it as a hint for next call */
-// static lua_Unsigned newhint (Table *t, unsigned hint) {
-//   Debug.Assert(hint <= t->asize);
-//   *lenhint(t) = hint;
-//   return hint;
-// }
-
-    /*
-    ** Try to find a border in table 't'. (A 'border' is an integer index
-    ** such that t[i] is present and t[i+1] is absent, or 0 if t[1] is absent,
-    ** or 'maxinteger' if t[maxinteger] is present.)
-    ** If there is an array part, try to find a border there. First try
-    ** to find it in the vicinity of the previous result (hint), to handle
-    ** cases like 't[#t + 1] = val' or 't[#t] = nil', that move the border
-    ** by one entry. Otherwise, do a binary search to find the border.
-    ** If there is no array part, or its last element is non empty, the
-    ** border may be in the hash part.
-    */
-    private static partial ulong luaH_getn(lua_State* L, Table* t)
-    {
-//   unsigned asize = t->asize;
-//   if (asize > 0) {  /* is there an array part? */
-//     const unsigned maxvicinity = 4;
-//     unsigned limit = *lenhint(t);  /* start with the hint */
-//     if (limit == 0)
-//       limit = 1;  /* make limit a valid index in the array */
-//     if (arraykeyisempty(t, limit)) {  /* t[limit] empty? */
-//       /* there must be a border before 'limit' */
-//       unsigned i;
-//       /* look for a border in the vicinity of the hint */
-//       for (i = 0; i < maxvicinity && limit > 1; i++) {
-//         limit--;
-//         if (!arraykeyisempty(t, limit))
-//           return newhint(t, limit);  /* 'limit' is a border */
-//       }
-//       /* t[limit] still empty; search for a border in [0, limit) */
-//       return newhint(t, binsearch(t, 0, limit));
-//     }
-//     else {  /* 'limit' is present in table; look for a border after it */
-//       unsigned i;
-//       /* look for a border in the vicinity of the hint */
-//       for (i = 0; i < maxvicinity && limit < asize; i++) {
-//         limit++;
-//         if (arraykeyisempty(t, limit))
-//           return newhint(t, limit - 1);  /* 'limit - 1' is a border */
-//       }
-//       if (arraykeyisempty(t, asize)) {  /* last element empty? */
-//         /* t[limit] not empty; search for a border in [limit, asize) */
-//         return newhint(t, binsearch(t, limit, asize));
-//       }
-//     }
-//     /* last element non empty; set a hint to speed up finding that again */
-//     /* (keys in the hash part cannot be hints) */
-//     *lenhint(t) = asize;
-//   }
-//   /* no array part or t[asize] is not empty; check the hash part */
-//   Debug.Assert(asize == 0 || !arraykeyisempty(t, asize));
-//   if (isdummy(t) || hashkeyisempty(t, asize + 1))
-//     return asize;  /* 'asize + 1' is empty */
-//   else  /* 'asize + 1' is also non empty */
-//     return hash_search(L, t, asize);
         throw new NotImplementedException();
     }
-    
+
+    private static uint binsearch(Table* array, uint i, uint j)
+    {
+        Debug.Assert(i <= j);
+        while (j - i > 1u)
+        {
+            /* binary search */
+            uint m = (i + j) / 2;
+            if (arraykeyisempty(array, m))
+            {
+                j = m;
+            }
+            else
+            {
+                i = m;
+            }
+        }
+
+        return i;
+    }
+
+    /* return a border, saving it as a hint for next call */
+    private static ulong newhint(Table* t, uint hint)
+    {
+        Debug.Assert(hint <= t->asize);
+        *lenhint(t) = hint;
+        return hint;
+    }
+
+    /*
+     ** Try to find a border in table 't'. (A 'border' is an integer index
+     ** such that t[i] is present and t[i+1] is absent, or 0 if t[1] is absent,
+     ** or 'maxinteger' if t[maxinteger] is present.)
+     ** If there is an array part, try to find a border there. First try
+     ** to find it in the vicinity of the previous result (hint), to handle
+     ** cases like 't[#t + 1] = val' or 't[#t] = nil', that move the border
+     ** by one entry. Otherwise, do a binary search to find the border.
+     ** If there is no array part, or its last element is non empty, the
+     ** border may be in the hash part.
+     */
+    private static partial ulong luaH_getn(lua_State* L, Table* t)
+    {
+        uint asize = t->asize;
+        if (asize > 0)
+        {
+            /* is there an array part? */
+            const uint maxvicinity = 4;
+            uint limit = *lenhint(t); /* start with the hint */
+            if (limit == 0)
+            {
+                limit = 1; /* make limit a valid index in the array */
+            }
+
+            if (arraykeyisempty(t, limit))
+            {
+                /* t[limit] empty? */
+                /* there must be a border before 'limit' */
+                /* look for a border in the vicinity of the hint */
+                for (uint i = 0; i < maxvicinity && limit > 1; i++)
+                {
+                    limit--;
+                    if (!arraykeyisempty(t, limit))
+                    {
+                        return newhint(t, limit); /* 'limit' is a border */
+                    }
+                }
+
+                /* t[limit] still empty; search for a border in [0, limit) */
+                return newhint(t, binsearch(t, 0, limit));
+            }
+
+            /* 'limit' is present in table; look for a border after it */
+            /* look for a border in the vicinity of the hint */
+            for (uint i = 0; i < maxvicinity && limit < asize; i++)
+            {
+                limit++;
+                if (arraykeyisempty(t, limit))
+                {
+                    return newhint(t, limit - 1); /* 'limit - 1' is a border */
+                }
+            }
+
+            if (arraykeyisempty(t, asize))
+            {
+                /* last element empty? */
+                /* t[limit] not empty; search for a border in [limit, asize) */
+                return newhint(t, binsearch(t, limit, asize));
+            }
+
+            /* last element non empty; set a hint to speed up finding that again */
+            /* (keys in the hash part cannot be hints) */
+            *lenhint(t) = asize;
+        }
+
+        /* no array part or t[asize] is not empty; check the hash part */
+        Debug.Assert(asize == 0 || !arraykeyisempty(t, asize));
+        if (isdummy(t) || hashkeyisempty(t, asize + 1))
+        {
+            return asize; /* 'asize + 1' is empty */
+        }
+
+        /* 'asize + 1' is also non empty */
+        return hash_search(L, t, asize);
+    }
+
 #if LUA_DEBUG
     /* export this function for the test library */
 

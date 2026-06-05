@@ -771,12 +771,12 @@ public static unsafe partial class Lua
 //   ms->level = 0;
 //   Debug.Assert(ms->matchdepth == MAXCCALLS);
 // }
-//
-//
-// static int str_find_aux (lua_State *L, int find) {
-//   size_t ls, lp;
-//   const char *s = luaL_checklstring(L, 1, &ls);
-//   const char *p = luaL_checklstring(L, 2, &lp);
+
+    private static int str_find_aux(lua_State* L, bool find)
+    {
+        long ls, lp;
+        byte* s = luaL_checklstring(L, 1, &ls);
+        byte* p = luaL_checklstring(L, 2, &lp);
 //   size_t init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
 //   if (init > ls) {  /* start after string's end? */
 //     luaL_pushfail(L);  /* cannot find anything */
@@ -816,18 +816,17 @@ public static unsafe partial class Lua
 //   }
 //   luaL_pushfail(L);  /* not found */
 //   return 1;
-// }
+        throw new NotImplementedException();
+    }
 
     private static int str_find(lua_State* L)
     {
-//   return str_find_aux(L, 1);
-        throw new NotImplementedException();
+        return str_find_aux(L, true);
     }
 
     private static int str_match(lua_State* L)
     {
-//   return str_find_aux(L, 0);
-        throw new NotImplementedException();
+        return str_find_aux(L, false);
     }
 
 // /* state for 'gmatch' */

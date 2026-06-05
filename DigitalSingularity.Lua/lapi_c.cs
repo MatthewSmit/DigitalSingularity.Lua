@@ -392,9 +392,8 @@ public static unsafe partial class Lua
 
     public static partial long lua_tointegerx(lua_State* L, int idx, out bool isnum)
     {
-        long res = 0;
         TValue* o = index2value(L, idx);
-        isnum = tointeger(o, &res);
+        isnum = tointeger(o, out long res);
         return res;
     }
 

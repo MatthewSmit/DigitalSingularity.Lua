@@ -1,5 +1,6 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -216,6 +217,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
+    [DoesNotReturn]
     private static void tag_error(lua_State* L, int arg, int tag)
     {
         // luaL_typeerror(L, arg, lua_typename(L, tag));
@@ -432,6 +434,17 @@ public static unsafe partial class Lua
 //   if (l_unlikely(!s)) tag_error(L, arg, LUA_TSTRING);
 //   return s;
         throw new NotImplementedException();
+    }
+
+    public static partial string luaL_checknetstring(lua_State* L, int arg)
+    {
+        string? s = luaL_tonetstring(L, arg);
+        if (s == null!)
+        {
+            tag_error(L, arg, LUA_TSTRING);
+        }
+
+        return s;
     }
 
     public static partial byte* luaL_optlstring(lua_State* L, int arg, string def, long* l)
@@ -1038,9 +1051,14 @@ public static unsafe partial class Lua
         return lua_tolstring(L, -1, out len);
     }
 
-    public static partial string luaL_tonetstring(lua_State* L, int idx)
+    public static partial string? luaL_tonetstring(lua_State* L, int idx)
     {
         byte* ptr = luaL_tolstring(L, idx, out long len);
+        if (ptr == null)
+        {
+            return null;
+        }
+        
         ReadOnlySpan<byte> span = new(ptr, checked((int)len));
         return Encoding.UTF8.GetString(span);
     }

@@ -47,19 +47,14 @@ public static unsafe partial class Lua
 
     private static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event)
     {
-//   Table *mt;
-//   switch (ttype(o)) {
-//     case LUA_TTABLE:
-//       mt = hvalue(o)->metatable;
-//       break;
-//     case LUA_TUSERDATA:
-//       mt = uvalue(o)->metatable;
-//       break;
-//     default:
-//       mt = G(L)->mt[ttype(o)];
-//   }
-//   return (mt ? luaH_Hgetshortstr(mt, G(L)->tmname[event]) : &G(L)->nilvalue);
-        throw new NotImplementedException();
+        Table* mt = ttype(o) switch
+        {
+            LUA_TTABLE => hvalue(o)->metatable,
+            LUA_TUSERDATA => uvalue(o)->metatable,
+            _ => G(L)->mt[ttype(o)],
+        };
+
+        return mt != null ? luaH_Hgetshortstr(mt, G(L)->tmname[(int)@event]) : &G(L)->nilvalue;
     }
 
     /*
@@ -194,7 +189,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    private static partial int luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event)
+    private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event)
     {
 //   TValue aux; const TValue *p2;
 //   if (isfloat) {

@@ -142,7 +142,6 @@ public static unsafe partial class Lua
             LUA_OPSUB => v1 - v2,
             LUA_OPMUL => v1 * v2,
             LUA_OPDIV => v1 / v2,
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
             LUA_OPPOW => v2 == 2 ? v1 * v1 : Math.Pow(v1, v2),
             LUA_OPIDIV => Math.Floor(v1 / v2),
             LUA_OPUNM => -v1,

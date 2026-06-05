@@ -47,7 +47,6 @@ public unsafe class LuaTestSuite
         "lua/attrib.lua",
         "lua/big.lua",
         "lua/bitwise.lua",
-        "lua/bwcoercion.lua",
         "lua/calls.lua",
         "lua/closure.lua",
         "lua/code.lua",

@@ -30,13 +30,15 @@ public static unsafe partial class Lua
 
     public static partial byte* luaL_tolstring(lua_State* L, int idx, out long len);
     
-    public static partial string luaL_tonetstring(lua_State* L, int idx);
+    public static partial string? luaL_tonetstring(lua_State* L, int idx);
 
     public static partial int luaL_argerror(lua_State* L, int arg, string extramsg);
 
     public static partial int luaL_typeerror(lua_State* L, int arg, string tname);
 
     public static partial byte* luaL_checklstring(lua_State* L, int arg, long* l);
+    
+    public static partial string luaL_checknetstring(lua_State* L, int arg);
 
     public static partial byte* luaL_optlstring(lua_State* L, int arg, string def, long* l);
 

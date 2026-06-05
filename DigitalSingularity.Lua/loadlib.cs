@@ -641,14 +641,17 @@ public static unsafe partial class Lua
 
     private static int ll_require(lua_State* L)
     {
-//   const char *name = luaL_checkstring(L, 1);
-//   lua_settop(L, 1);  /* LOADED table will be at index 2 */
-//   lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
-//   lua_getfield(L, 2, name);  /* LOADED[name] */
-//   if (lua_toboolean(L, -1))  /* is it there? */
-//     return 1;  /* package is already loaded */
-//   /* else must load package */
-//   lua_pop(L, 1);  /* remove 'getfield' result */
+        string name = luaL_checknetstring(L, 1);
+        lua_settop(L, 1);  /* LOADED table will be at index 2 */
+        lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+        lua_getfield(L, 2, name);  /* LOADED[name] */
+        if (lua_toboolean(L, -1)) /* is it there? */
+        {
+            return 1; /* package is already loaded */
+        }
+
+        /* else must load package */
+        lua_pop(L, 1);  /* remove 'getfield' result */
 //   findloader(L, name);
 //   lua_rotate(L, -2, 1);  /* function <-> loader data */
 //   lua_pushvalue(L, 1);  /* name is 1st argument to module loader */

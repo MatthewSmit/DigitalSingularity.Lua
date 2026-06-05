@@ -52,48 +52,61 @@ public static unsafe partial class Lua
      ** Create a new upvalue at the given level, and link it to the list of
      ** open upvalues of 'L' after entry 'prev'.
      **/
-// static UpVal *newupval (lua_State *L, StkId level, UpVal **prev) {
-//   GCObject *o = luaC_newobj(L, LUA_VUPVAL, sizeof(UpVal));
-//   UpVal *uv = gco2upv(o);
-//   UpVal *next = *prev;
-//   uv->v.p = s2v(level);  /* current value lives in the stack */
-//   uv->u.open.next = next;  /* link it to list of open upvalues */
-//   uv->u.open.previous = prev;
-//   if (next)
-//     next->u.open.previous = &uv->u.open.next;
-//   *prev = uv;
-//   if (!isintwups(L)) {  /* thread not in list of threads with upvalues? */
-//     L->twups = G(L)->twups;  /* link it to the list */
-//     G(L)->twups = L;
-//   }
-//   return uv;
-// }
+    private static UpVal* newupval(lua_State* L, StkId level, UpVal** prev)
+    {
+        GCObject* o = luaC_newobj(L, LUA_VUPVAL, sizeof(UpVal));
+        UpVal* uv = gco2upv(o);
+        UpVal* next = *prev;
+        uv->v.p = s2v(level); /* current value lives in the stack */
+        uv->u.open.next = next; /* link it to list of open upvalues */
+        uv->u.open.previous = prev;
+        if (next != null)
+        {
+            next->u.open.previous = &uv->u.open.next;
+        }
+
+        *prev = uv;
+        if (!isintwups(L))
+        {
+            /* thread not in list of threads with upvalues? */
+            L->twups = G(L)->twups; /* link it to the list */
+            G(L)->twups = L;
+        }
+
+        return uv;
+    }
 
     /*
-    ** Find and reuse, or create if it does not exist, an upvalue
-    ** at the given level.
-    */
+     ** Find and reuse, or create if it does not exist, an upvalue
+     ** at the given level.
+     */
     private static partial UpVal* luaF_findupval(lua_State* L, StkId level)
     {
-//   UpVal **pp = &L->openupval;
-//   UpVal *p;
-//   Debug.Assert(isintwups(L) || L->openupval == null);
-//   while ((p = *pp) != null && uplevel(p) >= level) {  /* search for it */
-//     Debug.Assert(!isdead(G(L), p));
-//     if (uplevel(p) == level)  /* corresponding upvalue? */
-//       return p;  /* return it */
-//     pp = &p->u.open.next;
-//   }
-//   /* not found: create a new upvalue after 'pp' */
-//   return newupval(L, level, pp);
-        throw new NotImplementedException();
+        UpVal** pp = &L->openupval;
+        Debug.Assert(isintwups(L) || L->openupval == null);
+
+        UpVal* p;
+        while ((p = *pp) != null && uplevel(p) >= level)
+        {
+            /* search for it */
+            Debug.Assert(!isdead(G(L), (GCObject*)p));
+            if (uplevel(p) == level) /* corresponding upvalue? */
+            {
+                return p; /* return it */
+            }
+
+            pp = &p->u.open.next;
+        }
+
+        /* not found: create a new upvalue after 'pp' */
+        return newupval(L, level, pp);
     }
-    
+
     /*
-    ** Call closing method for object 'obj' with error object 'err'. The
-    ** boolean 'yy' controls whether the call is yieldable.
-    ** (This function assumes EXTRA_STACK.)
-    */
+     ** Call closing method for object 'obj' with error object 'err'. The
+     ** boolean 'yy' controls whether the call is yieldable.
+     ** (This function assumes EXTRA_STACK.)
+     */
     private static void callclosemethod(lua_State* L, TValue* obj, TValue* err, bool yy)
     {
         StkId top = L->top.p;

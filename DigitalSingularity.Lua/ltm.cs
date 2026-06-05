@@ -106,7 +106,7 @@ public static unsafe partial class Lua
 
     private static partial int luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event);
 
-    private static partial int luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event);
+    private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event);
 
     private static partial void luaT_adjustvarargs(lua_State* L, CallInfo* ci, Proto* p);
 

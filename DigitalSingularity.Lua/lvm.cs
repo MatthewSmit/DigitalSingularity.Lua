@@ -82,15 +82,15 @@ public static unsafe partial class Lua
     }
 
     /* convert an object to an integer (including string coercion) */
-    private static bool tointeger(TValue* o, long* i)
+    private static bool tointeger(TValue* o, out long i)
     {
         if (ttisinteger(o))
         {
-            *i = ivalue(o);
+            i = ivalue(o);
             return true;
         }
 
-        return luaV_tointeger(o, i, LUA_FLOORN2I);
+        return luaV_tointeger(o, out i, LUA_FLOORN2I);
     }
 
     /* convert an object to an integer (without string coercion) */
@@ -111,8 +111,6 @@ public static unsafe partial class Lua
     {
         return luaV_equalobj(null, t1, t2);
     }
-
-    private delegate byte FastGetDelegate<T1, T2>(Table* a, T1 b, T2 c);
 
     /*
      ** fast track for 'gettable' TODO
@@ -179,7 +177,7 @@ public static unsafe partial class Lua
 
     private static partial bool luaV_tonumber_(TValue* obj, double* n);
 
-    private static partial bool luaV_tointeger(TValue* obj, long* p, F2Imod mode);
+    private static partial bool luaV_tointeger(TValue* obj, out long p, F2Imod mode);
 
     private static partial bool luaV_tointegerns(TValue* obj, out long p, F2Imod mode);
 

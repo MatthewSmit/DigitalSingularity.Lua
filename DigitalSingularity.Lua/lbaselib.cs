@@ -260,11 +260,10 @@ public static unsafe partial class Lua
 
     private static int luaB_type(lua_State* L)
     {
-//   int t = lua_type(L, 1);
-//   luaL_argcheck(L, t != LUA_TNONE, 1, "value expected");
-//   lua_pushstring(L, lua_typename(L, t));
-//   return 1;
-        throw new NotImplementedException();
+        int t = lua_type(L, 1);
+        luaL_argcheck(L, t != LUA_TNONE, 1, "value expected");
+        lua_pushstring(L, lua_typename(L, t));
+        return 1;
     }
 
     private static int luaB_next(lua_State* L)
@@ -438,15 +437,17 @@ public static unsafe partial class Lua
 
     private static int luaB_assert(lua_State* L)
     {
-//   if (l_likely(lua_toboolean(L, 1)))  /* condition is true? */
-//     return lua_gettop(L);  /* return all arguments */
-//   else {  /* error */
+        if (lua_toboolean(L, 1)) /* condition is true? */
+        {
+            return lua_gettop(L); /* return all arguments */
+        }
+
+        /* error */
 //     luaL_checkany(L, 1);  /* there must be a condition */
 //     lua_remove(L, 1);  /* remove it */
 //     lua_pushliteral(L, "assertion failed!");  /* default message */
 //     lua_settop(L, 1);  /* leave only message (default if no other one) */
 //     return luaB_error(L);  /* call 'error' */
-//   }
         throw new NotImplementedException();
     }
 
