@@ -260,7 +260,7 @@ public static unsafe partial class Lua
      */
     private static int condjump(FuncState* fs, OpCode op, int A, int B, int C, bool k)
     {
-        luaK_codeABCk(fs, op, A, B, C, k ? 1 : 0);
+        luaK_codeABCk(fs, op, A, B, C, k);
         return luaK_jump(fs);
     }
 
@@ -459,17 +459,17 @@ public static unsafe partial class Lua
      ** Format and emit an 'iABC' instruction. (Assertions check consistency
      ** of parameters versus opcode.)
      */
-    private static partial int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, int k)
+    private static partial int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, bool k)
     {
         Debug.Assert(getOpMode(o) == OpMode.iABC);
-        Debug.Assert(A <= MAXARG_A && B <= MAXARG_B && C <= MAXARG_C && (k & ~1) == 0);
+        Debug.Assert(A <= MAXARG_A && B <= MAXARG_B && C <= MAXARG_C);
         return luaK_code(fs, CREATE_ABCk(o, A, B, C, k));
     }
 
-    private static partial int luaK_codevABCk(FuncState* fs, OpCode o, int A, int B, int C, int k)
+    private static partial int luaK_codevABCk(FuncState* fs, OpCode o, int A, int B, int C, bool k)
     {
         Debug.Assert(getOpMode(o) == OpMode.ivABC);
-        Debug.Assert(A <= MAXARG_A && B <= MAXARG_vB && C <= MAXARG_vC && (k & ~1) == 0);
+        Debug.Assert(A <= MAXARG_A && B <= MAXARG_vB && C <= MAXARG_vC);
         return luaK_code(fs, CREATE_vABCk(o, A, B, C, k));
     }
 
@@ -1042,7 +1042,7 @@ public static unsafe partial class Lua
                 break;
             
             case expkind.VJMP:
-                break; /* nothing to do... */
+                return; /* nothing to do... */
 
             default:
                 throw new InvalidOperationException();
@@ -1259,7 +1259,7 @@ public static unsafe partial class Lua
         expdesc* ec)
     {
         bool k = exp2RK(fs, ec);
-        luaK_codeABCk(fs, o, A, B, ec->u.info, k ? 1 : 0);
+        luaK_codeABCk(fs, o, A, B, ec->u.info, k);
     }
 
     /*
@@ -1319,7 +1319,7 @@ public static unsafe partial class Lua
             testTMode((OpMode)GET_OPCODE(*pc)) &&
             GET_OPCODE(*pc) != OpCode.OP_TESTSET &&
             GET_OPCODE(*pc) != OpCode.OP_TEST);
-        SETARG_k(ref *pc, GETARG_k(*pc) ^ 1);
+        SETARG_k(ref *pc, !GETARG_k(*pc));
     }
 
     /*
@@ -1524,7 +1524,7 @@ public static unsafe partial class Lua
         if (strisshr(key->u.strval) && luaK_exp2K(fs, key))
         {
             /* can use 'self' opcode */
-            luaK_codeABCk(fs, OpCode.OP_SELF, @base, ereg, key->u.info, 0);
+            luaK_codeABCk(fs, OpCode.OP_SELF, @base, ereg, key->u.info, false);
         }
         else
         {
@@ -1682,7 +1682,7 @@ public static unsafe partial class Lua
      */
     private static OpCode unopr2op(UnOpr opr)
     {
-        return (OpCode)((int)opr - (int)UnOpr.OPR_MINUS + (int)OpCode.OP_UNM);
+        return (OpCode)((int)opr - (int)UnOpr.MINUS + (int)OpCode.OP_UNM);
     }
 
     /*
@@ -1726,12 +1726,12 @@ public static unsafe partial class Lua
         TMS @event)
     {
         int v1 = luaK_exp2anyreg(fs, e1);
-        int pc = luaK_codeABCk(fs, op, 0, v1, v2, 0);
+        int pc = luaK_codeABCk(fs, op, 0, v1, v2, false);
         freeexps(fs, e1, e2);
         e1->u.info = pc;
         e1->k = expkind.VRELOC; /* all those operations are relocatable */
         luaK_fixline(fs, line);
-        luaK_codeABCk(fs, mmop, v1, v2, (int)@event, flip ? 1 : 0); /* metamethod */
+        luaK_codeABCk(fs, mmop, v1, v2, (int)@event, flip); /* metamethod */
         luaK_fixline(fs, line);
     }
 
@@ -2019,20 +2019,20 @@ public static unsafe partial class Lua
         luaK_dischargevars(fs, e);
         switch (opr)
         {
-            case UnOpr.OPR_MINUS:
-            case UnOpr.OPR_BNOT: /* use 'ef' as fake 2nd operand */
+            case UnOpr.MINUS:
+            case UnOpr.BNOT: /* use 'ef' as fake 2nd operand */
                 if (constfolding(fs, (int)(opr + LUA_OPUNM), e, &ef))
                 {
                     break;
                 }
 
-                goto case UnOpr.OPR_LEN;
+                goto case UnOpr.LEN;
 
-            case UnOpr.OPR_LEN:
+            case UnOpr.LEN:
                 codeunexpval(fs, unopr2op(opr), e, line);
                 break;
 
-            case UnOpr.OPR_NOT:
+            case UnOpr.NOT:
                 codenot(fs, e);
                 break;
 
@@ -2261,7 +2261,7 @@ public static unsafe partial class Lua
         uint* inst = &fs->f->code[pc];
         int extra = asize / (MAXARG_vC + 1); /* higher bits of array size */
         int rc = asize % (MAXARG_vC + 1); /* lower bits of array size */
-        int k = extra > 0 ? 1 : 0; /* true iff needs extra argument */
+        bool k = extra > 0; /* true iff needs extra argument */
         hsize = hsize != 0 ? luaO_ceillog2((uint)hsize) + 1 : 0;
         *inst = CREATE_vABCk(OpCode.OP_NEWTABLE, ra, hsize, rc, k);
         *(inst + 1) = CREATE_Ax(OpCode.OP_EXTRAARG, extra);
@@ -2284,13 +2284,13 @@ public static unsafe partial class Lua
 
         if (nelems <= MAXARG_vC)
         {
-            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, 0);
+            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, false);
         }
         else
         {
             int extra = nelems / (MAXARG_vC + 1);
             nelems %= (MAXARG_vC + 1);
-            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, 1);
+            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, true);
             codeextraarg(fs, extra);
         }
 
@@ -2351,7 +2351,7 @@ public static unsafe partial class Lua
                 case OpCode.OP_TAILCALL:
                     if (fs->needclose)
                     {
-                        SETARG_k(ref *pc, 1); /* signal that it needs to close */
+                        SETARG_k(ref *pc, true); /* signal that it needs to close */
                     }
 
                     if ((p->flag & PF_VAHID) != 0) /* does it use hidden arguments? */
@@ -2372,7 +2372,7 @@ public static unsafe partial class Lua
                 case OpCode.OP_VARARG:
                     if ((p->flag & PF_VATAB) != 0) /* function has a vararg table? */
                     {
-                        SETARG_k(ref *pc, 1); /* must get vararg there */
+                        SETARG_k(ref *pc, true); /* must get vararg there */
                     }
 
                     break;

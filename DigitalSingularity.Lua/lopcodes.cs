@@ -222,14 +222,14 @@ public static unsafe partial class Lua
         return (i & 1u << POS_k) != 0;
     }
 
-    private static int GETARG_k(uint i)
+    private static bool GETARG_k(uint i)
     {
-        return getarg(i, POS_k, 1);
+        return getarg(i, POS_k, 1) != 0;
     }
 
-    private static void SETARG_k(ref uint i, int v)
+    private static void SETARG_k(ref uint i, bool v)
     {
-        setarg(ref i, v, POS_k, 1);
+        setarg(ref i, v ? 1 : 0, POS_k, 1);
     }
 
     private static int GETARG_Bx(uint i)
@@ -276,22 +276,22 @@ public static unsafe partial class Lua
         setarg(ref i, j + OFFSET_sJ, POS_sJ, SIZE_sJ);
     }
 
-    private static uint CREATE_ABCk(OpCode o, int a, int b, int c, int k)
+    private static uint CREATE_ABCk(OpCode o, int a, int b, int c, bool k)
     {
         return (uint)o << POS_OP |
                (uint)a << POS_A |
                (uint)b << POS_B |
                (uint)c << POS_C |
-               (uint)k << POS_k;
+               (uint)(k ? 1 : 0) << POS_k;
     }
 
-    private static uint CREATE_vABCk(OpCode o, int a, int b, int c, int k)
+    private static uint CREATE_vABCk(OpCode o, int a, int b, int c, bool k)
     {
         return (uint)o << POS_OP |
                (uint)a << POS_A |
                (uint)b << POS_vB |
                (uint)c << POS_vC |
-               (uint)k << POS_k;
+               (uint)(k ? 1 : 0) << POS_k;
     }
 
     private static uint CREATE_ABx(OpCode o, int a, int bc)

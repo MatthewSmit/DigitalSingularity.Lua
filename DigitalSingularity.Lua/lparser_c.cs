@@ -763,7 +763,7 @@ public static unsafe partial class Lua
             /* move jump to CLOSE position */
             fs->f->code[gt->pc + 1] = fs->f->code[gt->pc];
             /* put CLOSE instruction at original position */
-            fs->f->code[gt->pc] = CREATE_ABCk(OpCode.OP_CLOSE, stklevel, 0, 0, 0);
+            fs->f->code[gt->pc] = CREATE_ABCk(OpCode.OP_CLOSE, stklevel, 0, 0, false);
             gt->pc++; /* must point to jump instruction */
         }
 
@@ -1250,7 +1250,7 @@ public static unsafe partial class Lua
            sep -> ',' | ';' */
         FuncState* fs = ls->fs;
         int line = ls->linenumber;
-        int pc = luaK_codevABCk(fs, OpCode.OP_NEWTABLE, 0, 0, 0, 0);
+        int pc = luaK_codevABCk(fs, OpCode.OP_NEWTABLE, 0, 0, 0, false);
         luaK_code(fs, 0); /* space for extra arg. */
         ConsControl cc;
         cc.na = cc.nh = cc.tostore = 0;
@@ -1593,11 +1593,11 @@ public static unsafe partial class Lua
     {
         return op switch
         {
-            (int)RESERVED.TK_NOT => UnOpr.OPR_NOT,
-            '-' => UnOpr.OPR_MINUS,
-            '~' => UnOpr.OPR_BNOT,
-            '#' => UnOpr.OPR_LEN,
-            _ => UnOpr.OPR_NOUNOPR,
+            (int)RESERVED.TK_NOT => UnOpr.NOT,
+            '-' => UnOpr.MINUS,
+            '~' => UnOpr.BNOT,
+            '#' => UnOpr.LEN,
+            _ => UnOpr.NOUNOPR,
         };
     }
 
@@ -1664,7 +1664,7 @@ public static unsafe partial class Lua
     {
         enterlevel(ls);
         UnOpr uop = getunopr(ls->t.token);
-        if (uop != UnOpr.OPR_NOUNOPR)
+        if (uop != UnOpr.NOUNOPR)
         {
             /* prefix (unary) operator? */
             int line = ls->linenumber;

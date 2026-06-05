@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 
 #if LUA_TEST
 public static unsafe partial class Lua
@@ -14,12 +15,13 @@ public static unsafe partial class Lua
 //
 //
 // void *l_Trick = 0;
-//
-//
-// #define obj_at(L,k)	s2v(L->ci->func.p + (k))
-//
-//
-// static int runC (lua_State *L, lua_State *L1, const char *pc);
+
+    private static TValue* obj_at(lua_State* L, int k)
+    {
+        return s2v(L->ci->func.p + (k));
+    }
+
+    // static int runC (lua_State *L, lua_State *L1, const char *pc);
 
     private static void setnameval(lua_State* L, string name, int val)
     {
@@ -728,52 +730,60 @@ public static unsafe partial class Lua
 
     /* }====================================================== */
 
-/*
- ** {======================================================
- ** Disassembler
- ** =======================================================
- */
+    /*
+    ** {======================================================
+    ** Disassembler
+    ** =======================================================
+    */
 
-// static char *buildop (Proto *p, int pc, char *buff) {
-//   char *obuff = buff;
-//   Instruction i = p->code[pc];
-//   OpCode o = GET_OPCODE(i);
-//   const char *name = opnames[o];
-//   int line = luaG_getfuncline(p, pc);
-//   int lineinfo = (p->lineinfo != null) ? p->lineinfo[pc] : 0;
-//   if (lineinfo == ABSLINEINFO)
-//     buff += sprintf(buff, "(__");
-//   else
-//     buff += sprintf(buff, "(%2d", lineinfo);
-//   buff += sprintf(buff, " - %4d) %4d - ", line, pc);
-//   switch (getOpMode(o)) {
-//     case iABC:
-//       sprintf(buff, "%-12s%4d %4d %4d%s", name,
-//               GETARG_A(i), GETARG_B(i), GETARG_C(i),
-//               GETARG_k(i) ? " (k)" : "");
-//       break;
-//     case ivABC:
-//       sprintf(buff, "%-12s%4d %4d %4d%s", name,
-//               GETARG_A(i), GETARG_vB(i), GETARG_vC(i),
-//               GETARG_k(i) ? " (k)" : "");
-//       break;
-//     case iABx:
-//       sprintf(buff, "%-12s%4d %4d", name, GETARG_A(i), GETARG_Bx(i));
-//       break;
-//     case iAsBx:
-//       sprintf(buff, "%-12s%4d %4d", name, GETARG_A(i), GETARG_sBx(i));
-//       break;
-//     case iAx:
-//       sprintf(buff, "%-12s%4d", name, GETARG_Ax(i));
-//       break;
-//     case isJ:
-//       sprintf(buff, "%-12s%4d", name, GETARG_sJ(i));
-//       break;
-//   }
-//   return obuff;
-// }
-//
-//
+    private static string buildop(Proto* p, int pc)
+    {
+        StringBuilder sb = new();
+        uint i = p->code[pc];
+        OpCode o = GET_OPCODE(i);
+        string name = opnames[(int)o];
+        int line = luaG_getfuncline(p, pc);
+        int lineinfo = (p->lineinfo != null) ? p->lineinfo[pc] : 0;
+        if (lineinfo == ABSLINEINFO)
+        {
+            sb.Append("(__");
+        }
+        else
+        {
+            sb.Append($"({lineinfo:D2}");
+        }
+
+        sb.Append($" - {line:D4}) {pc:D4} - ");
+        switch (getOpMode(o))
+        {
+            case OpMode.iABC:
+                sb.Append($"{name, -12}{GETARG_A(i):D4} {GETARG_B(i):D4} {GETARG_C(i):D4}{(GETARG_k(i) ? " (k)" : "")}");
+                break;
+            
+            case OpMode.ivABC:
+                sb.Append($"{name, -12}{GETARG_A(i):D4} {GETARG_vB(i):D4} {GETARG_vC(i):D4}{(GETARG_k(i) ? " (k)" : "")}");
+                break;
+            
+            case OpMode.iABx:
+                sb.Append($"{name, -12}{GETARG_A(i):D4} {GETARG_Bx(i):D4}");
+                break;
+            
+            case OpMode.iAsBx:
+                sb.Append($"{name, -12}{GETARG_A(i):D4} {GETARG_sBx(i):D4}");
+                break;
+            
+            case OpMode.iAx:
+                sb.Append($"{name, -12}{GETARG_Ax(i):D4}");
+                break;
+            
+            case OpMode.isJ:
+                sb.Append($"{name, -12}{GETARG_sJ(i):D4}");
+                break;
+        }
+
+        return sb.ToString();
+    }
+
 // #if 0
 // void luaI_printcode (Proto *pt, int size) {
 //   int pc;
@@ -811,21 +821,23 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    private static int printcode(lua_State* L)
+    internal static int printcode(lua_State* L)
     {
-//   int pc;
-//   Proto *p;
-//   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-//                  1, "Lua function expected");
-//   p = getproto(obj_at(L, 1));
-//   printf("maxstack: %d\n", p->maxstacksize);
-//   printf("numparams: %d\n", p->numparams);
-//   for (pc=0; pc<p->sizecode; pc++) {
-//     char buff[100];
-//     printf("%s\n", buildop(p, pc, buff));
-//   }
-//   return 0;
-        throw new NotImplementedException();
+        luaL_argcheck(
+            L,
+            lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+            1,
+            "Lua function expected");
+        Proto* p = getproto(obj_at(L, 1));
+        Console.WriteLine("maxstack: {0}", p->maxstacksize);
+        Console.WriteLine("numparams: {0}", p->numparams);
+        
+        for (int pc = 0; pc < p->sizecode; pc++)
+        {
+            Console.WriteLine(buildop(p, pc));
+        }
+
+        return 0;
     }
 
     private static int listk(lua_State* L)

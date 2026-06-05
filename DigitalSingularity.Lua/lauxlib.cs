@@ -132,7 +132,7 @@ public static unsafe partial class Lua
 
     public static void luaL_argcheck(lua_State* L, bool cond, int arg, string extramsg)
     {
-        if (cond)
+        if (!cond)
         {
             luaL_argerror(L, arg, extramsg);
         }

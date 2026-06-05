@@ -835,8 +835,6 @@ public static unsafe class Program
 
     public static int Main(string[] args)
     {
-        args = [@"E:\DigitalSingularity.Lua\DigitalSingularity.Lua.Test\lua\math.lua"];
-        
         lua_State* L = luaL_newstate(); /* create state */
         if (L == null)
         {

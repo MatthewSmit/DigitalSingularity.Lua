@@ -49,12 +49,16 @@ public static unsafe partial class Lua
 
     private static int luaK_codeABC(FuncState* fs, OpCode o, int a, int b, int c)
     {
-        return luaK_codeABCk(fs, o, a, b, c, 0);
+        return luaK_codeABCk(fs, o, a, b, c, false);
     }
 
     private enum UnOpr
     {
-        OPR_MINUS, OPR_BNOT, OPR_NOT, OPR_LEN, OPR_NOUNOPR,
+        MINUS, 
+        BNOT,
+        NOT,
+        LEN,
+        NOUNOPR,
     }
 
     /* get (pointer to) instruction of given 'expdesc' */
@@ -77,9 +81,9 @@ public static unsafe partial class Lua
 
     private static partial int luaK_codeABx(FuncState* fs, OpCode o, int A, int Bx);
 
-    private static partial int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, int k);
+    private static partial int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, bool k);
 
-    private static partial int luaK_codevABCk(FuncState* fs, OpCode o, int A, int B, int C, int k);
+    private static partial int luaK_codevABCk(FuncState* fs, OpCode o, int A, int B, int C, bool k);
 
     private static partial bool luaK_exp2const(FuncState* fs, expdesc* e, TValue* v);
 

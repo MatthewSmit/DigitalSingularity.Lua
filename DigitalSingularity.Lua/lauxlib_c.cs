@@ -857,9 +857,8 @@ public static unsafe partial class Lua
         int fnameindex = lua_gettop(L) + 1; /* index of filename on the stack */
         if (filename == null)
         {
-            throw new NotImplementedException();
-//     lua_pushliteral(L, "=stdin");
-//     lf.f = stdin;
+            lua_pushliteral(L, "=stdin");
+            f = Console.OpenStandardInput();
         }
         else
         {
@@ -867,7 +866,6 @@ public static unsafe partial class Lua
             try
             {
                 f = File.OpenRead(filename);
-                lf.f = GCHandle.ToIntPtr(GCHandle.Alloc(f));
             }
             catch (IOException e)
             {
@@ -875,6 +873,8 @@ public static unsafe partial class Lua
                 throw new NotImplementedException();
             }
         }
+        
+        lf.f = GCHandle.ToIntPtr(GCHandle.Alloc(f));
 
         lf.n = 0;
         int c;

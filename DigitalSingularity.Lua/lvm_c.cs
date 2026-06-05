@@ -1288,7 +1288,7 @@ public static unsafe partial class Lua
      */
     private static void docondjump(ref ExecuteState state)
     {
-        if (state.cond != (GETARG_k(state.i) != 0))
+        if (state.cond != GETARG_k(state.i))
         {
             state.pc++;
         }
@@ -1447,7 +1447,7 @@ public static unsafe partial class Lua
         while (true)
         {
             vmfetch(ref state);
-#if true
+#if false
             {
                 /* low-level line tracing for debugging Lua */
                 int pcrel = pcRel(state.pc, state.cl->p);
@@ -1970,7 +1970,7 @@ public static unsafe partial class Lua
                         uint pi = *(state.pc - 2); /* original arith. expression */
                         int imm = (int)GETARG_sB(state.i);
                         TMS tm = (TMS)GETARG_C(state.i);
-                        bool flip = GETARG_k(state.i) != 0;
+                        bool flip = GETARG_k(state.i);
                         StkId result = RA(ref state, pi);
                         Protect(ref state, () => luaT_trybiniTM(L, s2v(ra), imm, flip, result, tm));
                         break;
@@ -1982,7 +1982,7 @@ public static unsafe partial class Lua
                         uint pi = *(state.pc - 2); /* original arith. expression */
                         TValue* imm = KB(ref state);
                         TMS tm = (TMS)GETARG_C(state.i);
-                        bool flip = GETARG_k(state.i) != 0;
+                        bool flip = GETARG_k(state.i);
                         StkId result = RA(ref state, pi);
                         Protect(ref state, () => luaT_trybinassocTM(L, s2v(ra), imm, flip, result, tm));
                         break;
@@ -2117,7 +2117,7 @@ public static unsafe partial class Lua
                         int im = (int)GETARG_sB(state.i);
                         if (ttisinteger(s2v(ra)))
                         {
-                            state.cond = (ivalue(s2v(ra)) == im);
+                            state.cond = ivalue(s2v(ra)) == im;
                         }
                         else if (ttisfloat(s2v(ra)))
                         {
@@ -2482,7 +2482,7 @@ public static unsafe partial class Lua
                     {
                         StkId ra = RA(ref state);
                         int n = (int)(GETARG_C(state.i) - 1); /* required results (-1 means all) */
-                        int vatab = GETARG_k(state.i) != 0 ? GETARG_B(state.i) : -1;
+                        int vatab = GETARG_k(state.i) ? GETARG_B(state.i) : -1;
                         Protect(ref state, (ref state) => luaT_getvarargs(L, state.ci, ra, n, vatab));
                         break;
                     }

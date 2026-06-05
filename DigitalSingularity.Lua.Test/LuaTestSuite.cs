@@ -1,4 +1,4 @@
-﻿namespace DigitalSingularity.Lua.Test;
+namespace DigitalSingularity.Lua.Test;
 
 using DigitalSingularity.Lua.Cli;
 using static Lua;
@@ -27,6 +27,17 @@ public unsafe class LuaTestSuite
 
         lua_pushboolean(L, true); /* signal no errors */
         return 1;
+    }
+
+    private static void DumpStack(lua_State* L)
+    {
+        int stackSize = lua_gettop(L);
+        
+        for (int i = 1; i <= stackSize; i++)
+        {
+            int type = lua_type(L, i);
+            Console.WriteLine($"Stack[{i}] = {type} {lua_typename(L, type)}");
+        }
     }
 
     [Datapoints] public string[] values =
