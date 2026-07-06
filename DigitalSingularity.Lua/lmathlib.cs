@@ -266,14 +266,17 @@ public static unsafe partial class Lua
 
     private static int math_type(lua_State* L)
     {
-//   if (lua_type(L, 1) == LUA_TNUMBER)
-//     lua_pushstring(L, (lua_isinteger(L, 1)) ? "integer" : "float");
-//   else {
-//     luaL_checkany(L, 1);
-//     luaL_pushfail(L);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        if (lua_type(L, 1) == LUA_TNUMBER)
+        {
+            lua_pushstring(L, (lua_isinteger(L, 1)) ? "integer" : "float");
+        }
+        else
+        {
+            luaL_checkany(L, 1);
+            luaL_pushfail(L);
+        }
+
+        return 1;
     }
 
     /*

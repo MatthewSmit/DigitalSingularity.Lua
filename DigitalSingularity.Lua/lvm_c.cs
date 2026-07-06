@@ -1442,23 +1442,23 @@ public static unsafe partial class Lua
         public bool cond;
     }
 
-    private static partial void luaV_execute(lua_State* L, CallInfo* ci)
+    private static partial void luaV_execute(lua_State* L, CallInfo* cix)
     {
         ExecuteState state = default;
         state.L = L;
-        state.ci = ci;
+        state.ci = cix;
         startfunc:
         state.trap = L->hookmask;
         returning: /* trap already set */
-        state.cl = ci_func(ci);
+        state.cl = ci_func(state.ci);
         state.k = state.cl->p->k;
-        state.pc = ci->u.l.savedpc;
+        state.pc = state.ci->u.l.savedpc;
         if (state.trap != 0)
         {
             state.trap = (byte)(luaG_tracecall(L) ? 1 : 0);
         }
 
-        state.@base = ci->func.p + 1;
+        state.@base = state.ci->func.p + 1;
         /* main loop of interpreter */
         while (true)
         {
@@ -1474,7 +1474,7 @@ public static unsafe partial class Lua
                     pcrel);
             }
 #endif
-            Debug.Assert(state.@base == ci->func.p + 1);
+            Debug.Assert(state.@base == state.ci->func.p + 1);
             Debug.Assert(state.@base <= L->top.p && L->top.p <= L->stack_last.p);
             /* for tests, invalidate top for instructions not expecting it */
             if (luaP_isIT(state.i))
@@ -2582,7 +2582,7 @@ public static unsafe partial class Lua
                         else
                         {
                             /* Lua call: run function in this same C frame */
-                            ci = newci;
+                            state.ci = newci;
                             goto startfunc;
                         }
 
@@ -2636,10 +2636,10 @@ public static unsafe partial class Lua
                         if (TESTARG_k(state.i))
                         {
                             /* may there be open upvalues? */
-                            ci->u2.nres = n; /* save number of returns */
-                            if (L->top.p < ci->top.p)
+                            state.ci->u2.nres = n; /* save number of returns */
+                            if (L->top.p < state.ci->top.p)
                             {
-                                L->top.p = ci->top.p;
+                                L->top.p = state.ci->top.p;
                             }
 
                             luaF_close(L, state.@base, CLOSEKTOP, true);
@@ -2649,11 +2649,11 @@ public static unsafe partial class Lua
 
                         if (nparams1 != 0) /* vararg function? */
                         {
-                            ci->func.p -= ci->u.l.nextraargs + nparams1;
+                            state.ci->func.p -= state.ci->u.l.nextraargs + nparams1;
                         }
 
                         L->top.p = ra + n; /* set call for 'luaD_poscall' */
-                        luaD_poscall(L, ci, n);
+                        luaD_poscall(L, state.ci, n);
                         updatetrap(ref state); /* 'luaD_poscall' can change hooks */
                         goto ret;
                     }
@@ -2665,14 +2665,14 @@ public static unsafe partial class Lua
                             StkId ra = RA(ref state);
                             L->top.p = ra;
                             savepc(ref state);
-                            luaD_poscall(L, ci, 0); /* no hurry... */
+                            luaD_poscall(L, state.ci, 0); /* no hurry... */
                             state.trap = 1;
                         }
                         else
                         {
                             /* do the 'poscall' here */
-                            int nres = get_nresults(ci->callstatus);
-                            L->ci = ci->previous; /* back to caller */
+                            int nres = get_nresults(state.ci->callstatus);
+                            L->ci = state.ci->previous; /* back to caller */
                             L->top.p = state.@base - 1;
                             for (; nres > 0; nres--)
                             {
@@ -2689,14 +2689,14 @@ public static unsafe partial class Lua
                         StkId ra = RA(ref state);
                         L->top.p = ra + 1;
                         savepc(ref state);
-                        luaD_poscall(L, ci, 1); /* no hurry... */
+                        luaD_poscall(L, state.ci, 1); /* no hurry... */
                         state.trap = 1;
                     }
                     else
                     {
                         /* do the 'poscall' here */
-                        int nres = get_nresults(ci->callstatus);
-                        L->ci = ci->previous; /* back to caller */
+                        int nres = get_nresults(state.ci->callstatus);
+                        L->ci = state.ci->previous; /* back to caller */
                         if (nres == 0)
                         {
                             L->top.p = state.@base - 1; /* asked for no results */
@@ -2793,7 +2793,7 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            L->top.p = ci->top.p; /* correct top in case of emergency GC */
+                            L->top.p = state.ci->top.p; /* correct top in case of emergency GC */
                         }
 
                         last += n;
@@ -2845,7 +2845,7 @@ public static unsafe partial class Lua
                     {
                         StkId ra = RA(ref state);
                         TValue* rc = vRC(ref state);
-                        luaT_getvararg(ci, ra, rc);
+                        luaT_getvararg(state.ci, ra, rc);
                         break;
                     }
 
@@ -2862,11 +2862,11 @@ public static unsafe partial class Lua
 
                 case OpCode.OP_VARARGPREP:
                     {
-                        ProtectNT(ref state, (ref state) => luaT_adjustvarargs(L, ci, state.cl->p));
+                        ProtectNT(ref state, (ref state) => luaT_adjustvarargs(L, state.ci, state.cl->p));
                         if (state.trap != 0)
                         {
                             /* previous "Protect" updated trap */
-                            luaD_hookcall(L, ci);
+                            luaD_hookcall(L, state.ci);
                             L->oldpc = 1; /* next opcode will be seen as a "new" line */
                         }
 
@@ -2881,12 +2881,12 @@ public static unsafe partial class Lua
             continue;
 
             ret: /* return from a Lua function */
-            if ((ci->callstatus & CIST_FRESH) != 0)
+            if ((state.ci->callstatus & CIST_FRESH) != 0)
             {
                 return; /* end this frame */
             }
 
-            ci = ci->previous;
+            state.ci = state.ci->previous;
             goto returning; /* continue running caller in this frame */
             
             l_tforcall:
