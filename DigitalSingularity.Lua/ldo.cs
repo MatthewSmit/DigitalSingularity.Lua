@@ -74,47 +74,4 @@ public static unsafe partial class Lua
 #else
         200;
 #endif
-
-    [DoesNotReturn]
-    private static partial void luaD_errerr(lua_State* L);
-
-    private static partial void luaD_seterrorobj(lua_State* L, byte errcode, StkId oldtop);
-
-    private static partial byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode);
-
-    private static partial void luaD_hook(lua_State* L, int @event, int line, int fTransfer, int nTransfer);
-
-    private static partial void luaD_hookcall(lua_State* L, CallInfo* ci);
-
-    private static partial int luaD_pretailcall(lua_State* L, CallInfo* ci, StkId func, int narg1, int delta);
-    
-    private static partial CallInfo* luaD_precall(lua_State* L, StkId func, int nResults);
-
-    private static partial void luaD_call(lua_State* L, StkId func, int nResults);
-
-    private static partial void luaD_callnoyield(lua_State* L, StackValue* func, int nResults);
-
-    private static partial byte luaD_closeprotected(lua_State* L, nint level, byte status);
-
-    private static partial byte luaD_pcall(lua_State* L, Pfunc func, void* u, nint oldtop, nint ef);
-
-    private static partial void luaD_poscall(lua_State* L, CallInfo* ci, int nres);
-
-    private static partial bool luaD_reallocstack(lua_State* L, int newsize, bool raiseerror);
-
-    private static partial bool luaD_growstack(lua_State* L, int n, bool raiseerror);
-
-    private static partial void luaD_shrinkstack(lua_State* L);
-
-    private static partial void luaD_inctop(lua_State* L);
-
-    private static partial bool luaD_checkminstack(lua_State* L);
-
-    [DoesNotReturn]
-    private static partial void luaD_throw(lua_State* L, byte errcode);
-
-    [DoesNotReturn]
-    private static partial void luaD_throwbaselevel(lua_State* L, byte errcode);
-
-    internal static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
 }

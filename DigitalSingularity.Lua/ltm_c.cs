@@ -137,7 +137,7 @@ public static unsafe partial class Lua
             return -1; /* tag method not found */
         }
 
-         // call tag method and return the tag of the result 
+        // call tag method and return the tag of the result 
         return luaT_callTMres(L, tm, p1, p2, res);
     }
 
@@ -224,52 +224,64 @@ public static unsafe partial class Lua
         return false; /* to avoid warnings */
     }
 
-    private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event)
+    private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, bool flip, bool isfloat, TMS @event)
     {
-//   TValue aux; const TValue *p2;
-//   if (isfloat) {
-//     setfltvalue(&aux, cast_num(v2));
-//   }
-//   else
-//     setivalue(&aux, v2);
-//   if (flip) {  /* arguments were exchanged? */
-//     p2 = p1; p1 = &aux;  /* correct them */
-//   }
-//   else
-//     p2 = &aux;
-//   return luaT_callorderTM(L, p1, p2, event);
-        throw new NotImplementedException();
+        TValue aux;
+        if (isfloat)
+        {
+            setfltvalue(&aux, v2);
+        }
+        else
+        {
+            setivalue(&aux, v2);
+        }
+
+        TValue* p2;
+        if (flip)
+        {
+            /* arguments were exchanged? */
+            p2 = p1;
+            p1 = &aux; /* correct them */
+        }
+        else
+        {
+            p2 = &aux;
+        }
+
+        return luaT_callorderTM(L, p1, p2, @event);
     }
 
     /*
-    ** Create a vararg table at the top of the stack, with 'n' elements
-    ** starting at 'f'.
-    */
+     ** Create a vararg table at the top of the stack, with 'n' elements
+     ** starting at 'f'.
+     */
     private static void createvarargtab(lua_State* L, StkId f, int n)
     {
-//   int i;
-//   TValue key, value;
-//   Table *t = luaH_new(L);
-//   sethvalue(L, s2v(L->top.p), t);
-//   L->top.p++;
-//   luaH_resize(L, t, cast_uint(n), 1);
-//   setsvalue(L, &key, luaS_new(L, "n"));  /* key is "n" */
-//   setivalue(&value, n);  /* value is n */
-//   /* No need to anchor the key: Due to the resize, the next operation
-//      cannot trigger a garbage collection */
-//   luaH_set(L, t, &key, &value);  /* t.n = n */
-//   for (i = 0; i < n; i++)
-//     luaH_setint(L, t, i + 1, s2v(f + i));
-//   luaC_checkGC(L);
-        throw new NotImplementedException();
+        Table* t = luaH_new(L);
+        sethvalue(L, s2v(L->top.p), t);
+        L->top.p++;
+        luaH_resize(L, t, (uint)n, 1);
+        TValue key;
+        setsvalue(L, &key, luaS_new(L, "n")); /* key is "n" */
+        TValue value;
+        setivalue(&value, n); /* value is n */
+        /* No need to anchor the key: Due to the resize, the next operation
+           cannot trigger a garbage collection */
+        luaH_set(L, t, &key, &value); /* t.n = n */
+        for (int i = 0; i < n; i++)
+        {
+            luaH_setint(L, t, i + 1, s2v(f + i));
+        }
+
+        luaC_checkGC(L);
     }
 
     /*
-    ** initial stack:  func arg1 ... argn extra1 ...
-    **                 ^ ci->func                    ^ L->top
-    ** final stack: func nil ... nil extra1 ... func arg1 ... argn
-    **                                          ^ ci->func
-    */
+     ** initial stack:  func arg1 ... argn extra1 ...
+     **                 ^ ci->func                    ^ L->top
+     ** final stack: func nil ... nil extra1 ... func arg1 ... argn
+     **                                          ^ ci->func
+     */
     private static void buildhiddenargs(
         lua_State* L,
         CallInfo* ci,
@@ -319,75 +331,101 @@ public static unsafe partial class Lua
 
     private static partial void luaT_getvararg(CallInfo* ci, StkId ra, TValue* rc)
     {
-//   int nextra = ci->u.l.nextraargs;
-//   long n;
-//   if (tointegerns(rc, &n)) {  /* integral value? */
-//     if (l_castS2U(n) - 1 < cast_uint(nextra)) {
-//       StkId slot = ci->func.p - nextra + cast_int(n) - 1;
-//       setobjs2s(((lua_State*)null), ra, slot);
-//       return;
-//     }
-//   }
-//   else if (ttisstring(rc)) {  /* string value? */
-//     size_t len;
-//     const char *s = getlstr(tsvalue(rc), len);
-//     if (len == 1 && s[0] == 'n') {  /* key is "n"? */
-//       setivalue(s2v(ra), nextra);
-//       return;
-//     }
-//   }
-//   setnilvalue(s2v(ra));  /* else produce nil */
-        throw new NotImplementedException();
+        int nextra = ci->u.l.nextraargs;
+        if (tointegerns(rc, out long n))
+        {
+            /* integral value? */
+            if ((ulong)n - 1 < (uint)nextra)
+            {
+                StkId slot = ci->func.p - nextra + (int)n - 1;
+                setobjs2s(null, ra, slot);
+                return;
+            }
+        }
+        else if (ttisstring(rc))
+        {
+            /* string value? */
+            byte* s = getlstr(tsvalue(rc), out long len);
+            if (len == 1 && s[0] == 'n')
+            {
+                /* key is "n"? */
+                setivalue(s2v(ra), nextra);
+                return;
+            }
+        }
+
+        setnilvalue(s2v(ra)); /* else produce nil */
     }
 
-// /*
-// ** Get the number of extra arguments in a vararg function. If vararg
-// ** table has been optimised away, that number is in the call info.
-// ** Otherwise, get the field 'n' from the vararg table and check that it
-// ** has a proper value (non-negative integer not larger than the stack
-// ** limit).
-// */
-// static int getnumargs (lua_State *L, CallInfo *ci, Table *h) {
-//   if (h == null)  /* no vararg table? */
-//     return ci->u.l.nextraargs;
-//   else {
-//     TValue res;
-//     if (luaH_getshortstr(h, luaS_new(L, "n"), &res) != LUA_VNUMINT ||
-//         l_castS2U(ivalue(&res)) > cast_uint(INT_MAX/2))
-//       luaG_runerror(L, "vararg table has no proper 'n'");
-//     return cast_int(ivalue(&res));
-//   }
-// }
+    /*
+     ** Get the number of extra arguments in a vararg function. If vararg
+     ** table has been optimised away, that number is in the call info.
+     ** Otherwise, get the field 'n' from the vararg table and check that it
+     ** has a proper value (non-negative integer not larger than the stack
+     ** limit).
+     */
+    private static int getnumargs(lua_State* L, CallInfo* ci, Table* h)
+    {
+        if (h == null) /* no vararg table? */
+        {
+            return ci->u.l.nextraargs;
+        }
+
+        TValue res;
+        if (luaH_getshortstr(h, luaS_new(L, "n"), &res) != LUA_VNUMINT ||
+            (ulong)ivalue(&res) > int.MaxValue / 2)
+        {
+            luaG_runerror(L, "vararg table has no proper 'n'");
+        }
+
+        return (int)ivalue(&res);
+    }
 
     /*
-     ** Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
-     ** the register of the vararg table or -1 if there is no vararg table.
-     */
+    ** Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
+    ** the register of the vararg table or -1 if there is no vararg table.
+    */
     private static partial void luaT_getvarargs(lua_State* L, CallInfo* ci, StkId where, int wanted, int vatab)
     {
-//   Table *h = (vatab < 0) ? null : hvalue(s2v(ci->func.p + vatab + 1));
-//   int nargs = getnumargs(L, ci, h);  /* number of available vararg args. */
-//   int i, touse;  /* 'touse' is minimum between 'wanted' and 'nargs' */
-//   if (wanted < 0) {
-//     touse = wanted = nargs;  /* get all extra arguments available */
-//     checkstackp(L, nargs, where);  /* ensure stack space */
-//     L->top.p = where + nargs;  /* next instruction will need top */
-//   }
-//   else
-//     touse = (nargs > wanted) ? wanted : nargs;
-//   if (h == null) {  /* no vararg table? */
-//     for (i = 0; i < touse; i++)  /* get vararg values from the stack */
-//       setobjs2s(L, where + i, ci->func.p - nargs + i);
-//   }
-//   else {  /* get vararg values from vararg table */
-//     for (i = 0; i < touse; i++) {
-//       lu_byte tag = luaH_getint(h, i + 1, s2v(where + i));
-//       if (tagisempty(tag))
-//        setnilvalue(s2v(where + i));
-//     }
-//   }
-//   for (; i < wanted; i++)   /* complete required results with nil */
-//     setnilvalue(s2v(where + i));
-        throw new NotImplementedException();
+        Table* h = (vatab < 0) ? null : hvalue(s2v(ci->func.p + vatab + 1));
+        int nargs = getnumargs(L, ci, h); /* number of available vararg args. */
+        int touse; /* 'touse' is minimum between 'wanted' and 'nargs' */
+        if (wanted < 0)
+        {
+            touse = wanted = nargs; /* get all extra arguments available */
+            checkstackp(L, nargs, ref where); /* ensure stack space */
+            L->top.p = where + nargs; /* next instruction will need top */
+        }
+        else
+        {
+            touse = nargs > wanted ? wanted : nargs;
+        }
+
+        int i;
+        if (h == null)
+        {
+            /* no vararg table? */
+            for (i = 0; i < touse; i++) /* get vararg values from the stack */
+            {
+                setobjs2s(L, where + i, ci->func.p - nargs + i);
+            }
+        }
+        else
+        {
+            /* get vararg values from vararg table */
+            for (i = 0; i < touse; i++)
+            {
+                byte tag = luaH_getint(h, i + 1, s2v(where + i));
+                if (tagisempty(tag))
+                {
+                    setnilvalue(s2v(where + i));
+                }
+            }
+        }
+
+        for (; i < wanted; i++) /* complete required results with nil */
+        {
+            setnilvalue(s2v(where + i));
+        }
     }
 }

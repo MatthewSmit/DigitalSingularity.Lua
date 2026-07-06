@@ -117,43 +117,49 @@ public static unsafe partial class Lua
         return lua_yield(L, lua_gettop(L));
     }
 
-// #define COS_RUN		0
-// #define COS_DEAD	1
-// #define COS_YIELD	2
-// #define COS_NORM	3
-//
-//
-// static const char *const statname[] =
-//   {"running", "dead", "suspended", "normal"};
-//
-//
-// static int auxstatus (lua_State *L, lua_State *co) {
-//   if (L == co) return COS_RUN;
-//   else {
-//     switch (lua_status(co)) {
-//       case LUA_YIELD:
-//         return COS_YIELD;
-//       case LUA_OK: {
-//         lua_Debug ar;
-//         if (lua_getstack(co, 0, &ar))  /* does it have frames? */
-//           return COS_NORM;  /* it is running */
-//         else if (lua_gettop(co) == 0)
-//             return COS_DEAD;
-//         else
-//           return COS_YIELD;  /* initial state */
-//       }
-//       default:  /* some error occurred */
-//         return COS_DEAD;
-//     }
-//   }
-// }
+    private const int COS_RUN = 0;
+    private const int COS_DEAD = 1;
+    private const int COS_YIELD = 2;
+    private const int COS_NORM = 3;
+
+    private static readonly string[] statname = ["running", "dead", "suspended", "normal"];
+
+    private static int auxstatus(lua_State* L, lua_State* co)
+    {
+        if (L == co)
+        {
+            return COS_RUN;
+        }
+
+        switch (lua_status(co))
+        {
+            case LUA_YIELD:
+                return COS_YIELD;
+
+            case LUA_OK:
+                lua_Debug ar = new();
+                if (lua_getstack(co, 0, ref ar))  /* does it have frames? */
+                {
+                    return COS_NORM;  /* it is running */
+                }
+
+                if (lua_gettop(co) == 0)
+                {
+                    return COS_DEAD;
+                }
+
+                return COS_YIELD;  /* initial state */
+                
+            default: /* some error occurred */
+                return COS_DEAD;
+        }
+    }
 
     private static int luaB_costatus(lua_State* L)
     {
         lua_State* co = getco(L);
-//   lua_pushstring(L, statname[auxstatus(L, co)]);
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushstring(L, statname[auxstatus(L, co)]);
+        return 1;
     }
 
     private static lua_State* getoptco(lua_State* L)

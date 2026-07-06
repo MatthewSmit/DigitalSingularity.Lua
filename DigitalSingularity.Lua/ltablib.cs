@@ -8,42 +8,50 @@ public static unsafe partial class Lua
     ** See Copyright Notice in lua.h
     */
 
-// /*
-// ** Operations that an object must define to mimic a table
-// ** (some functions only need some of them)
-// */
-// #define TAB_R	1			/* read */
-// #define TAB_W	2			/* write */
-// #define TAB_L	4			/* length */
-// #define TAB_RW	(TAB_R | TAB_W)		/* read/write */
-//
-//
-// #define aux_getn(L,n,w)	(checktab(L, n, (w) | TAB_L), luaL_len(L, n))
-//
-//
-// static int checkfield (lua_State *L, const char *key, int n) {
-//   lua_pushstring(L, key);
-//   return (lua_rawget(L, -n) != LUA_TNIL);
-// }
-//
-//
-// /*
-// ** Check that 'arg' either is a table or can behave like one (that is,
-// ** has a metatable with the required metamethods)
-// */
-// static void checktab (lua_State *L, int arg, int what) {
-//   if (lua_type(L, arg) != LUA_TTABLE) {  /* is it not a table? */
-//     int n = 1;  /* number of elements to pop */
-//     if (lua_getmetatable(L, arg) &&  /* must have metatable */
-//         (!(what & TAB_R) || checkfield(L, "__index", ++n)) &&
-//         (!(what & TAB_W) || checkfield(L, "__newindex", ++n)) &&
-//         (!(what & TAB_L) || checkfield(L, "__len", ++n))) {
-//       lua_pop(L, n);  /* pop metatable and tested metamethods */
-//     }
-//     else
-//       luaL_checktype(L, arg, LUA_TTABLE);  /* force an error */
-//   }
-// }
+    /*
+    ** Operations that an object must define to mimic a table
+    ** (some functions only need some of them)
+    */
+    private const int TAB_R = 1;			/* read */
+    private const int TAB_W = 2;			/* write */
+    private const int TAB_L = 4;			/* length */
+    private const int TAB_RW = TAB_R | TAB_W;		/* read/write */
+
+    private static long aux_getn(lua_State* L, int n, int w)
+    {
+        checktab(L, n, w | TAB_L);
+        return luaL_len(L, n);
+    }
+
+    private static bool checkfield(lua_State* L, ReadOnlySpan<byte> key, int n)
+    {
+        lua_pushstring(L, key);
+        return lua_rawget(L, -n) != LUA_TNIL;
+    }
+
+    /*
+     ** Check that 'arg' either is a table or can behave like one (that is,
+     ** has a metatable with the required metamethods)
+     */
+    private static void checktab(lua_State* L, int arg, int what)
+    {
+        if (lua_type(L, arg) != LUA_TTABLE)
+        {
+            /* is it not a table? */
+            int n = 1; /* number of elements to pop */
+            if (lua_getmetatable(L, arg) && /* must have metatable */
+                ((what & TAB_R) == 0 || checkfield(L, "__index"u8, ++n)) &&
+                ((what & TAB_W) == 0 || checkfield(L, "__newindex"u8, ++n)) &&
+                ((what & TAB_L) == 0 || checkfield(L, "__len"u8, ++n)))
+            {
+                lua_pop(L, n); /* pop metatable and tested metamethods */
+            }
+            else
+            {
+                luaL_checktype(L, arg, LUA_TTABLE); /* force an error */
+            }
+        }
+    }
 
     private static int tcreate(lua_State* L)
     {
@@ -144,27 +152,36 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static void addfield (lua_State *L, luaL_Buffer *b, long i) {
-//   lua_geti(L, 1, i);
-//   if (l_unlikely(!lua_isstring(L, -1)))
-//     luaL_error(L, "invalid value (%s) at index %I in table for 'concat'",
-//                   luaL_typename(L, -1), (LUAI_UACINT)i);
-//   luaL_addvalue(b);
-// }
+    private static void addfield(lua_State* L, luaL_Buffer* b, long i)
+    {
+        lua_geti(L, 1, i);
+        if (!lua_isstring(L, -1))
+        {
+            luaL_error(
+                L,
+                "invalid value (%s) at index %I in table for 'concat'",
+                luaL_typename(L, -1),
+                i);
+        }
+
+        luaL_addvalue(b);
+    }
 
     private static int tconcat(lua_State* L)
     {
-//   luaL_Buffer b;
-//   long last = aux_getn(L, 1, TAB_R);
-//   size_t lsep;
-//   const char *sep = luaL_optlstring(L, 2, "", &lsep);
-//   long i = luaL_optinteger(L, 3, 1);
-//   last = luaL_optinteger(L, 4, last);
-//   luaL_buffinit(L, &b);
-//   for (; i < last; i++) {
-//     addfield(L, &b, i);
-//     luaL_addlstring(&b, sep, lsep);
-//   }
+        long last = aux_getn(L, 1, TAB_R);
+        ReadOnlySpan<byte> sep = luaL_optlstring(L, 2, ""u8);
+        long i = luaL_optinteger(L, 3, 1);
+        last = luaL_optinteger(L, 4, last);
+        
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
+        for (; i < last; i++)
+        {
+            addfield(L, &b, i);
+            luaL_addlstring(&b, sep);
+        }
+
 //   if (i == last)  /* add last value (if interval was not empty) */
 //     addfield(L, &b, i);
 //   luaL_pushresult(&b);

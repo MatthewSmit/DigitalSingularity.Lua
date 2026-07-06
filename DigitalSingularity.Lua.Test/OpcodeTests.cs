@@ -1,5 +1,6 @@
 ﻿namespace DigitalSingularity.Lua.Test;
 
+using System.Text;
 using static DigitalSingularity.Lua.Lua;
 
 #pragma warning disable NUnit2045
@@ -8,8 +9,7 @@ public unsafe class OpcodeTests
 {
     private static string StackString(lua_State* L, int idx)
     {
-        byte* value = lua_tolstring(L, idx, out long _);
-        return value == null ? "" : new string((sbyte*)value);
+        return lua_tonetstring(L, idx) ?? "";
     }
 
     private static Proto* StackProto(lua_State* L, int index)
@@ -42,35 +42,52 @@ public unsafe class OpcodeTests
 
     private string DumpOpcodes(Proto* proto, int depth = 0)
     {
-//   for (int pc = 0; pc < proto->sizecode; ++pc) {
-//     for (int i = 0; i < depth; ++i) {
-//       out << "  ";
-//     }
-//     out << pc << ": " << opnames[GET_OPCODE(proto->code[pc])] << '\n';
-//   }
-//   for (int i = 0; i < proto->sizep; ++i) {
-//     for (int j = 0; j < depth; ++j) {
-//       out << "  ";
-//     }
-//     out << "proto " << i << ":\n";
-//     DumpOpcodes(proto->p[i], out, depth + 1);
-//   }
-        throw new NotImplementedException();
+        StringBuilder sb = new();
+
+        for (int pc = 0; pc < proto->sizecode; ++pc)
+        {
+            for (int i = 0; i < depth; ++i)
+            {
+                sb.Append("  ");
+            }
+
+            sb.Append(pc)
+                .Append(": ")
+                .Append(opnames[(int)GET_OPCODE(proto->code[pc])])
+                .AppendLine();
+        }
+
+        for (int i = 0; i < proto->sizep; ++i)
+        {
+            for (int j = 0; j < depth; ++j)
+            {
+                sb.Append("  ");
+            }
+
+            sb.Append("proto ")
+                .Append(i)
+                .AppendLine(":");
+
+            sb.Append(this.DumpOpcodes(proto->p[i], depth + 1));
+        }
+
+        return sb.ToString();
     }
 
     private string RepeatedListConstructor(int count)
     {
-//   std::string source = "local t = {";
-//   for (int i = 0; i < count; ++i) {
-//     source += "1,";
-//   }
-//   source += "}\nassert(#t == ";
-//   source += std::to_string(count);
-//   source += " and t[1] == 1 and t[";
-//   source += std::to_string(count);
-//   source += "] == 1)\n";
-//   return source;
-        throw new NotImplementedException();
+        string source = "local t = {";
+        for (int i = 0; i < count; ++i)
+        {
+            source += "1,";
+        }
+
+        source += "}\nassert(#t == ";
+        source += count;
+        source += " and t[1] == 1 and t[";
+        source += count;
+        source += "] == 1)\n";
+        return source;
     }
 
     private readonly LuaState state = new();
@@ -95,59 +112,48 @@ public unsafe class OpcodeTests
     private void ExpectRuntimeErrorWithOpcode(
         OpCode opcode,
         string source,
-        string expected_message)
+        string expectedMessage)
     {
-//     SCOPED_TRACE(opnames[opcode]);
-//     lua_settop(state_, 0);
-//     ASSERT_EQ(LUA_OK, luaL_loadstring(state_, source.c_str()))
-//         << StackString(state_, -1);
-//     Proto* proto = StackProto(state_, -1);
-//     EXPECT_TRUE(HasOpcode(proto, opcode)) << DumpOpcodes(proto);
-//     EXPECT_EQ(LUA_ERRRUN, lua_pcall(state_, 0, 0, 0));
-//     EXPECT_NE(std::string::npos,
-//               StackString(state_, -1).find(expected_message));
-//     lua_settop(state_, 0);
-        throw new NotImplementedException();
+        lua_settop(this.state, 0);
+        Assert.That(luaL_loadstring(this.state, source), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
+        Proto* proto = StackProto(this.state, -1);
+        Assert.That(this.HasOpcode(proto, opcode), Is.True, () => this.DumpOpcodes(proto));
+        Console.WriteLine("Starting function call");
+        Assert.That(lua_pcall(this.state, 0, 0, 0), Is.EqualTo(LUA_ERRRUN));
+        Assert.That(StackString(this.state, -1), Contains.Substring(expectedMessage));
+        lua_settop(this.state, 0);
     }
 
     private void ExpectPatchedLoadKxString(string expected)
     {
-//     SCOPED_TRACE("patched LOADKX string");
-//     lua_settop(state_, 0);
-//     ASSERT_EQ(LUA_OK, luaL_loadstring(state_, "return nil"))
-//         << StackString(state_, -1);
-//     Proto* proto = StackProto(state_, -1);
-//     ReplaceWithLoadKx(proto);
-//     TString* value = luaS_new(state_, expected);
-//     setsvalue(state_.get(), &proto->k[MAXARG_Bx + 1], value);
-//     luaC_objbarrier(state_.get(), proto, value);
-//
-//     ASSERT_TRUE(HasOpcode(proto, OP_LOADKX)) << DumpOpcodes(proto);
-//     ASSERT_TRUE(HasOpcode(proto, OP_EXTRAARG)) << DumpOpcodes(proto);
-//     ASSERT_EQ(LUA_OK, lua_pcall(state_, 0, 1, 0))
-//         << StackString(state_, -1);
-//     EXPECT_STREQ(expected, lua_tostring(state_, -1));
-//     lua_settop(state_, 0);
-        throw new NotImplementedException();
+        lua_settop(this.state, 0);
+        Assert.That(luaL_loadstring(this.state, "return nil"), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
+        Proto* proto = StackProto(this.state, -1);
+        this.ReplaceWithLoadKx(proto);
+        TString* value = luaS_new(this.state, expected);
+        setsvalue(this.state.get(), &proto->k[MAXARG_Bx + 1], value);
+        luaC_objbarrier(this.state.get(), (GCObject*)proto, (GCObject*)value);
+
+        Assert.That(this.HasOpcode(proto, OpCode.OP_LOADKX), Is.True, () => this.DumpOpcodes(proto));
+        Assert.That(this.HasOpcode(proto, OpCode.OP_EXTRAARG), Is.True, () => this.DumpOpcodes(proto));
+        Assert.That(lua_pcall(this.state, 0, 1, 0), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
+        Assert.That(lua_tostring(this.state, -1), Is.EqualTo(expected));
+        lua_settop(this.state, 0);
     }
 
     private void ExpectPatchedLoadKxInteger(long expected)
     {
-//     SCOPED_TRACE("patched LOADKX integer");
-//     lua_settop(state_, 0);
-//     ASSERT_EQ(LUA_OK, luaL_loadstring(state_, "return nil"))
-//         << StackString(state_, -1);
-//     Proto* proto = StackProto(state_, -1);
-//     ReplaceWithLoadKx(proto);
-//     setivalue(&proto->k[MAXARG_Bx + 1], expected);
-//
-//     ASSERT_TRUE(HasOpcode(proto, OP_LOADKX)) << DumpOpcodes(proto);
-//     ASSERT_TRUE(HasOpcode(proto, OP_EXTRAARG)) << DumpOpcodes(proto);
-//     ASSERT_EQ(LUA_OK, lua_pcall(state_, 0, 1, 0))
-//         << StackString(state_, -1);
-//     EXPECT_EQ(expected, lua_tointeger(state_, -1));
-//     lua_settop(state_, 0);
-        throw new NotImplementedException();
+        lua_settop(this.state, 0);
+        Assert.That(luaL_loadstring(this.state, "return nil"), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
+        Proto* proto = StackProto(this.state, -1);
+        this.ReplaceWithLoadKx(proto);
+        setivalue(&proto->k[MAXARG_Bx + 1], expected);
+
+        Assert.That(this.HasOpcode(proto, OpCode.OP_LOADKX), Is.True, () => this.DumpOpcodes(proto));
+        Assert.That(this.HasOpcode(proto, OpCode.OP_EXTRAARG), Is.True, () => this.DumpOpcodes(proto));
+        Assert.That(lua_pcall(this.state, 0, 1, 0), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
+        Assert.That(lua_tointeger(this.state, -1), Is.EqualTo(expected));
+        lua_settop(this.state, 0);
     }
 
     private lua_State* L()
@@ -155,37 +161,40 @@ public unsafe class OpcodeTests
         return this.state.get(); 
     }
 
-//  private:
-//   void ReplaceWithLoadKx(Proto* proto) {
-//     luaM_freearray(state_.get(), proto->code, cast_sizet(proto->sizecode));
-//     luaM_freearray(state_.get(), proto->lineinfo,
-//                    cast_sizet(proto->sizelineinfo));
-//     luaM_freearray(state_.get(), proto->abslineinfo,
-//                    cast_sizet(proto->sizeabslineinfo));
-//     luaM_freearray(state_.get(), proto->k, cast_sizet(proto->sizek));
-//
-//     proto->flag = 0;
-//     proto->numparams = 0;
-//     proto->maxstacksize = 2;
-//     proto->sizelineinfo = 0;
-//     proto->lineinfo = nullptr;
-//     proto->sizeabslineinfo = 0;
-//     proto->abslineinfo = nullptr;
-//
-//     proto->sizecode = 3;
-//     proto->code = luaM_newvector(state_.get(), proto->sizecode, Instruction);
-//     proto->code[0] = CREATE_ABx(OP_LOADKX, 0, 0);
-//     proto->code[1] = CREATE_Ax(OP_EXTRAARG, MAXARG_Bx + 1);
-//     proto->code[2] = CREATE_ABCk(OP_RETURN1, 0, 2, 0, 0);
-//
-//     proto->sizek = MAXARG_Bx + 2;
-//     proto->k = luaM_newvector(state_.get(), proto->sizek, TValue);
-//     for (int i = 0; i < proto->sizek; ++i) {
-//       setnilvalue(&proto->k[i]);
-//     }
-//   }
-//
-// };
+    private void ReplaceWithLoadKx(Proto* proto)
+    {
+        luaM_freearray(this.state.get(), proto->code, proto->sizecode);
+        luaM_freearray(
+            this.state.get(),
+            proto->lineinfo,
+            proto->sizelineinfo);
+        luaM_freearray(
+            this.state.get(),
+            proto->abslineinfo,
+            proto->sizeabslineinfo);
+        luaM_freearray(this.state.get(), proto->k, proto->sizek);
+
+        proto->flag = 0;
+        proto->numparams = 0;
+        proto->maxstacksize = 2;
+        proto->sizelineinfo = 0;
+        proto->lineinfo = null;
+        proto->sizeabslineinfo = 0;
+        proto->abslineinfo = null;
+
+        proto->sizecode = 3;
+        proto->code = luaM_newvector<uint>(this.state.get(), proto->sizecode);
+        proto->code[0] = CREATE_ABx(OpCode.OP_LOADKX, 0, 0);
+        proto->code[1] = CREATE_Ax(OpCode.OP_EXTRAARG, MAXARG_Bx + 1);
+        proto->code[2] = CREATE_ABCk(OpCode.OP_RETURN1, 0, 2, 0, false);
+
+        proto->sizek = MAXARG_Bx + 2;
+        proto->k = luaM_newvector<TValue>(this.state.get(), proto->sizek);
+        for (int i = 0; i < proto->sizek; ++i)
+        {
+            setnilvalue(&proto->k[i]);
+        }
+    }
 
     [Test]
     public void MOVE()

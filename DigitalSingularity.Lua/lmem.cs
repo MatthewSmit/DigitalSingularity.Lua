@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 
 public static unsafe partial class Lua
 {
+    [DoesNotReturn]
     public static void luaM_error(lua_State* L)
     {
         luaD_throw(L, LUA_ERRMEM);

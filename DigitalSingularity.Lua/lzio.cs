@@ -26,7 +26,8 @@ public static unsafe partial class Lua
         buff->buffsize = 0;
     }
 
-    private static byte* luaZ_buffer(Mbuffer* buff)
+    [Obsolete]
+    private static byte* luaZ_bufferptr(Mbuffer* buff)
     {
         return buff->buffer;
     }
@@ -39,6 +40,11 @@ public static unsafe partial class Lua
     private static ref long luaZ_bufflen(Mbuffer* buff)
     {
         return ref buff->n;
+    }
+    
+    private static Span<byte> luaZ_buffer(Mbuffer* buff)
+    {
+        return new Span<byte>(buff->buffer, checked((int)buff->buffsize));
     }
 
     private static void luaZ_buffremove(Mbuffer* buff, int i)

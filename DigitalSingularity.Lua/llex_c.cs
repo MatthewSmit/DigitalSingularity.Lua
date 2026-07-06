@@ -102,7 +102,7 @@ public static unsafe partial class Lua
             case (int)RESERVED.TK_FLT:
             case (int)RESERVED.TK_INT:
                 save(ls, '\0');
-                return luaO_pushfstring(ls->L, "'%s'", new string((sbyte*)luaZ_buffer(ls->buff)));
+                return luaO_pushfstring(ls->L, "'%s'", new string((sbyte*)luaZ_bufferptr(ls->buff)));
             
             default:
                 return luaX_token2str(ls, token);
@@ -289,7 +289,7 @@ public static unsafe partial class Lua
         save(ls, '\0');
 
         TValue obj;
-        if (luaO_str2num(luaZ_buffer(ls->buff), &obj) == 0) /* format error? */
+        if (luaO_str2num(luaZ_bufferptr(ls->buff), &obj) == 0) /* format error? */
         {
             lexerror(ls, "malformed number", (int)RESERVED.TK_FLT);
         }
@@ -391,7 +391,7 @@ public static unsafe partial class Lua
         {
             seminfo->ts = luaX_newstring(
                 ls,
-                luaZ_buffer(ls->buff) + sep,
+                luaZ_bufferptr(ls->buff) + sep,
                 luaZ_bufflen(ls->buff) - 2 * sep);
         }
     }
@@ -600,7 +600,7 @@ public static unsafe partial class Lua
         }
 
         save_and_next(ls); /* skip delimiter */
-        seminfo->ts = luaX_newstring(ls, luaZ_buffer(ls->buff) + 1, luaZ_bufflen(ls->buff) - 2);
+        seminfo->ts = luaX_newstring(ls, luaZ_bufferptr(ls->buff) + 1, luaZ_bufflen(ls->buff) - 2);
     }
 
     private static int llex(LexState* ls, SemInfo* seminfo)
@@ -788,7 +788,7 @@ public static unsafe partial class Lua
                         } while (lislalnum(ls->current));
 
                         /* find or create string */
-                        TString* ts = luaS_newlstr(ls->L, luaZ_buffer(ls->buff), checked((int)luaZ_bufflen(ls->buff)));
+                        TString* ts = luaS_newlstr(ls->L, luaZ_bufferptr(ls->buff), checked((int)luaZ_bufflen(ls->buff)));
                         if (isreserved(ts)) /* reserved word? */
                         {
                             return ts->extra - 1 + FIRST_RESERVED;

@@ -1,0 +1,1 @@
+assert(os.setlocale"C")

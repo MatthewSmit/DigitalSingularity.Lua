@@ -1,5 +1,6 @@
 namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
@@ -90,56 +91,20 @@ public static unsafe partial class Lua
 // #endif
 //
 // #endif				/* } */
-//
-//
-// /*
-// ** {======================================================
-// ** l_fseek: configuration for longer offsets
-// ** =======================================================
-// */
-//
-// #if !defined(l_fseek)		/* { */
-//
-// #if defined(LUA_USE_POSIX) || defined(LUA_USE_OFF_T)	/* { */
-//
-// #include <sys/types.h>
-//
-// #define l_fseek(f,o,w)		fseeko(f,o,w)
-// #define l_ftell(f)		ftello(f)
-// #define l_seeknum		off_t
-//
-// #elif defined(LUA_USE_WINDOWS) && !defined(_CRTIMP_TYPEINFO) \
-//    && defined(_MSC_VER) && (_MSC_VER >= 1400)	/* }{ */
-//
-// /* Windows (but not DDK) and Visual C++ 2005 or higher */
-// #define l_fseek(f,o,w)		_fseeki64(f,o,w)
-// #define l_ftell(f)		_ftelli64(f)
-// #define l_seeknum		__int64
-//
-// #else				/* }{ */
-//
-// /* ISO C definitions */
-// #define l_fseek(f,o,w)		fseek(f,o,w)
-// #define l_ftell(f)		ftell(f)
-// #define l_seeknum		long
-//
-// #endif				/* } */
-//
-// #endif				/* } */
-
-    /* }====================================================== */
 
     private const string IO_PREFIX = "_IO_";
-// #define IOPREF_LEN	(sizeof(IO_PREFIX)/sizeof(char) - 1)
     private const string IO_INPUT =	IO_PREFIX + "input";
     private const string IO_OUTPUT =IO_PREFIX + "output";
 
-// typedef luaL_Stream LStream;
-//
-//
-// #define tolstream(L)	((LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE))
-//
-// #define isclosed(p)	((p)->closef == null)
+    private static luaL_Stream* tolstream(lua_State* L)
+    {
+        return (luaL_Stream*)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+    }
+
+    private static bool isclosed(luaL_Stream* p)
+    {
+        return p->closef == null;
+    }
 
     private static int io_type(lua_State* L)
     {
@@ -167,19 +132,23 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static FILE *tofile (lua_State *L) {
-//   LStream *p = tolstream(L);
-//   if (l_unlikely(isclosed(p)))
-//     luaL_error(L, "attempt to use a closed file");
-//   Debug.Assert(p->f);
-//   return p->f;
-// }
+    private static Stream tofile(lua_State* L)
+    {
+        luaL_Stream* p = tolstream(L);
+        if (isclosed(p))
+        {
+            luaL_error(L, "attempt to use a closed file");
+        }
+        
+        Debug.Assert(p->f != null);
+        return GCHandle<Stream>.FromIntPtr((nint)p->f).Target;
+    }
 
     /*
-    ** When creating file handles, always creates a 'closed' file handle
-    ** before opening the actual file; so, if there is a memory error, the
-    ** handle is in a consistent state.
-    */
+     ** When creating file handles, always creates a 'closed' file handle
+     ** before opening the actual file; so, if there is a memory error, the
+     ** handle is in a consistent state.
+     */
     private static luaL_Stream* newprefile(lua_State* L)
     {
         luaL_Stream* p = (luaL_Stream*)lua_newuserdatauv(L, sizeof(luaL_Stream), 0);
@@ -188,17 +157,16 @@ public static unsafe partial class Lua
         return p;
     }
 
-// /*
-// ** Calls the 'close' function from a file handle. The 'volatile' avoids
-// ** a bug in some versions of the Clang compiler (e.g., clang 3.0 for
-// ** 32 bits).
-// */
-// static int aux_close (lua_State *L) {
-//   LStream *p = tolstream(L);
-//   volatile lua_CFunction cf = p->closef;
-//   p->closef = null;  /* mark stream as closed */
-//   return (*cf)(L);  /* close it */
-// }
+    /*
+    ** Calls the 'close' function from a file handle.
+    */
+    private static int aux_close(lua_State* L)
+    {
+        luaL_Stream* p = tolstream(L);
+        lua_CFunction cf = p->closef;
+        p->closef = null; /* mark stream as closed */
+        return cf(L); /* close it */
+    }
 
     private static int f_close(lua_State* L)
     {
@@ -217,11 +185,13 @@ public static unsafe partial class Lua
 
     private static int f_gc(lua_State* L)
     {
-//   LStream *p = tolstream(L);
-//   if (!isclosed(p) && p->f != null)
-//     aux_close(L);  /* ignore closed and incompletely open files */
-//   return 0;
-        throw new NotImplementedException();
+        luaL_Stream* p = tolstream(L);
+        if (!isclosed(p) && p->f != null)
+        {
+            aux_close(L); /* ignore closed and incompletely open files */
+        }
+
+        return 0;
     }
 
     /*
@@ -296,16 +266,18 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static FILE *getiofile (lua_State *L, const char *findex) {
-//   LStream *p;
-//   lua_getfield(L, LUA_REGISTRYINDEX, findex);
-//   p = (LStream *)lua_touserdata(L, -1);
-//   if (l_unlikely(isclosed(p)))
-//     luaL_error(L, "default %s file is closed", findex + IOPREF_LEN);
-//   return p->f;
-// }
-//
-//
+    private static Stream getiofile(lua_State* L, string findex)
+    {
+        lua_getfield(L, LUA_REGISTRYINDEX, findex);
+        luaL_Stream* p = (luaL_Stream*)lua_touserdata(L, -1);
+        if (isclosed(p))
+        {
+            luaL_error(L, "default %s file is closed", findex + IO_PREFIX.Length);
+        }
+
+        return GCHandle<Stream>.FromIntPtr((nint)p->f).Target;
+    }
+
 // static int g_iofile (lua_State *L, const char *f, const char *mode) {
 //   if (!lua_isnoneornil(L, 1)) {
 //     const char *filename = lua_tostring(L, 1);
@@ -391,7 +363,7 @@ public static unsafe partial class Lua
         else
         {
             /* open a new file */
-            string filename = luaL_checkstring(L, 1);
+            string filename = luaL_checknetstring(L, 1);
 //     opencheck(L, filename, "r");
 //     lua_replace(L, 1);  /* put file at index 1 */
 //     toclose = 1;  /* close it after iteration */
@@ -657,18 +629,18 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-/* }====================================================== */
+    private static int g_write(lua_State* L, Stream f, int arg)
+    {
+        Span<byte> buff = stackalloc byte[LUA_N2SBUFFSZ];
 
-
-// static int g_write (lua_State *L, FILE *f, int arg) {
-//   int nargs = lua_gettop(L) - arg;
-//   size_t totalbytes = 0;  /* total number of bytes written */
-//   errno = 0;
-//   for (; nargs--; arg++) {  /* for each argument */
-//     char buff[LUA_N2SBUFFSZ];
+        int nargs = lua_gettop(L) - arg;
+        long totalbytes = 0; /* total number of bytes written */
+        for (; nargs-- > 0; arg++)
+        {
+            /* for each argument */
 //     const char *s;
 //     size_t numbytes;  /* bytes written in one call to 'fwrite' */
-//     size_t len = lua_numbertocstring(L, arg, buff);  /* try as a number */
+            // int len = lua_numbertocstring(L, arg, buff);  /* try as a number */
 //     if (len > 0) {  /* did conversion work (value was a number)? */
 //       s = buff;
 //       len--;
@@ -682,22 +654,22 @@ public static unsafe partial class Lua
 //       lua_pushinteger(L, cast_st2S(totalbytes));
 //       return n + 1;  /* return fail, error msg., error code, and counter */
 //     }
-//   }
-//   return 1;  /* no errors; file handle already on stack top */
-// }
+            throw new NotImplementedException();
+        }
+
+        return 1; /* no errors; file handle already on stack top */
+    }
 
     private static int io_write(lua_State* L)
     {
-//   return g_write(L, getiofile(L, IO_OUTPUT), 1);
-        throw new NotImplementedException();
+        return g_write(L, getiofile(L, IO_OUTPUT), 1);
     }
 
     private static int f_write(lua_State* L)
     {
-//   FILE *f = tofile(L);
-//   lua_pushvalue(L, 1);  /* push file at the stack top (to be returned) */
-//   return g_write(L, f, 2);
-        throw new NotImplementedException();
+        Stream f = tofile(L);
+        lua_pushvalue(L, 1);  /* push file at the stack top (to be returned) */
+        return g_write(L, f, 2);
     }
 
     private static int f_seek(lua_State* L)
@@ -810,18 +782,17 @@ public static unsafe partial class Lua
     */
     private static int io_noclose(lua_State* L)
     {
-//   LStream *p = tolstream(L);
-//   p->closef = &io_noclose;  /* keep file opened */
-//   luaL_pushfail(L);
-//   lua_pushliteral(L, "cannot close standard file");
-//   return 2;
-        throw new NotImplementedException();
+        luaL_Stream* p = tolstream(L);
+        p->closef = &io_noclose; /* keep file opened */
+        luaL_pushfail(L);
+        lua_pushliteral(L, "cannot close standard file");
+        return 2;
     }
 
     private static void createstdfile(lua_State* L, Stream f, string? k, string fname)
     {
         luaL_Stream* p = newprefile(L);
-        p->f = GCHandle.ToIntPtr(GCHandle.Alloc(f));
+        p->f = new GCHandle<Stream>(f).ToPointer();
         p->closef = &io_noclose;
         if (k != null)
         {

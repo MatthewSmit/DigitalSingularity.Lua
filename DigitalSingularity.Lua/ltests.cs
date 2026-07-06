@@ -20,7 +20,7 @@ public static unsafe partial class Lua
 // #define LUAI_STRICT_ADDRESS	0
 
     /* memory-allocator control variables */
-    private struct Memcontrol
+    internal struct Memcontrol
     {
         public int failnext;
         public long numblocks;
@@ -31,7 +31,7 @@ public static unsafe partial class Lua
         public fixed uint objcount[LUA_NUMTYPES];
     }
 
-    private static Memcontrol* l_memcontrol = (Memcontrol*)NativeMemory.AllocZeroed((nuint)sizeof(Memcontrol));
+    internal static Memcontrol* l_memcontrol = (Memcontrol*)NativeMemory.AllocZeroed((nuint)sizeof(Memcontrol));
 
     private static void luai_tracegc(lua_State* L, bool f)
     {

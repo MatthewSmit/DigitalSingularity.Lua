@@ -94,31 +94,6 @@ public static unsafe partial class Lua
 // /* Default configuration ('long long' and 'double', for 64-bit Lua) */
 // #define LUA_INT_DEFAULT		LUA_INT_LONGLONG
 // #define LUA_FLOAT_DEFAULT	LUA_FLOAT_DOUBLE
-//
-//
-// /*
-// @@ LUA_32BITS enables Lua with 32-bit integers and 32-bit floats.
-// */
-// /* #define LUA_32BITS */
-
-// #if defined(LUA_32BITS)	/* { */
-// #elif LUA_C89_NUMBERS	/* }{ */
-// /*
-// ** largest types available for C89 ('long' and 'double')
-// */
-// #define LUA_INT_TYPE	LUA_INT_LONG
-// #define LUA_FLOAT_TYPE	LUA_FLOAT_DOUBLE
-//
-// #else		/* }{ */
-// /* use defaults */
-//
-// #define LUA_INT_TYPE	LUA_INT_DEFAULT
-// #define LUA_FLOAT_TYPE	LUA_FLOAT_DEFAULT
-//
-// #endif				/* } */
-//
-//
-// /* }================================================================== */
 
     /*
     ** {==================================================================
@@ -211,6 +186,16 @@ public static unsafe partial class Lua
     ** and is not Windows. (On Windows Lua automatically uses "\".)
     */
     private static readonly string LUA_DIRSEP = Path.DirectorySeparatorChar.ToString();
+
+    /*
+    ** LUA_CSUBSEP is the character that replaces dots in submodule names
+    ** when searching for a C loader.
+    ** LUA_LSUBSEP is the character that replaces dots in submodule names
+    ** when searching for a Lua loader.
+    */
+    private static readonly string LUA_CSUBSEP = LUA_DIRSEP;
+
+    private static readonly string LUA_LSUBSEP = LUA_DIRSEP;
     
     /*
     ** LUA_IGMARK is a mark to ignore all after it when building the
@@ -361,23 +346,22 @@ public static unsafe partial class Lua
 //
 // #define lua_str2number(s,p)	strtod((s), (p))
 
-// /*
-// @@ LUA_UNSIGNED is the unsigned version of LUA_INTEGER.
-// @@ LUAI_UACINT is the result of a 'default argument promotion'
-// @@ over a LUA_INTEGER.
-// @@ LUA_INTEGER_FRMLEN is the length modifier for reading/writing integers.
-// @@ LUA_INTEGER_FMT is the format for writing integers.
-// @@ LUA_MAXINTEGER is the maximum value for a LUA_INTEGER.
-// @@ LUA_MININTEGER is the minimum value for a LUA_INTEGER.
-// @@ LUA_MAXUNSIGNED is the maximum value for a LUA_UNSIGNED.
-// @@ lua_integer2str converts an integer to a string.
-// */
-//
-//
-// /* The following definitions are good for most cases here */
-//
-// #define LUA_INTEGER_FMT		"%" LUA_INTEGER_FRMLEN "d"
-//
+    /*
+    @@ LUA_UNSIGNED is the unsigned version of LUA_INTEGER.
+    @@ LUAI_UACINT is the result of a 'default argument promotion'
+    @@ over a LUA_INTEGER.
+    @@ LUA_INTEGER_FRMLEN is the length modifier for reading/writing integers.
+    @@ LUA_INTEGER_FMT is the format for writing integers.
+    @@ LUA_MAXINTEGER is the maximum value for a LUA_INTEGER.
+    @@ LUA_MININTEGER is the minimum value for a LUA_INTEGER.
+    @@ LUA_MAXUNSIGNED is the maximum value for a LUA_UNSIGNED.
+    @@ lua_integer2str converts an integer to a string.
+    */
+
+    /* The following definitions are good for most cases here */
+
+    // private const string LUA_INTEGER_FMT = "%" + LUA_INTEGER_FRMLEN + "d";
+
 // #define LUAI_UACINT		LUA_INTEGER
 //
 // /*
@@ -385,35 +369,9 @@ public static unsafe partial class Lua
 // ** can turn a comparison between unsigneds into a signed comparison)
 // */
 // #define LUA_UNSIGNED		unsigned LUAI_UACINT
-//
-//
-// /* now the variable definitions */
-//
-// #if LUA_INT_TYPE == LUA_INT_INT		/* { int */
-//
-// #define LUA_INTEGER		int
-// #define LUA_INTEGER_FRMLEN	""
-//
-// #define LUA_MAXINTEGER		INT_MAX
-// #define LUA_MININTEGER		INT_MIN
-//
-// #define LUA_MAXUNSIGNED		UINT_MAX
-//
+
 // #elif LUA_INT_TYPE == LUA_INT_LONG	/* }{ long */
-//
-// #define LUA_INTEGER		long
-// #define LUA_INTEGER_FRMLEN	"l"
-//
-// #define LUA_MAXINTEGER		LONG_MAX
-// #define LUA_MININTEGER		LONG_MIN
-//
-// #define LUA_MAXUNSIGNED		ULONG_MAX
-//
 // #elif LUA_INT_TYPE == LUA_INT_LONGLONG	/* }{ long long */
-//
-// /* use presence of macro LLONG_MAX as proxy for C99 compliance */
-// #if defined(LLONG_MAX)		/* { */
-// /* use ISO C99 stuff */
 //
 // #define LUA_INTEGER		long long
 // #define LUA_INTEGER_FRMLEN	"ll"
@@ -422,34 +380,7 @@ public static unsafe partial class Lua
 // #define LUA_MININTEGER		LLONG_MIN
 //
 // #define LUA_MAXUNSIGNED		ULLONG_MAX
-//
-// #elif defined(LUA_USE_WINDOWS) /* }{ */
-// /* in Windows, can use specific Windows types */
-//
-// #define LUA_INTEGER		__int64
-// #define LUA_INTEGER_FRMLEN	"I64"
-//
-// #define LUA_MAXINTEGER		_I64_MAX
-// #define LUA_MININTEGER		_I64_MIN
-//
-// #define LUA_MAXUNSIGNED		_UI64_MAX
-//
-// #else				/* }{ */
-//
-// #error "Compiler does not support 'long long'. Use option '-DLUA_32BITS' \
-//   or '-DLUA_C89_NUMBERS' (see file 'luaconf.h' for details)"
-//
-// #endif				/* } */
-//
-// #else				/* }{ */
-//
-// #error "numeric integer type not defined"
-//
-// #endif				/* } */
-//
-// /* }================================================================== */
-//
-//
+
 // /*
 // ** {==================================================================
 // ** Dependencies with C99 and other C details
@@ -460,11 +391,7 @@ public static unsafe partial class Lua
 // @@ l_sprintf is equivalent to 'snprintf' or 'sprintf' in C89.
 // ** (All uses in Lua have only one format item.)
 // */
-// #if !defined(LUA_USE_C89)
 // #define l_sprintf(s,sz,f,i)	snprintf(s,sz,f,i)
-// #else
-// #define l_sprintf(s,sz,f,i)	((void)(sz), sprintf(s,f,i))
-// #endif
 //
 //
 // /*

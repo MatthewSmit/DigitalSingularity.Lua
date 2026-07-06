@@ -2,6 +2,7 @@
 
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -801,22 +802,23 @@ public static unsafe partial class Lua
 
     private static int listcode(lua_State* L)
     {
-//   int pc;
-//   Proto *p;
-//   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-//                  1, "Lua function expected");
-//   p = getproto(obj_at(L, 1));
-//   lua_newtable(L);
-//   setnameval(L, "maxstack", p->maxstacksize);
-//   setnameval(L, "numparams", p->numparams);
-//   for (pc=0; pc<p->sizecode; pc++) {
-//     char buff[100];
-//     lua_pushinteger(L, pc+1);
-//     lua_pushstring(L, buildop(p, pc, buff));
-//     lua_settable(L, -3);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        luaL_argcheck(
+            L,
+            lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+            1,
+            "Lua function expected");
+        Proto* p = getproto(obj_at(L, 1));
+        lua_newtable(L);
+        setnameval(L, "maxstack", p->maxstacksize);
+        setnameval(L, "numparams", p->numparams);
+        for (int pc = 0; pc < p->sizecode; pc++)
+        {
+            lua_pushinteger(L, pc + 1);
+            lua_pushstring(L, buildop(p, pc));
+            lua_settable(L, -3);
+        }
+
+        return 1;
     }
 
     internal static int printcode(lua_State* L)
@@ -989,12 +991,16 @@ public static unsafe partial class Lua
 
     private static int alloc_count(lua_State* L)
     {
-//   if (lua_isnone(L, 1))
-//     l_memcontrol.countlimit = cast(unsigned long, ~0L);
-//   else
-//     l_memcontrol.countlimit = cast(unsigned long, luaL_checkinteger(L, 1));
-//   return 0;
-        throw new NotImplementedException();
+        if (lua_isnone(L, 1))
+        {
+            l_memcontrol->countlimit = ~0L;
+        }
+        else
+        {
+            l_memcontrol->countlimit = luaL_checkinteger(L, 1);
+        }
+
+        return 0;
     }
 
     private static int alloc_failnext(lua_State* L)
@@ -1032,21 +1038,27 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
+    private static readonly string[] gennames =
+    [
+        "new", "survival", "old0", "old1",
+        "old", "touched1", "touched2",
+    ];
+
     private static int gc_age(lua_State* L)
     {
-//   TValue *o;
-//   luaL_checkany(L, 1);
-//   o = obj_at(L, 1);
-//   if (!iscollectable(o))
-//     lua_pushstring(L, "no collectable");
-//   else {
-//     static const char *gennames[] = {"new", "survival", "old0", "old1",
-//                                      "old", "touched1", "touched2"};
-//     GCObject *obj = gcvalue(o);
-//     lua_pushstring(L, gennames[getage(obj)]);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        TValue* o = obj_at(L, 1);
+        if (!iscollectable(o))
+        {
+            lua_pushstring(L, "no collectable");
+        }
+        else
+        {
+            GCObject* obj = gcvalue(o);
+            lua_pushstring(L, gennames[getage(obj)]);
+        }
+
+        return 1;
     }
 
     private static int gc_printobj(lua_State* L)
@@ -1166,45 +1178,59 @@ public static unsafe partial class Lua
 
     private static int table_query(lua_State* L)
     {
-//   const Table *t;
-//   int i = cast_int(luaL_optinteger(L, 2, -1));
-//   unsigned int asize;
-//   luaL_checktype(L, 1, LUA_TTABLE);
-//   t = hvalue(obj_at(L, 1));
-//   asize = t->asize;
-//   if (i == -1) {
-//     lua_pushinteger(L, cast_Integer(asize));
-//     lua_pushinteger(L, cast_Integer(allocsizenode(t)));
-//     lua_pushinteger(L, cast_Integer(asize > 0 ? *lenhint(t) : 0));
-//     return 3;
-//   }
-//   else if (cast_uint(i) < asize) {
-//     lua_pushinteger(L, i);
-//     if (!tagisempty(*getArrTag(t, i)))
-//       arr2obj(t, cast_uint(i), s2v(L->top.p));
-//     else
-//       setnilvalue(s2v(L->top.p));
-//     api_incr_top(L);
-//     lua_pushnil(L);
-//   }
-//   else if (cast_uint(i -= cast_int(asize)) < sizenode(t)) {
-//     TValue k;
-//     getnodekey(L, &k, gnode(t, i));
-//     if (!isempty(gval(gnode(t, i))) ||
-//         ttisnil(&k) ||
-//         ttisnumber(&k)) {
-//       pushobject(L, &k);
-//     }
-//     else
-//       lua_pushliteral(L, "<undef>");
-//     if (!isempty(gval(gnode(t, i))))
-//       pushobject(L, gval(gnode(t, i)));
-//     else
-//       lua_pushnil(L);
-//     lua_pushinteger(L, gnext(&t->node[i]));
-//   }
-//   return 3;
-        throw new NotImplementedException();
+        int i = (int)luaL_optinteger(L, 2, -1);
+        luaL_checktype(L, 1, LUA_TTABLE);
+        Table* t = hvalue(obj_at(L, 1));
+        uint asize = t->asize;
+        if (i == -1)
+        {
+            lua_pushinteger(L, asize);
+            lua_pushinteger(L, allocsizenode(t));
+            lua_pushinteger(L, asize > 0 ? *lenhint(t) : 0);
+        }
+        else if ((uint)i < asize)
+        {
+            lua_pushinteger(L, i);
+            if (!tagisempty(*getArrTag(t, (ulong)i)))
+            {
+                arr2obj(t, (uint)i, s2v(L->top.p));
+            }
+            else
+            {
+                setnilvalue(s2v(L->top.p));
+            }
+
+            api_incr_top(L);
+            lua_pushnil(L);
+        }
+        else if ((uint)(i -= (int)asize) < sizenode(t))
+        {
+            TValue k;
+            getnodekey(L, &k, gnode(t, i));
+            if (!isempty(gval(gnode(t, i))) ||
+                ttisnil(&k) ||
+                ttisnumber(&k))
+            {
+                pushobject(L, &k);
+            }
+            else
+            {
+                lua_pushliteral(L, "<undef>");
+            }
+
+            if (!isempty(gval(gnode(t, i))))
+            {
+                pushobject(L, gval(gnode(t, i)));
+            }
+            else
+            {
+                lua_pushnil(L);
+            }
+
+            lua_pushinteger(L, gnext(&t->node[i]));
+        }
+
+        return 3;
     }
 
     private static int gc_query(lua_State* L)
@@ -1364,17 +1390,17 @@ public static unsafe partial class Lua
 
     private static int s2d(lua_State* L)
     {
-//   lua_pushnumber(L, cast_num(*cast(const double *, luaL_checkstring(L, 1))));
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, MemoryMarshal.Cast<byte, double>(luaL_checkstring(L, 1))[0]);
+        return 1;
     }
 
     private static int d2s(lua_State* L)
     {
         double d = luaL_checknumber(L, 1);
-//   lua_pushlstring(L, cast_charp(&d), sizeof(d));
-//   return 1;
-        throw new NotImplementedException();
+        double* dPtr = &d;
+        ReadOnlySpan<double> dSpan = new(dPtr, 1);
+        lua_pushlstring(L, MemoryMarshal.Cast<double, byte>(dSpan));
+        return 1;
     }
 
     private static int num2int(lua_State* L)
@@ -1493,13 +1519,13 @@ public static unsafe partial class Lua
 
     private static int checkpanic(lua_State* L)
     {
-        string code = luaL_checkstring(L, 1);
+        string code = luaL_checknetstring(L, 1);
         lua_Alloc f = lua_getallocf(L, out void* ud);
 
         Aux b = new();
         using GCHandle<Aux> bhandle = new(b);
 
-        b.paniccode = luaL_optstring(L, 2, "");
+        b.paniccode = luaL_optnetstring(L, 2, "");
         b.L = L;
         lua_State* L1 = lua_newstate(f, ud, 0); /* create new state */
         if (L1 == null)
@@ -1858,82 +1884,75 @@ public static unsafe partial class Lua
                     break;
 
                 case "gettable":
-//       int tp = lua_gettable(L1, getindex_aux(L, L1, ref pc));
-//       Debug.Assert(tp == lua_type(L1, -1));
-                    throw new NotImplementedException();
-                    break;
+                    {
+                        int tp = lua_gettable(L1, getindex_aux(L, L1, ref pc));
+                        Debug.Assert(tp == lua_type(L1, -1));
+                        break;
+                    }
 
                 case "gettop":
-//       lua_pushinteger(L1, lua_gettop(L1));
-                    throw new NotImplementedException();
+                    lua_pushinteger(L1, lua_gettop(L1));
                     break;
 
                 case "gsub":
-//       int a = getnum_aux(L, L1, ref pc); int b = getnum_aux(L, L1, ref pc); int c = getnum_aux(L, L1, ref pc);
-//       luaL_gsub(L1, lua_tostring(L1, a),
-//                     lua_tostring(L1, b),
-//                     lua_tostring(L1, c));
-                    throw new NotImplementedException();
-                    break;
+                    {
+                        int a = getnum_aux(L, L1, ref pc);
+                        int b = getnum_aux(L, L1, ref pc);
+                        int c = getnum_aux(L, L1, ref pc);
+                        luaL_gsub(
+                            L1,
+                            lua_tostring(L1, a),
+                            lua_tostring(L1, b),
+                            lua_tostring(L1, c));
+                        break;
+                    }
 
                 case "insert":
-//       lua_insert(L1, getnum_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_insert(L1, getnum_aux(L, L1, ref pc));
                     break;
 
                 case "iscfunction":
-//       lua_pushboolean(L1, lua_iscfunction(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_iscfunction(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isfunction":
-//       lua_pushboolean(L1, lua_isfunction(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isfunction(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isnil":
-//       lua_pushboolean(L1, lua_isnil(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isnil(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isnull":
-//       lua_pushboolean(L1, lua_isnone(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isnone(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isnumber":
-//       lua_pushboolean(L1, lua_isnumber(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isnumber(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isstring":
-//       lua_pushboolean(L1, lua_isstring(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isstring(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "istable":
-//       lua_pushboolean(L1, lua_istable(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_istable(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isudataval":
-//       lua_pushboolean(L1, lua_islightuserdata(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_islightuserdata(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "isuserdata":
-//       lua_pushboolean(L1, lua_isuserdata(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_isuserdata(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "len":
-//       lua_len(L1, getindex_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_len(L1, getindex_aux(L, L1, ref pc));
                     break;
 
                 case "Llen":
-//       lua_pushinteger(L1, luaL_len(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushinteger(L1, luaL_len(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "loadfile":
@@ -2029,33 +2048,27 @@ public static unsafe partial class Lua
                     break;
 
                 case "pushbool":
-//       lua_pushboolean(L1, getnum_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, getnum_aux(L, L1, ref pc) != 0);
                     break;
 
                 case "pushcclosure":
-//       lua_pushcclosure(L1, testC, getnum_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_pushcclosure(L1, &testC, getnum_aux(L, L1, ref pc));
                     break;
 
                 case "pushint":
-//       lua_pushinteger(L1, getnum_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_pushinteger(L1, getnum_aux(L, L1, ref pc));
                     break;
 
                 case "pushnil":
-//       lua_pushnil(L1);
-                    throw new NotImplementedException();
+                    lua_pushnil(L1);
                     break;
 
                 case "pushnum":
-//       lua_pushnumber(L1, (double)getnum_aux(L, L1, ref pc));
-                    throw new NotImplementedException();
+                    lua_pushnumber(L1, getnum_aux(L, L1, ref pc));
                     break;
 
                 case "pushstatus":
-//       lua_pushstring(L1, statcodes[status]);
-                    throw new NotImplementedException();
+                    lua_pushstring(L1, statcodes[status]);
                     break;
 
                 case "pushstring":
@@ -2155,9 +2168,10 @@ public static unsafe partial class Lua
                     break;
 
                 case "return":
-                    int n = getnum_aux(L, L1, ref pc);
-                    if (L1 != L)
                     {
+                        int n = getnum_aux(L, L1, ref pc);
+                        if (L1 != L)
+                        {
 //         int i;
 //         for (i = 0; i < n; i++) {
 //           int idx = -(n - i);
@@ -2170,10 +2184,11 @@ public static unsafe partial class Lua
 //               break;
 //           }
 //         }
-                        throw new NotImplementedException();
-                    }
+                            throw new NotImplementedException();
+                        }
 
-                    return n;
+                        return n;
+                    }
 
                 case "rotate":
 //       int i = getindex_aux(L, L1, ref pc);
@@ -2237,43 +2252,31 @@ public static unsafe partial class Lua
                     break;
 
                 case "throw":
-// #if defined(__cplusplus)
-// static struct X { int x; } x;
-//       throw x;
-// #else
-//       luaL_error(L1, "C++");
-// #endif
-                    throw new NotImplementedException();
+                    luaL_error(L1, "C++");
                     break;
 
                 case "tobool":
-//       lua_pushboolean(L1, lua_toboolean(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushboolean(L1, lua_toboolean(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "tocfunction":
-//       lua_pushcfunction(L1, lua_tocfunction(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushcfunction(L1, lua_tocfunction(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "tointeger":
-//       lua_pushinteger(L1, lua_tointeger(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushinteger(L1, lua_tointeger(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "tonumber":
-//       lua_pushnumber(L1, lua_tonumber(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushnumber(L1, lua_tonumber(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "topointer":
-//       lua_pushlightuserdata(L1, cast_voidp(lua_topointer(L1, getindex_aux(L, L1, ref pc))));
-                    throw new NotImplementedException();
+                    lua_pushlightuserdata(L1, lua_topointer(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "touserdata":
-//       lua_pushlightuserdata(L1, lua_touserdata(L1, getindex_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushlightuserdata(L1, lua_touserdata(L1, getindex_aux(L, L1, ref pc)));
                     break;
 
                 case "tostring":
@@ -2285,25 +2288,28 @@ public static unsafe partial class Lua
                     break;
 
                 case "Ltolstring":
-//       luaL_tolstring(L1, getindex_aux(L, L1, ref pc), null);
-                    throw new NotImplementedException();
+                    luaL_tolstring(L1, getindex_aux(L, L1, ref pc), out _);
                     break;
 
                 case "type":
-//       lua_pushstring(L1, luaL_typename(L1, getnum_aux(L, L1, ref pc)));
-                    throw new NotImplementedException();
+                    lua_pushstring(L1, luaL_typename(L1, getnum_aux(L, L1, ref pc)));
                     break;
 
                 case "xmove":
-//       int f = getindex_aux(L, L1, ref pc);
-//       int t = getindex_aux(L, L1, ref pc);
-//       lua_State *fs = (f == 0) ? L1 : lua_tothread(L1, f);
-//       lua_State *ts = (t == 0) ? L1 : lua_tothread(L1, t);
-//       int n = getnum_aux(L, L1, ref pc);
-//       if (n == 0) n = lua_gettop(fs);
-//       lua_xmove(fs, ts, n);
-                    throw new NotImplementedException();
-                    break;
+                    {
+                        int f = getindex_aux(L, L1, ref pc);
+                        int t = getindex_aux(L, L1, ref pc);
+                        lua_State* fs = f == 0 ? L1 : lua_tothread(L1, f);
+                        lua_State* ts = t == 0 ? L1 : lua_tothread(L1, t);
+                        int n = getnum_aux(L, L1, ref pc);
+                        if (n == 0)
+                        {
+                            n = lua_gettop(fs);
+                        }
+
+                        lua_xmove(fs, ts, n);
+                        break;
+                    }
 
                 case "isyieldable":
 //       lua_pushboolean(L1, lua_isyieldable(lua_tothread(L1, getindex_aux(L, L1, ref pc))));
@@ -2354,17 +2360,17 @@ public static unsafe partial class Lua
         if (lua_isuserdata(L, 1))
         {
             L1 = getstate(L);
-            pc = luaL_checkstring(L, 2);
+            pc = luaL_checknetstring(L, 2);
         }
         else if (lua_isthread(L, 1))
         {
             L1 = lua_tothread(L, 1);
-            pc = luaL_checkstring(L, 2);
+            pc = luaL_checknetstring(L, 2);
         }
         else
         {
             L1 = L;
-            pc = luaL_checkstring(L, 1);
+            pc = luaL_checknetstring(L, 1);
         }
 
         return runC(L, L1, pc);

@@ -306,7 +306,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static void luaC_objbarrier(lua_State* L, GCObject* p, GCObject* o)
+    internal static void luaC_objbarrier(lua_State* L, GCObject* p, GCObject* o)
     {
         if (isblack(p) && iswhite(o))
         {
@@ -337,26 +337,4 @@ public static unsafe partial class Lua
             luaC_objbarrierback(L, p, gcvalue(v));
         }
     }
-
-    internal static partial void luaC_fix(lua_State* L, GCObject* o);
-
-    internal static partial void luaC_freeallobjects(lua_State* L);
-
-    internal static partial void luaC_step(lua_State* L);
-
-    internal static partial void luaC_runtilstate(lua_State* L, int state, bool fast);
-
-    internal static partial void luaC_fullgc(lua_State* L, bool isemergency);
-
-    internal static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz);
-
-    internal static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset);
-
-    internal static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v);
-
-    internal static partial void luaC_barrierback_(lua_State* L, GCObject* o);
-
-    internal static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt);
-
-    internal static partial void luaC_changemode(lua_State* L, int newmode);
 }

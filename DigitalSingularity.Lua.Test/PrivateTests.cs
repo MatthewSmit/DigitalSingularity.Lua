@@ -19,10 +19,29 @@ public unsafe class PrivateTests
         return value == null ? "" : new string((sbyte*)value);
     }
 
-// void PushTValue(lua_State* L, const TValue* value) {
-//   setobj2s(L, L->top.p, value);
-//   L->top.p++;
-// }
+    private static Table* NewAnchoredTable(lua_State* L)
+    {
+        Table* table = luaH_new(L);
+        sethvalue2s(L, L->top.p, table);
+        L->top.p++;
+        return table;
+    }
+
+    private static TString* NewAnchoredString(lua_State* L, string value)
+    {
+        TString* str = luaS_new(L, value);
+        setsvalue2s(L, L->top.p, str);
+        L->top.p++;
+        return str;
+    }
+
+    private static Udata* NewAnchoredUdata(lua_State* L, int size, ushort user_value_count)
+    {
+        Udata* userdata = luaS_newudata(L, size, user_value_count);
+        setuvalue(L, s2v(L->top.p), userdata);
+        L->top.p++;
+        return userdata;
+    }
 
     private static void TableSetString(lua_State* L, Table* table, TString* key, TValue* value)
     {
@@ -77,8 +96,7 @@ public unsafe class PrivateTests
 
     private static byte* ChunkReader(lua_State* L, void* ud, long* size)
     {
-        ReaderState state = (ReaderState?)GCHandle.FromIntPtr((IntPtr)ud).Target ??
-                            throw new InvalidOperationException();
+        ReaderState state = GCHandle<ReaderState>.FromIntPtr((IntPtr)ud).Target;
         if (state.index >= state.chunks.Count)
         {
             *size = 0;
@@ -247,8 +265,7 @@ public unsafe class PrivateTests
 
     private static void WarningHandler(void* ud, string msg, bool tocont)
     {
-        WarningCapture warningCapture = (WarningCapture?)GCHandle.FromIntPtr((nint)ud).Target ??
-                                        throw new InvalidOperationException();
+        WarningCapture warningCapture = GCHandle<WarningCapture>.FromIntPtr((nint)ud).Target;
         warningCapture.messages.Add((msg, tocont));
     }
 
@@ -380,12 +397,12 @@ public unsafe class PrivateTests
     [Test]
     public void Function_luaO_tostringbuff()
     {
-        byte* buffer = stackalloc byte[LUA_N2SBUFFSZ];
+        Span<byte> buffer = stackalloc byte[LUA_N2SBUFFSZ];
         TValue value;
         setivalue(&value, -123);
         
-        uint len = luaO_tostringbuff(&value, buffer);
-        Assert.That(new string((sbyte*)buffer), Is.EqualTo("-123"));
+        int len = luaO_tostringbuff(&value, buffer);
+        Assert.That(Encoding.UTF8.GetString(buffer[..len]), Is.EqualTo("-123"));
     }
 
     [Test]
@@ -545,7 +562,7 @@ public unsafe class PrivateTests
     public void Function_luaV_finishget()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue tableValue;
         TValue key;
         sethvalue(state, &tableValue, table);
@@ -564,7 +581,7 @@ public unsafe class PrivateTests
     public void Function_luaV_finishset()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue table_value;
         TValue key;
         TValue value;
@@ -666,8 +683,7 @@ public unsafe class PrivateTests
         using LuaState state = new();
         TString* longString = luaS_newlstr(
             state,
-            "this string is deliberately longer than the short string limit"u8.ToPointer(),
-            64);
+            "this string is deliberately longer than the short string limit"u8);
         
         Assert.That(strisshr(longString), Is.False);
         Assert.That(longString->extra, Is.Zero);
@@ -681,7 +697,7 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
         TString* left = luaS_new(state, "same");
-        TString* right = luaS_newlstr(state, "same"u8.ToPointer(), 4);
+        TString* right = luaS_newlstr(state, "same"u8);
         TString* different = luaS_new(state, "different");
         
         Assert.That(luaS_eqstr(left, right));
@@ -736,11 +752,10 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
 
-        TString* shortString = luaS_newlstr(state, "short"u8.ToPointer(), 5);
+        TString* shortString = luaS_newlstr(state, "short"u8);
         TString* longString = luaS_newlstr(
             state,
-            "this string is deliberately longer than the short string limit"u8.ToPointer(),
-            64);
+            "this string is deliberately longer than the short string limit"u8);
         
         Assert.That(strisshr(shortString));
         Assert.That(strisshr(longString), Is.False);
@@ -809,18 +824,18 @@ public unsafe class PrivateTests
     public void Function_luaH_get()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue key;
         TValue value;
         TValue result;
-        setsvalue(state, &key, luaS_new(state, "key"));
+        setsvalue(state, &key, NewAnchoredString(state, "key"));
         setivalue(&value, 99);
         luaH_set(state, table, &key, &value);
 
         Assert.That(luaH_get(table, &key, &result), Is.EqualTo(LUA_VNUMINT));
         Assert.That(ivalue(&result), Is.EqualTo(99));
 
-        setsvalue(state, &key, luaS_new(state, "missing"));
+        setsvalue(state, &key, NewAnchoredString(state, "missing"));
         Assert.That(tagisempty(luaH_get(table, &key, &result)));
     }
 
@@ -828,8 +843,8 @@ public unsafe class PrivateTests
     public void Function_luaH_getshortstr()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
-        TString* key = luaS_new(state, "short");
+        Table* table = NewAnchoredTable(state);
+        TString* key = NewAnchoredString(state, "short");
         TValue value;
         TValue result;
         setivalue(&value, 11);
@@ -837,18 +852,17 @@ public unsafe class PrivateTests
 
         Assert.That(luaH_getshortstr(table, key, &result), Is.EqualTo(LUA_VNUMINT));
         Assert.That(ivalue(&result), Is.EqualTo(11));
-        Assert.That(tagisempty(luaH_getshortstr(table, luaS_new(state, "nope"), &result)));
+        Assert.That(tagisempty(luaH_getshortstr(table, NewAnchoredString(state, "nope"), &result)));
     }
 
     [Test]
     public void Function_luaH_getstr()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TString* key = luaS_newlstr(
             state,
-            "this long key is longer than the short string threshold"u8.ToPointer(),
-            59);
+            "this long key is longer than the short string threshold"u8);
         
         TValue keyValue;
         setsvalue(state, &keyValue, key);
@@ -865,7 +879,7 @@ public unsafe class PrivateTests
     public void Function_luaH_getint()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue value;
         TValue result;
         setivalue(&value, 123);
@@ -880,8 +894,8 @@ public unsafe class PrivateTests
     public void Function_luaH_Hgetshortstr()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
-        TString* key = luaS_new(state, "meta");
+        Table* table = NewAnchoredTable(state);
+        TString* key = NewAnchoredString(state, "meta");
         TValue value;
         setivalue(&value, 44);
         TableSetString(state, table, key, &value);
@@ -889,14 +903,14 @@ public unsafe class PrivateTests
         TValue* found = luaH_Hgetshortstr(table, key);
         Assert.That(ttisnil(found), Is.False);
         Assert.That(ivalue(found), Is.EqualTo(44));
-        Assert.That(ttisnil(luaH_Hgetshortstr(table, luaS_new(state, "missing"))));
+        Assert.That(ttisnil(luaH_Hgetshortstr(table, NewAnchoredString(state, "missing"))));
     }
 
     [Test]
     public void Function_luaH_psetint()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue value;
         TValue result;
         setivalue(&value, 1);
@@ -914,8 +928,8 @@ public unsafe class PrivateTests
     public void Function_luaH_psetshortstr()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
-        TString* key = luaS_new(state, "field");
+        Table* table = NewAnchoredTable(state);
+        TString* key = NewAnchoredString(state, "field");
         TValue value;
         TValue result;
         setivalue(&value, 1);
@@ -926,19 +940,19 @@ public unsafe class PrivateTests
         luaH_getshortstr(table, key, &result);
         Assert.That(ivalue(&result), Is.EqualTo(2));
 
-        Table* metatable = luaH_new(state);
+        Table* metatable = NewAnchoredTable(state);
         table->metatable = metatable;
         invalidateTMcache(metatable);
         setivalue(&value, 3);
-        Assert.That(luaH_psetshortstr(table, luaS_new(state, "new-field"), &value), Is.Not.EqualTo(HOK));
+        Assert.That(luaH_psetshortstr(table, NewAnchoredString(state, "new-field"), &value), Is.Not.EqualTo(HOK));
     }
 
     [Test]
     public void Function_luaH_psetstr()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
-        TString* key = luaS_new(state, "name");
+        Table* table = NewAnchoredTable(state);
+        TString* key = NewAnchoredString(state, "name");
         TValue value;
         TValue result;
         setivalue(&value, 1);
@@ -954,7 +968,7 @@ public unsafe class PrivateTests
     public void Function_luaH_pset()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue key;
         TValue value;
         TValue result;
@@ -975,7 +989,7 @@ public unsafe class PrivateTests
     public void Function_luaH_setint()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue value;
         TValue result;
         setivalue(&value, 88);
@@ -990,11 +1004,11 @@ public unsafe class PrivateTests
     public void Function_luaH_set()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue key;
         TValue value;
         TValue result;
-        setsvalue(state, &key, luaS_new(state, "x"));
+        setsvalue(state, &key, NewAnchoredString(state, "x"));
         setivalue(&value, 77);
 
         luaH_set(state, table, &key, &value);
@@ -1007,11 +1021,11 @@ public unsafe class PrivateTests
     public void Function_luaH_finishset()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue key;
         TValue value;
         TValue result;
-        setsvalue(state, &key, luaS_new(state, "new"));
+        setsvalue(state, &key, NewAnchoredString(state, "new"));
         setivalue(&value, 66);
 
         luaH_finishset(state, table, &key, &value, HNOTFOUND);
@@ -1025,7 +1039,7 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
 
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
 
         Assert.That(table, Is.Not.Null);
         Assert.That(table->asize, Is.EqualTo(0u));
@@ -1036,7 +1050,7 @@ public unsafe class PrivateTests
     public void Function_luaH_resize()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
 
         luaH_resize(state, table, 4, 4);
 
@@ -1048,7 +1062,7 @@ public unsafe class PrivateTests
     public void Function_luaH_resizearray()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
 
         luaH_resizearray(state, table, 3);
 
@@ -1059,7 +1073,7 @@ public unsafe class PrivateTests
     public void Function_luaH_size()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
 
         long emptySize = luaH_size(table);
         Assert.That(emptySize, Is.GreaterThanOrEqualTo(sizeof(Table)));
@@ -1071,7 +1085,7 @@ public unsafe class PrivateTests
     public void Function_luaH_next()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue value;
         setivalue(&value, 55);
         luaH_setint(state, table, 1, &value);
@@ -1087,7 +1101,7 @@ public unsafe class PrivateTests
     public void Function_luaH_getn()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue value;
         setivalue(&value, 1);
         luaH_setint(state, table, 1, &value);
@@ -1187,8 +1201,8 @@ public unsafe class PrivateTests
         {
             chunks = [(nint)"abc"u8.ToPointer()],
         };
-        GCHandle handle = GCHandle.Alloc(reader);
-        void* handlePtr = (void*)GCHandle.ToIntPtr(handle);
+        using GCHandle<ReaderState> handle = new(reader);
+        void* handlePtr = handle.ToPointer();
         
         Zio zio;
         luaZ_init(state, &zio, &ChunkReader, handlePtr);
@@ -1196,8 +1210,6 @@ public unsafe class PrivateTests
         Assert.That(zio.n, Is.Zero);
         Assert.That(zio.p, Is.Null);
         Assert.That(zio.data, Is.EqualTo(handlePtr));
-        
-        handle.Free();
     }
 
     [Test]
@@ -1208,8 +1220,8 @@ public unsafe class PrivateTests
         {
             chunks = [(nint)"ab"u8.ToPointer(), (nint)"cd"u8.ToPointer()],
         };
-        GCHandle handle = GCHandle.Alloc(reader);
-        void* handlePtr = (void*)GCHandle.ToIntPtr(handle);
+        using GCHandle<ReaderState> handle = new(reader);
+        void* handlePtr = handle.ToPointer();
         
         Zio zio;
         luaZ_init(state, &zio, &ChunkReader, handlePtr);
@@ -1218,8 +1230,6 @@ public unsafe class PrivateTests
         Assert.That(luaZ_read(&zio, buffer, 4), Is.EqualTo(0u));
         Assert.That(new string((sbyte*)buffer), Is.EqualTo("abcd"));
         Assert.That(luaZ_read(&zio, buffer, 2), Is.EqualTo(2u));
-        
-        handle.Free();
     }
 
     [Test]
@@ -1230,8 +1240,8 @@ public unsafe class PrivateTests
         {
             chunks = [(nint)"abcdef"u8.ToPointer()],
         };
-        GCHandle handle = GCHandle.Alloc(reader);
-        void* handlePtr = (void*)GCHandle.ToIntPtr(handle);
+        using GCHandle<ReaderState> handle = new(reader);
+        void* handlePtr = handle.ToPointer();
         
         Zio zio;
         luaZ_init(state, &zio, &ChunkReader, handlePtr);
@@ -1241,8 +1251,6 @@ public unsafe class PrivateTests
         Assert.That(address, Is.Not.Null);
         Assert.That(new string((sbyte*)address)[..3], Is.EqualTo("abc"));
         Assert.That(luaZ_getaddr(&zio, 10), Is.Null);
-        
-        handle.Free();
     }
 
     [Test]
@@ -1253,8 +1261,8 @@ public unsafe class PrivateTests
         {
             chunks = [(nint)"xy"u8.ToPointer()],
         };
-        GCHandle handle = GCHandle.Alloc(reader);
-        void* handlePtr = (void*)GCHandle.ToIntPtr(handle);
+        using GCHandle<ReaderState> handle = new(reader);
+        void* handlePtr = handle.ToPointer();
         
         Zio zio;
         luaZ_init(state, &zio, &ChunkReader, handlePtr);
@@ -1262,8 +1270,6 @@ public unsafe class PrivateTests
         Assert.That(luaZ_fill(&zio), Is.EqualTo('x'));
         Assert.That(zio.n, Is.EqualTo(1u));
         Assert.That(*zio.p, Is.EqualTo('y'));
-        
-        handle.Free();
     }
 
     [Test]
@@ -1301,8 +1307,8 @@ public unsafe class PrivateTests
         Assert.That(closure, Is.Not.Null);
         Assert.That(closure->nupvalues, Is.EqualTo(2));
         Assert.That(closure->p, Is.Null);
-        Assert.That((&closure->upvals)[0], Is.Null);
-        Assert.That((&closure->upvals)[1], Is.Null);
+        Assert.That(LClosure.GetUpValue(closure, 0), Is.Null);
+        Assert.That(LClosure.GetUpValue(closure, 1), Is.Null);
     }
 
     [Test]
@@ -1313,10 +1319,10 @@ public unsafe class PrivateTests
 
         luaF_initupvals(state, closure);
 
-        Assert.That((&closure->upvals)[0], Is.Not.Null);
-        Assert.That((&closure->upvals)[1], Is.Not.Null);
-        Assert.That(upisopen((&closure->upvals)[0]), Is.False);
-        Assert.That(ttisnil((&closure->upvals)[0]->v.p), Is.True);
+        Assert.That(LClosure.GetUpValue(closure, 0), Is.Not.Null);
+        Assert.That(LClosure.GetUpValue(closure, 1), Is.Not.Null);
+        Assert.That(upisopen(LClosure.GetUpValue(closure, 0)), Is.False);
+        Assert.That(ttisnil(LClosure.GetUpValue(closure, 0)->v.p), Is.True);
     }
 
     [Test]
@@ -1622,12 +1628,10 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
         WarningCapture capture = new();
-        GCHandle handle = GCHandle.Alloc(capture);
-        lua_setwarnf(state, &WarningHandler, (void*)GCHandle.ToIntPtr(handle));
+        using GCHandle<WarningCapture> handle = new(capture);
+        lua_setwarnf(state, &WarningHandler, handle.ToPointer());
         
         luaE_warning(state, "hello", false);
-        
-        handle.Free();
         
         Assert.That(capture.messages, Has.Count.EqualTo(1));
         Assert.That(capture.messages[0].msg, Is.EqualTo("hello"));
@@ -1639,13 +1643,11 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
         WarningCapture capture = new();
-        GCHandle handle = GCHandle.Alloc(capture);
-        lua_setwarnf(state, &WarningHandler, (void*)GCHandle.ToIntPtr(handle));
+        using GCHandle<WarningCapture> handle = new(capture);
+        lua_setwarnf(state, &WarningHandler, handle.ToPointer());
         lua_pushliteral(state, "boom");
         
         luaE_warnerror(state, "test");
-        
-        handle.Free();
         
         Assert.That(capture.messages, Has.Count.EqualTo(5));
         Assert.That(capture.messages[0].msg, Is.EqualTo("error in "));
@@ -1780,8 +1782,8 @@ public unsafe class PrivateTests
         byte oldState = global->gcstate;
         byte oldKind = global->gckind;
 
-        Table* owner = luaH_new(state);
-        Table* value = luaH_new(state);
+        Table* owner = NewAnchoredTable(state);
+        Table* value = NewAnchoredTable(state);
         GCObject* ownerObject = obj2gco(owner);
         GCObject* valueObject = obj2gco(value);
         MarkObjectBlack(ownerObject);
@@ -1796,8 +1798,8 @@ public unsafe class PrivateTests
         Assert.That(getage(valueObject), Is.EqualTo(G_OLD0));
         Assert.That(global->grey, Is.EqualTo(valueObject));
         
-        Table* sweepOwner = luaH_new(state);
-        Table* sweepValue = luaH_new(state);
+        Table* sweepOwner = NewAnchoredTable(state);
+        Table* sweepValue = NewAnchoredTable(state);
         GCObject* sweepOwnerObject = obj2gco(sweepOwner);
         GCObject* sweepValueObject = obj2gco(sweepValue);
         MarkObjectBlack(sweepOwnerObject);
@@ -1819,7 +1821,7 @@ public unsafe class PrivateTests
         using LuaState state = new();
         global_State* global = G(state.get());
 
-        Table* owner = luaH_new(state);
+        Table* owner = NewAnchoredTable(state);
         GCObject* ownerObject = obj2gco(owner);
         MarkObjectBlack(ownerObject);
         setage(ownerObject, G_OLD);
@@ -1830,7 +1832,7 @@ public unsafe class PrivateTests
         Assert.That(getage(ownerObject), Is.EqualTo(G_TOUCHED1));
         Assert.That(global->greyagain, Is.EqualTo(ownerObject));
         
-        Table* touched = luaH_new(state);
+        Table* touched = NewAnchoredTable(state);
         GCObject* touchedObject = obj2gco(touched);
         MarkObjectBlack(touchedObject);
         setage(touchedObject, G_TOUCHED2);
@@ -1846,9 +1848,9 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
         global_State* global = G(state.get());
-        Udata* userdata = luaS_newudata(state, 4, 0);
+        Udata* userdata = NewAnchoredUdata(state, 4, 0);
         GCObject* obj = obj2gco(userdata);
-        Table* metatable = luaH_new(state);
+        Table* metatable = NewAnchoredTable(state);
         TValue finalizer;
         setfvalue(&finalizer, &ReturnBoolean);
         TableSetString(state, metatable, global->tmname[(int)TMS.GC], &finalizer);
@@ -1866,9 +1868,9 @@ public unsafe class PrivateTests
         luaC_checkfinaliser(state, obj, metatable);
         Assert.That(global->finobj, Is.EqualTo(finobj));
         
-        Udata* noFinaliserUserdata = luaS_newudata(state, 4, 0);
+        Udata* noFinaliserUserdata = NewAnchoredUdata(state, 4, 0);
         GCObject* noFinaliserObject = obj2gco(noFinaliserUserdata);
-        Table* emptyMetatable = luaH_new(state);
+        Table* emptyMetatable = NewAnchoredTable(state);
         luaC_checkfinaliser(state, noFinaliserObject, emptyMetatable);
         Assert.That(tofinalise(noFinaliserObject), Is.False);
     }
@@ -1895,7 +1897,7 @@ public unsafe class PrivateTests
     {
         using LuaState state = new();
         global_State* global = G(state.get());
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         GCObject* obj = obj2gco(table);
 
         MarkObjectWhite(global, obj);
@@ -1923,7 +1925,7 @@ public unsafe class PrivateTests
     public void Macro_GCAgeBits()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         GCObject* obj = obj2gco(table);
 
         setage(obj, G_NEW);
@@ -1986,17 +1988,17 @@ public unsafe class PrivateTests
     public void Function_luaT_objtypename()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
         TValue tableValue;
         sethvalue(state, &tableValue, table);
 
         Assert.That(luaT_objtypename(state, &tableValue), Is.EqualTo("table"));
 
-        Table* metatable = luaH_new(state);
+        Table* metatable = NewAnchoredTable(state);
         TValue key;
         TValue name;
-        setsvalue(state, &key, luaS_new(state, "__name"));
-        setsvalue(state, &name, luaS_new(state, "custom"));
+        setsvalue(state, &key, NewAnchoredString(state, "__name"));
+        setsvalue(state, &name, NewAnchoredString(state, "custom"));
         luaH_set(state, metatable, &key, &name);
         table->metatable = metatable;
 
@@ -2007,7 +2009,7 @@ public unsafe class PrivateTests
     public void Function_luaT_gettm()
     {
         using LuaState state = new();
-        Table* metatable = luaH_new(state);
+        Table* metatable = NewAnchoredTable(state);
         TValue value;
         setfvalue(&value, &ReturnBoolean);
         TableSetString(state, metatable, G(state.get())->tmname[(int)TMS.EQ], &value);
@@ -2023,8 +2025,8 @@ public unsafe class PrivateTests
     public void Function_luaT_gettmbyobj()
     {
         using LuaState state = new();
-        Table* table = luaH_new(state);
-        Table* metatable = luaH_new(state);
+        Table* table = NewAnchoredTable(state);
+        Table* metatable = NewAnchoredTable(state);
         TValue tableValue;
         sethvalue(state, &tableValue, table);
         TValue value;

@@ -722,17 +722,18 @@ public static unsafe partial class Lua
     {
         for (uint i = newasize; i < oldasize; i++)
         {
-            // /* traverse vanishing slice */
-            // byte tag = *getArrTag(t, i);
-            // if (!tagisempty(tag))
-            // {
-            //     /* a non-empty entry? */
-            //     TValue key, aux;
-            //     setivalue(&key, l_castU2S(i) + 1); /* make the key */
-            //     farr2val(t, i, tag, &aux); /* copy value into 'aux' */
-            //     insertkey(t, &key, &aux); /* insert entry into the hash part */
-            // }
-            throw new NotImplementedException();
+            /* traverse vanishing slice */
+            byte tag = *getArrTag(t, i);
+            if (!tagisempty(tag))
+            {
+                /* a non-empty entry? */
+                TValue key;
+                setivalue(&key, (long)i + 1); /* make the key */
+                TValue aux;
+                farr2val(t, i, tag, &aux); /* copy value into 'aux' */
+                insertkey(t, &key, &aux); /* insert entry into the hash part */
+                throw new NotImplementedException();
+            }
         }
     }
 
@@ -763,12 +764,12 @@ public static unsafe partial class Lua
      ** the old one ('oldasize'), this function will do nothing with that
      ** part.
      */
-    internal static partial void luaH_resize(lua_State* L, Table* t, uint newasize, uint nhsize)
+    internal static partial void luaH_resize(lua_State* L, Table* t, uint nasize, uint nhsize)
     {
         Table newt; /* to keep the new hash part */
         uint oldasize = t->asize;
         Value* newarray;
-        if (newasize > MAXASIZE)
+        if (nasize > MAXASIZE)
         {
             luaG_runerror(L, "table overflow");
         }
@@ -776,34 +777,34 @@ public static unsafe partial class Lua
         // create new hash part with appropriate size into 'newt'
         newt.flags = 0;
         setnodevector(L, &newt, nhsize);
-        if (newasize < oldasize)
+        if (nasize < oldasize)
         {
             /* will array shrink? */
             /* re-insert into the new hash the elements from vanishing slice */
             exchangehashpart(t, &newt); /* pretend table has new hash */
-            reinsertOldSlice(t, oldasize, newasize);
+            reinsertOldSlice(t, oldasize, nasize);
             exchangehashpart(t, &newt); /* restore old hash (in case of errors) */
         }
 
         /* allocate new array */
-        newarray = resizearray(L, t, oldasize, newasize);
-        if (newarray == null && newasize > 0)
+        newarray = resizearray(L, t, oldasize, nasize);
+        if (newarray == null && nasize > 0)
         {
             /* allocation failed? */
             freehash(L, &newt); /* release new hash part */
             luaM_error(L); /* raise error (with array unchanged) */
         }
 
-        /* allocation ok; initialize new part of the array */
+        /* allocation ok; initialise new part of the array */
         exchangehashpart(t, &newt); /* 't' has the new hash ('newt' has the old) */
         t->array = newarray; /* set new array part */
-        t->asize = newasize;
+        t->asize = nasize;
         if (newarray != null)
         {
-            *lenhint(t) = newasize / 2u; /* set an initial hint */
+            *lenhint(t) = nasize / 2u; /* set an initial hint */
         }
 
-        clearNewSlice(t, oldasize, newasize);
+        clearNewSlice(t, oldasize, nasize);
         /* re-insert elements from old hash part into new parts */
         reinserthash(L, &newt, t); /* 'newt' now has the old hash */
         freehash(L, &newt); /* free old hash part */
@@ -867,10 +868,6 @@ public static unsafe partial class Lua
         /* resize the table to new computed sizes */
         luaH_resize(L, t, asize, nsize);
     }
-
-    /*
-     ** }=============================================================
-     */
 
     internal static partial Table* luaH_new(lua_State* L)
     {

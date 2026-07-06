@@ -10,7 +10,7 @@ public static unsafe partial class Lua
     ** See Copyright Notice in lua.h
     */
 
-    internal static partial CClosure* luaF_newCclosure(lua_State* L, int nupvals)
+    internal static CClosure* luaF_newCclosure(lua_State* L, int nupvals)
     {
         GCObject* o = luaC_newobj(L, LUA_VCCL, sizeCclosure(nupvals));
         CClosure* c = gco2ccl(o);
@@ -18,15 +18,15 @@ public static unsafe partial class Lua
         return c;
     }
 
-    internal static partial LClosure* luaF_newLclosure(lua_State* L, int nupvals)
+    internal static LClosure* luaF_newLclosure(lua_State* L, int nupvals)
     {
         GCObject* o = luaC_newobj(L, LUA_VLCL, sizeLclosure(nupvals));
         LClosure* c = gco2lcl(o);
         c->p = null;
         c->nupvalues = (byte)nupvals;
-        while (nupvals-- >= 0)
+        while (nupvals-- > 0)
         {
-            (&c->upvals)[nupvals] = null;
+            LClosure.GetUpValue(c, nupvals) = null;
         }
 
         return c;
@@ -35,7 +35,7 @@ public static unsafe partial class Lua
     /*
     ** fill a closure with new closed upvalues
     */
-    internal static partial void luaF_initupvals(lua_State* L, LClosure* cl)
+    internal static void luaF_initupvals(lua_State* L, LClosure* cl)
     {
         for (int i = 0; i < cl->nupvalues; i++)
         {
@@ -43,7 +43,7 @@ public static unsafe partial class Lua
             UpVal* uv = gco2upv(o);
             uv->v.p = &uv->u.value; /* make it closed */
             setnilvalue(uv->v.p);
-            (&cl->upvals)[i] = uv;
+            LClosure.GetUpValue(cl, i) = uv;
             luaC_objbarrier(L, (GCObject*)cl, (GCObject*)uv);
         }
     }
@@ -80,7 +80,7 @@ public static unsafe partial class Lua
      ** Find and reuse, or create if it does not exist, an upvalue
      ** at the given level.
      */
-    internal static partial UpVal* luaF_findupval(lua_State* L, StkId level)
+    internal static UpVal* luaF_findupval(lua_State* L, StkId level)
     {
         UpVal** pp = &L->openupval;
         Debug.Assert(isintwups(L) || L->openupval == null);
@@ -186,7 +186,7 @@ public static unsafe partial class Lua
     /*
     ** Insert a variable in the list of to-be-closed variables.
     */
-    internal static partial void luaF_newtbcupval(lua_State* L, StkId level)
+    internal static void luaF_newtbcupval(lua_State* L, StkId level)
     {
         Debug.Assert(level > L->tbclist.p);
         if (l_isfalse(s2v(level)))
@@ -205,7 +205,7 @@ public static unsafe partial class Lua
         L->tbclist.p = level;
     }
 
-    internal static partial void luaF_unlinkupval(UpVal* uv)
+    internal static void luaF_unlinkupval(UpVal* uv)
     {
         Debug.Assert(upisopen(uv));
         *uv->u.open.previous = uv->u.open.next;
@@ -218,7 +218,7 @@ public static unsafe partial class Lua
     /*
     ** Close all upvalues up to the given stack level.
     */
-    internal static partial void luaF_closeupval(lua_State* L, StkId level)
+    internal static void luaF_closeupval(lua_State* L, StkId level)
     {
         UpVal* uv;
         while ((uv = L->openupval) != null && uplevel(uv) >= level)
@@ -257,7 +257,7 @@ public static unsafe partial class Lua
      ** Close all upvalues and to-be-closed variables up to the given stack
      ** level. Return restored 'level'.
      */
-    internal static partial StkId luaF_close(lua_State* L, StkId level, byte status, bool yy)
+    internal static StkId luaF_close(lua_State* L, StkId level, byte status, bool yy)
     {
         nint levelrel = savestack(L, level);
         luaF_closeupval(L, level); /* first, close the upvalues */
@@ -273,7 +273,7 @@ public static unsafe partial class Lua
         return level;
     }
 
-    internal static partial Proto* luaF_newproto(lua_State* L)
+    internal static Proto* luaF_newproto(lua_State* L)
     {
         GCObject* o = luaC_newobj(L, LUA_VPROTO, sizeof(Proto));
         Proto* f = gco2p(o);
@@ -300,7 +300,7 @@ public static unsafe partial class Lua
         return f;
     }
 
-    internal static partial long luaF_protosize(Proto* p)
+    internal static long luaF_protosize(Proto* p)
     {
         long sz = sizeof(Proto) +
                   (uint)p->sizep * sizeof(Proto*) +
@@ -317,7 +317,7 @@ public static unsafe partial class Lua
         return sz;
     }
 
-    private static partial void luaF_freeproto(lua_State* L, Proto* f)
+    private static void luaF_freeproto(lua_State* L, Proto* f)
     {
         if ((f->flag & PF_FIXED) == 0)
         {
@@ -337,7 +337,7 @@ public static unsafe partial class Lua
      ** Look for n-th local variable at line 'line' in function 'func'.
      ** Returns null if not found.
      */
-    internal static partial string? luaF_getlocalname(Proto* func, int localNumber, int pc)
+    internal static string? luaF_getlocalname(Proto* func, int localNumber, int pc)
     {
         for (int i = 0; i < func->sizelocvars && func->locvars[i].startpc <= pc; i++)
         {

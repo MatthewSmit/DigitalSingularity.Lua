@@ -14,7 +14,7 @@ public static unsafe partial class Lua
         for (int i = 1; i <= n; i++)
         {
             /* for each argument */
-            string s = luaL_tonetstring(L, i); /* convert it to string */
+            string? s = luaL_tonetstring(L, i); /* convert it to string */
             if (i > 1) /* not the first element? */
             {
                 Console.Write("\t"); /* add a tab before it */
@@ -82,7 +82,7 @@ public static unsafe partial class Lua
                 return 1;
             }
 
-            string? s = luaL_tonetstring(L, 1);
+            string? s = lua_tonetstring(L, 1);
             if (s != null && lua_stringtonumber(L, s) == s.Length + 1)
             {
                 return 1; /* successful conversion to number */
@@ -196,13 +196,20 @@ public static unsafe partial class Lua
 
     private static int pushmode(lua_State* L, int oldmode)
     {
-//   if (oldmode == -1)
-//     luaL_pushfail(L);  /* invalid call to 'lua_gc' */
-//   else
-//     lua_pushstring(L, (oldmode == LUA_GCINC) ? "incremental"
-//                                              : "generational");
-//   return 1;
-        throw new NotImplementedException();
+        if (oldmode == -1)
+        {
+            luaL_pushfail(L); /* invalid call to 'lua_gc' */
+        }
+        else
+        {
+            lua_pushstring(
+                L,
+                oldmode == LUA_GCINC
+                    ? "incremental"
+                    : "generational");
+        }
+
+        return 1;
     }
 
     private static string[] opts =
@@ -321,31 +328,34 @@ public static unsafe partial class Lua
         return 1;
     }
 
-// static int pairscont (lua_State *L, int status, nint k) {
-//   (void)L; (void)status; (void)k;  /* unused */
-//   return 4;  /* __pairs did all the work, just return its results */
-// }
+    private static int pairscont(lua_State* L, int status, void* k)
+    {
+        return 4; /* __pairs did all the work, just return its results */
+    }
 
     private static int luaB_pairs(lua_State* L)
     {
-//   luaL_checkany(L, 1);
-//   if (luaL_getmetafield(L, 1, "__pairs") == LUA_TNIL) {  /* no metamethod? */
-//     lua_pushcfunction(L, luaB_next);  /* will return generator and */
-//     lua_pushvalue(L, 1);  /* state */
-//     lua_pushnil(L);  /* initial value */
-//     lua_pushnil(L);  /* to-be-closed object */
-//   }
-//   else {
-//     lua_pushvalue(L, 1);  /* argument 'self' to metamethod */
-//     lua_callk(L, 1, 4, 0, pairscont);  /* get 4 values from metamethod */
-//   }
-//   return 4;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        if (luaL_getmetafield(L, 1, "__pairs") == LUA_TNIL)
+        {
+            /* no metamethod? */
+            lua_pushcfunction(L, &luaB_next); /* will return generator and */
+            lua_pushvalue(L, 1); /* state */
+            lua_pushnil(L); /* initial value */
+            lua_pushnil(L); /* to-be-closed object */
+        }
+        else
+        {
+            lua_pushvalue(L, 1); /* argument 'self' to metamethod */
+            lua_callk(L, 1, 4, 0, &pairscont); /* get 4 values from metamethod */
+        }
+
+        return 4;
     }
 
     /*
-    ** Traversal function for 'ipairs'
-    */
+     ** Traversal function for 'ipairs'
+     */
     private static int ipairsaux(lua_State* L)
     {
         long i = luaL_checkinteger(L, 2);
@@ -354,10 +364,10 @@ public static unsafe partial class Lua
         return lua_geti(L, 1, i) == LUA_TNIL ? 1 : 2;
     }
 
-/*
- ** 'ipairs' function. Returns 'ipairsaux', given "table", 0.
- ** (The given "table" may not be a table.)
- */
+    /*
+    ** 'ipairs' function. Returns 'ipairsaux', given "table", 0.
+    ** (The given "table" may not be a table.)
+    */
     private static int luaB_ipairs(lua_State* L)
     {
         luaL_checkany(L, 1);
@@ -493,28 +503,34 @@ public static unsafe partial class Lua
 
     private static int luaB_select(lua_State* L)
     {
-//   int n = lua_gettop(L);
-//   if (lua_type(L, 1) == LUA_TSTRING && *lua_tostring(L, 1) == '#') {
-//     lua_pushinteger(L, n-1);
-//     return 1;
-//   }
-//   else {
-//     long i = luaL_checkinteger(L, 1);
-//     if (i < 0) i = n + i;
-//     else if (i > n) i = n;
-//     luaL_argcheck(L, 1 <= i, 1, "index out of range");
-//     return n - (int)i;
-//   }
-        throw new NotImplementedException();
+        int n = lua_gettop(L);
+        if (lua_type(L, 1) == LUA_TSTRING && lua_tostring(L, 1).StartsWith('#'))
+        {
+            lua_pushinteger(L, n - 1);
+            return 1;
+        }
+
+        long i = luaL_checkinteger(L, 1);
+        if (i < 0)
+        {
+            i = n + i;
+        }
+        else if (i > n)
+        {
+            i = n;
+        }
+
+        luaL_argcheck(L, 1 <= i, 1, "index out of range");
+        return n - (int)i;
     }
 
     /*
-    ** Continuation function for 'pcall' and 'xpcall'. Both functions
-    ** already pushed a 'true' before doing the call, so in case of success
-    ** 'finishpcall' only has to return everything in the stack minus
-    ** 'extra' values (where 'extra' is exactly the number of items to be
-    ** ignored).
-    */
+     ** Continuation function for 'pcall' and 'xpcall'. Both functions
+     ** already pushed a 'true' before doing the call, so in case of success
+     ** 'finishpcall' only has to return everything in the stack minus
+     ** 'extra' values (where 'extra' is exactly the number of items to be
+     ** ignored).
+     */
     private static int finishpcall(lua_State* L, int status, void* extra)
     {
         if (status != LUA_OK && status != LUA_YIELD)

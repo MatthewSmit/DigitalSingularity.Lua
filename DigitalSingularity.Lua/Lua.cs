@@ -91,89 +91,6 @@ public static unsafe partial class Lua
 // */
 // typedef int (*lua_KFunction) (lua_State *L, int status, nint ctx);
 
-// /*
-// ** Type used by the debug API to collect debug information
-// */
-// typedef struct lua_Debug lua_Debug; TODO
-
-    /*
-    ** RCS ident string
-    */
-    public static readonly ImmutableArray<string> lua_ident =
-    [
-        $"$LuaVersion: {LUA_COPYRIGHT} $",
-        $"$LuaAuthors: {LUA_AUTHORS} $",
-    ];
-
-    // state manipulation
-    
-    public static partial lua_State* lua_newstate(delegate* managed<void*, void*, long, long, void*> f, void* ud, uint seed);
-
-    public static partial void lua_close(lua_State* L);
-
-    public static partial lua_State* lua_newthread(lua_State* L);
-
-    public static partial int lua_closethread(lua_State* L, lua_State* from);
-
-    public static partial lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf);
-
-    public static partial long lua_version(lua_State* L);
-
-    /*
-    ** basic stack manipulation
-    */
-    public static partial int lua_absindex(lua_State* L, int idx);
-
-    public static partial int lua_gettop(lua_State* L);
-
-    public static partial void lua_settop(lua_State* L, int idx);
-
-    public static partial void lua_pushvalue(lua_State* L, int idx);
-
-    public static partial void lua_rotate(lua_State* L, int idx, int n);
-
-    public static partial void lua_copy(lua_State* L, int fromidx, int toidx);
-
-    public static partial bool lua_checkstack(lua_State* L, int n);
-
-    public static partial void lua_xmove(lua_State* from, lua_State* to, int n);
-
-    /*
-    ** access functions (stack -> C)
-    */
-
-    public static partial bool lua_isnumber(lua_State* L, int idx);
-
-    public static partial bool lua_isstring(lua_State* L, int idx);
-
-    public static partial bool lua_iscfunction(lua_State* L, int idx);
-
-    public static partial bool lua_isinteger(lua_State* L, int idx);
-
-    public static partial bool lua_isuserdata(lua_State* L, int idx);
-
-    public static partial int lua_type(lua_State* L, int idx);
-
-    public static partial string lua_typename(lua_State* L, int tp);
-
-    public static partial double lua_tonumberx(lua_State* L, int idx, out bool isnum);
-
-    public static partial long lua_tointegerx(lua_State* L, int idx, out bool isnum);
-
-    public static partial bool lua_toboolean(lua_State* L, int idx);
-
-    public static partial byte* lua_tolstring(lua_State* L, int idx, out long len);
-
-    public static partial ulong lua_rawlen(lua_State* L, int idx);
-
-    public static partial lua_CFunction lua_tocfunction(lua_State* L, int idx);
-
-    public static partial void* lua_touserdata(lua_State* L, int idx);
-
-    public static partial lua_State* lua_tothread(lua_State* L, int idx);
-
-    public static partial void* lua_topointer(lua_State* L, int idx);
-
     /*
     ** Comparison and arithmetic functions
     */
@@ -216,8 +133,6 @@ public static unsafe partial class Lua
     public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<char> s);
 
     public static partial void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
-
-    public static partial void lua_pushstring(lua_State* L, string? s);
     
     public static partial string lua_pushfstring(lua_State* L, string fmt, params object[] args);
 
@@ -362,31 +277,7 @@ public static unsafe partial class Lua
 
     public static partial int lua_gc(lua_State* L, int what, params object[] args);
 
-    /*
-    ** miscellaneous functions
-    */
-
-    public static partial int lua_error(lua_State* L);
-
-    public static partial bool lua_next(lua_State* L, int idx);
-
-    public static partial void lua_concat(lua_State* L, int n);
-
-    public static partial void lua_len(lua_State* L, int idx);
-
     public const int LUA_N2SBUFFSZ = 64;
-
-    public static partial uint lua_numbertocstring(lua_State* L, int idx, byte* buff);
-
-    public static partial long lua_stringtonumber(lua_State* L, string s);
-
-    public static partial lua_Alloc lua_getallocf(lua_State* L, out void* ud);
-    
-    public static partial void lua_setallocf(lua_State* L, lua_Alloc f, void* ud);
-
-    public static partial void lua_toclose(lua_State* L, int idx);
-
-    public static partial void lua_closeslot(lua_State* L, int idx);
 
     /*
     ** {==============================================================
@@ -485,9 +376,14 @@ public static unsafe partial class Lua
         return lua_tolstring(L, i, out _);
     }
 
-    public static string lua_tostring(lua_State* L, int i)
+    public static string? lua_tostring(lua_State* L, int i)
     {
         byte* tmp = lua_tolstring(L, i, out long size);
+        if (tmp == null)
+        {
+            return null;
+        }
+        
         ReadOnlySpan<byte> span = new(tmp, checked((int)size));
         return Encoding.UTF8.GetString(span);
     }
@@ -508,8 +404,6 @@ public static unsafe partial class Lua
         lua_copy(L, -1, idx);
         lua_pop(L, 1);
     }
-
-    /* }============================================================== */
     
     /*
     ** {==============================================================
@@ -611,8 +505,6 @@ public static unsafe partial class Lua
         internal CallInfo* i_ci; /* active function */
     }
 
-    /* }====================================================================== */
-
     public static readonly string LUA_VERSION_MAJOR = LUA_VERSION_MAJOR_N.ToString(CultureInfo.InvariantCulture);
     public static readonly string LUA_VERSION_MINOR = LUA_VERSION_MINOR_N.ToString(CultureInfo.InvariantCulture);
     public static readonly string LUA_VERSION_RELEASE = LUA_VERSION_RELEASE_N.ToString(CultureInfo.InvariantCulture);
@@ -622,6 +514,15 @@ public static unsafe partial class Lua
 
     public static readonly string LUA_COPYRIGHT = LUA_RELEASE + "  Copyright (C) 1994-2025 Lua.org, PUC-Rio";
     public const string LUA_AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo, W. Celes";
+    
+    /*
+     ** RCS ident string
+     */
+    public static readonly ImmutableArray<string> lua_ident =
+    [
+        $"$LuaVersion: {LUA_COPYRIGHT} $",
+        $"$LuaAuthors: {LUA_AUTHORS} $",
+    ];
 
 
     /******************************************************************************

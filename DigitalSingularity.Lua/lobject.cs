@@ -617,9 +617,11 @@ public static unsafe partial class Lua
     {
         return strisshr(ts) ? ts->shrlen : ts->u.lnglen;
     }
-
-    /*
-     ** Get string and length */
+    
+    /// <summary>
+    /// Get string and length.
+    /// </summary>
+    [Obsolete]
     private static byte* getlstr(TString* ts, out long len)
     {
         if (strisshr(ts))
@@ -631,8 +633,25 @@ public static unsafe partial class Lua
         len = ts->u.lnglen;
         return ts->contents;
     }
-
-    /* }================================================================== */
+    
+    /// <summary>
+    /// Get string.
+    /// </summary>
+    private static ReadOnlySpan<byte> getlstr(TString* ts)
+    {
+        if (strisshr(ts))
+        {
+            sbyte len = ts->shrlen;
+            byte* ptr = rawgetshrstr(ts);
+            return new ReadOnlySpan<byte>(ptr, len);
+        }
+        else
+        {
+            long len = ts->u.lnglen;
+            byte* ptr = ts->contents;
+            return new ReadOnlySpan<byte>(ptr, checked((int)len));
+        }
+    }
 
     /*
      ** {==================================================================
@@ -681,7 +700,7 @@ public static unsafe partial class Lua
         settt_(obj, LUA_VLIGHTUSERDATA);
     }
 
-    private static void setuvalue(lua_State* L, TValue* obj, Udata* x)
+    internal static void setuvalue(lua_State* L, TValue* obj, Udata* x)
     {
         val_(obj).gc = obj2gco(x);
         settt_(obj, ctb(LUA_VUSERDATA));
@@ -978,12 +997,6 @@ public static unsafe partial class Lua
         public U u;
     }
 
-    [InlineArray(1)]
-    internal struct TValueArray
-    {
-        private TValue element0;
-    }
-
     internal struct CClosure
     {
         public GCObject* next;
@@ -992,7 +1005,20 @@ public static unsafe partial class Lua
         public byte nupvalues;
         public GCObject* gclist;
         public lua_CFunction f;
-        public TValueArray upvalue; /* list of upvalues */
+
+        public static ref TValue GetUpValue(CClosure* closure, int index)
+        {
+            Debug.Assert(index >= 0 && index < closure->nupvalues);
+            TValue* upvals = (TValue*)(closure + 1);
+            return ref upvals[index];
+        }
+
+        public static TValue* GetUpValuePtr(CClosure* closure, int index)
+        {
+            Debug.Assert(index >= 0 && index < closure->nupvalues);
+            TValue* upvals = (TValue*)(closure + 1);
+            return &upvals[index];
+        }
     }
 
     internal struct LClosure
@@ -1003,7 +1029,20 @@ public static unsafe partial class Lua
         public byte nupvalues;
         public GCObject* gclist;
         public Proto* p;
-        public UpVal* upvals; /* list of upvalues */
+        
+        public static ref UpVal* GetUpValue(LClosure* closure, int index)
+        {
+            Debug.Assert(index >= 0 && index < closure->nupvalues);
+            UpVal** upvals = (UpVal**)(closure + 1);
+            return ref upvals[index];
+        }
+        
+        public static UpVal** GetUpValuePtr(LClosure* closure, int index)
+        {
+            Debug.Assert(index >= 0 && index < closure->nupvalues);
+            UpVal** upvals = (UpVal**)(closure + 1);
+            return &upvals[index];
+        }
     }
 
     [StructLayout(LayoutKind.Explicit)]
@@ -1046,7 +1085,7 @@ public static unsafe partial class Lua
         checkliveness(L, obj);
     }
 
-    private static void sethvalue2s(lua_State* L, StkId o, Table* h)
+    internal static void sethvalue2s(lua_State* L, StkId o, Table* h)
     {
         sethvalue(L, s2v(o), h);
     }
@@ -1216,26 +1255,4 @@ public static unsafe partial class Lua
             luaD_throw(L, LUA_ERRMEM); /* only after 'va_end' */
         }
     }
-
-    internal static partial byte luaO_ceillog2(uint x);
-
-    internal static partial byte luaO_codeparam(uint p);
-
-    internal static partial long luaO_applyparam(byte p, long x);
-
-    internal static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res);
-
-    internal static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res);
-
-    internal static partial long luaO_str2num(byte* s, TValue* o);
-
-    internal static partial uint luaO_tostringbuff(TValue* obj, byte* buff);
-
-    internal static partial byte luaO_hexavalue(int c);
-
-    internal static partial void luaO_tostring(lua_State* L, TValue* obj);
-
-    internal static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args);
-
-    internal static partial string luaO_chunkid(string source);
 }

@@ -1,6 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -64,8 +65,8 @@ public static unsafe partial class Lua
         {
             /* C closure? */
             CClosure* func = clCvalue(s2v(ci->func.p));
-            return (idx <= func->nupvalues)
-                ? &func->upvalue[idx - 1]
+            return idx <= func->nupvalues
+                ? CClosure.GetUpValuePtr(func, idx - 1)
                 : &G(L)->nilvalue;
         }
 
@@ -93,7 +94,7 @@ public static unsafe partial class Lua
         return L->top.p + idx;
     }
 
-    public static partial bool lua_checkstack(lua_State* L, int n)
+    public static bool lua_checkstack(lua_State* L, int n)
     {
         lua_lock(L);
         CallInfo* ci = L->ci;
@@ -118,7 +119,7 @@ public static unsafe partial class Lua
         return res;
     }
 
-    public static partial void lua_xmove(lua_State* from, lua_State* to, int n)
+    public static void lua_xmove(lua_State* from, lua_State* to, int n)
     {
         if (from == to)
         {
@@ -139,7 +140,7 @@ public static unsafe partial class Lua
         lua_unlock(to);
     }
 
-    public static partial lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf)
+    public static lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf)
     {
         lua_lock(L);
         lua_CFunction old = G(L)->panic;
@@ -148,7 +149,7 @@ public static unsafe partial class Lua
         return old;
     }
 
-    public static partial long lua_version(lua_State* L)
+    public static long lua_version(lua_State* L)
     {
         return LUA_VERSION_NUM;
     }
@@ -160,19 +161,19 @@ public static unsafe partial class Lua
     /*
      ** convert an acceptable stack index into an absolute index
      */
-    public static partial int lua_absindex(lua_State* L, int idx)
+    public static int lua_absindex(lua_State* L, int idx)
     {
         return (idx > 0 || ispseudo(idx))
             ? idx
             : (int)(L->top.p - L->ci->func.p) + idx;
     }
 
-    public static partial int lua_gettop(lua_State* L)
+    public static int lua_gettop(lua_State* L)
     {
         return (int)(L->top.p - (L->ci->func.p + 1));
     }
 
-    public static partial void lua_settop(lua_State* L, int idx)
+    public static void lua_settop(lua_State* L, int idx)
     {
         lua_lock(L);
         CallInfo* ci = L->ci;
@@ -206,7 +207,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_closeslot(lua_State* L, int idx)
+    public static void lua_closeslot(lua_State* L, int idx)
     {
         lua_lock(L);
         StkId level = index2stack(L, idx);
@@ -239,7 +240,7 @@ public static unsafe partial class Lua
      ** Let x = AB, where A is a prefix of length 'n'. Then,
      ** rotate x n == BA. But BA == (A^r . B^r)^r.
      */
-    public static partial void lua_rotate(lua_State* L, int idx, int n)
+    public static void lua_rotate(lua_State* L, int idx, int n)
     {
         lua_lock(L);
         StkId t = L->top.p - 1; /* end of stack segment being rotated */
@@ -253,7 +254,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_copy(lua_State* L, int fromidx, int toidx)
+    public static void lua_copy(lua_State* L, int fromidx, int toidx)
     {
         lua_lock(L);
         TValue* fr = index2value(L, fromidx);
@@ -270,7 +271,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_pushvalue(lua_State* L, int idx)
+    public static void lua_pushvalue(lua_State* L, int idx)
     {
         lua_lock(L);
         setobj2s(L, L->top.p, index2value(L, idx));
@@ -282,44 +283,44 @@ public static unsafe partial class Lua
      ** access functions (stack -> C)
      */
 
-    public static partial int lua_type(lua_State* L, int idx)
+    public static int lua_type(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return isvalid(L, o) ? ttype(o) : LUA_TNONE;
     }
 
-    public static partial string lua_typename(lua_State* L, int t)
+    public static string lua_typename(lua_State* L, int t)
     {
         Debug.Assert(t is >= LUA_TNONE and < LUA_NUMTYPES, "invalid type");
         return ttypename(t);
     }
 
-    public static partial bool lua_iscfunction(lua_State* L, int idx)
+    public static bool lua_iscfunction(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttislcf(o) || ttisCclosure(o);
     }
 
-    public static partial bool lua_isinteger(lua_State* L, int idx)
+    public static bool lua_isinteger(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttisinteger(o);
     }
 
-    public static partial bool lua_isnumber(lua_State* L, int idx)
+    public static bool lua_isnumber(lua_State* L, int idx)
     {
         double n;
         TValue* o = index2value(L, idx);
         return tonumber(o, &n);
     }
 
-    public static partial bool lua_isstring(lua_State* L, int idx)
+    public static bool lua_isstring(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttisstring(o) || cvt2str(o);
     }
 
-    public static partial bool lua_isuserdata(lua_State* L, int idx)
+    public static bool lua_isuserdata(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttisfulluserdata(o) || ttislightuserdata(o);
@@ -376,12 +377,12 @@ public static unsafe partial class Lua
         return i;
     }
 
-    public static partial uint lua_numbertocstring(lua_State* L, int idx, byte* buff)
+    public static int lua_numbertocstring(lua_State* L, int idx, Span<byte> buff)
     {
         TValue* o = index2value(L, idx);
         if (ttisnumber(o))
         {
-            uint len = luaO_tostringbuff(o, buff);
+            int len = luaO_tostringbuff(o, buff);
             buff[len++] = 0;  /* add final zero */
             return len;
         }
@@ -389,7 +390,7 @@ public static unsafe partial class Lua
         return 0;
     }
 
-    public static partial long lua_stringtonumber(lua_State* L, string s)
+    public static long lua_stringtonumber(lua_State* L, string s)
     {
         fixed (byte* ptr = Encoding.UTF8.GetBytes(s))
         {
@@ -403,7 +404,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial double lua_tonumberx(lua_State* L, int idx, out bool isnum)
+    public static double lua_tonumberx(lua_State* L, int idx, out bool isnum)
     {
         double n = 0;
         TValue* o = index2value(L, idx);
@@ -411,20 +412,42 @@ public static unsafe partial class Lua
         return n;
     }
 
-    public static partial long lua_tointegerx(lua_State* L, int idx, out bool isnum)
+    public static long lua_tointegerx(lua_State* L, int idx, out bool isnum)
     {
         TValue* o = index2value(L, idx);
         isnum = tointeger(o, out long res);
         return res;
     }
 
-    public static partial bool lua_toboolean(lua_State* L, int idx)
+    public static bool lua_toboolean(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return !l_isfalse(o);
     }
 
-    public static partial byte* lua_tolstring(lua_State* L, int idx, out long len)
+    public static string? lua_tonetstring(lua_State* L, int idx)
+    {
+        lua_lock(L);
+        TValue* o = index2value(L, idx);
+        if (!ttisstring(o))
+        {
+            if (!cvt2str(o))
+            {
+                // not convertible?
+                lua_unlock(L);
+                return null;
+            }
+
+            luaO_tostring(L, o);
+            luaC_checkGC(L);
+            o = index2value(L, idx); /* previous call may reallocate the stack */
+        }
+
+        lua_unlock(L);
+        return getnetstr(tsvalue(o));
+    }
+
+    public static byte* lua_tolstring(lua_State* L, int idx, out long len)
     {
         lua_lock(L);
         TValue* o = index2value(L, idx);
@@ -447,7 +470,7 @@ public static unsafe partial class Lua
         return getlstr(tsvalue(o), out len);
     }
 
-    public static partial ulong lua_rawlen(lua_State* L, int idx)
+    public static ulong lua_rawlen(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttypetag(o) switch
@@ -468,7 +491,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial lua_CFunction lua_tocfunction(lua_State* L, int idx)
+    public static lua_CFunction lua_tocfunction(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         if (ttislcf(o))
@@ -494,13 +517,13 @@ public static unsafe partial class Lua
         };
     }
 
-    public static partial void* lua_touserdata(lua_State* L, int idx)
+    public static void* lua_touserdata(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return touserdata(o);
     }
 
-    public static partial lua_State* lua_tothread(lua_State* L, int idx)
+    public static lua_State* lua_tothread(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return !ttisthread(o) ? null : thvalue(o);
@@ -513,7 +536,7 @@ public static unsafe partial class Lua
      ** a 'size_t'. (As the returned pointer is only informative, this
      ** conversion should not be a problem.)
      */
-    public static partial void* lua_topointer(lua_State* L, int idx)
+    public static void* lua_topointer(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         return ttypetag(o) switch
@@ -618,7 +641,34 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_pushstring(lua_State* L, string? s)
+    [Obsolete]
+    public static void lua_pushstring(lua_State* L, byte* s)
+    {
+        lua_lock(L);
+        if (s == null)
+        {
+            setnilvalue(s2v(L->top.p));
+        }
+        else
+        {
+            TString* ts = luaS_new(L, s);
+            setsvalue2s(L, L->top.p, ts);
+        }
+
+        api_incr_top(L);
+        luaC_checkGC(L);
+        lua_unlock(L);
+    }
+
+    public static void lua_pushstring(lua_State* L, ReadOnlySpan<byte> s)
+    {
+        fixed (byte* ptr = s)
+        {
+            lua_pushstring(L, ptr);
+        }
+    }
+
+    public static void lua_pushstring(lua_State* L, string? s)
     {
         lua_lock(L);
         if (s == null)
@@ -661,7 +711,7 @@ public static unsafe partial class Lua
             cl->f = fn;
             for (int i = 0; i < n; i++)
             {
-                setobj2n(L, &cl->upvalue[i], s2v(L->top.p - n + i));
+                setobj2n(L, CClosure.GetUpValuePtr(cl, i), s2v(L->top.p - n + i));
                 /* does not need barrier because closure is white */
                 Debug.Assert(iswhite((GCObject*)cl));
             }
@@ -1227,8 +1277,8 @@ public static unsafe partial class Lua
                 TValue gt;
                 getGlobalTable(L, &gt);
                 /* set global table as 1st upvalue of 'f' (may be LUA_ENV) */
-                setobj(L, (&f->upvals)[0]->v.p, &gt);
-                luaC_barrier(L, (GCObject*)(&f->upvals)[0], &gt);
+                setobj(L, LClosure.GetUpValue(f, 0)->v.p, &gt);
+                luaC_barrier(L, (GCObject*)LClosure.GetUpValue(f, 0), &gt);
             }
         }
 
@@ -1339,12 +1389,9 @@ public static unsafe partial class Lua
                 break;
 
             case LUA_GCINC:
-                {
-//       res = (g->gckind == KGC_INC) ? LUA_GCINC : LUA_GCGEN;
-//       luaC_changemode(L, KGC_INC);
-//       break;
-                    throw new NotImplementedException();
-                }
+                res = g->gckind == KGC_INC ? LUA_GCINC : LUA_GCGEN;
+                luaC_changemode(L, KGC_INC);
+                break;
 
             case LUA_GCPARAM:
                 {
@@ -1370,7 +1417,8 @@ public static unsafe partial class Lua
     /*
      ** miscellaneous functions
      */
-    public static partial int lua_error(lua_State* L)
+    [DoesNotReturn]
+    public static int lua_error(lua_State* L)
     {
         lua_lock(L);
         TValue* errobj = s2v(L->top.p - 1);
@@ -1389,7 +1437,7 @@ public static unsafe partial class Lua
         return 0; /* to avoid warnings */
     }
 
-    public static partial bool lua_next(lua_State* L, int idx)
+    public static bool lua_next(lua_State* L, int idx)
     {
         lua_lock(L);
         api_checkpop(L, 1);
@@ -1408,7 +1456,7 @@ public static unsafe partial class Lua
         return more;
     }
 
-    public static partial void lua_toclose(lua_State* L, int idx)
+    public static void lua_toclose(lua_State* L, int idx)
     {
         lua_lock(L);
         StkId o = index2stack(L, idx);
@@ -1418,7 +1466,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_concat(lua_State* L, int n)
+    public static void lua_concat(lua_State* L, int n)
     {
         lua_lock(L);
         api_checknelems(L, n);
@@ -1437,7 +1485,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial void lua_len(lua_State* L, int idx)
+    public static void lua_len(lua_State* L, int idx)
     {
         lua_lock(L);
         TValue* t = index2value(L, idx);
@@ -1446,7 +1494,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial lua_Alloc lua_getallocf(lua_State* L, out void* ud)
+    public static lua_Alloc lua_getallocf(lua_State* L, out void* ud)
     {
         lua_Alloc f;
         lua_lock(L);
@@ -1456,7 +1504,7 @@ public static unsafe partial class Lua
         return f;
     }
 
-    public static partial void lua_setallocf(lua_State* L, lua_Alloc f, void* ud)
+    public static void lua_setallocf(lua_State* L, lua_Alloc f, void* ud)
     {
         lua_lock(L);
         G(L)->ud = ud;
@@ -1508,7 +1556,7 @@ public static unsafe partial class Lua
                         return null; /* 'n' not in [1, f->nupvalues] */
                     }
 
-                    *val = &f->upvalue[n - 1];
+                    *val = CClosure.GetUpValuePtr(f, n - 1);
                     if (owner != null)
                     {
                         *owner = obj2gco(f);
@@ -1527,10 +1575,10 @@ public static unsafe partial class Lua
                         return null; /* 'n' not in [1, p->sizeupvalues] */
                     }
 
-                    *val = (&f->upvals)[n - 1]->v.p;
+                    *val = LClosure.GetUpValue(f, n - 1)->v.p;
                     if (owner != null)
                     {
-                        *owner = obj2gco((&f->upvals)[n - 1]);
+                        *owner = obj2gco(LClosure.GetUpValue(f, n - 1));
                     }
 
                     TString* name = p->upvalues[n - 1].name;
@@ -1590,7 +1638,7 @@ public static unsafe partial class Lua
         
         if (1 <= n && n <= f->p->sizeupvalues)
         {
-            return &(&f->upvals)[n - 1];  /* get its upvalue pointer */
+            return LClosure.GetUpValuePtr(f, n - 1);  /* get its upvalue pointer */
         }
 
         return nullup;
@@ -1611,7 +1659,7 @@ public static unsafe partial class Lua
                     CClosure* f = clCvalue(fi);
                     if (1 <= n && n <= f->nupvalues)
                     {
-                        return &f->upvalue[n - 1];
+                        return CClosure.GetUpValuePtr(f, n - 1);
                     }
 
                     return null;
@@ -1628,12 +1676,11 @@ public static unsafe partial class Lua
 
     public static partial void lua_upvaluejoin(lua_State* L, int fidx1, int n1, int fidx2, int n2)
     {
-//   LClosure *f1;
-//   UpVal **up1 = getupvalref(L, fidx1, n1, &f1);
-//   UpVal **up2 = getupvalref(L, fidx2, n2, null);
-//   api_check(L, *up1 != null && *up2 != null, "invalid upvalue index");
-//   *up1 = *up2;
-//   luaC_objbarrier(L, f1, *up1);
-        throw new NotImplementedException();
+        LClosure* f1;
+        UpVal** up1 = getupvalref(L, fidx1, n1, &f1);
+        UpVal** up2 = getupvalref(L, fidx2, n2, null);
+        Debug.Assert(*up1 != null && *up2 != null, "invalid upvalue index");
+        *up1 = *up2;
+        luaC_objbarrier(L, (GCObject*)f1, (GCObject*)*up1);
     }
 }

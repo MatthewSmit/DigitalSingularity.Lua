@@ -24,7 +24,7 @@ public static unsafe partial class Lua
      ** Computes ceil(log2(x)), which is the smallest integer n such that
      ** x <= (1 << n).
      */
-    internal static partial byte luaO_ceillog2(uint x)
+    internal static byte luaO_ceillog2(uint x)
     {
         int l = 0;
         x--;
@@ -40,12 +40,12 @@ public static unsafe partial class Lua
     /*
      ** Encodes 'p'% as a floating-point byte, represented as (eeeexxxx).
      ** The exponent is represented using excess-7. Mimicking IEEE 754, the
-     ** representation normalizes the number when possible, assuming an extra
+     ** representation normalises the number when possible, assuming an extra
      ** 1 before the mantissa (xxxx) and adding one to the exponent (eeee)
      ** to signal that. So, the real value is (1xxxx) * 2^(eeee - 7 - 1) if
      ** eeee != 0, and (xxxx) * 2^-7 otherwise (subnormal numbers).
      */
-    internal static partial byte luaO_codeparam(uint p)
+    internal static byte luaO_codeparam(uint p)
     {
         if (p >= ((long)0x1F << 0xF - 7 - 1) * 100u) /* overflow? */
         {
@@ -75,7 +75,7 @@ public static unsafe partial class Lua
      ** more significant bits, as long as the multiplication does not
      ** overflow, so we check which order is best.
      */
-    internal static partial long luaO_applyparam(byte p, long x)
+    internal static long luaO_applyparam(byte p, long x)
     {
         const long MAX_LMEM = 0x7FFFFFFFFFFFFFFFL;
 
@@ -152,7 +152,7 @@ public static unsafe partial class Lua
         };
     }
 
-    internal static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res)
+    internal static bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res)
     {
         switch (op)
         {
@@ -206,7 +206,7 @@ public static unsafe partial class Lua
         }
     }
 
-    internal static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res)
+    internal static void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res)
     {
         if (!luaO_rawarith(L, op, p1, p2, s2v(res)))
         {
@@ -215,7 +215,7 @@ public static unsafe partial class Lua
         }
     }
 
-    internal static partial byte luaO_hexavalue(int c)
+    internal static byte luaO_hexavalue(int c)
     {
         Debug.Assert(lisxdigit(c));
         if (lisdigit(c))
@@ -430,7 +430,7 @@ public static unsafe partial class Lua
         return s;
     }
 
-    internal static partial long luaO_str2num(byte* s, TValue* o)
+    internal static long luaO_str2num(byte* s, TValue* o)
     {
         long i;
         double n;
@@ -502,10 +502,11 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    /*
-     ** Convert a number object to a string, adding it to a buffer.
-     */
-    internal static partial uint luaO_tostringbuff(TValue* obj, byte* buff)
+    /// <summary>
+    /// Convert a number object to a string, adding it to a buffer.
+    /// </summary>
+    [Obsolete]
+    internal static uint luaO_tostringbuff(TValue* obj, byte* buff)
     {
         int len;
         Debug.Assert(ttisnumber(obj));
@@ -527,10 +528,21 @@ public static unsafe partial class Lua
         return (uint)len;
     }
 
+    /// <summary>
+    /// Convert a number object to a string, adding it to a buffer.
+    /// </summary>
+    internal static int luaO_tostringbuff(TValue* obj, Span<byte> buff)
+    {
+        fixed (byte* ptr = buff)
+        {
+            return (int)luaO_tostringbuff(obj, ptr);
+        }
+    }
+
     /*
      ** Convert a number object to a Lua string, replacing the value at 'obj'
      */
-    internal static partial void luaO_tostring(lua_State* L, TValue* obj)
+    internal static void luaO_tostring(lua_State* L, TValue* obj)
     {
         byte* buff = stackalloc byte[LUA_N2SBUFFSZ];
         uint len = luaO_tostringbuff(obj, buff);
@@ -688,7 +700,7 @@ public static unsafe partial class Lua
     ** this function handles only '%d', '%c', '%f', '%p', '%s', and '%%'
        conventional formats, plus Lua-specific '%I' and '%U'
     */
-    internal static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
+    internal static string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
     {
         byte[] fmtBytes = Encoding.UTF8.GetBytes(fmt);
         ReadOnlySpan<byte> fmtSpan = fmtBytes;
@@ -792,9 +804,7 @@ public static unsafe partial class Lua
     private const string PRE = "[string \"";
     private const string POS = "\"]";
 
-// #define addstr(a,b,l)	( memcpy(a,b,(l) * sizeof(char)), a += (l) )
-
-    internal static partial string luaO_chunkid(string source)
+    internal static string luaO_chunkid(string source)
     {
         const int bufflen = LUA_IDSIZE; /* free space in buffer */
         if (source[0] == '=')

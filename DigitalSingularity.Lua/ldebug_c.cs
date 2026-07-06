@@ -59,7 +59,7 @@ public static unsafe partial class Lua
      ** first gets a base line and from there does the increments until
      ** the desired instruction.
      */
-    internal static partial int luaG_getfuncline(Proto* f, int pc)
+    internal static int luaG_getfuncline(Proto* f, int pc)
     {
         if (f->lineinfo == null) /* no debug information? */
         {
@@ -204,7 +204,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    internal static partial string? luaG_findlocal(lua_State* L, CallInfo* ci, int n, StkId* pos)
+    internal static string? luaG_findlocal(lua_State* L, CallInfo* ci, int n, StkId* pos)
     {
         StkId @base = ci->func.p + 1;
         string? name = null;
@@ -891,7 +891,7 @@ public static unsafe partial class Lua
         LClosure* c = ci_func(ci);
         for (int i = 0; i < c->nupvalues; i++)
         {
-            if ((&c->upvals)[i]->v.p == o)
+            if (LClosure.GetUpValue(c, i)->v.p == o)
             {
                 name = upvalname(c->p, i);
                 return strupval;
@@ -959,7 +959,8 @@ public static unsafe partial class Lua
      ** Raise a type error with "standard" information about the faulty
      ** object 'o' (using 'varinfo').
      */
-    internal static partial void luaG_typeerror(lua_State* L, TValue* o, string op)
+    [DoesNotReturn]
+    internal static void luaG_typeerror(lua_State* L, TValue* o, string op)
     {
         typeerror(L, o, op, varinfo(L, o));
     }
@@ -969,7 +970,8 @@ public static unsafe partial class Lua
      ** for the object based on how it was called ('funcnamefromcall'); if it
      ** cannot get a name there, try 'varinfo'.
      */
-    internal static partial void luaG_callerror(lua_State* L, TValue* o)
+    [DoesNotReturn]
+    internal static void luaG_callerror(lua_State* L, TValue* o)
     {
         CallInfo* ci = L->ci;
         string? kind = funcnamefromcall(L, ci, out string? name);
@@ -977,12 +979,14 @@ public static unsafe partial class Lua
         typeerror(L, o, "call", extra);
     }
 
-    internal static partial void luaG_forerror(lua_State* L, TValue* o, string what)
+    [DoesNotReturn]
+    internal static void luaG_forerror(lua_State* L, TValue* o, string what)
     {
         luaG_runerror(L, "bad 'for' %s (number expected, got %s)", what, luaT_objtypename(L, o));
     }
 
-    internal static partial void luaG_concaterror(lua_State* L, TValue* p1, TValue* p2)
+    [DoesNotReturn]
+    internal static void luaG_concaterror(lua_State* L, TValue* p1, TValue* p2)
     {
         if (ttisstring(p1) || cvt2str(p1))
         {
@@ -992,7 +996,8 @@ public static unsafe partial class Lua
         luaG_typeerror(L, p1, "concatenate");
     }
 
-    internal static partial void luaG_opinterror(lua_State* L, TValue* p1, TValue* p2, string msg)
+    [DoesNotReturn]
+    internal static void luaG_opinterror(lua_State* L, TValue* p1, TValue* p2, string msg)
     {
         if (!ttisnumber(p1)) /* first operand is wrong? */
         {
@@ -1005,7 +1010,8 @@ public static unsafe partial class Lua
     /*
      ** Error when both values are convertible to numbers, but not to integers
      */
-    internal static partial void luaG_tointerror(lua_State* L, TValue* p1, TValue* p2)
+    [DoesNotReturn]
+    internal static void luaG_tointerror(lua_State* L, TValue* p1, TValue* p2)
     {
         if (!luaV_tointegerns(p1, out long _, LUA_FLOORN2I))
         {
@@ -1015,7 +1021,8 @@ public static unsafe partial class Lua
         luaG_runerror(L, "number%s has no integer representation", varinfo(L, p2));
     }
 
-    internal static partial void luaG_ordererror(lua_State* L, TValue* p1, TValue* p2)
+    [DoesNotReturn]
+    internal static void luaG_ordererror(lua_State* L, TValue* p1, TValue* p2)
     {
         string t1 = luaT_objtypename(L, p1);
         string t2 = luaT_objtypename(L, p2);
@@ -1029,7 +1036,8 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaG_errnnil(lua_State* L, LClosure* cl, int k)
+    [DoesNotReturn]
+    private static void luaG_errnnil(lua_State* L, LClosure* cl, int k)
     {
         string globalname = "?"; /* default name if k == 0 */
         if (k > 0)
@@ -1041,7 +1049,7 @@ public static unsafe partial class Lua
     }
 
     /* add src:line information to 'msg' */
-    internal static partial string luaG_addinfo(lua_State* L, string msg, TString* src, int line)
+    internal static string luaG_addinfo(lua_State* L, string msg, TString* src, int line)
     {
         if (src == null) /* no debug information? */
         {
@@ -1053,7 +1061,8 @@ public static unsafe partial class Lua
         return luaO_pushfstring(L, "%s:%d: %s", buff, line, msg);
     }
 
-    internal static partial void luaG_errormsg(lua_State* L)
+    [DoesNotReturn]
+    internal static void luaG_errormsg(lua_State* L)
     {
         if (L->errfunc != 0)
         {
@@ -1076,7 +1085,8 @@ public static unsafe partial class Lua
         luaD_throw(L, LUA_ERRRUN);
     }
 
-    internal static partial void luaG_runerror(lua_State* L, string fmt, params object[] args)
+    [DoesNotReturn]
+    internal static void luaG_runerror(lua_State* L, string fmt, params object[] args)
     {
         CallInfo* ci = L->ci;
         luaC_checkGC(L); /* error message uses memory */
@@ -1142,7 +1152,7 @@ public static unsafe partial class Lua
      ** a line/count hook before the call hook. Functions coming from
      ** an yield already called 'luaD_hookcall' before yielding.)
      */
-    private static partial bool luaG_tracecall(lua_State* L)
+    private static bool luaG_tracecall(lua_State* L)
     {
         CallInfo* ci = L->ci;
         Proto* p = ci_func(ci)->p;
@@ -1176,7 +1186,7 @@ public static unsafe partial class Lua
      ** This function is not "Protected" when called, so it should correct
      ** 'L->top.p' before calling anything that can run the GC.
      */
-    private static partial bool luaG_traceexec(lua_State* L, uint* pc)
+    private static bool luaG_traceexec(lua_State* L, uint* pc)
     {
         CallInfo* ci = L->ci;
         byte mask = L->hookmask;

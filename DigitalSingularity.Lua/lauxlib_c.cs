@@ -150,7 +150,7 @@ public static unsafe partial class Lua
         return le - 1;
     }
 
-    public static partial void luaL_traceback(lua_State* L, lua_State* L1, string? msg, int level)
+    public static void luaL_traceback(lua_State* L, lua_State* L1, string? msg, int level)
     {
         int last = lastlevel(L1);
         int limit2show = (last - level > LEVELS1 + LEVELS2) ? LEVELS1 : -1;
@@ -201,15 +201,13 @@ public static unsafe partial class Lua
         luaL_pushresult(&b);
     }
 
-    /* }====================================================== */
-
     /*
     ** {======================================================
     ** Error-report functions
     ** =======================================================
     */
 
-    public static partial int luaL_argerror(lua_State* L, int arg, string extramsg)
+    public static int luaL_argerror(lua_State* L, int arg, string extramsg)
     {
         lua_Debug ar = new();
         if (!lua_getstack(L, 0, ref ar)) /* no stack frame? */
@@ -255,7 +253,7 @@ public static unsafe partial class Lua
             extramsg);
     }
 
-    public static partial int luaL_typeerror(lua_State* L, int arg, string tname)
+    public static int luaL_typeerror(lua_State* L, int arg, string tname)
     {
         string typearg; /* name for the type of the actual argument */
         if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
@@ -282,10 +280,10 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** The use of 'lua_pushfstring' ensures this function does not
-    ** need reserved stack space when called.
-    */
-    public static partial void luaL_where(lua_State* L, int level)
+     ** The use of 'lua_pushfstring' ensures this function does not
+     ** need reserved stack space when called.
+     */
+    public static void luaL_where(lua_State* L, int level)
     {
         lua_Debug ar = new();
         if (lua_getstack(L, level, ref ar))
@@ -308,7 +306,8 @@ public static unsafe partial class Lua
      ** not need reserved stack space when called. (At worst, it generates
      ** a memory error instead of the given message.)
      */
-    public static partial int luaL_error(lua_State* L, string fmt, params object[] args)
+    [DoesNotReturn]
+    public static int luaL_error(lua_State* L, string fmt, params object[] args)
     {
         luaL_where(L, 1);
         lua_pushfstring(L, fmt, args);
@@ -316,7 +315,7 @@ public static unsafe partial class Lua
         return lua_error(L);
     }
 
-    public static partial int luaL_fileresult(lua_State* L, bool stat, string? fname)
+    public static int luaL_fileresult(lua_State* L, bool stat, string? fname)
     {
 //   int en = errno;  /* calls to Lua API may change this value */
         if (stat)
@@ -358,7 +357,7 @@ public static unsafe partial class Lua
 //
 // #endif				/* } */
 
-    public static partial int luaL_execresult(lua_State* L, int stat)
+    public static int luaL_execresult(lua_State* L, int stat)
     {
 //   if (stat != 0 && errno != 0)  /* error with an 'errno'? */
 //     return luaL_fileresult(L, 0, null);
@@ -384,7 +383,7 @@ public static unsafe partial class Lua
     ** =======================================================
     */
 
-    public static partial bool luaL_newmetatable(lua_State* L, string tname)
+    public static bool luaL_newmetatable(lua_State* L, string tname)
     {
         if (luaL_getmetatable(L, tname) != LUA_TNIL) /* name already in use? */
         {
@@ -400,13 +399,13 @@ public static unsafe partial class Lua
         return true;
     }
 
-    public static partial void luaL_setmetatable(lua_State* L, string tname)
+    public static void luaL_setmetatable(lua_State* L, string tname)
     {
         luaL_getmetatable(L, tname);
         lua_setmetatable(L, -2);
     }
 
-    public static partial void* luaL_testudata(lua_State* L, int ud, string tname)
+    public static void* luaL_testudata(lua_State* L, int ud, string tname)
     {
         void* p = lua_touserdata(L, ud);
         if (p != null)
@@ -429,7 +428,7 @@ public static unsafe partial class Lua
         return null; /* value is not a userdata with a metatable */
     }
 
-    public static partial void* luaL_checkudata(lua_State* L, int ud, string tname)
+    public static void* luaL_checkudata(lua_State* L, int ud, string tname)
     {
         void* p = luaL_testudata(L, ud, tname);
         luaL_argexpected(L, p != null, ud, tname);
@@ -444,9 +443,9 @@ public static unsafe partial class Lua
     ** =======================================================
     */
 
-    public static partial int luaL_checkoption(lua_State* L, int arg, string? def, string[] lst)
+    public static int luaL_checkoption(lua_State* L, int arg, string? def, string[] lst)
     {
-        string name = def != null ? luaL_optstring(L, arg, def) : luaL_checkstring(L, arg);
+        string name = def != null ? luaL_optnetstring(L, arg, def) : luaL_checknetstring(L, arg);
         for (int i = 0; i < lst.Length; i++)
         {
             if (string.Equals(lst[i], name, StringComparison.Ordinal))
@@ -468,7 +467,7 @@ public static unsafe partial class Lua
      ** this extra space, Lua will generate the same 'stack overflow' error,
      ** but without 'msg'.)
      */
-    public static partial void luaL_checkstack(lua_State* L, int sz, string msg)
+    public static void luaL_checkstack(lua_State* L, int sz, string msg)
     {
         if (!lua_checkstack(L, sz))
         {
@@ -483,7 +482,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial void luaL_checktype(lua_State* L, int arg, int t)
+    public static void luaL_checktype(lua_State* L, int arg, int t)
     {
         if (lua_type(L, arg) != t)
         {
@@ -491,28 +490,28 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial void luaL_checkany(lua_State* L, int arg)
+    public static void luaL_checkany(lua_State* L, int arg)
     {
         if (lua_type(L, arg) == LUA_TNONE)
         {
             luaL_argerror(L, arg, "value expected");
         }
     }
-
-    public static partial string luaL_checklstring(lua_State* L, int arg)
+    
+    public static ReadOnlySpan<byte> luaL_checklstring(lua_State* L, int arg)
     {
-        string? s = luaL_tonetstring(L, arg);
+        byte* s = lua_tolstring(L, arg, out long length);
         if (s == null)
         {
             tag_error(L, arg, LUA_TSTRING);
         }
 
-        return s;
+        return new ReadOnlySpan<byte>(s, checked((int)length));
     }
 
-    public static partial string luaL_checknetstring(lua_State* L, int arg)
+    public static string luaL_checknetstring(lua_State* L, int arg)
     {
-        string? s = luaL_tonetstring(L, arg);
+        string? s = lua_tonetstring(L, arg);
         if (s == null!)
         {
             tag_error(L, arg, LUA_TSTRING);
@@ -521,17 +520,27 @@ public static unsafe partial class Lua
         return s;
     }
 
-    public static partial string luaL_optlstring(lua_State* L, int arg, string? def)
+    public static ReadOnlySpan<byte> luaL_optlstring(lua_State* L, int arg, ReadOnlySpan<byte> def = default)
+    {
+        if (lua_isnoneornil(L, arg))
+        {
+            return def;
+        }
+
+        return luaL_checklstring(L, arg);
+    }
+
+    public static string luaL_optnetstring(lua_State* L, int arg, string? def)
     {
         if (lua_isnoneornil(L, arg))
         {
             return def ?? "";
         }
 
-        return luaL_checklstring(L, arg);
+        return luaL_checknetstring(L, arg);
     }
 
-    public static partial double luaL_checknumber(lua_State* L, int arg)
+    public static double luaL_checknumber(lua_State* L, int arg)
     {
         double d = lua_tonumberx(L, arg, out bool isnum);
         if (!isnum)
@@ -542,7 +551,7 @@ public static unsafe partial class Lua
         return d;
     }
 
-    public static partial double luaL_optnumber(lua_State* L, int arg, double def)
+    public static double luaL_optnumber(lua_State* L, int arg, double def)
     {
         return lua_isnoneornil(L, arg) ? def : luaL_checknumber(L, arg);
     }
@@ -559,7 +568,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial long luaL_checkinteger(lua_State* L, int arg)
+    public static long luaL_checkinteger(lua_State* L, int arg)
     {
         long d = lua_tointegerx(L, arg, out bool isnum);
         if (!isnum)
@@ -570,7 +579,7 @@ public static unsafe partial class Lua
         return d;
     }
 
-    public static partial long luaL_optinteger(lua_State* L, int arg, long def)
+    public static long luaL_optinteger(lua_State* L, int arg, long def)
     {
         return lua_isnoneornil(L, arg) ? def : luaL_checkinteger(L, arg);
     }
@@ -728,12 +737,28 @@ public static unsafe partial class Lua
     /*
      ** returns a pointer to a free area with at least 'sz' bytes
      */
-    public static partial byte* luaL_prepbuffsize(luaL_Buffer* B, long sz)
+    public static byte* luaL_prepbuffsize(luaL_Buffer* B, long sz)
     {
         return prepbuffsize(B, sz, -1);
     }
 
-    public static partial void luaL_addlstring(luaL_Buffer* B, ReadOnlySpan<char> s)
+    public static void luaL_addlstring(luaL_Buffer* B, ReadOnlySpan<byte> s)
+    {
+        if (s.Length > 0)
+        {
+            /* avoid 'memcpy' when 's' can be null */
+            byte* b = prepbuffsize(B, s.Length, -1);
+            fixed (byte* ptr = s)
+            {
+                memcpy(b, ptr, s.Length);
+            }
+
+            luaL_addsize(B, s.Length);
+        }
+    }
+
+    [Obsolete]
+    public static void luaL_addlstring(luaL_Buffer* B, ReadOnlySpan<char> s)
     {
         if (s.Length > 0)
         {
@@ -751,12 +776,12 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial void luaL_addstring(luaL_Buffer* B, ReadOnlySpan<char> s)
+    public static void luaL_addstring(luaL_Buffer* B, ReadOnlySpan<char> s)
     {
         luaL_addlstring(B, s);
     }
 
-    public static partial void luaL_pushresult(luaL_Buffer* B)
+    public static void luaL_pushresult(luaL_Buffer* B)
     {
         lua_State* L = B->L;
         checkbufferlevel(B, -1);
@@ -785,7 +810,7 @@ public static unsafe partial class Lua
         lua_remove(L, -2); /* remove box or placeholder from the stack */
     }
 
-    public static partial void luaL_pushresultsize(luaL_Buffer* B, long sz)
+    public static void luaL_pushresultsize(luaL_Buffer* B, long sz)
     {
         luaL_addsize(B, sz);
         luaL_pushresult(B);
@@ -795,12 +820,12 @@ public static unsafe partial class Lua
      ** 'luaL_addvalue' is the only function in the Buffer system where the
      ** box (if existent) is not on the top of the stack. So, instead of
      ** calling 'luaL_addlstring', it replicates the code using -2 as the
-     ** last argument to 'prepbuffsize', signaling that the box is (or will
+     ** last argument to 'prepbuffsize', signalling that the box is (or will
      ** be) below the string being added to the buffer. (Box creation can
      ** trigger an emergency GC, so we should not remove the string from the
      ** stack before we have the space guaranteed.)
      */
-    public static partial void luaL_addvalue(luaL_Buffer* B)
+    public static void luaL_addvalue(luaL_Buffer* B)
     {
         lua_State* L = B->L;
         byte* s = lua_tolstring(L, -1, out long len);
@@ -810,7 +835,7 @@ public static unsafe partial class Lua
         lua_pop(L, 1); /* pop string */
     }
 
-    public static partial void luaL_buffinit(lua_State* L, luaL_Buffer* B)
+    public static void luaL_buffinit(lua_State* L, luaL_Buffer* B)
     {
         B->L = L;
         B->b = B->init;
@@ -819,7 +844,7 @@ public static unsafe partial class Lua
         lua_pushlightuserdata(L, B); /* push placeholder */
     }
 
-    public static partial byte* luaL_buffinitsize(lua_State* L, luaL_Buffer* B, long sz)
+    public static byte* luaL_buffinitsize(lua_State* L, luaL_Buffer* B, long sz)
     {
         luaL_buffinit(L, B);
         return prepbuffsize(B, sz, -1);
@@ -836,7 +861,7 @@ public static unsafe partial class Lua
     ** of a first free index, t[t[1]] is the index of the second element,
     ** etc. A zero signals the end of the list.
     */
-    public static partial int luaL_ref(lua_State* L, int t)
+    public static int luaL_ref(lua_State* L, int t)
     {
         if (lua_isnil(L, -1))
         {
@@ -876,7 +901,7 @@ public static unsafe partial class Lua
         return @ref;
     }
 
-    public static partial void luaL_unref(lua_State* L, int t, int @ref)
+    public static void luaL_unref(lua_State* L, int t, int @ref)
     {
         if (@ref >= 0)
         {
@@ -921,7 +946,7 @@ public static unsafe partial class Lua
             /* 'fread' can return > 0 *and* set the EOF flag. If next call to
                'getF' called 'fread', it might still wait for user input.
                The next check avoids this problem. */
-            Stream f = (Stream?)GCHandle.FromIntPtr(lf->f).Target ?? throw new InvalidOperationException();
+            Stream f = GCHandle<Stream>.FromIntPtr(lf->f).Target;
             Span<byte> span = new(lf->buff, BUFF_SIZE);
             int tmp = f.Read(span);
             if (tmp <= 0)
@@ -935,16 +960,13 @@ public static unsafe partial class Lua
         return lf->buff;
     }
 
-// static int errfile (lua_State *L, const char *what, int fnameindex) {
-//   int err = errno;
-//   const char *filename = lua_tostring(L, fnameindex) + 1;
-//   if (err != 0)
-//     lua_pushfstring(L, "cannot %s %s: %s", what, filename, strerror(err));
-//   else
-//     lua_pushfstring(L, "cannot %s %s", what, filename);
-//   lua_remove(L, fnameindex);
-//   return LUA_ERRFILE;
-// }
+    private static int errfile(lua_State* L, string what, int fnameindex, IOException exception)
+    {
+        string filename = lua_tostring(L, fnameindex) + 1;
+        lua_pushfstring(L, "cannot %s %s: %s", what, filename, exception.Message);
+        lua_remove(L, fnameindex);
+        return LUA_ERRFILE;
+    }
 
     /*
     ** Skip an optional BOM at the start of a stream. If there is an
@@ -990,7 +1012,7 @@ public static unsafe partial class Lua
         return false; /* no comment */
     }
 
-    public static partial int luaL_loadfilex(lua_State* L, string? filename, string? mode)
+    public static int luaL_loadfilex(lua_State* L, string? filename, string? mode)
     {
         LoadF lf;
         Stream f;
@@ -1009,12 +1031,11 @@ public static unsafe partial class Lua
             }
             catch (IOException e)
             {
-//     if (lf.f == null) return errfile(L, "open", fnameindex);
-                throw new NotImplementedException();
+                return errfile(L, "open", fnameindex, e);
             }
         }
         
-        lf.f = GCHandle.ToIntPtr(GCHandle.Alloc(f));
+        lf.f = (nint)new GCHandle<Stream>(f).ToPointer();
 
         lf.n = 0;
         int c;
@@ -1037,7 +1058,7 @@ public static unsafe partial class Lua
         int status = lua_load(L, &getF, &lf, lua_tostring(L, -1), mode);
 //   readstatus = ferror(lf.f);
         f.Close();
-        GCHandle.FromIntPtr(lf.f).Free();
+        GCHandle<Stream>.FromIntPtr(lf.f).Dispose();
 //   if (readstatus) {
 //     lua_settop(L, fnameindex);  /* ignore results from 'lua_load' */
 //     return errfile(L, "read", fnameindex);
@@ -1065,7 +1086,7 @@ public static unsafe partial class Lua
         return ls->s;
     }
 
-    public static partial int luaL_loadbufferx(lua_State* L, ReadOnlySpan<byte> buff, string? name, string? mode)
+    public static int luaL_loadbufferx(lua_State* L, ReadOnlySpan<byte> buff, string? name, string? mode)
     {
         fixed (byte* ptr = buff)
         {
@@ -1076,7 +1097,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial int luaL_loadstring(lua_State* L, string s)
+    public static int luaL_loadstring(lua_State* L, string s)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(s);
         return luaL_loadbuffer(L, bytes, s);
@@ -1084,7 +1105,7 @@ public static unsafe partial class Lua
 
     /* }====================================================== */
 
-    public static partial int luaL_getmetafield(lua_State* L, int obj, string e)
+    public static int luaL_getmetafield(lua_State* L, int obj, string e)
     {
         if (!lua_getmetatable(L, obj)) /* no metatable? */
         {
@@ -1105,7 +1126,7 @@ public static unsafe partial class Lua
         return tt; /* return metafield type */
     }
 
-    public static partial bool luaL_callmeta(lua_State* L, int obj, string @event)
+    public static bool luaL_callmeta(lua_State* L, int obj, string @event)
     {
         obj = lua_absindex(L, obj);
         if (luaL_getmetafield(L, obj, @event) == LUA_TNIL) /* no metafield? */
@@ -1118,7 +1139,7 @@ public static unsafe partial class Lua
         return true;
     }
 
-    public static partial long luaL_len(lua_State* L, int idx)
+    public static long luaL_len(lua_State* L, int idx)
     {
         lua_len(L, idx);
         long l = lua_tointegerx(L, -1, out bool isnum);
@@ -1131,8 +1152,10 @@ public static unsafe partial class Lua
         return l;
     }
 
-    public static partial byte* luaL_tolstring(lua_State* L, int idx, out long len)
+    public static byte* luaL_tolstring(lua_State* L, int idx, out long len)
     {
+        Span<byte> buff = stackalloc byte[LUA_N2SBUFFSZ];
+
         idx = lua_absindex(L, idx);
         if (luaL_callmeta(L, idx, "__tostring"))
         {
@@ -1147,13 +1170,9 @@ public static unsafe partial class Lua
             switch (lua_type(L, idx))
             {
                 case LUA_TNUMBER:
-                    {
-//         char buff[LUA_N2SBUFFSZ];
-//         lua_numbertocstring(L, idx, buff);
-//         lua_pushstring(L, buff);
-//         break;
-                    }
-                    throw new NotImplementedException();
+                    lua_numbertocstring(L, idx, buff);
+                    lua_pushstring(L, buff);
+                    break;
 
                 case LUA_TSTRING:
                     lua_pushvalue(L, idx);
@@ -1185,7 +1204,7 @@ public static unsafe partial class Lua
         return lua_tolstring(L, -1, out len);
     }
 
-    public static partial string? luaL_tonetstring(lua_State* L, int idx)
+    public static string? luaL_tonetstring(lua_State* L, int idx)
     {
         byte* ptr = luaL_tolstring(L, idx, out long len);
         if (ptr == null)
@@ -1202,7 +1221,7 @@ public static unsafe partial class Lua
     ** function gets the 'nup' elements at the top as upvalues.
     ** Returns with only the table at the stack.
     */
-    public static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup)
+    public static void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup)
     {
         luaL_checkstack(L, nup, "too many upvalues");
         for (; !l.IsEmpty; l = l[1..])
@@ -1232,7 +1251,7 @@ public static unsafe partial class Lua
      ** ensure that stack[idx][fname] has a table and push that table
      ** into the stack
      */
-    public static partial bool luaL_getsubtable(lua_State* L, int idx, string fname)
+    public static bool luaL_getsubtable(lua_State* L, int idx, string fname)
     {
         if (lua_getfield(L, idx, fname) == LUA_TTABLE)
         {
@@ -1253,7 +1272,7 @@ public static unsafe partial class Lua
      ** if 'glb' is true, also registers the result in the global table.
      ** Leaves resulting module on the top.
      */
-    public static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb)
+    public static void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb)
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
         lua_getfield(L, -1, modname); /* LOADED[modname] */
@@ -1276,7 +1295,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static partial void luaL_addgsub(luaL_Buffer* b, string s, string p, string r)
+    public static void luaL_addgsub(luaL_Buffer* b, string s, string p, string r)
     {
         ReadOnlySpan<char> ss = s;
 
@@ -1291,7 +1310,7 @@ public static unsafe partial class Lua
         luaL_addstring(b, ss); /* push last suffix */
     }
 
-    public static partial string luaL_gsub(lua_State* L, string s, string p, string r)
+    public static string luaL_gsub(lua_State* L, string s, string p, string r)
     {
         luaL_Buffer b;
         luaL_buffinit(L, &b);
@@ -1300,7 +1319,7 @@ public static unsafe partial class Lua
         return lua_tostring(L, -1);
     }
 
-    public static partial void* luaL_alloc(void* ud, void* ptr, long osize, long nsize)
+    public static void* luaL_alloc(void* ud, void* ptr, long osize, long nsize)
     {
         if (nsize == 0)
         {
@@ -1413,7 +1432,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    public static partial uint luaL_makeseed(lua_State* L)
+    public static uint luaL_makeseed(lua_State* L)
     {
         return luai_makeseed();
     }
@@ -1421,7 +1440,7 @@ public static unsafe partial class Lua
     /// <summary>
     /// Use the name with parentheses so that headers can redefine it as a macro.
     /// </summary>
-    public static partial lua_State* luaL_newstate()
+    public static lua_State* luaL_newstate()
     {
 #if LUA_TEST
         lua_State* L = lua_newstate(&debug_realloc, l_memcontrol, luaL_makeseed(null));
@@ -1437,7 +1456,7 @@ public static unsafe partial class Lua
         return L;
     }
 
-    public static partial void luaL_checkversion(lua_State* L, int version, int sizes)
+    public static void luaL_checkversion(lua_State* L, int version, int sizes)
     {
         long v = lua_version(L);
         if (sizes != LUAL_NUMSIZES) /* check numeric types */

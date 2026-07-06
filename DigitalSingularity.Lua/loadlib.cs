@@ -12,21 +12,6 @@ public static unsafe partial class Lua
     ** systems.
     */
 
-// /*
-// ** LUA_CSUBSEP is the character that replaces dots in submodule names
-// ** when searching for a C loader.
-// ** LUA_LSUBSEP is the character that replaces dots in submodule names
-// ** when searching for a Lua loader.
-// */
-// #if !defined(LUA_CSUBSEP)
-// #define LUA_CSUBSEP		LUA_DIRSEP
-// #endif
-//
-// #if !defined(LUA_LSUBSEP)
-// #define LUA_LSUBSEP		LUA_DIRSEP
-// #endif
-//
-//
 // /* prefix for open functions in C libraries */
 // #define LUA_POF		"luaopen_"
 //
@@ -408,85 +393,111 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** {======================================================
-// ** 'require' function
-// ** =======================================================
-// */
-//
-//
-// static int readable (const char *filename) {
-//   FILE *f = fopen(filename, "r");  /* try to open file */
-//   if (f == null) return 0;  /* open failed */
-//   fclose(f);
-//   return 1;
-// }
-//
-//
-// /*
-// ** Get the next name in '*path' = 'name1;name2;name3;...', changing
-// ** the ending ';' to '\0' to create a zero-terminated string. Return
-// ** null when list ends.
-// */
-// static const char *getnextfilename (char **path, char *end) {
-//   char *sep;
-//   char *name = *path;
-//   if (name == end)
-//     return null;  /* no more names */
-//   else if (*name == '\0') {  /* from previous iteration? */
-//     *name = *LUA_PATH_SEP;  /* restore separator */
-//     name++;  /* skip it */
-//   }
-//   sep = strchr(name, *LUA_PATH_SEP);  /* find next separator */
-//   if (sep == null)  /* separator not found? */
-//     sep = end;  /* name goes until the end */
-//   *sep = '\0';  /* finish file name */
-//   *path = sep;  /* will start next search from here */
-//   return name;
-// }
-//
-//
-// /*
-// ** Given a path such as ";blabla.so;blublu.so", pushes the string
-// **
-// ** no file 'blabla.so'
-// **	no file 'blublu.so'
-// */
-// static void pusherrornotfound (lua_State *L, const char *path) {
-//   luaL_Buffer b;
-//   luaL_buffinit(L, &b);
-//   luaL_addstring(&b, "no file '");
-//   luaL_addgsub(&b, path, LUA_PATH_SEP, "'\n\tno file '");
-//   luaL_addstring(&b, "'");
-//   luaL_pushresult(&b);
-// }
-//
-//
-// static const char *searchpath (lua_State *L, const char *name,
-//                                              const char *path,
-//                                              const char *sep,
-//                                              const char *dirsep) {
-//   luaL_Buffer buff;
-//   char *pathname;  /* path with name inserted */
-//   char *endpathname;  /* its end */
-//   const char *filename;
-//   /* separator is non-empty and appears in 'name'? */
-//   if (*sep != '\0' && strchr(name, *sep) != null)
-//     name = luaL_gsub(L, name, sep, dirsep);  /* replace it by 'dirsep' */
-//   luaL_buffinit(L, &buff);
-//   /* add path to the buffer, replacing marks ('?') with the file name */
-//   luaL_addgsub(&buff, path, LUA_PATH_MARK, name);
-//   luaL_addchar(&buff, '\0');
-//   pathname = luaL_buffaddr(&buff);  /* writable list of file names */
-//   endpathname = pathname + luaL_bufflen(&buff) - 1;
-//   while ((filename = getnextfilename(&pathname, endpathname)) != null) {
-//     if (readable(filename))  /* does file exist and is readable? */
-//       return lua_pushstring(L, filename);  /* save and return name */
-//   }
-//   luaL_pushresult(&buff);  /* push path to create error message */
-//   pusherrornotfound(L, lua_tostring(L, -1));  /* create error message */
-//   return null;  /* not found */
-// }
+    /*
+    ** {======================================================
+    ** 'require' function
+    ** =======================================================
+    */
+
+    private static bool readable(string filename)
+    {
+        try
+        {
+            /* try to open file */
+            using (File.Open(filename, FileMode.Open))
+            {
+            }
+
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    /*
+     ** Get the next name in '*path' = 'name1;name2;name3;...', changing
+     ** the ending ';' to '\0' to create a zero-terminated string. Return
+     ** null when list ends.
+     */
+    private static byte* getnextfilename(byte** path, byte* end)
+    {
+        byte* name = *path;
+        if (name == end)
+        {
+            return null; /* no more names */
+        }
+
+        if (*name == '\0')
+        {
+            /* from previous iteration? */
+            *name = (byte)LUA_PATH_SEP[0]; /* restore separator */
+            name++; /* skip it */
+        }
+
+        byte* sep = strchr(name, LUA_PATH_SEP[0]); /* find next separator */
+        if (sep == null) /* separator not found? */
+        {
+            sep = end; /* name goes until the end */
+        }
+
+        *sep = 0; /* finish file name */
+        *path = sep; /* will start next search from here */
+        return name;
+    }
+
+    /*
+    ** Given a path such as ";blabla.so;blublu.so", pushes the string
+    **
+    ** no file 'blabla.so'
+    **	no file 'blublu.so'
+    */
+    private static void pusherrornotfound(lua_State* L, string path)
+    {
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
+        luaL_addstring(&b, "no file '");
+        luaL_addgsub(&b, path, LUA_PATH_SEP, "'\n\tno file '");
+        luaL_addstring(&b, "'");
+        luaL_pushresult(&b);
+    }
+
+    private static string? searchpath(
+        lua_State* L,
+        string name,
+        string path,
+        string sep,
+        string dirsep)
+    {
+        /* separator is non-empty and appears in 'name'? */
+        if (sep.Length > 0 && name.Contains(sep[0]))
+        {
+            name = luaL_gsub(L, name, sep, dirsep); /* replace it by 'dirsep' */
+        }
+
+        luaL_Buffer buff;
+        luaL_buffinit(L, &buff);
+        /* add path to the buffer, replacing marks ('?') with the file name */
+        luaL_addgsub(&buff, path, LUA_PATH_MARK, name);
+        luaL_addchar(&buff, '\0');
+        byte* pathname = luaL_buffaddr(&buff); /* writable list of file names */
+        byte* endpathname = pathname + luaL_bufflen(&buff) - 1;
+        byte* filename;
+        while ((filename = getnextfilename(&pathname, endpathname)) != null)
+        {
+            string s = new((sbyte*)filename); // TODO: utf8
+            if (readable(s)) /* does file exist and is readable? */
+            {
+                lua_pushstring(L, s); /* save and return name */
+                return s;
+            }
+        }
+
+        luaL_pushresult(&buff); /* push path to create error message */
+        pusherrornotfound(L, lua_tostring(L, -1)); /* create error message */
+        return null; /* not found */
+    }
 
     private static int ll_searchpath(lua_State* L)
     {
@@ -504,18 +515,22 @@ public static unsafe partial class Lua
     }
 
 
-// static const char *findfile (lua_State *L, const char *name,
-//                                            const char *pname,
-//                                            const char *dirsep) {
-//   const char *path;
-//   lua_getfield(L, lua_upvalueindex(1), pname);
-//   path = lua_tostring(L, -1);
-//   if (l_unlikely(path == null))
-//     luaL_error(L, "'package.%s' must be a string", pname);
-//   return searchpath(L, name, path, ".", dirsep);
-// }
-//
-//
+    private static string? findfile(
+        lua_State* L,
+        string name,
+        string pname,
+        string dirsep)
+    {
+        lua_getfield(L, lua_upvalueindex(1), pname);
+        string? path = lua_tostring(L, -1);
+        if (path == null)
+        {
+            luaL_error(L, "'package.%s' must be a string", pname);
+        }
+
+        return searchpath(L, name, path, ".", dirsep);
+    }
+
 // static int checkload (lua_State *L, int stat, const char *filename) {
 //   if (l_likely(stat)) {  /* module loaded successfully? */
 //     lua_pushstring(L, filename);  /* will be 2nd argument to module */
@@ -529,10 +544,14 @@ public static unsafe partial class Lua
     private static int searcher_Lua(lua_State* L)
     {
 //   const char *filename;
-        string name = luaL_checkstring(L, 1);
-//   filename = findfile(L, name, "path", LUA_LSUBSEP);
-//   if (filename == null) return 1;  /* module not found in this path */
-//   return checkload(L, (luaL_loadfile(L, filename) == LUA_OK), filename);
+        string name = luaL_checknetstring(L, 1);
+        string? filename = findfile(L, name, "path", LUA_LSUBSEP);
+        if (filename == null)
+        {
+            return 1; /* module not found in this path */
+        }
+
+        //   return checkload(L, (luaL_loadfile(L, filename) == LUA_OK), filename);
         throw new NotImplementedException();
     }
 
@@ -595,7 +614,7 @@ public static unsafe partial class Lua
 
     private static int searcher_preload(lua_State* L)
     {
-        string name = luaL_checkstring(L, 1);
+        string name = luaL_checknetstring(L, 1);
         lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
         if (lua_getfield(L, -1, name) == LUA_TNIL)
         {

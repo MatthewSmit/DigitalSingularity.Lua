@@ -77,7 +77,7 @@ public static unsafe partial class Lua
     ** so they must fit in ints.
     */
 
-    private const int MAXARG_Bx = (1 << SIZE_Bx) - 1;
+    internal const int MAXARG_Bx = (1 << SIZE_Bx) - 1;
 
     private const int OFFSET_sBx = MAXARG_Bx >> 1;         /* 'sBx' is signed */
 
@@ -294,12 +294,12 @@ public static unsafe partial class Lua
                (uint)(k ? 1 : 0) << POS_k;
     }
 
-    private static uint CREATE_ABx(OpCode o, int a, int bc)
+    internal static uint CREATE_ABx(OpCode o, int a, int bc)
     {
         return (uint)o << POS_OP | (uint)a << POS_A | (uint)bc << POS_Bx;
     }
 
-    private static uint CREATE_Ax(OpCode o, int a)
+    internal static uint CREATE_Ax(OpCode o, int a)
     {
         return (uint)o << POS_OP | (uint)a << POS_Ax;
     }

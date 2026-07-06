@@ -1,6 +1,7 @@
 namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 public static unsafe partial class Lua
 {
@@ -57,7 +58,7 @@ public static unsafe partial class Lua
 // }
 // #endif							/* } */
 
-    private static partial void luaD_seterrorobj(lua_State* L, byte errcode, StkId oldtop)
+    private static void luaD_seterrorobj(lua_State* L, byte errcode, StkId oldtop)
     {
         if (errcode == LUA_ERRMEM)
         {
@@ -74,7 +75,8 @@ public static unsafe partial class Lua
         L->top.p = oldtop + 1; /* top goes back to old top plus error object */
     }
 
-    private static partial void luaD_throw(lua_State* L, byte errcode)
+    [DoesNotReturn]
+    private static void luaD_throw(lua_State* L, byte errcode)
     {
         if (L->errorJmp != null)
         {
@@ -108,18 +110,22 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaD_throwbaselevel(lua_State* L, byte errcode)
+    [DoesNotReturn]
+    private static void luaD_throwbaselevel(lua_State* L, byte errcode)
     {
-//   if (L->errorJmp) {
-//     /* unroll error entries up to the first level */
-//     while (L->errorJmp->previous != null)
-//       L->errorJmp = L->errorJmp->previous;
-//   }
-//   luaD_throw(L, errcode);
-        throw new NotImplementedException();
+        if (L->errorJmp != null)
+        {
+            /* unroll error entries up to the first level */
+            while (L->errorJmp->previous != null)
+            {
+                L->errorJmp = L->errorJmp->previous;
+            }
+        }
+
+        luaD_throw(L, errcode);
     }
 
-    internal static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud)
+    internal static byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud)
     {
         uint oldnCcalls = L->nCcalls;
         lua_longjmp_data lj = new()
@@ -186,7 +192,7 @@ public static unsafe partial class Lua
     private const int ERRORSTACKSIZE = MAXSTACK + STACKERRSPACE;
 
     /* raise a stack error while running the message handler */
-    private static partial void luaD_errerr(lua_State* L)
+    private static void luaD_errerr(lua_State* L)
     {
         TString* msg = luaS_newliteral(L, "error in error handling");
         setsvalue2s(L, L->top.p, msg);
@@ -199,7 +205,7 @@ public static unsafe partial class Lua
      ** as a finaliser): At least BASIC_STACK_SIZE in the Lua stack and
      ** 2 slots in the C stack.
      */
-    private static partial bool luaD_checkminstack(lua_State* L)
+    private static bool luaD_checkminstack(lua_State* L)
     {
         return stacksize(L) < MAXSTACK - BASIC_STACK_SIZE && getCcalls(L) < LUAI_MAXCCALLS - 2;
     }
@@ -294,7 +300,7 @@ public static unsafe partial class Lua
     ** In case of allocation error, raise an error or return false according
     ** to 'raiseerror'.
     */
-    private static partial bool luaD_reallocstack(lua_State* L, int newsize, bool raiseerror)
+    private static bool luaD_reallocstack(lua_State* L, int newsize, bool raiseerror)
     {
         int oldsize = stacksize(L);
         StkId oldstack = L->stack.p;
@@ -334,7 +340,7 @@ public static unsafe partial class Lua
      ** Try to grow the stack by at least 'n' elements. When 'raiseerror'
      ** is true, raises any error; otherwise, return 0 in case of errors.
      */
-    private static partial bool luaD_growstack(lua_State* L, int n, bool raiseerror)
+    private static bool luaD_growstack(lua_State* L, int n, bool raiseerror)
     {
         int size = stacksize(L);
         if (size > MAXSTACK)
@@ -414,7 +420,7 @@ public static unsafe partial class Lua
      ** stacksize (equal to ERRORSTACKSIZE in this case), and so the stack
      ** will be reduced to a "regular" size.
      */
-    private static partial void luaD_shrinkstack(lua_State* L)
+    private static void luaD_shrinkstack(lua_State* L)
     {
         int inuse = stackinuse(L);
         int max = (inuse > MAXSTACK / 3) ? MAXSTACK : inuse * 3;
@@ -436,7 +442,7 @@ public static unsafe partial class Lua
         luaE_shrinkCI(L);  /* shrink CI list */
     }
 
-    private static partial void luaD_inctop(lua_State* L)
+    private static void luaD_inctop(lua_State* L)
     {
         L->top.p++;
         luaD_checkstack(L, 1);
@@ -449,7 +455,7 @@ public static unsafe partial class Lua
     ** called. (Both 'L->hook' and 'L->hookmask', which trigger this
     ** function, can be changed asynchronously by signals.)
     */
-    private static partial void luaD_hook(lua_State* L, int @event, int line, int fTransfer, int nTransfer)
+    private static void luaD_hook(lua_State* L, int @event, int line, int fTransfer, int nTransfer)
     {
         lua_Hook hook = L->hook;
         if (hook != null && L->allowhook)
@@ -488,7 +494,7 @@ public static unsafe partial class Lua
     ** whenever 'hookmask' is not zero, so it checks whether call hooks are
     ** active.
     */
-    private static partial void luaD_hookcall(lua_State* L, CallInfo* ci)
+    private static void luaD_hookcall(lua_State* L, CallInfo* ci)
     {
         L->oldpc = 0; /* set 'oldpc' for new function */
         if ((L->hookmask & LUA_MASKCALL) != 0)
@@ -659,7 +665,7 @@ public static unsafe partial class Lua
      ** info. If function has to close variables, hook must be called after
      ** that.
      */
-    private static partial void luaD_poscall(lua_State* L, CallInfo* ci, int nres)
+    private static void luaD_poscall(lua_State* L, CallInfo* ci, int nres)
     {
         uint fwanted = ci->callstatus & (CIST_TBC | CIST_NRESULTS);
         if (L->hookmask != 0 && (fwanted & CIST_TBC) == 0)
@@ -727,53 +733,63 @@ public static unsafe partial class Lua
     ** (so that it includes the function itself). Return the number of
     ** results, if it was a C function, or -1 for a Lua function.
     */
-    private static partial int luaD_pretailcall(lua_State* L, CallInfo* ci, StkId func, int narg1, int delta)
+    private static int luaD_pretailcall(lua_State* L, CallInfo* ci, StkId func, int narg1, int delta)
     {
-//   unsigned status = LUA_MULTRET + 1;
-//  retry:
-//   switch (ttypetag(s2v(func))) {
-//     case LUA_VCCL:  /* C closure */
-//       return precallC(L, func, status, clCvalue(s2v(func))->f);
-//     case LUA_VLCF:  /* light C function */
-//       return precallC(L, func, status, fvalue(s2v(func)));
-//     case LUA_VLCL: {  /* Lua function */
-//       Proto *p = clLvalue(s2v(func))->p;
-//       int fsize = p->maxstacksize;  /* frame size */
-//       int nfixparams = p->numparams;
-//       int i;
-//       checkstackp(L, fsize - delta, func);
-//       ci->func.p -= delta;  /* restore 'func' (if vararg) */
-//       for (i = 0; i < narg1; i++)  /* move down function and arguments */
-//         setobjs2s(L, ci->func.p + i, func + i);
-//       func = ci->func.p;  /* moved-down function */
-//       for (; narg1 <= nfixparams; narg1++)
-//         setnilvalue(s2v(func + narg1));  /* complete missing arguments */
-//       ci->top.p = func + 1 + fsize;  /* top for new function */
-//       Debug.Assert(ci->top.p <= L->stack_last.p);
-//       ci->u.l.savedpc = p->code;  /* starting point */
-//       ci->callstatus |= CIST_TAIL;
-//       L->top.p = func + narg1;  /* set top */
-//       return -1;
-//     }
-//     default: {  /* not a function */
-//       checkstackp(L, 1, func);  /* space for metamethod */
-//       status = tryfuncTM(L, func, status);  /* try '__call' metamethod */
-//       narg1++;
-//       goto retry;  /* try again */
-//     }
-//   }
-        throw new NotImplementedException();
+        uint status = LUA_MULTRET + 1;
+        retry:
+        switch (ttypetag(s2v(func)))
+        {
+            case LUA_VCCL: /* C closure */
+                return precallC(L, func, status, clCvalue(s2v(func))->f);
+
+            case LUA_VLCF: /* light C function */
+                return precallC(L, func, status, fvalue(s2v(func)));
+
+            case LUA_VLCL:
+                {
+                    /* Lua function */
+                    Proto* p = clLvalue(s2v(func))->p;
+                    int fsize = p->maxstacksize; /* frame size */
+                    int nfixparams = p->numparams;
+                    checkstackp(L, fsize - delta, ref func);
+                    ci->func.p -= delta; /* restore 'func' (if vararg) */
+                    for (int i = 0; i < narg1; i++) /* move down function and arguments */
+                    {
+                        setobjs2s(L, ci->func.p + i, func + i);
+                    }
+
+                    func = ci->func.p; /* moved-down function */
+                    for (; narg1 <= nfixparams; narg1++)
+                    {
+                        setnilvalue(s2v(func + narg1)); /* complete missing arguments */
+                    }
+
+                    ci->top.p = func + 1 + fsize; /* top for new function */
+                    Debug.Assert(ci->top.p <= L->stack_last.p);
+                    ci->u.l.savedpc = p->code; /* starting point */
+                    ci->callstatus |= CIST_TAIL;
+                    L->top.p = func + narg1; /* set top */
+                    return -1;
+                }
+
+            default:
+                /* not a function */
+                checkstackp(L, 1, ref func); /* space for metamethod */
+                status = tryfuncTM(L, func, status); /* try '__call' metamethod */
+                narg1++;
+                goto retry; /* try again */
+        }
     }
 
     /*
-    ** Prepares the call to a function (C or Lua). For C functions, also do
-    ** the call. The function to be called is at '*func'.  The arguments
-    ** are on the stack, right after the function.  Returns the CallInfo
-    ** to be executed, if it was a Lua function. Otherwise (a C function)
-    ** returns null, with all the results on the stack, starting at the
-    ** original function position.
-    */
-    private static partial CallInfo* luaD_precall(lua_State* L, StkId func, int nresults)
+     ** Prepares the call to a function (C or Lua). For C functions, also do
+     ** the call. The function to be called is at '*func'.  The arguments
+     ** are on the stack, right after the function.  Returns the CallInfo
+     ** to be executed, if it was a Lua function. Otherwise (a C function)
+     ** returns null, with all the results on the stack, starting at the
+     ** original function position.
+     */
+    private static CallInfo* luaD_precall(lua_State* L, StkId func, int nresults)
     {
         uint status = (uint)(nresults + 1);
         Debug.Assert(status <= MAXRESULTS + 1);
@@ -830,9 +846,8 @@ public static unsafe partial class Lua
         L->nCcalls += inc;
         if (getCcalls(L) >= LUAI_MAXCCALLS)
         {
-            //   checkstackp(L, 0, func);  /* free any use of EXTRA_STACK */
-            //   luaE_checkcstack(L);
-            throw new NotImplementedException();
+            checkstackp(L, 0, ref func);  /* free any use of EXTRA_STACK */
+            luaE_checkcstack(L);
         }
 
         if ((ci = luaD_precall(L, func, nResults)) != null)
@@ -848,7 +863,7 @@ public static unsafe partial class Lua
     /*
     ** External interface for 'ccall'
     */
-    private static partial void luaD_call(lua_State* L, StkId func, int nResults)
+    private static void luaD_call(lua_State* L, StkId func, int nResults)
     {
         ccall(L, func, nResults, 1);
     }
@@ -856,7 +871,7 @@ public static unsafe partial class Lua
     /*
      ** Similar to 'luaD_call', but does not allow yields during the call.
      */
-    private static partial void luaD_callnoyield(lua_State* L, StkId func, int nResults)
+    private static void luaD_callnoyield(lua_State* L, StkId func, int nResults)
     {
         ccall(L, func, nResults, nyci);
     }
@@ -1183,7 +1198,7 @@ public static unsafe partial class Lua
      ** Calls 'luaF_close' in protected mode. Return the original status
      ** or, in case of errors, the new status.
      */
-    private static partial byte luaD_closeprotected(lua_State* L, IntPtr level, byte status)
+    private static byte luaD_closeprotected(lua_State* L, IntPtr level, byte status)
     {
         CallInfo* old_ci = L->ci;
         bool old_allowhooks = L->allowhook;
@@ -1210,7 +1225,7 @@ public static unsafe partial class Lua
      ** thread information ('allowhook', etc.) and in particular
      ** its stack level in case of errors.
      */
-    private static partial byte luaD_pcall(lua_State* L, Pfunc func, void* u, nint oldtop, nint ef)
+    private static byte luaD_pcall(lua_State* L, Pfunc func, void* u, nint oldtop, nint ef)
     {
         CallInfo* old_ci = L->ci;
         bool old_allowhooks = L->allowhook;
@@ -1282,7 +1297,7 @@ public static unsafe partial class Lua
         luaF_initupvals(L, cl);
     }
 
-    private static partial byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode)
+    private static byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode)
     {
         SParser p;
         fixed (char* nameP = name)

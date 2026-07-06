@@ -56,31 +56,4 @@ public static unsafe partial class Lua
         Debug.Assert(a->tt == LUA_VSHRSTR);
         return a == b;
     }
-
-    internal static partial uint luaS_hashlongstr(TString* ts);
-
-    internal static partial bool luaS_eqstr(TString* a, TString* b);
-
-    internal static partial void luaS_resize(lua_State* L, int newsize);
-
-    internal static partial void luaS_clearcache(global_State* g);
-
-    private static partial void luaS_init(lua_State* L);
-
-    private static partial void luaS_remove(lua_State* L, TString* ts);
-
-    internal static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue);
-
-    internal static partial TString* luaS_newlstr(lua_State* L, byte* str, int l);
-
-    private static partial TString* luaS_new(lua_State* L, byte* str);
-    internal static partial TString* luaS_new(lua_State* L, string str);
-
-    internal static partial TString* luaS_createlngstrobj(lua_State* L, long l);
-
-    internal static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
-
-    internal static partial long luaS_sizelngstr(long len, int kind);
-
-    internal static partial TString* luaS_normstr(lua_State* L, TString* ts);
 }

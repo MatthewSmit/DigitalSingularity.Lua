@@ -37,24 +37,9 @@ public static unsafe partial class Lua
 // ** Configuration for time-related stuff
 // ** ===================================================================
 // */
-//
-// /*
-// ** type to represent time_t in Lua
-// */
-// #if !defined(LUA_NUMTIME)	/* { */
-//
+
 // #define l_timet			long
-// #define l_pushtime(L,t)		lua_pushinteger(L,(long)(t))
 // #define l_gettime(L,arg)	luaL_checkinteger(L, arg)
-//
-// #else				/* }{ */
-//
-// #define l_timet			double
-// #define l_pushtime(L,t)		lua_pushnumber(L,(double)(t))
-// #define l_gettime(L,arg)	luaL_checknumber(L, arg)
-//
-// #endif				/* } */
-//
 //
 // #if !defined(l_gmtime)		/* { */
 // /*
@@ -128,7 +113,7 @@ public static unsafe partial class Lua
 
     private static int os_execute(lua_State* L)
     {
-        string cmd = luaL_optstring(L, 1, null);
+        string cmd = luaL_optnetstring(L, 1, null);
 //   int stat;
 //   errno = 0;
 //   stat = l_system(cmd);
@@ -338,10 +323,13 @@ public static unsafe partial class Lua
 
     private static int os_time(lua_State* L)
     {
-//   time_t t;
-//   if (lua_isnoneornil(L, 1))  /* called without args? */
-//     t = time(null);  /* get current time */
-//   else {
+        long t;
+        if (lua_isnoneornil(L, 1)) /* called without args? */
+        {
+            t = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        }
+        else
+        {
 //     struct tm ts;
 //     luaL_checktype(L, 1, LUA_TTABLE);
 //     lua_settop(L, 1);  /* make sure table is at the top */
@@ -353,14 +341,16 @@ public static unsafe partial class Lua
 //     ts.tm_sec = getfield(L, "sec", 0, 0);
 //     ts.tm_isdst = getboolfield(L, "isdst");
 //     t = mktime(&ts);
-//     setallfields(L, &ts);  /* update fields with normalized values */
-//   }
+//     setallfields(L, &ts);  /* update fields with normalised values */
+
 //   if (t != (time_t)(l_timet)t || t == (time_t)(-1))
 //     return luaL_error(L,
 //                   "time result cannot be represented in this installation");
-//   l_pushtime(L, t);
-//   return 1;
-        throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
+
+        lua_pushinteger(L, t);
+        return 1;
     }
 
     private static int os_difftime(lua_State* L)
@@ -372,16 +362,26 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-/* }====================================================== */
+    // private static readonly string[] cat =
+    // [
+    //     LC_ALL, LC_COLLATE, LC_CTYPE, LC_MONETARY,
+    //     LC_NUMERIC, LC_TIME,
+    // ];
 
+    private static readonly string[] catnames =
+    [
+        "all", "collate", "ctype", "monetary",
+        "numeric", "time",
+    ];
+    
     private static int os_setlocale(lua_State* L)
     {
-//   static const int cat[] = {LC_ALL, LC_COLLATE, LC_CTYPE, LC_MONETARY,
-//                       LC_NUMERIC, LC_TIME};
-//   static const char *const catnames[] = {"all", "collate", "ctype", "monetary",
-//      "numeric", "time", null};
-//   const char *l = luaL_optstring(L, 1, null);
-//   int op = luaL_checkoption(L, 2, "all", catnames);
+        string l = luaL_optnetstring(L, 1, null);
+        int op = luaL_checkoption(L, 2, "all", catnames);
+        // if (l != "C" || op != 0)
+        // {
+        //     throw new NotImplementedException();
+        // }
 //   lua_pushstring(L, setlocale(cat[op], l));
 //   return 1;
         throw new NotImplementedException();

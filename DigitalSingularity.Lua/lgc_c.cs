@@ -234,7 +234,7 @@ public static unsafe partial class Lua
     ** be done is generational mode, as its sweep does not distinguish
     ** white from dead.)
     */
-    internal static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v)
+    internal static void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v)
     {
         global_State* g = G(L);
         Debug.Assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
@@ -263,7 +263,7 @@ public static unsafe partial class Lua
      ** barrier that moves collector backward, that is, mark the black object
      ** pointing to a white object as gray again.
      */
-    internal static partial void luaC_barrierback_(lua_State* L, GCObject* o)
+    internal static void luaC_barrierback_(lua_State* L, GCObject* o)
     {
         global_State* g = G(L);
         Debug.Assert(isblack(o) && !isdead(g, o));
@@ -283,7 +283,7 @@ public static unsafe partial class Lua
         }
     }
 
-    internal static partial void luaC_fix(lua_State* L, GCObject* o)
+    internal static void luaC_fix(lua_State* L, GCObject* o)
     {
         global_State* g = G(L);
         Debug.Assert(g->allgc == o); /* object must be 1st in 'allgc' list! */
@@ -298,7 +298,7 @@ public static unsafe partial class Lua
      ** create a new collectable object (with given type, size, and offset)
      ** and link it to 'allgc' list.
      */
-    internal static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset)
+    internal static GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset)
     {
         global_State* g = G(L);
         byte* p = (byte*)luaM_newobject(L, novariant(tt), sz);
@@ -310,23 +310,20 @@ public static unsafe partial class Lua
         return o;
     }
 
-    /*
-     ** create a new collectable object with no offset.
-     */
-    internal static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz)
+    /// <summary>
+    /// Create a new collectable object with no offset.
+    /// </summary>
+    internal static GCObject* luaC_newobj(lua_State* L, byte tt, long sz)
     {
         return luaC_newobjdt(L, tt, sz, 0);
     }
-
-/* }====================================================== */
 
     /*
      ** {======================================================
      ** Mark functions
      ** =======================================================
      */
-
-
+    
     /*
      ** Mark an object.  Userdata with no user values, strings, and closed
      ** upvalues are visited and turned black here.  Open upvalues are
@@ -728,7 +725,7 @@ public static unsafe partial class Lua
     {
         for (int i = 0; i < cl->nupvalues; i++) /* mark its upvalues */
         {
-            markvalue(g, &cl->upvalue[i]);
+            markvalue(g, CClosure.GetUpValuePtr(cl, i));
         }
 
         return 1 + cl->nupvalues;
@@ -744,7 +741,7 @@ public static unsafe partial class Lua
         for (int i = 0; i < cl->nupvalues; i++)
         {
             /* visit its upvalues */
-            UpVal* uv = (&cl->upvals)[i];
+            UpVal* uv = LClosure.GetUpValue(cl, i);
             markobjectN(g, (GCObject*)uv); /* mark upvalue */
         }
 
@@ -1232,7 +1229,7 @@ public static unsafe partial class Lua
      ** if object 'o' has a finaliser, remove it from 'allgc' list (must
      ** search the list to find it) and link it in 'finobj' list.
      */
-    internal static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt)
+    internal static void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt)
     {
         global_State* g = G(L);
         if (tofinalise(o) || /* obj. is already marked... */
@@ -1683,7 +1680,7 @@ public static unsafe partial class Lua
     /*
      ** Change collector mode to 'newmode'.
      */
-    internal static partial void luaC_changemode(lua_State* L, int newmode)
+    internal static void luaC_changemode(lua_State* L, int newmode)
     {
         global_State* g = G(L);
         if (g->gckind == KGC_GENMAJOR) /* doing major collections? */
@@ -1782,7 +1779,7 @@ public static unsafe partial class Lua
      ** Call all finalisers of the objects in the given Lua state, and
      ** then free all objects, except for the main thread.
      */
-    internal static partial void luaC_freeallobjects(lua_State* L)
+    internal static void luaC_freeallobjects(lua_State* L)
     {
         global_State* g = G(L);
         g->gcstp = GCSTPCLS; /* no extra finalisers after here */
@@ -1976,7 +1973,7 @@ public static unsafe partial class Lua
      ** (The option 'fast' is only for testing; in normal code, 'fast'
      ** here is always true.)
      */
-    internal static partial void luaC_runtilstate(lua_State* L, int state, bool fast)
+    internal static void luaC_runtilstate(lua_State* L, int state, bool fast)
     {
         global_State* g = G(L);
         Debug.Assert(g->gckind == KGC_INC);
@@ -2034,7 +2031,7 @@ public static unsafe partial class Lua
      ** stopped by the user, set a reasonable debt to avoid it being called
      ** at every single check.)
      */
-    internal static partial void luaC_step(lua_State* L)
+    internal static void luaC_step(lua_State* L)
     {
         global_State* g = G(L);
         Debug.Assert(!g->gcemergency);
@@ -2087,12 +2084,12 @@ public static unsafe partial class Lua
         setpause(g);
     }
 
-/*
- ** Performs a full GC cycle; if 'isemergency', set a flag to avoid
- ** some operations which could change the interpreter state in some
- ** unexpected ways (running finalizers and shrinking some structures).
- */
-internal static partial void luaC_fullgc(lua_State* L, bool isemergency)
+    /*
+     ** Performs a full GC cycle; if 'isemergency', set a flag to avoid
+     ** some operations which could change the interpreter state in some
+     ** unexpected ways (running finalisers and shrinking some structures).
+     */
+    internal static void luaC_fullgc(lua_State* L, bool isemergency)
     {
         global_State* g = G(L);
         Debug.Assert(!g->gcemergency);

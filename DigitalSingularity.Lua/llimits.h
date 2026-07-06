@@ -42,11 +42,6 @@ typedef size_t lu_mem;
 #define MAX_SIZE	(sizeof(size_t) < sizeof(long) ? MAX_SIZET \
 			  : cast_sizet(LUA_MAXINTEGER))
 
-/*
-** test whether an unsigned value is a power of 2 (or zero)
-*/
-#define ispow2(x)	(((x) & ((x) - 1)) == 0)
-
 
 /* number of chars of a literal string without the ending \0 */
 #define LL(x)   (sizeof(x)/sizeof(char) - 1)
@@ -229,7 +224,6 @@ typedef void (*voidf)(void);
 /* the others are quite standard operations */
 #if !defined(luai_numadd)
 #define luai_numadd(L,a,b)      ((a)+(b))
-#define luai_numunm(L,a)        (-(a))
 #define luai_numeq(a,b)         ((a)==(b))
 #define luai_numlt(a,b)         ((a)<(b))
 #define luai_numle(a,b)         ((a)<=(b))

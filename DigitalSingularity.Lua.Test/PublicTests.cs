@@ -154,7 +154,7 @@ public unsafe class PublicTests
 
     private static int DumpWriter(lua_State* L, void* p, long sz, void* ud)
     {
-        DumpState state = (DumpState?)GCHandle.FromIntPtr((nint)ud).Target ?? throw new InvalidOperationException();
+        DumpState state = GCHandle<DumpState>.FromIntPtr((nint)ud).Target;
         if (state.fail)
         {
             return 1;
@@ -170,18 +170,9 @@ public unsafe class PublicTests
 
     private static string TempLuaFile(string name, string contents)
     {
-//   std::string path = ::testing::TempDir();
-//   if (!path.empty()) {
-//     char last = path[path.size() - 1];
-//     if (last != '/' && last != '\\') {
-//       path += "/";
-//     }
-//   }
-//   path += name;
-//   std::ofstream out(path, std::ios::binary);
-//   out << contents;
-//   return path;
-        throw new NotImplementedException();
+        string path = Path.Join(Path.GetTempPath(), name);
+        File.WriteAllText(path, contents);
+        return path;
     }
 
     private static int CloseCounter(lua_State* L)
@@ -472,7 +463,7 @@ public unsafe class PublicTests
     private static int AuxOptLStringFail(lua_State* L)
     {
         lua_newtable(L);
-        luaL_optlstring(L, 1, "default");
+        luaL_optnetstring(L, 1, "default");
         return 0;
     }
 
@@ -1255,7 +1246,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushstring(state, "abc");
-        lua_pushstring(state, null);
+        lua_pushstring(state, (string?)null);
         Assert.That(lua_isnil(state, -1));
     }
 
@@ -1676,22 +1667,25 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         Assert.That(LoadChunk(state, "return 71"), Is.EqualTo(LUA_OK));
-        DumpState dump = new();
-        GCHandle handle = GCHandle.Alloc(dump);
-        int result = lua_dump(state, &DumpWriter, (void*)GCHandle.ToIntPtr(handle), false);
 
-        Assert.That(result, Is.EqualTo(0));
-        Assert.That(dump.bytes, Is.Not.Empty);
-        handle.Free();
+        DumpState dump = new();
+        using (GCHandle<DumpState> handle = new(dump))
+        {
+            int result = lua_dump(state, &DumpWriter, handle.ToPointer(), false);
+
+            Assert.That(result, Is.EqualTo(0));
+            Assert.That(dump.bytes, Is.Not.Empty);
+        }
 
         DumpState fail = new()
         {
             fail = true,
         };
-        handle = GCHandle.Alloc(fail);
-        result = lua_dump(state, &DumpWriter, (void*)GCHandle.ToIntPtr(handle), false);
-        Assert.That(result, Is.Not.EqualTo(0));
-        handle.Free();
+        using (GCHandle<DumpState> handle = new(fail))
+        {
+            int result = lua_dump(state, &DumpWriter, handle.ToPointer(), false);
+            Assert.That(result, Is.Not.EqualTo(0));
+        }
     }
 
     [Test]
@@ -1783,19 +1777,17 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         WarningState warnings = new();
-        GCHandle handle = GCHandle.Alloc(warnings);
-        lua_setwarnf(state, &warnf, (void*)GCHandle.ToIntPtr(handle));
+        using GCHandle<WarningState> handle = new(warnings);
+        lua_setwarnf(state, &warnf, handle.ToPointer());
         lua_warning(state, "a", true);
         lua_warning(state, "b", false);
 
         Assert.That(warnings.calls, Is.EqualTo(2));
         Assert.That(warnings.message, Is.EqualTo("ab|"));
-        handle.Free();
 
         static void warnf(void* ud, string msg, bool tocont)
         {
-            WarningState state = (WarningState?)GCHandle.FromIntPtr((nint)ud).Target ??
-                                 throw new InvalidOperationException();
+            WarningState state = GCHandle<WarningState>.FromIntPtr((nint)ud).Target;
             ++state.calls;
             state.message += msg;
             if (!tocont)
@@ -1896,18 +1888,15 @@ public unsafe class PublicTests
     public void Function_lua_numbertocstring()
     {
         using LuaState state = new();
-        ReadOnlySpan<byte> buffer = stackalloc byte[LUA_N2SBUFFSZ];
-        fixed (byte* b = buffer)
-        {
-            lua_pushinteger(state, 123);
+        Span<byte> buffer = stackalloc byte[LUA_N2SBUFFSZ];
+        
+        lua_pushinteger(state, 123);
 
-            {
-                Assert.That(lua_numbertocstring(state, -1, b), Is.GreaterThan(0));
-                Assert.That(new string((sbyte*)b), Is.EqualTo("123"));
-            }
-            lua_newtable(state);
-            Assert.That(lua_numbertocstring(state, -1, b), Is.EqualTo(0u));
-        }
+        int luaNumbertocstring = lua_numbertocstring(state, -1, buffer);
+        Assert.That(luaNumbertocstring, Is.GreaterThan(0));
+        Assert.That(Encoding.UTF8.GetString(buffer).TrimEnd('\0'), Is.EqualTo("123"));
+        lua_newtable(state);
+        Assert.That(lua_numbertocstring(state, -1, buffer), Is.Zero);
     }
 
     [Test]
@@ -2065,17 +2054,16 @@ public unsafe class PublicTests
     [Test]
     public void Function_lua_upvaluejoin()
     {
-        // using LuaState state = new();
-        //
-        // Assert.That(LoadChunk(state, "local x = 1; return function() return x end"), Is.EqualTo(LUA_OK));
-        // Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
-        // Assert.That(LoadChunk(state, "local x = 2; return function() return x end"), Is.EqualTo(LUA_OK));
-        // Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
-        // void* secondID = lua_upvalueid(state, -1, 1);
-        // Assert.That(secondID, Is.Not.Null);
-        // lua_upvaluejoin(state, -2, 1, -1, 1);
-        // Assert.That(lua_upvalueid(state, -2, 1), Is.EqualTo(secondID));
-        throw new NotImplementedException();
+        using LuaState state = new();
+        lua_gc(state, LUA_GCSTOP);
+        Assert.That(LoadChunk(state, "local x = 1; return function() return x end"), Is.EqualTo(LUA_OK));
+        Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
+        Assert.That(LoadChunk(state, "local x = 2; return function() return x end"), Is.EqualTo(LUA_OK));
+        Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
+        void* secondID = lua_upvalueid(state, -1, 1);
+        Assert.That(secondID, Is.Not.Null);
+        lua_upvaluejoin(state, -2, 1, -1, 1);
+        Assert.That(lua_upvalueid(state, -2, 1), Is.EqualTo(secondID));
     }
 
     [Test]
@@ -2530,7 +2518,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushliteral(state, "abc");
-        string s = luaL_checklstring(state, 1);
+        string s = luaL_checknetstring(state, 1);
         Assert.That(s, Is.EqualTo("abc"));
         Assert.That(s, Has.Length.EqualTo(3));
         Assert.That(ProtectedCall(state, &AuxCheckLStringFail, 0), Is.EqualTo(LUA_ERRRUN));
@@ -2540,12 +2528,12 @@ public unsafe class PublicTests
     public void Function_luaL_optlstring()
     {
         using LuaState state = new();
-        string s = luaL_optlstring(state, 1, "default");
+        string s = luaL_optnetstring(state, 1, "default");
         Assert.That(s, Is.EqualTo("default"));
         Assert.That(s, Has.Length.EqualTo(7));
         
         lua_pushliteral(state, "given");
-        s = luaL_optlstring(state, 1, "default");
+        s = luaL_optnetstring(state, 1, "default");
         Assert.That(s, Is.EqualTo("given"));
         Assert.That(s, Has.Length.EqualTo(5));
         
@@ -2876,8 +2864,7 @@ public unsafe class PublicTests
         using LuaState state = new();
         luaL_traceback(state, state, "trace message", 0);
         Assert.That(lua_isstring(state, -1));
-        // EXPECT_NE(StackString(state, -1).find("trace message"), std::string::npos);
-        throw new NotImplementedException();
+        Assert.That(StackString(state, -1), Contains.Substring("trace message"));
     }
 
     [Test]
@@ -2929,7 +2916,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addlstring(&buffer, "a\0b");
         luaL_pushresult(&buffer);
-        string? result = luaL_tonetstring(state, -1);
+        string? result = lua_tonetstring(state, -1);
         Assert.That(result, Is.EqualTo("a\0b"));
     }
 
@@ -3050,7 +3037,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushliteral(state, "abc");
-        Assert.That(luaL_checkstring(state, 1), Is.EqualTo("abc"));
+        Assert.That(luaL_checknetstring(state, 1), Is.EqualTo("abc"));
         Assert.That(ProtectedCall(state, &AuxCheckLStringFail, 0), Is.EqualTo(LUA_ERRRUN));
     }
 
@@ -3058,9 +3045,9 @@ public unsafe class PublicTests
     public void Macro_luaL_optstring()
     {
         using LuaState state = new();
-        Assert.That(luaL_optstring(state, 1, "default"), Is.EqualTo("default"));
+        Assert.That(luaL_optnetstring(state, 1, "default"), Is.EqualTo("default"));
         lua_pushliteral(state, "given");
-        Assert.That(luaL_optstring(state, 1, "default"), Is.EqualTo("given"));
+        Assert.That(luaL_optnetstring(state, 1, "default"), Is.EqualTo("given"));
     }
 
     [Test]
@@ -3360,5 +3347,38 @@ public unsafe class PublicTests
         lua_pop(state, 1);
         lua_getglobal(state, LUA_GNAME);
         Assert.That(lua_istable(state, -1));
+    }
+
+    [Test]
+    public void MultipleArguments()
+    {
+        using LuaState state = new();
+        luaL_openlibs(state);
+        
+        Assert.That(
+            LoadChunk(
+                state,
+                """
+                local function test(a, b)
+                    return b
+                end
+
+                assert(test"1" == nil)
+                """),
+            Is.EqualTo(LUA_OK));
+        Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
+        
+        Assert.That(
+            LoadChunk(
+                state,
+                """
+                local function test(a, b)
+                    return a
+                end
+
+                assert(test"1" == "1")
+                """),
+            Is.EqualTo(LUA_OK));
+        Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
     }
 }

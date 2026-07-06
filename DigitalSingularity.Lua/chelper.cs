@@ -441,6 +441,21 @@ public static unsafe partial class Lua
         
         return new ReadOnlySpan<byte>();
     }
+
+    private static byte* strchr(byte* s, char c)
+    {
+        while (*s != 0)
+        {
+            if (*s == c)
+            {
+                return s;
+            }
+
+            s++;
+        }
+
+        return null;
+    }
     
     private static ReadOnlySpan<char> strstr(ReadOnlySpan<char> s, ReadOnlySpan<char> sub)
     {
@@ -451,6 +466,17 @@ public static unsafe partial class Lua
         }
 
         return ReadOnlySpan<char>.Empty;
+    }
+
+    private static int strspn(ReadOnlySpan<char> dest, ReadOnlySpan<char> src)
+    {
+        int result = dest.IndexOfAnyExcept(src);
+        if (result < 0)
+        {
+            result = dest.Length;
+        }
+
+        return result;
     }
     
     /*

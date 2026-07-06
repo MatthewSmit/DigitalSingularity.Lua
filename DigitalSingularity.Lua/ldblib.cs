@@ -151,7 +151,7 @@ public static unsafe partial class Lua
         lua_Debug ar = new();
 
         lua_State* L1 = getthread(L, out bool arg);
-        string options = luaL_optstring(L, arg ? 3 : 2, "flnSrtu");
+        string options = luaL_optnetstring(L, arg ? 3 : 2, "flnSrtu");
         checkstack(L, L1, 3);
         luaL_argcheck(L, options[0] != '>', arg ? 3 : 2, "invalid option '>'");
 

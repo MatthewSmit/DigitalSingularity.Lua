@@ -10,7 +10,7 @@ public static partial class Lua
 
     /* ORDER OP */
 
-    private static readonly string[] opnames =
+    internal static readonly string[] opnames =
     [
         "MOVE",
         "LOADI",

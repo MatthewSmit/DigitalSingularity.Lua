@@ -747,8 +747,7 @@ public static unsafe class Program
     private static int pmain(lua_State* L)
     {
         int argc = (int)lua_tointeger(L, 1);
-        string[] argv = (string[])(GCHandle.FromIntPtr((nint)lua_touserdata(L, 2)).Target ??
-                                   throw new InvalidOperationException());
+        string[] argv = GCHandle<string[]>.FromIntPtr((nint)lua_touserdata(L, 2)).Target;
         int script;
         int args = collectargs(argv, &script);
         int optlim = (script > 0) ? script : argc; /* first argv not an option */
@@ -845,18 +844,16 @@ public static unsafe class Program
 
         string[] xargs = [Environment.GetCommandLineArgs()[0], ..args];
 
-        GCHandle argPtr = GCHandle.Alloc(xargs);
+        using GCHandle<string[]> argPtr = new(xargs);
 
         lua_gc(L, LUA_GCSTOP); /* stop GC while building state */
         lua_pushcfunction(L, &pmain); /* to call 'pmain' in protected mode */
         lua_pushinteger(L, xargs.Length); /* 1st argument */
-        lua_pushlightuserdata(L, (void*)GCHandle.ToIntPtr(argPtr)); /* 2nd argument */
+        lua_pushlightuserdata(L, (void*)GCHandle<string[]>.ToIntPtr(argPtr)); /* 2nd argument */
         int status = lua_pcall(L, 2, 1, 0) /* do the call */;
         bool result = lua_toboolean(L, -1) /* get result */;
         report(L, status);
         lua_close(L);
-        
-        argPtr.Free();
         
         return result && status == LUA_OK ? 0 : -1;
     }

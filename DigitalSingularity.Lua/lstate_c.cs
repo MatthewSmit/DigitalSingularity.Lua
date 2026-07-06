@@ -154,8 +154,7 @@ public static unsafe partial class Lua
         }
         else if (getCcalls(L) >= (LUAI_MAXCCALLS / 10 * 11))
         {
-            // luaD_errerr(L); /* error while handling stack error */
-            throw new NotImplementedException();
+            luaD_errerr(L); /* error while handling stack error */
         }
     }
 
@@ -307,7 +306,7 @@ public static unsafe partial class Lua
         g->frealloc(g->ud, g, sizeof(global_State), 0); /* free main block */
     }
 
-    public static partial lua_State* lua_newthread(lua_State* L)
+    public static lua_State* lua_newthread(lua_State* L)
     {
         global_State* g = G(L);
         lua_lock(L);
@@ -366,7 +365,7 @@ public static unsafe partial class Lua
         return status;
     }
 
-    public static partial int lua_closethread(lua_State* L, lua_State* from)
+    public static int lua_closethread(lua_State* L, lua_State* from)
     {
         lua_lock(L);
         L->nCcalls = from != null ? getCcalls(from) : 0;
@@ -380,8 +379,8 @@ public static unsafe partial class Lua
         return status;
     }
 
-    public static partial lua_State* lua_newstate(
-        delegate* managed<void*, void*, long, long, void*> f,
+    public static lua_State* lua_newstate(
+        lua_Alloc f,
         void* ud,
         uint seed)
     {
@@ -445,7 +444,7 @@ public static unsafe partial class Lua
         return L;
     }
 
-    public static partial void lua_close(lua_State* L)
+    public static void lua_close(lua_State* L)
     {
         lua_lock(L);
         L = mainthread(G(L)); /* only the main thread can be closed */

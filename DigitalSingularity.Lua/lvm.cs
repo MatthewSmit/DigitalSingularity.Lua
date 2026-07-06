@@ -113,14 +113,6 @@ public static unsafe partial class Lua
     }
 
     /*
-     ** fast track for 'gettable' TODO
-     */
-    // private static void luaV_fastget<T1, T2>(TValue* t, T1 k, T2 res, FastGetDelegate<T1, T2> f, out byte tag)
-    // {
-    //     tag = !ttistable(t) ? LUA_VNOTABLE : f(hvalue(t), k, res);
-    // }
-
-    /*
      ** Special case of 'luaV_fastget' for integers, inlining the fast case
      ** of 'luaH_getint'.
      */
@@ -135,11 +127,6 @@ public static unsafe partial class Lua
             luaH_fastgeti(hvalue(t), k, res, out tag);
         }
     }
-
-    // private static void luaV_fastset(TValue* t, void k, void val, void hres, void f) TODO
-    // {
-    //     hres = !ttistable(t) ? HNOTATABLE : f(hvalue(t), k, val);
-    // }
 
     private static void luaV_fastseti(TValue* t, long k, TValue* val, out int hres)
     {

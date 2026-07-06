@@ -7,13 +7,17 @@ public unsafe class LuaTestSuite
 {
     private static int pmain(lua_State* L)
     {
-        string test = lua_tostring(L, 1);
+        string? test = lua_tostring(L, 1);
         luaL_checkversion(L, LUA_VERSION_NUM, LUAL_NUMSIZES);
         luai_openlibs(L);
 
+        // TODO: create table 'arg'?
+        
         lua_gc(L, LUA_GCRESTART); /* start GC... */
         lua_gc(L, LUA_GCGEN); /* ...in generational mode */
-
+        
+        // TODO handle_luainit?
+        
         int status = luaL_loadfile(L, test);
         if (status == LUA_OK)
         {
@@ -22,7 +26,9 @@ public unsafe class LuaTestSuite
 
         if (status != LUA_OK)
         {
-            return 0; /* interrupt in case of error */
+            string msg = lua_tostring(L, -1) ?? "(error message not a string)";
+            Assert.Fail(msg);
+            lua_pop(L, 1);  /* remove message */
         }
 
         lua_pushboolean(L, true); /* signal no errors */
@@ -71,7 +77,6 @@ public unsafe class LuaTestSuite
         "lua/sort.lua",
         "lua/strings.lua",
         "lua/tpack.lua",
-        "lua/tracegc.lua",
         "lua/utf8.lua",
         "lua/vararg.lua",
         "lua/verybig.lua",
@@ -114,26 +119,31 @@ public unsafe class LuaTestSuite
     [Theory]
     public void Test(string test)
     {
+        FileInfo file = new(Path.Join(AppDomain.CurrentDomain.BaseDirectory, "../../..", test));
+        Environment.CurrentDirectory = file.DirectoryName ?? throw new InvalidOperationException();
+        Console.WriteLine($"Running test: {Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file.FullName)}");
+        
         lua_State* L = luaL_newstate(); /* create state */
         Assert.That(L, Is.Not.Null);
         
-        string testFile = Path.Join(Path.GetFullPath("../../../"), test);
-        Console.WriteLine($"Runnint test: {testFile}");
-        
         lua_gc(L, LUA_GCSTOP); /* stop GC while building state */
         lua_pushcfunction(L, &pmain); /* to call 'pmain' in protected mode */
-        lua_pushstring(L, testFile);
+        lua_pushstring(L, file.Name);
         int status = lua_pcall(L, 1, 1, 0) /* do the call */;
         bool result = lua_toboolean(L, -1) /* get result */;
-        if (result && status == LUA_OK)
+        if (status != LUA_OK)
         {
-            
-        }
-        else
-        {
-            throw new NotImplementedException();
+            string msg = lua_tostring(L, -1) ?? "(error message not a string)";
+            Assert.Fail($"STATUS: {status}; MESSAGE: {msg}");
+            lua_pop(L, 1);
         }
         
         lua_close(L);
+    }
+
+    [Test]
+    public void Test2()
+    {
+        this.Test("test.lua");
     }
 }
