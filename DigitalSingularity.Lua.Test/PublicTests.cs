@@ -22,7 +22,7 @@ internal unsafe struct LuaState : IDisposable
         }
     }
     
-    public lua_State* get() => this.l;
+    public readonly lua_State* get() => this.l;
 
     public static implicit operator lua_State*(LuaState state)
     {

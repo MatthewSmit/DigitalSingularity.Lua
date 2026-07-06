@@ -898,7 +898,7 @@ public static unsafe partial class Lua
         return gco2cl(val_(o).gc);
     }
 
-    private static LClosure* clLvalue(TValue* o)
+    internal static LClosure* clLvalue(TValue* o)
     {
         Debug.Assert(ttisLclosure(o));
         return gco2lcl(val_(o).gc);

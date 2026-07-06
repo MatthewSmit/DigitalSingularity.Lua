@@ -1463,7 +1463,7 @@ public static unsafe partial class Lua
         while (true)
         {
             vmfetch(ref state);
-#if false
+#if true
             {
                 /* low-level line tracing for debugging Lua */
                 int pcrel = pcRel(state.pc, state.cl->p);
@@ -1714,17 +1714,20 @@ public static unsafe partial class Lua
                 case OpCode.OP_SETFIELD:
                     {
                         StkId ra = RA(ref state);
-                        // int hres;
                         TValue* rb = KB(ref state);
                         TValue* rc = RKC(ref state);
                         TString* key = tsvalue(rb); /* key must be a short string */
-                        // luaV_fastset(s2v(ra), key, rc, hres, luaH_psetshortstr);
-                        // if (hres == HOK)
-                        //     luaV_finishfastset(L, s2v(ra), rc);
-                        // else
-                        //     Protect(luaV_finishset(L, s2v(ra), rb, rc, hres));
-                        // break;
-                        throw new NotImplementedException();
+                        int hres = !ttistable(s2v(ra)) ? HNOTATABLE : luaH_psetshortstr(hvalue(s2v(ra)), key, rc);
+                        if (hres == HOK)
+                        {
+                            luaV_finishfastset(L, s2v(ra), rc);
+                        }
+                        else
+                        {
+                            Protect(ref state, () => luaV_finishset(L, s2v(ra), rb, rc, hres));
+                        }
+
+                        break;
                     }
 
                 case OpCode.OP_NEWTABLE:

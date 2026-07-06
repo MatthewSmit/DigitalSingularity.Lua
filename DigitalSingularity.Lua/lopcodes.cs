@@ -91,7 +91,7 @@ public static unsafe partial class Lua
     private const int MAXARG_B = (1 << SIZE_B) - 1;
     private const int MAXARG_vB = (1 << SIZE_vB) - 1;
     private const int MAXARG_C = (1 << SIZE_C) - 1;
-    private const int MAXARG_vC = (1 << SIZE_vC) - 1;
+    internal const int MAXARG_vC = (1 << SIZE_vC) - 1;
     private const int OFFSET_sC = MAXARG_C >> 1;
 
     private static int int2sC(int i)
@@ -125,7 +125,7 @@ public static unsafe partial class Lua
     ** the following macros help to manipulate instructions
     */
 
-    private static OpCode GET_OPCODE(uint i)
+    internal static OpCode GET_OPCODE(uint i)
     {
         return (OpCode)(i >> POS_OP & MASK1(SIZE_OP, 0));
     }
