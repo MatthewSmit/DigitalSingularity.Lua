@@ -312,50 +312,70 @@ public static unsafe partial class Lua
         return ttisinteger(key) ? ikeyinarray(t, ivalue(key)) : 0;
     }
 
-// /*
-// ** returns the index of a 'key' for table traversals. First goes all
-// ** elements in the array part, then elements in the hash part. The
-// ** beginning of a traversal is signaled by 0.
-// */
-// static unsigned findindex (lua_State *L, Table *t, TValue *key,
-//                                unsigned asize) {
-//   unsigned int i;
-//   if (ttisnil(key)) return 0;  /* first iteration */
-//   i = keyinarray(t, key);
-//   if (i != 0)  /* is 'key' inside array part? */
-//     return i;  /* yes; that's the index */
-//   else {
-//     const TValue *n = getgeneric(t, key, 1);
-//     if (l_unlikely(isabstkey(n)))
-//       luaG_runerror(L, "invalid key to 'next'");  /* key not found */
-//     i = cast_uint(nodefromval(n) - gnode(t, 0));  /* key index in hash table */
-//     /* hash elements are numbered after array ones */
-//     return (i + 1) + asize;
-//   }
-// }
-
-    private static partial int luaH_next(lua_State* L, Table* t, StkId key)
+    /*
+    ** returns the index of a 'key' for table traversals. First goes all
+    ** elements in the array part, then elements in the hash part. The
+    ** beginning of a traversal is signalled by 0.
+    */
+    private static uint findindex(
+        lua_State* L,
+        Table* t,
+        TValue* key,
+        uint asize)
     {
-//   unsigned int asize = t->asize;
-//   unsigned int i = findindex(L, t, s2v(key), asize);  /* find original key */
-//   for (; i < asize; i++) {  /* try first array part */
-//     lu_byte tag = *getArrTag(t, i);
-//     if (!tagisempty(tag)) {  /* a non-empty entry? */
-//       setivalue(s2v(key), cast_int(i) + 1);
-//       farr2val(t, i, tag, s2v(key + 1));
-//       return 1;
-//     }
-//   }
-//   for (i -= asize; i < sizenode(t); i++) {  /* hash part */
-//     if (!isempty(gval(gnode(t, i)))) {  /* a non-empty entry? */
-//       Node *n = gnode(t, i);
-//       getnodekey(L, s2v(key), n);
-//       setobj2s(L, key + 1, gval(n));
-//       return 1;
-//     }
-//   }
-//   return 0;  /* no more elements */
-        throw new NotImplementedException();
+        if (ttisnil(key))
+        {
+            return 0; /* first iteration */
+        }
+
+        uint i = keyinarray(t, key);
+        if (i != 0) /* is 'key' inside array part? */
+        {
+            return i; /* yes; that's the index */
+        }
+
+        TValue* n = getgeneric(t, key, true);
+        if (isabstkey(n))
+        {
+            luaG_runerror(L, "invalid key to 'next'"); /* key not found */
+        }
+
+        i = (uint)(nodefromval(n) - gnode(t, 0)); /* key index in hash table */
+        /* hash elements are numbered after array ones */
+        return (i + 1) + asize;
+    }
+
+    internal static partial bool luaH_next(lua_State* L, Table* t, StkId key)
+    {
+        uint asize = t->asize;
+        uint i = findindex(L, t, s2v(key), asize); /* find original key */
+        for (; i < asize; i++)
+        {
+            // try first array part 
+            byte tag = *getArrTag(t, i);
+            if (!tagisempty(tag))
+            {
+                // a non-empty entry? 
+                setivalue(s2v(key), (int)i + 1);
+                farr2val(t, i, tag, s2v(key + 1));
+                return true;
+            }
+        }
+
+        for (i -= asize; i < sizenode(t); i++)
+        {
+            // hash part 
+            if (!isempty(gval(gnode(t, i))))
+            {
+                // a non-empty entry? 
+                Node* n = gnode(t, i);
+                getnodekey(L, s2v(key), n);
+                setobj2s(L, key + 1, gval(n));
+                return true;
+            }
+        }
+
+        return false; // no more elements
     }
 
     /* Extra space in Node array if it has a lastfree entry */
@@ -743,7 +763,7 @@ public static unsafe partial class Lua
      ** the old one ('oldasize'), this function will do nothing with that
      ** part.
      */
-    private static partial void luaH_resize(lua_State* L, Table* t, uint newasize, uint nhsize)
+    internal static partial void luaH_resize(lua_State* L, Table* t, uint newasize, uint nhsize)
     {
         Table newt; /* to keep the new hash part */
         uint oldasize = t->asize;
@@ -789,7 +809,7 @@ public static unsafe partial class Lua
         freehash(L, &newt); /* free old hash part */
     }
 
-    private static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize)
+    internal static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize)
     {
         uint nsize = allocsizenode(t);
         luaH_resize(L, t, nasize, nsize);
@@ -852,7 +872,7 @@ public static unsafe partial class Lua
      ** }=============================================================
      */
 
-    private static partial Table* luaH_new(lua_State* L)
+    internal static partial Table* luaH_new(lua_State* L)
     {
         GCObject* o = luaC_newobj(L, LUA_VTABLE, sizeof(Table));
         Table* t = gco2t(o);
@@ -864,7 +884,7 @@ public static unsafe partial class Lua
         return t;
     }
 
-    private static partial long luaH_size(Table* t)
+    internal static partial long luaH_size(Table* t)
     {
         long sz = sizeof(Table) + concretesize(t->asize);
         if (!isdummy(t))
@@ -1068,7 +1088,7 @@ public static unsafe partial class Lua
         return ttypetag(val);
     }
 
-    private static partial byte luaH_getint(Table* t, long key, TValue* res)
+    internal static partial byte luaH_getint(Table* t, long key, TValue* res)
     {
         uint k = ikeyinarray(t, key);
         if (k > 0)
@@ -1088,7 +1108,7 @@ public static unsafe partial class Lua
     /*
      ** search function for short strings
      */
-    private static partial TValue* luaH_Hgetshortstr(Table* t, TString* key)
+    internal static partial TValue* luaH_Hgetshortstr(Table* t, TString* key)
     {
         Node* n = hashstr(t, key);
         Debug.Assert(strisshr(key));
@@ -1110,7 +1130,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res)
+    internal static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res)
     {
         return finishnodeget(luaH_Hgetshortstr(t, key), res);
     }
@@ -1133,7 +1153,7 @@ public static unsafe partial class Lua
         return Hgetlongstr(t, key);
     }
 
-    private static partial byte luaH_getstr(Table* t, TString* key, TValue* res)
+    internal static partial byte luaH_getstr(Table* t, TString* key, TValue* res)
     {
         return finishnodeget(Hgetstr(t, key), res);
     }
@@ -1141,7 +1161,7 @@ public static unsafe partial class Lua
     /*
     ** main search function
     */
-    private static partial byte luaH_get(Table* t, TValue* key, TValue* res)
+    internal static partial byte luaH_get(Table* t, TValue* key, TValue* res)
     {
         TValue* slot;
         switch (ttypetag(key))
@@ -1210,7 +1230,7 @@ public static unsafe partial class Lua
         return true; /* success */
     }
 
-    private static partial int luaH_psetint(Table* t, long key, TValue* val)
+    internal static partial int luaH_psetint(Table* t, long key, TValue* val)
     {
         Debug.Assert(ikeyinarray(t, key) == 0);
         return finishnodeset(t, getintfromhash(t, key), val);
@@ -1229,7 +1249,7 @@ public static unsafe partial class Lua
      ** {x=1, y=2}), which creates a key in a table that has no metatable,
      ** it is not old/black, and it already has space for the key.
      */
-    private static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val)
+    internal static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val)
     {
         TValue* slot = luaH_Hgetshortstr(t, key);
         if (!ttisnil(slot))
@@ -1268,7 +1288,7 @@ public static unsafe partial class Lua
         return retpsetcode(t, slot);
     }
 
-    private static partial int luaH_psetstr(Table* t, TString* key, TValue* val)
+    internal static partial int luaH_psetstr(Table* t, TString* key, TValue* val)
     {
         if (strisshr(key))
         {
@@ -1279,7 +1299,7 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    private static partial int luaH_pset(Table* t, TValue* key, TValue* val)
+    internal static partial int luaH_pset(Table* t, TValue* key, TValue* val)
     {
         switch (ttypetag(key))
         {
@@ -1310,7 +1330,7 @@ public static unsafe partial class Lua
      ** Beware: when using this function the caller probably need to check a
      ** GC barrier and invalidate the TM cache.
      */
-    private static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres)
+    internal static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres)
     {
         Debug.Assert(hres != HOK);
         if (hres == HNOTFOUND)
@@ -1363,7 +1383,7 @@ public static unsafe partial class Lua
     ** beware: when using this function, you probably need to check a GC
     ** barrier and invalidate the TM cache.
     */
-    private static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value)
+    internal static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value)
     {
         int hres = luaH_pset(t, key, value);
         if (hres != HOK)
@@ -1376,7 +1396,7 @@ public static unsafe partial class Lua
      ** Ditto for a GC barrier. (No need to invalidate the TM cache, as
      ** integers cannot be keys to metamethods.)
      */
-    private static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value)
+    internal static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value)
     {
         uint ik = ikeyinarray(t, key);
         if (ik > 0)
@@ -1415,35 +1435,52 @@ public static unsafe partial class Lua
     */
     private static ulong hash_search(lua_State* L, Table* t, uint asize)
     {
-//   lua_Unsigned i = asize + 1;  /* caller ensures t[i] is present */
-//   unsigned rnd = G(L)->seed;
-//   int n = (asize > 0) ? luaO_ceillog2(asize) : 0;  /* width of 'asize' */
-//   unsigned mask = (1u << n) - 1;  /* 11...111 with the width of 'asize' */
-//   unsigned incr = (rnd & mask) + 1;  /* first increment (at least 1) */
-//   lua_Unsigned j = (incr <= l_castS2U(LUA_MAXINTEGER) - i) ? i + incr : i + 1;
-//   rnd >>= n;  /* used 'n' bits from 'rnd' */
-//   while (!hashkeyisempty(t, j)) {  /* repeat until an absent t[j] */
-//     i = j;  /* 'i' is a present index */
-//     if (j <= l_castS2U(LUA_MAXINTEGER)/2 - 1) {
-//       j = j*2 + (rnd & 1);  /* try again with 2j or 2j+1 */
-//       rnd >>= 1;
-//     }
-//     else {
-//       j = LUA_MAXINTEGER;
-//       if (hashkeyisempty(t, j))  /* t[j] not present? */
-//         break;  /* 'j' now is an absent index */
-//       else  /* weird case */
-//         return j;  /* well, max integer is a boundary... */
-//     }
-//   }
-//   /* i < j  &&  t[i] present  &&  t[j] absent */
-//   while (j - i > 1u) {  /* do a binary search between them */
-//     lua_Unsigned m = (i + j) / 2;
-//     if (hashkeyisempty(t, m)) j = m;
-//     else i = m;
-//   }
-//   return i;
-        throw new NotImplementedException();
+        ulong i = asize + 1; /* caller ensures t[i] is present */
+        uint rnd = G(L)->seed;
+        int n = asize > 0 ? luaO_ceillog2(asize) : 0; /* width of 'asize' */
+        uint mask = (1u << n) - 1; /* 11...111 with the width of 'asize' */
+        uint incr = (rnd & mask) + 1; /* first increment (at least 1) */
+        ulong j = (incr <= long.MaxValue - i) ? i + incr : i + 1;
+        rnd >>= n; /* used 'n' bits from 'rnd' */
+        while (!hashkeyisempty(t, j))
+        {
+            /* repeat until an absent t[j] */
+            i = j; /* 'i' is a present index */
+            if (j <= long.MaxValue / 2 - 1)
+            {
+                j = j * 2 + (rnd & 1); /* try again with 2j or 2j+1 */
+                rnd >>= 1;
+            }
+            else
+            {
+                j = long.MaxValue;
+                if (hashkeyisempty(t, j)) /* t[j] not present? */
+                {
+                    break; /* 'j' now is an absent index */
+                }
+                else /* weird case */
+                {
+                    return j; /* well, max integer is a boundary... */
+                }
+            }
+        }
+
+        /* i < j  &&  t[i] present  &&  t[j] absent */
+        while (j - i > 1u)
+        {
+            /* do a binary search between them */
+            ulong m = (i + j) / 2;
+            if (hashkeyisempty(t, m))
+            {
+                j = m;
+            }
+            else
+            {
+                i = m;
+            }
+        }
+
+        return i;
     }
 
     private static uint binsearch(Table* array, uint i, uint j)
@@ -1485,7 +1522,7 @@ public static unsafe partial class Lua
      ** If there is no array part, or its last element is non empty, the
      ** border may be in the hash part.
      */
-    private static partial ulong luaH_getn(lua_State* L, Table* t)
+    internal static partial ulong luaH_getn(lua_State* L, Table* t)
     {
         uint asize = t->asize;
         if (asize > 0)

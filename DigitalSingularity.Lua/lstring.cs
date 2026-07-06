@@ -31,7 +31,7 @@ public static unsafe partial class Lua
         return TStringContentsOffset + l + 1;
     }
 
-    private static TString* luaS_newliteral(lua_State* L, string s)
+    internal static TString* luaS_newliteral(lua_State* L, string s)
     {
         byte[] data = Encoding.UTF8.GetBytes(s);
         fixed (byte* dataPtr = data)
@@ -57,30 +57,30 @@ public static unsafe partial class Lua
         return a == b;
     }
 
-    private static partial uint luaS_hashlongstr(TString* ts);
+    internal static partial uint luaS_hashlongstr(TString* ts);
 
-    private static partial bool luaS_eqstr(TString* a, TString* b);
+    internal static partial bool luaS_eqstr(TString* a, TString* b);
 
-    private static partial void luaS_resize(lua_State* L, int newsize);
+    internal static partial void luaS_resize(lua_State* L, int newsize);
 
-    private static partial void luaS_clearcache(global_State* g);
+    internal static partial void luaS_clearcache(global_State* g);
 
     private static partial void luaS_init(lua_State* L);
 
     private static partial void luaS_remove(lua_State* L, TString* ts);
 
-    private static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue);
+    internal static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue);
 
-    private static partial TString* luaS_newlstr(lua_State* L, byte* str, int l);
+    internal static partial TString* luaS_newlstr(lua_State* L, byte* str, int l);
 
     private static partial TString* luaS_new(lua_State* L, byte* str);
-    private static partial TString* luaS_new(lua_State* L, string str);
+    internal static partial TString* luaS_new(lua_State* L, string str);
 
-    private static partial TString* luaS_createlngstrobj(lua_State* L, long l);
+    internal static partial TString* luaS_createlngstrobj(lua_State* L, long l);
 
-    private static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
+    internal static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
 
-    private static partial long luaS_sizelngstr(long len, int kind);
+    internal static partial long luaS_sizelngstr(long len, int kind);
 
-    private static partial TString* luaS_normstr(lua_State* L, TString* ts);
+    internal static partial TString* luaS_normstr(lua_State* L, TString* ts);
 }

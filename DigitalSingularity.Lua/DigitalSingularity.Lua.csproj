@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-        <DefineConstants>TRACE;LUA_TEST;HARDSTACKTESTS;LUAI_STRICT_ADDRESS;LUA_COMPAT_MATHLIB;LUA_DEBUG</DefineConstants>
+        <DefineConstants>TRACE;LUA_TEST;HARDSTACKTESTS;LUAI_STRICT_ADDRESS;LUA_COMPAT_MATHLIB;LUA_DEBUG;HARDMEMTESTS</DefineConstants>
     </PropertyGroup>
 
 </Project>

@@ -31,7 +31,7 @@ public static unsafe partial class Lua
      ** function to be used with macro "fasttm": optimized for absence of
      ** tag methods
      */
-    private static partial TValue* luaT_gettm(Table* events, TMS @event, TString* ename)
+    internal static partial TValue* luaT_gettm(Table* events, TMS @event, TString* ename)
     {
         TValue* tm = luaH_Hgetshortstr(events, ename);
         Debug.Assert(@event <= TMS.EQ);
@@ -45,7 +45,7 @@ public static unsafe partial class Lua
         return tm;
     }
 
-    private static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event)
+    internal static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event)
     {
         Table* mt = ttype(o) switch
         {
@@ -61,82 +61,114 @@ public static unsafe partial class Lua
      ** Return the name of the type of an object. For tables and userdata
      ** with metatable, use their '__name' metafield, if present.
      */
-    private static partial string luaT_objtypename(lua_State* L, TValue* o)
+    internal static partial string luaT_objtypename(lua_State* L, TValue* o)
     {
-//   Table *mt;
-//   if ((ttistable(o) && (mt = hvalue(o)->metatable) != null) ||
-//       (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != null)) {
-//     const TValue *name = luaH_Hgetshortstr(mt, luaS_new(L, "__name"));
-//     if (ttisstring(name))  /* is '__name' a string? */
-//       return getstr(tsvalue(name));  /* use it as type name */
-//   }
-//   return ttypename(ttype(o));  /* else use standard type name */
-        throw new NotImplementedException();
+        Table* mt;
+        if ((ttistable(o) && (mt = hvalue(o)->metatable) != null) ||
+            (ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != null))
+        {
+            TValue* name = luaH_Hgetshortstr(mt, luaS_new(L, "__name"));
+            if (ttisstring(name)) /* is '__name' a string? */
+            {
+                return getnetstr(tsvalue(name)); /* use it as type name */
+            }
+        }
+
+        return ttypename(ttype(o)); /* else use standard type name */
     }
 
     private static partial void luaT_callTM(lua_State* L, TValue* f, TValue* p1, TValue* p2, TValue* p3)
     {
-//   StkId func = L->top.p;
-//   setobj2s(L, func, f);  /* push function (assume EXTRA_STACK) */
-//   setobj2s(L, func + 1, p1);  /* 1st argument */
-//   setobj2s(L, func + 2, p2);  /* 2nd argument */
-//   setobj2s(L, func + 3, p3);  /* 3rd argument */
-//   L->top.p = func + 4;
-//   /* metamethod may yield only when called from Lua code */
-//   if (isLuacode(L->ci))
-//     luaD_call(L, func, 0);
-//   else
-//     luaD_callnoyield(L, func, 0);
-        throw new NotImplementedException();
+        StkId func = L->top.p;
+        setobj2s(L, func, f); /* push function (assume EXTRA_STACK) */
+        setobj2s(L, func + 1, p1); /* 1st argument */
+        setobj2s(L, func + 2, p2); /* 2nd argument */
+        setobj2s(L, func + 3, p3); /* 3rd argument */
+        L->top.p = func + 4;
+        /* metamethod may yield only when called from Lua code */
+        if (isLuacode(L->ci))
+        {
+            luaD_call(L, func, 0);
+        }
+        else
+        {
+            luaD_callnoyield(L, func, 0);
+        }
     }
 
     private static partial byte luaT_callTMres(lua_State* L, TValue* f, TValue* p1, TValue* p2, StkId p3)
     {
-//   ptrdiff_t result = savestack(L, res);
-//   StkId func = L->top.p;
-//   setobj2s(L, func, f);  /* push function (assume EXTRA_STACK) */
-//   setobj2s(L, func + 1, p1);  /* 1st argument */
-//   setobj2s(L, func + 2, p2);  /* 2nd argument */
-//   L->top.p += 3;
-//   /* metamethod may yield only when called from Lua code */
-//   if (isLuacode(L->ci))
-//     luaD_call(L, func, 1);
-//   else
-//     luaD_callnoyield(L, func, 1);
-//   res = restorestack(L, result);
-//   setobjs2s(L, res, --L->top.p);  /* move result to its place */
-//   return ttypetag(s2v(res));  /* return tag of the result */
-        throw new NotImplementedException();
+        IntPtr result = savestack(L, p3);
+        StkId func = L->top.p;
+        setobj2s(L, func, f); /* push function (assume EXTRA_STACK) */
+        setobj2s(L, func + 1, p1); /* 1st argument */
+        setobj2s(L, func + 2, p2); /* 2nd argument */
+        L->top.p += 3;
+        /* metamethod may yield only when called from Lua code */
+        if (isLuacode(L->ci))
+        {
+            luaD_call(L, func, 1);
+        }
+        else
+        {
+            luaD_callnoyield(L, func, 1);
+        }
+
+        p3 = restorestack(L, result);
+        setobjs2s(L, p3, --L->top.p); /* move result to its place */
+        return ttypetag(s2v(p3)); /* return tag of the result */
     }
 
-// static int callbinTM (lua_State *L, const TValue *p1, const TValue *p2,
-//                       StkId res, TMS event) {
-//   const TValue *tm = luaT_gettmbyobj(L, p1, event);  /* try first operand */
-//   if (notm(tm))
-//     tm = luaT_gettmbyobj(L, p2, event);  /* try second operand */
-//   if (notm(tm))
-//     return -1;  /* tag method not found */
-//   else  /* call tag method and return the tag of the result */
-//     return luaT_callTMres(L, tm, p1, p2, res);
-// }
+    private static int callbinTM(
+        lua_State* L,
+        TValue* p1,
+        TValue* p2,
+        StkId res,
+        TMS @event)
+    {
+        TValue* tm = luaT_gettmbyobj(L, p1, @event); /* try first operand */
+        if (notm(tm))
+        {
+            tm = luaT_gettmbyobj(L, p2, @event); /* try second operand */
+        }
+
+        if (notm(tm))
+        {
+            return -1; /* tag method not found */
+        }
+
+         // call tag method and return the tag of the result 
+        return luaT_callTMres(L, tm, p1, p2, res);
+    }
 
     private static partial void luaT_trybinTM(lua_State* L, TValue* p1, TValue* p2, StkId res, TMS @event)
     {
-//   if (l_unlikely(callbinTM(L, p1, p2, res, event) < 0)) {
-//     switch (event) {
-//       case TM_BAND: case TM_BOR: case TM_BXOR:
-//       case TM_SHL: case TM_SHR: case TM_BNOT: {
-//         if (ttisnumber(p1) && ttisnumber(p2))
-//           luaG_tointerror(L, p1, p2);
-//         else
-//           luaG_opinterror(L, p1, p2, "perform bitwise operation on");
-//       }
-//       /* calls never return, but to avoid warnings: *//* FALLTHROUGH */
-//       default:
-//         luaG_opinterror(L, p1, p2, "perform arithmetic on");
-//     }
-//   }
-        throw new NotImplementedException();
+        if (callbinTM(L, p1, p2, res, @event) < 0)
+        {
+            switch (@event)
+            {
+                case TMS.BAND:
+                case TMS.BOR:
+                case TMS.BXOR:
+                case TMS.SHL:
+                case TMS.SHR:
+                case TMS.BNOT:
+                    if (ttisnumber(p1) && ttisnumber(p2))
+                    {
+                        luaG_tointerror(L, p1, p2);
+                    }
+                    else
+                    {
+                        luaG_opinterror(L, p1, p2, "perform bitwise operation on");
+                    }
+
+                    break;
+
+                default:
+                    luaG_opinterror(L, p1, p2, "perform arithmetic on");
+                    break;
+            }
+        }
     }
 
     /*
@@ -145,10 +177,11 @@ public static unsafe partial class Lua
      */
     private static partial void luaT_tryconcatTM(lua_State* L)
     {
-//   StkId p1 = L->top.p - 2;  /* first argument */
-//   if (l_unlikely(callbinTM(L, s2v(p1), s2v(p1 + 1), p1, TM_CONCAT) < 0))
-//     luaG_concaterror(L, s2v(p1), s2v(p1 + 1));
-        throw new NotImplementedException();
+        StkId p1 = L->top.p - 2; /* first argument */
+        if (callbinTM(L, s2v(p1), s2v(p1 + 1), p1, TMS.CONCAT) < 0)
+        {
+            luaG_concaterror(L, s2v(p1), s2v(p1 + 1));
+        }
     }
 
     private static partial void luaT_trybinassocTM(
@@ -179,14 +212,16 @@ public static unsafe partial class Lua
     /*
      ** Calls an order tag method.
      */
-    private static partial int luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event)
+    private static partial bool luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event)
     {
-//   int tag = callbinTM(L, p1, p2, L->top.p, event);  /* try original event */
-//   if (tag >= 0)  /* found tag method? */
-//     return !tagisfalse(tag);
-//   luaG_ordererror(L, p1, p2);  /* no metamethod found */
-//   return 0;  /* to avoid warnings */
-        throw new NotImplementedException();
+        int tag = callbinTM(L, p1, p2, L->top.p, @event); /* try original event */
+        if (tag >= 0) /* found tag method? */
+        {
+            return !tagisfalse((byte)tag);
+        }
+
+        luaG_ordererror(L, p1, p2); /* no metamethod found */
+        return false; /* to avoid warnings */
     }
 
     private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event)

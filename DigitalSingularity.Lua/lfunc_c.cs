@@ -10,7 +10,7 @@ public static unsafe partial class Lua
     ** See Copyright Notice in lua.h
     */
 
-    private static partial CClosure* luaF_newCclosure(lua_State* L, int nupvals)
+    internal static partial CClosure* luaF_newCclosure(lua_State* L, int nupvals)
     {
         GCObject* o = luaC_newobj(L, LUA_VCCL, sizeCclosure(nupvals));
         CClosure* c = gco2ccl(o);
@@ -18,7 +18,7 @@ public static unsafe partial class Lua
         return c;
     }
 
-    private static partial LClosure* luaF_newLclosure(lua_State* L, int nupvals)
+    internal static partial LClosure* luaF_newLclosure(lua_State* L, int nupvals)
     {
         GCObject* o = luaC_newobj(L, LUA_VLCL, sizeLclosure(nupvals));
         LClosure* c = gco2lcl(o);
@@ -35,7 +35,7 @@ public static unsafe partial class Lua
     /*
     ** fill a closure with new closed upvalues
     */
-    private static partial void luaF_initupvals(lua_State* L, LClosure* cl)
+    internal static partial void luaF_initupvals(lua_State* L, LClosure* cl)
     {
         for (int i = 0; i < cl->nupvalues; i++)
         {
@@ -80,7 +80,7 @@ public static unsafe partial class Lua
      ** Find and reuse, or create if it does not exist, an upvalue
      ** at the given level.
      */
-    private static partial UpVal* luaF_findupval(lua_State* L, StkId level)
+    internal static partial UpVal* luaF_findupval(lua_State* L, StkId level)
     {
         UpVal** pp = &L->openupval;
         Debug.Assert(isintwups(L) || L->openupval == null);
@@ -134,23 +134,25 @@ public static unsafe partial class Lua
      ** Check whether object at given level has a close metamethod and raise
      ** an error if not.
      */
-// static void checkclosemth (lua_State *L, StkId level) {
-//   const TValue *tm = luaT_gettmbyobj(L, s2v(level), TM_CLOSE);
-//   if (ttisnil(tm)) {  /* no metamethod? */
-//     int idx = cast_int(level - L->ci->func.p);  /* variable index */
-//     const char *vname = luaG_findlocal(L, L->ci, idx, null);
-//     if (vname == null) vname = "?";
-//     luaG_runerror(L, "variable '%s' got a non-closable value", vname);
-//   }
-// }
+    private static void checkclosemth(lua_State* L, StkId level)
+    {
+        TValue* tm = luaT_gettmbyobj(L, s2v(level), TMS.CLOSE);
+        if (ttisnil(tm))
+        {
+            /* no metamethod? */
+            int idx = (int)(level - L->ci->func.p); /* variable index */
+            string vname = luaG_findlocal(L, L->ci, idx, null) ?? "?";
+            luaG_runerror(L, "variable '%s' got a non-closable value", vname);
+        }
+    }
 
     /*
-    ** Prepare and call a closing method.
-    ** If status is CLOSEKTOP, the call to the closing method will be pushed
-    ** at the top of the stack. Otherwise, values can be pushed right after
-    ** the 'level' of the upvalue being closed, as everything after that
-    ** won't be used again.
-    */
+     ** Prepare and call a closing method.
+     ** If status is CLOSEKTOP, the call to the closing method will be pushed
+     ** at the top of the stack. Otherwise, values can be pushed right after
+     ** the 'level' of the upvalue being closed, as everything after that
+     ** won't be used again.
+     */
     private static void prepcallclosemth(
         lua_State* L,
         StkId level,
@@ -184,22 +186,26 @@ public static unsafe partial class Lua
     /*
     ** Insert a variable in the list of to-be-closed variables.
     */
-    private static partial void luaF_newtbcupval(lua_State* L, StkId level)
+    internal static partial void luaF_newtbcupval(lua_State* L, StkId level)
     {
-//   Debug.Assert(level > L->tbclist.p);
-//   if (l_isfalse(s2v(level)))
-//     return;  /* false doesn't need to be closed */
-//   checkclosemth(L, level);  /* value must have a close method */
-//   while (cast_uint(level - L->tbclist.p) > MAXDELTA) {
-//     L->tbclist.p += MAXDELTA;  /* create a dummy node at maximum delta */
-//     L->tbclist.p->tbclist.delta = 0;
-//   }
-//   level->tbclist.delta = cast(unsigned short, level - L->tbclist.p);
-//   L->tbclist.p = level;
-        throw new NotImplementedException();
+        Debug.Assert(level > L->tbclist.p);
+        if (l_isfalse(s2v(level)))
+        {
+            return; /* false doesn't need to be closed */
+        }
+
+        checkclosemth(L, level); /* value must have a close method */
+        while ((uint)(level - L->tbclist.p) > MAXDELTA)
+        {
+            L->tbclist.p += MAXDELTA; /* create a dummy node at maximum delta */
+            L->tbclist.p->tbclist.delta = 0;
+        }
+
+        level->tbclist.delta = (ushort)(level - L->tbclist.p);
+        L->tbclist.p = level;
     }
 
-    private static partial void luaF_unlinkupval(UpVal* uv)
+    internal static partial void luaF_unlinkupval(UpVal* uv)
     {
         Debug.Assert(upisopen(uv));
         *uv->u.open.previous = uv->u.open.next;
@@ -212,7 +218,7 @@ public static unsafe partial class Lua
     /*
     ** Close all upvalues up to the given stack level.
     */
-    private static partial void luaF_closeupval(lua_State* L, StkId level)
+    internal static partial void luaF_closeupval(lua_State* L, StkId level)
     {
         UpVal* uv;
         while ((uv = L->openupval) != null && uplevel(uv) >= level)
@@ -251,7 +257,7 @@ public static unsafe partial class Lua
      ** Close all upvalues and to-be-closed variables up to the given stack
      ** level. Return restored 'level'.
      */
-    private static partial StkId luaF_close(lua_State* L, StkId level, byte status, bool yy)
+    internal static partial StkId luaF_close(lua_State* L, StkId level, byte status, bool yy)
     {
         nint levelrel = savestack(L, level);
         luaF_closeupval(L, level); /* first, close the upvalues */
@@ -267,7 +273,7 @@ public static unsafe partial class Lua
         return level;
     }
 
-    private static partial Proto* luaF_newproto(lua_State* L)
+    internal static partial Proto* luaF_newproto(lua_State* L)
     {
         GCObject* o = luaC_newobj(L, LUA_VPROTO, sizeof(Proto));
         Proto* f = gco2p(o);
@@ -294,7 +300,7 @@ public static unsafe partial class Lua
         return f;
     }
 
-    private static partial long luaF_protosize(Proto* p)
+    internal static partial long luaF_protosize(Proto* p)
     {
         long sz = sizeof(Proto) +
                   (uint)p->sizep * sizeof(Proto*) +
@@ -331,17 +337,21 @@ public static unsafe partial class Lua
      ** Look for n-th local variable at line 'line' in function 'func'.
      ** Returns null if not found.
      */
-    private static partial string luaF_getlocalname(Proto* func, int local_number, int pc)
+    internal static partial string? luaF_getlocalname(Proto* func, int localNumber, int pc)
     {
-//   int i;
-//   for (i = 0; i<f->sizelocvars && f->locvars[i].startpc <= pc; i++) {
-//     if (pc < f->locvars[i].endpc) {  /* is variable active? */
-//       local_number--;
-//       if (local_number == 0)
-//         return getstr(f->locvars[i].varname);
-//     }
-//   }
-//   return null;  /* not found */
-        throw new NotImplementedException();
+        for (int i = 0; i < func->sizelocvars && func->locvars[i].startpc <= pc; i++)
+        {
+            if (pc < func->locvars[i].endpc)
+            {
+                // is variable active? 
+                localNumber--;
+                if (localNumber == 0)
+                {
+                    return getnetstr(func->locvars[i].varname);
+                }
+            }
+        }
+
+        return null; /* not found */
     }
 }

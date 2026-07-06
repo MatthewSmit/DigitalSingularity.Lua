@@ -28,7 +28,7 @@ public static unsafe partial class Lua
     /*
     ** generic equality for strings
     */
-    private static partial bool luaS_eqstr(TString* a, TString* b)
+    internal static partial bool luaS_eqstr(TString* a, TString* b)
     {
         byte* s1 = getlstr(a, out long len1);
         byte* s2 = getlstr(b, out long len2);
@@ -47,7 +47,7 @@ public static unsafe partial class Lua
         return h;
     }
 
-    private static partial uint luaS_hashlongstr(TString* ts)
+    internal static partial uint luaS_hashlongstr(TString* ts)
     {
         Debug.Assert(ts->tt == LUA_VLNGSTR);
         if (ts->extra == 0)
@@ -90,7 +90,7 @@ public static unsafe partial class Lua
      ** (This can degrade performance, but any non-zero size should work
      ** correctly.)
      */
-    private static partial void luaS_resize(lua_State* L, int nsize)
+    internal static partial void luaS_resize(lua_State* L, int nsize)
     {
         stringtable* tb = &G(L)->strt;
         int osize = tb->size;
@@ -126,7 +126,7 @@ public static unsafe partial class Lua
     ** Clear API string cache. (Entries cannot be empty, so fill them with
     ** a non-collectable string.)
     */
-    private static partial void luaS_clearcache(global_State* g)
+    internal static partial void luaS_clearcache(global_State* g)
     {
         for (int i = 0; i < STRCACHE_N; i++)
         {
@@ -162,7 +162,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial long luaS_sizelngstr(long len, int kind)
+    internal static partial long luaS_sizelngstr(long len, int kind)
     {
         switch (kind)
         {
@@ -193,10 +193,8 @@ public static unsafe partial class Lua
         ts->extra = 0;
         return ts;
     }
-    
-    private static readonly long TString_falloc_offset = Marshal.OffsetOf<TString>(nameof(TString.falloc));
 
-    private static partial TString* luaS_createlngstrobj(lua_State* L, long l)
+    internal static partial TString* luaS_createlngstrobj(lua_State* L, long l)
     {
         long totalsize = luaS_sizelngstr(l, LSTRREG);
         TString* ts = createstrobj(L, totalsize, LUA_VLNGSTR, G(L)->seed);
@@ -285,7 +283,7 @@ public static unsafe partial class Lua
     /*
      ** new string (with explicit length)
      */
-    private static partial TString* luaS_newlstr(lua_State* L, byte* str, int l)
+    internal static partial TString* luaS_newlstr(lua_State* L, byte* str, int l)
     {
         if (l <= LUAI_MAXSHORTLEN) /* short string? */
         {
@@ -331,7 +329,7 @@ public static unsafe partial class Lua
         return p[0];
     }
 
-    private static partial TString* luaS_new(lua_State* L, string str)
+    internal static partial TString* luaS_new(lua_State* L, string str)
     {
         if (str.Length == 0)
         {
@@ -346,7 +344,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue)
+    internal static partial Udata* luaS_newudata(lua_State* L, long s, ushort nuvalue)
     {
         if (s > long.MaxValue - udatamemoffset(nuvalue))
         {
@@ -360,8 +358,7 @@ public static unsafe partial class Lua
         u->metatable = null;
         for (int i = 0; i < nuvalue; i++)
         {
-            // setnilvalue(&u->uv[i].uv);
-            throw new NotImplementedException();
+            setnilvalue(&((TValue*)u->uv)[i]);
         }
 
         return u;
@@ -382,7 +379,7 @@ public static unsafe partial class Lua
         ne->ts = createstrobj(L, size, LUA_VLNGSTR, G(L)->seed);
     }
 
-    private static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
+    internal static partial TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
     {
         NewExt ne;
         if (falloc == null)
@@ -413,7 +410,7 @@ public static unsafe partial class Lua
     /*
     ** Normalise an external string: If it is short, internalise it.
     */
-    private static partial TString* luaS_normstr(lua_State* L, TString* ts)
+    internal static partial TString* luaS_normstr(lua_State* L, TString* ts)
     {
         long len = ts->u.lnglen;
         if (len > LUAI_MAXSHORTLEN)

@@ -48,12 +48,6 @@ public static unsafe partial class Lua
 //
 // /* check whether 'i' is in the interval [-MAXINTFITSF, MAXINTFITSF] */
 // #define l_intfitsf(i)	((MAXINTFITSF + l_castS2U(i)) <= (2 * MAXINTFITSF))
-//
-// #else  /* all integers fit in a float precisely */
-//
-// #define l_intfitsf(i)	1
-//
-// #endif
 
     /*
      ** Try to convert a value from string to a number value.
@@ -71,17 +65,15 @@ public static unsafe partial class Lua
         }
 
         TString* st = tsvalue(obj);
-//     size_t stlen;
-//     const char *s = getlstr(st, stlen);
-//     return (luaO_str2num(s, result) == stlen + 1);
-        throw new NotImplementedException();
+        byte* s = getlstr(st, out long stlen);
+        return luaO_str2num(s, result) == stlen + 1;
     }
 
     /*
      ** Try to convert a value to a float. The float case is already handled
      ** by the macro 'tonumber'.
      */
-    private static partial bool luaV_tonumber_(TValue* obj, double* n)
+    internal static partial bool luaV_tonumber_(TValue* obj, double* n)
     {
         if (ttisinteger(obj))
         {
@@ -89,20 +81,21 @@ public static unsafe partial class Lua
             return true;
         }
 
-//   TValue v;
-//    if (l_strton(obj, &v)) {  /* string coercible to number? */
-//     *n = nvalue(&v);  /* convert result of 'luaO_str2num' to a float */
-//     return 1;
-//   }
-//   else
-//     return 0;  /* conversion failed */
-        throw new NotImplementedException();
+        TValue v;
+        if (l_strton(obj, &v))
+        {
+            /* string coercible to number? */
+            *n = nvalue(&v); /* convert result of 'luaO_str2num' to a float */
+            return true;
+        }
+
+        return false; /* conversion failed */
     }
 
     /*
      ** try to convert a float to an integer, rounding according to 'mode'.
      */
-    private static partial bool luaV_flttointeger(double n, out long p, F2Imod mode)
+    internal static partial bool luaV_flttointeger(double n, out long p, F2Imod mode)
     {
         double f = Math.Floor(n);
         if (n != f)
@@ -128,7 +121,7 @@ public static unsafe partial class Lua
      ** without string coercion.
      ** ("Fast track" handled by macro 'tointegerns'.)
      */
-    private static partial bool luaV_tointegerns(TValue* obj, out long p, F2Imod mode)
+    internal static partial bool luaV_tointegerns(TValue* obj, out long p, F2Imod mode)
     {
         if (ttisfloat(obj))
         {
@@ -148,7 +141,7 @@ public static unsafe partial class Lua
     /*
      ** try to convert a value to an integer.
      */
-    private static partial bool luaV_tointeger(TValue* obj, out long p, F2Imod mode)
+    internal static partial bool luaV_tointeger(TValue* obj, out long p, F2Imod mode)
     {
         TValue v;
         if (l_strton(obj, &v)) /* does 'obj' point to a numerical string? */
@@ -310,7 +303,7 @@ public static unsafe partial class Lua
     /*
      ** Finish the table access 'val = t[key]' and return the tag of the result.
      */
-    private static partial byte luaV_finishget(lua_State* L, TValue* t, TValue* key, StkId val, byte tag)
+    internal static partial byte luaV_finishget(lua_State* L, TValue* t, TValue* key, StkId val, byte tag)
     {
         for (int loop = 0; loop < MAXTAGLOOP; loop++)
         {
@@ -343,9 +336,8 @@ public static unsafe partial class Lua
             if (ttisfunction(tm))
             {
                 /* is metamethod a function? */
-//       tag = luaT_callTMres(L, tm, t, key, val);  /* call it */
-//       return tag;  /* return tag of the result */
-                throw new NotImplementedException();
+                tag = luaT_callTMres(L, tm, t, key, val); /* call it */
+                return tag; /* return tag of the result */
             }
 
             t = tm; /* else try to access 'tm[key]' */
@@ -370,7 +362,7 @@ public static unsafe partial class Lua
     // ** metatable is weak and the table is not anchored, this collection
     // ** could collect that table while it is being updated.
     // */
-    private static partial void luaV_finishset(lua_State* L, TValue* t, TValue* key, TValue* val, int hres)
+    internal static partial void luaV_finishset(lua_State* L, TValue* t, TValue* key, TValue* val, int hres)
     {
         for (int loop = 0; loop < MAXTAGLOOP; loop++)
         {
@@ -396,28 +388,29 @@ public static unsafe partial class Lua
             else
             {
                 /* not a table; check metamethod */
-//       tm = luaT_gettmbyobj(L, t, TM_NEWINDEX);
-//       if (l_unlikely(notm(tm)))
-//         luaG_typeerror(L, t, "index");
-                throw new NotImplementedException();
+                tm = luaT_gettmbyobj(L, t, TMS.NEWINDEX);
+                if (notm(tm))
+                {
+                    luaG_typeerror(L, t, "index");
+                }
             }
 
             /* try the metamethod */
             if (ttisfunction(tm))
             {
-//       luaT_callTM(L, tm, t, key, val);
-//       return;
-                throw new NotImplementedException();
+                luaT_callTM(L, tm, t, key, val);
+                return;
             }
 
             t = tm; /* else repeat assignment over 'tm' */
-//     luaV_fastset(t, key, val, hres, luaH_pset);
-//     if (hres == HOK) {
-//       luaV_finishfastset(L, t, val);
-//       return;  /* done */
-//     }
-//     /* else 'return luaV_finishset(L, t, key, val, slot)' (loop) */
-            throw new NotImplementedException();
+            hres = !ttistable(t) ? HNOTATABLE : luaH_pset(hvalue(t), key, val);
+            
+            if (hres == HOK)
+            {
+                luaV_finishfastset(L, t, val);
+                return; /* done */
+            }
+            /* else 'return luaV_finishset(L, t, key, val, slot)' (loop) */
         }
 
         luaG_runerror(L, "'__newindex' chain too long; possible loop");
@@ -429,54 +422,59 @@ public static unsafe partial class Lua
 // #if !defined(l_strcoll)
 // #define l_strcoll	strcoll
 // #endif
-//
-//
-// /*
-// ** Compare two strings 'ts1' x 'ts2', returning an integer less-equal-
-// ** -greater than zero if 'ts1' is less-equal-greater than 'ts2'.
-// ** The code is a little tricky because it allows '\0' in the strings
-// ** and it uses 'strcoll' (to respect locales) for each segment
-// ** of the strings. Note that segments can compare equal but still
-// ** have different lengths.
-// */
-// static int l_strcmp (const TString *ts1, const TString *ts2) {
-//   size_t rl1;  /* real length */
-//   const char *s1 = getlstr(ts1, rl1);
-//   size_t rl2;
-//   const char *s2 = getlstr(ts2, rl2);
-//   for (;;) {  /* for each segment */
-//     int temp = l_strcoll(s1, s2);
-//     if (temp != 0)  /* not equal? */
-//       return temp;  /* done */
-//     else {  /* strings are equal up to a '\0' */
-//       size_t zl1 = strlen(s1);  /* index of first '\0' in 's1' */
-//       size_t zl2 = strlen(s2);  /* index of first '\0' in 's2' */
-//       if (zl2 == rl2)  /* 's2' is finished? */
-//         return (zl1 == rl1) ? 0 : 1;  /* check 's1' */
-//       else if (zl1 == rl1)  /* 's1' is finished? */
-//         return -1;  /* 's1' is less than 's2' ('s2' is not finished) */
-//       /* both strings longer than 'zl'; go on comparing after the '\0' */
-//       zl1++; zl2++;
-//       s1 += zl1; rl1 -= zl1; s2 += zl2; rl2 -= zl2;
-//     }
-//   }
-// }
 
     /*
-    ** Check whether integer 'i' is less than float 'f'. If 'i' has an
-    ** exact representation as a float ('l_intfitsf'), compare numbers as
-    ** floats. Otherwise, use the equivalence 'i < f <=> i < ceil(f)'.
-    ** If 'ceil(f)' is out of integer range, either 'f' is greater than
-    ** all integers or less than all integers.
-    ** (The test with 'l_intfitsf' is only for performance; the else
-    ** case is correct for all values, but it is slow due to the conversion
-    ** from float to int.)
-    ** When 'f' is NaN, comparisons must result in false.
+    ** Compare two strings 'ts1' x 'ts2', returning an integer less-equal-
+    ** -greater than zero if 'ts1' is less-equal-greater than 'ts2'.
+    ** The code is a little tricky because it allows '\0' in the strings
+    ** and it uses 'strcoll' (to respect locales) for each segment
+    ** of the strings. Note that segments can compare equal but still
+    ** have different lengths.
     */
+    private static int l_strcmp(TString* ts1, TString* ts2)
+    {
+        string s1 = getnetstr(ts1);
+        string s2 = getnetstr(ts2);
+        return string.Compare(s1, s2, StringComparison.CurrentCulture);
+        
+//         byte* s1 = getlstr(ts1, out long rl1);
+//         byte* s2 = getlstr(ts2, out long rl2);
+//         while (true)
+//         {
+//             /* for each segment */
+// //     int temp = l_strcoll(s1, s2);
+// //     if (temp != 0)  /* not equal? */
+// //       return temp;  /* done */
+// //     else {  /* strings are equal up to a '\0' */
+// //       size_t zl1 = strlen(s1);  /* index of first '\0' in 's1' */
+// //       size_t zl2 = strlen(s2);  /* index of first '\0' in 's2' */
+// //       if (zl2 == rl2)  /* 's2' is finished? */
+// //         return (zl1 == rl1) ? 0 : 1;  /* check 's1' */
+// //       else if (zl1 == rl1)  /* 's1' is finished? */
+// //         return -1;  /* 's1' is less than 's2' ('s2' is not finished) */
+// //       /* both strings longer than 'zl'; go on comparing after the '\0' */
+// //       zl1++; zl2++;
+// //       s1 += zl1; rl1 -= zl1; s2 += zl2; rl2 -= zl2;
+// //     }
+//             throw new NotImplementedException();
+//         }
+    }
+
+    /*
+     ** Check whether integer 'i' is less than float 'f'. If 'i' has an
+     ** exact representation as a float ('l_intfitsf'), compare numbers as
+     ** floats. Otherwise, use the equivalence 'i < f <=> i < ceil(f)'.
+     ** If 'ceil(f)' is out of integer range, either 'f' is greater than
+     ** all integers or less than all integers.
+     ** (The test with 'l_intfitsf' is only for performance; the else
+     ** case is correct for all values, but it is slow due to the conversion
+     ** from float to int.)
+     ** When 'f' is NaN, comparisons must result in false.
+     */
     private static bool LTintfloat(long i, double f)
     {
-//   if (l_intfitsf(i))
-//     return luai_numlt(cast_num(i), f);  /* compare them as floats */
+   // if (l_intfitsf(i))
+   //   return luai_numlt(cast_num(i), f);  /* compare them as floats */
 //   else {  /* i < f <=> i < ceil(f) */
 //     long fi;
 //     if (luaV_flttointeger(f, &fi, F2Iceil))  /* fi = ceil(f) */
@@ -487,11 +485,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Check whether integer 'i' is less than or equal to float 'f'.
-// ** See comments on previous function.
-// */
-// l_sinline int LEintfloat (long i, double f) {
+    /*
+    ** Check whether integer 'i' is less than or equal to float 'f'.
+    ** See comments on previous function.
+    */
+    private static bool LEintfloat(long i, double f)
+    {
 //   if (l_intfitsf(i))
 //     return luai_numle(cast_num(i), f);  /* compare them as floats */
 //   else {  /* i <= f <=> i <= floor(f) */
@@ -501,12 +500,13 @@ public static unsafe partial class Lua
 //     else  /* 'f' is either greater or less than all integers */
 //       return f > 0;  /* greater? */
 //   }
-// }
+        throw new NotImplementedException();
+    }
 
     /*
-    ** Check whether float 'f' is less than integer 'i'.
-    ** See comments on previous function.
-    */
+     ** Check whether float 'f' is less than integer 'i'.
+     ** See comments on previous function.
+     */
     private static bool LTfloatint(double f, long i)
     {
 //   if (l_intfitsf(i))
@@ -521,11 +521,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
     
-// /*
-// ** Check whether float 'f' is less than or equal to integer 'i'.
-// ** See comments on previous function.
-// */
-// l_sinline int LEfloatint (double f, long i) {
+    /*
+    ** Check whether float 'f' is less than or equal to integer 'i'.
+    ** See comments on previous function.
+    */
+    private static bool LEfloatint(double f, long i)
+    {
 //   if (l_intfitsf(i))
 //     return luai_numle(f, cast_num(i));  /* compare them as floats */
 //   else {  /* f <= i <=> ceil(f) <= i */
@@ -535,7 +536,8 @@ public static unsafe partial class Lua
 //     else  /* 'f' is either greater or less than all integers */
 //       return f < 0;  /* less? */
 //   }
-// }
+        throw new NotImplementedException();
+    }
 
     /*
     ** Return 'l < r', for numbers.
@@ -570,46 +572,54 @@ public static unsafe partial class Lua
      */
     private static bool LEnum(TValue* l, TValue* r)
     {
-//   Debug.Assert(ttisnumber(l) && ttisnumber(r));
-//   if (ttisinteger(l)) {
-//     long li = ivalue(l);
-//     if (ttisinteger(r))
-//       return li <= ivalue(r);  /* both are integers */
-//     else  /* 'l' is int and 'r' is float */
-//       return LEintfloat(li, fltvalue(r));  /* l <= r ? */
-//   }
-//   else {
-//     double lf = fltvalue(l);  /* 'l' must be float */
-//     if (ttisfloat(r))
-//       return luai_numle(lf, fltvalue(r));  /* both are float */
-//     else  /* 'l' is float and 'r' is int */
-//       return LEfloatint(lf, ivalue(r));
-//   }
-        throw new NotImplementedException();
+        Debug.Assert(ttisnumber(l) && ttisnumber(r));
+        if (ttisinteger(l))
+        {
+            long li = ivalue(l);
+            if (ttisinteger(r))
+            {
+                return li <= ivalue(r); /* both are integers */
+            }
+
+            // 'l' is int and 'r' is float 
+            return LEintfloat(li, fltvalue(r)); /* l <= r ? */
+        }
+
+        double lf = fltvalue(l); /* 'l' must be float */
+        if (ttisfloat(r))
+        {
+            return lf <= fltvalue(r); /* both are float */
+        }
+
+        // 'l' is float and 'r' is int 
+        return LEfloatint(lf, ivalue(r));
     }
-    
+
     /*
-    ** return 'l < r' for non-numbers.
-    */
+     ** return 'l < r' for non-numbers.
+     */
     private static bool lessthanothers(lua_State* L, TValue* l, TValue* r)
     {
-//   Debug.Assert(!ttisnumber(l) || !ttisnumber(r));
-//   if (ttisstring(l) && ttisstring(r))  /* both are strings? */
-//     return l_strcmp(tsvalue(l), tsvalue(r)) < 0;
-//   else
-//     return luaT_callorderTM(L, l, r, TM_LT);
-        throw new NotImplementedException();
+        Debug.Assert(!ttisnumber(l) || !ttisnumber(r));
+        if (ttisstring(l) && ttisstring(r)) /* both are strings? */
+        {
+            return l_strcmp(tsvalue(l), tsvalue(r)) < 0;
+        }
+
+        return luaT_callorderTM(L, l, r, TMS.LT);
     }
 
     /*
      ** Main operation less than; return 'l < r'.
      */
-    private static partial bool luaV_lessthan(lua_State* L, TValue* l, TValue* r)
+    internal static partial bool luaV_lessthan(lua_State* L, TValue* l, TValue* r)
     {
-//   if (ttisnumber(l) && ttisnumber(r))  /* both operands are numbers? */
-//     return LTnum(l, r);
-//   else return lessthanothers(L, l, r);
-        throw new NotImplementedException();
+        if (ttisnumber(l) && ttisnumber(r)) /* both operands are numbers? */
+        {
+            return LTnum(l, r);
+        }
+
+        return lessthanothers(L, l, r);
     }
 
     /*
@@ -628,19 +638,21 @@ public static unsafe partial class Lua
     /*
      ** Main operation less than or equal to; return 'l <= r'.
      */
-    private static partial bool luaV_lessequal(lua_State* L, TValue* l, TValue* r)
+    internal static partial bool luaV_lessequal(lua_State* L, TValue* l, TValue* r)
     {
-//   if (ttisnumber(l) && ttisnumber(r))  /* both operands are numbers? */
-//     return LEnum(l, r);
-//   else return lessequalothers(L, l, r);
-        throw new NotImplementedException();
+        if (ttisnumber(l) && ttisnumber(r)) /* both operands are numbers? */
+        {
+            return LEnum(l, r);
+        }
+
+        return lessequalothers(L, l, r);
     }
 
     /*
      ** Main operation for equality of Lua values; return 't1 == t2'.
      ** L == null means raw equality (no metamethods)
      */
-    private static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2)
+    internal static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2)
     {
         if (ttype(t1) != ttype(t2)) /* not the same type? */
         {
@@ -789,29 +801,32 @@ public static unsafe partial class Lua
         return ttisshrstring(o) && tsvalue(o)->shrlen == 0;
     }
 
-    // /* copy strings in stack from top - n up to top - 1 to buffer */
-// static void copy2buff (StkId top, int n, char *buff) {
-//   size_t tl = 0;  /* size already copied */
-//   do {
-//     TString *st = tsvalue(s2v(top - n));
-//     size_t l;  /* length of string being copied */
-//     const char *s = getlstr(st, l);
-//     memcpy(buff + tl, s, l * sizeof(char));
-//     tl += l;
-//   } while (--n > 0);
-// }
+    /* copy strings in stack from top - n up to top - 1 to buffer */
+    private static void copy2buff(StkId top, int n, byte* buff)
+    {
+        long tl = 0; /* size already copied */
+        do
+        {
+            TString* st = tsvalue(s2v(top - n));
+            byte* s = getlstr(st, out long l);
+            memcpy(buff + tl, s, l);
+            tl += l;
+        } while (--n > 0);
+    }
 
     /*
      ** Main operation for concatenation: concat 'total' values in the stack,
      ** from 'L->top.p - total' up to 'L->top.p - 1'.
      */
-    private static partial void luaV_concat(lua_State* L, int total)
+    internal static partial void luaV_concat(lua_State* L, int total)
     {
         if (total == 1)
         {
             return; /* "all" values already concatenated */
         }
 
+        byte* buff = stackalloc byte[LUAI_MAXSHORTLEN];
+        
         do
         {
             StkId top = L->top.p;
@@ -837,30 +852,28 @@ public static unsafe partial class Lua
                 /* collect total length and number of strings */
                 for (n = 1; n < total && tostring(L, s2v(top - n - 1)); n++)
                 {
-//         size_t l = tsslen(tsvalue(s2v(top - n - 1)));
-//         if (l_unlikely(l >= MAX_SIZE - sizeof(TString) - tl)) {
-//           L->top.p = top - total;  /* pop strings to avoid wasting stack */
-//           luaG_runerror(L, "string length overflow");
-//         }
-//         tl += l;
-                    throw new NotImplementedException();
+                    long l = tsslen(tsvalue(s2v(top - n - 1)));
+                    if (l >= nint.MaxValue - sizeof(TString) - tl)
+                    {
+                        L->top.p = top - total; /* pop strings to avoid wasting stack */
+                        luaG_runerror(L, "string length overflow");
+                    }
+
+                    tl += l;
                 }
 
                 TString* ts;
                 if (tl <= LUAI_MAXSHORTLEN)
                 {
                     /* is result a short string? */
-//         char buff[LUAI_MAXSHORTLEN];
-//         copy2buff(top, n, buff);  /* copy strings to buffer */
-//         ts = luaS_newlstr(L, buff, tl);
-                    throw new NotImplementedException();
+                    copy2buff(top, n, buff);  /* copy strings to buffer */
+                    ts = luaS_newlstr(L, buff, (int)tl);
                 }
                 else
                 {
                     /* long string; copy strings directly to final result */
                     ts = luaS_createlngstrobj(L, tl);
-//         copy2buff(top, n, getlngstr(ts));
-                    throw new NotImplementedException();
+                    copy2buff(top, n, getlngstr(ts));
                 }
 
                 setsvalue2s(L, top - n, ts); /* create result */
@@ -874,7 +887,7 @@ public static unsafe partial class Lua
     /*
      ** Main operation 'ra = #rb'.
      */
-    private static partial void luaV_objlen(lua_State* L, StkId ra, TValue* rb)
+    internal static partial void luaV_objlen(lua_State* L, StkId ra, TValue* rb)
     {
         TValue* tm;
         switch (ttypetag(rb))
@@ -920,7 +933,7 @@ public static unsafe partial class Lua
      ** 'floor(q) == trunc(q)' when 'q >= 0' or when 'q' is integer,
      ** otherwise 'floor(q) == trunc(q) - 1'.
      */
-    private static partial long luaV_idiv(lua_State* L, long x, long y)
+    internal static partial long luaV_idiv(lua_State* L, long x, long y)
     {
         if ((ulong)y + 1u <= 1u)
         {
@@ -947,7 +960,7 @@ public static unsafe partial class Lua
      ** negative operands follows C99 behaviour. See previous comment
      ** about luaV_idiv.)
      */
-    private static partial long luaV_mod(lua_State* L, long x, long y)
+    internal static partial long luaV_mod(lua_State* L, long x, long y)
     {
         if ((ulong)y + 1u <= 1u)
         {
@@ -972,7 +985,7 @@ public static unsafe partial class Lua
     /*
      ** Float modulus
      */
-    private static partial double luaV_modf(lua_State* L, double x, double y)
+    internal static partial double luaV_modf(lua_State* L, double x, double y)
     {
         double r = x % y;
         if (r > 0 ? y < 0 : r < 0 && y > 0)
@@ -989,7 +1002,7 @@ public static unsafe partial class Lua
     /*
      ** Shift left operation. (Shift right just negates 'y'.)
      */
-    private static partial long luaV_shiftl(long x, long y)
+    internal static partial long luaV_shiftl(long x, long y)
     {
         if (y < 0)
         {
@@ -1048,33 +1061,53 @@ public static unsafe partial class Lua
      */
     private static partial void luaV_finishOp(lua_State* L)
     {
-//   CallInfo *ci = L->ci;
-//   StkId base = ci->func.p + 1;
-//   Instruction inst = *(ci->u.l.savedpc - 1);  /* interrupted instruction */
-//   OpCode op = GET_OPCODE(inst);
-//   switch (op) {  /* finish its execution */
-//     case OP_MMBIN: case OP_MMBINI: case OP_MMBINK: {
+        CallInfo* ci = L->ci;
+        StkId @base = ci->func.p + 1;
+        uint inst = *(ci->u.l.savedpc - 1); /* interrupted instruction */
+        OpCode op = GET_OPCODE(inst);
+        switch (op)
+        {
+            /* finish its execution */
+            case OpCode.OP_MMBIN:
+            case OpCode.OP_MMBINI:
+            case OpCode.OP_MMBINK:
+                {
 //       setobjs2s(L, base + GETARG_A(*(ci->u.l.savedpc - 2)), --L->top.p);
 //       break;
-//     }
-//     case OP_UNM: case OP_BNOT: case OP_LEN:
-//     case OP_GETTABUP: case OP_GETTABLE: case OP_GETI:
-//     case OP_GETFIELD: case OP_SELF: {
+                    throw new NotImplementedException();
+                }
+            case OpCode.OP_UNM:
+            case OpCode.OP_BNOT:
+            case OpCode.OP_LEN:
+            case OpCode.OP_GETTABUP:
+            case OpCode.OP_GETTABLE:
+            case OpCode.OP_GETI:
+            case OpCode.OP_GETFIELD:
+            case OpCode.OP_SELF:
+                {
 //       setobjs2s(L, base + GETARG_A(inst), --L->top.p);
 //       break;
-//     }
-//     case OP_LT: case OP_LE:
-//     case OP_LTI: case OP_LEI:
-//     case OP_GTI: case OP_GEI:
-//     case OP_EQ: {  /* note that 'OP_EQI'/'OP_EQK' cannot yield */
+                    throw new NotImplementedException();
+                }
+            case OpCode.OP_LT:
+            case OpCode.OP_LE:
+            case OpCode.OP_LTI:
+            case OpCode.OP_LEI:
+            case OpCode.OP_GTI:
+            case OpCode.OP_GEI:
+            case OpCode.OP_EQ:
+                {
+                    /* note that 'OP_EQI'/'OP_EQK' cannot yield */
 //       int res = !l_isfalse(s2v(L->top.p - 1));
 //       L->top.p--;
 //       Debug.Assert(GET_OPCODE(*ci->u.l.savedpc) == OP_JMP);
 //       if (res != GETARG_k(inst))  /* condition failed? */
 //         ci->u.l.savedpc++;  /* skip jump instruction */
 //       break;
-//     }
-//     case OP_CONCAT: {
+                    throw new NotImplementedException();
+                }
+            case OpCode.OP_CONCAT:
+                {
 //       StkId top = L->top.p - 1;  /* top when 'luaT_tryconcatTM' was called */
 //       int a = GETARG_A(inst);      /* first element to concatenate */
 //       int total = cast_int(top - 1 - (base + a));  /* yet to concatenate */
@@ -1082,12 +1115,18 @@ public static unsafe partial class Lua
 //       L->top.p = top - 1;  /* top is one after last element (at top-2) */
 //       luaV_concat(L, total);  /* concat them (may yield again) */
 //       break;
-//     }
-//     case OP_CLOSE: {  /* yielded closing variables */
+                    throw new NotImplementedException();
+                }
+            case OpCode.OP_CLOSE:
+                {
+                    /* yielded closing variables */
 //       ci->u.l.savedpc--;  /* repeat instruction to close other vars. */
 //       break;
-//     }
-//     case OP_RETURN: {  /* yielded closing variables */
+                    throw new NotImplementedException();
+                }
+            case OpCode.OP_RETURN:
+                {
+                    /* yielded closing variables */
 //       StkId ra = base + GETARG_A(inst);
 //       /* adjust top to signal correct number of returns, in case the
 //          return is "up to top" ('isIT') */
@@ -1095,16 +1134,21 @@ public static unsafe partial class Lua
 //       /* repeat instruction to close other vars. and complete the return */
 //       ci->u.l.savedpc--;
 //       break;
-//     }
-//     default: {
-//       /* only these other opcodes can yield */
-//       Debug.Assert(op == OP_TFORCALL || op == OP_CALL ||
-//            op == OP_TAILCALL || op == OP_SETTABUP || op == OP_SETTABLE ||
-//            op == OP_SETI || op == OP_SETFIELD);
-//       break;
-//     }
-//   }
-        throw new NotImplementedException();
+                    throw new NotImplementedException();
+                }
+            default:
+                /* only these other opcodes can yield */
+                Debug.Assert(
+                    op is OpCode.OP_TFORCALL
+                        or OpCode.OP_CALL
+                        or OpCode.OP_TAILCALL
+                        or OpCode.OP_SETTABUP
+                        or OpCode.OP_SETTABLE
+                        or OpCode.OP_SETI
+                        or OpCode.OP_SETFIELD);
+                throw new NotImplementedException();
+                break;
+        }
     }
 
 // /*
@@ -1227,8 +1271,14 @@ public static unsafe partial class Lua
         state.@base = state.ci->func.p + 1;
     }
 
-    // #define updatestack(ci)  \
-// 	{ if (l_unlikely(trap)) { updatebase(ci); ra = @base + GETARG_A(i); } }
+    private static void updatestack(ref ExecuteState state, ref StkId ra)
+    {
+        if (state.trap != 0)
+        {
+            updatebase(ref state);
+            ra = state.@base + GETARG_A(state.i);
+        }
+    }
 
     /*
      ** Execute a jump instruction. The 'updatetrap' allows signals to stop
@@ -1354,7 +1404,7 @@ public static unsafe partial class Lua
             updatetrap(ref state);
         }
 
-#if !HARDMEMTESTS
+#if HARDMEMTESTS
         if (gcrunning(G(state.L)))
         {
             state.ci->u.l.savedpc = state.pc;
@@ -1587,12 +1637,13 @@ public static unsafe partial class Lua
                         TValue* rb = vRB(ref state);
                         TValue* rc = KC(ref state);
                         TString* key = tsvalue(rc); /* key must be a short string */
-                        // lu_byte tag;
-                        // luaV_fastget(rb, key, s2v(ra), luaH_getshortstr, tag);
-                        // if (tagisempty(tag))
-                        //     Protect(luaV_finishget(L, rb, rc, ra, tag));
-                        // break;
-                        throw new NotImplementedException();
+                        byte tag = !ttistable(rb) ? LUA_VNOTABLE : luaH_getshortstr(hvalue(rb), key, s2v(ra));
+                        if (tagisempty(tag))
+                        {
+                            Protect(ref state, () => luaV_finishget(L, rb, rc, ra, tag));
+                        }
+
+                        break;
                     }
 
                 case OpCode.OP_SETTABUP:
@@ -2250,13 +2301,17 @@ public static unsafe partial class Lua
                 case OpCode.OP_NOT:
                     {
                         StkId ra = RA(ref state);
-                        // TValue* rb = vRB(ref state);
-                        // if (l_isfalse(rb))
-                        //     setbtvalue(s2v(ra));
-                        // else
-                        //     setbfvalue(s2v(ra));
-                        // break;
-                        throw new NotImplementedException();
+                        TValue* rb = vRB(ref state);
+                        if (l_isfalse(rb))
+                        {
+                            setbtvalue(s2v(ra));
+                        }
+                        else
+                        {
+                            setbfvalue(s2v(ra));
+                        }
+
+                        break;
                     }
 
                 case OpCode.OP_LEN:
@@ -2280,9 +2335,8 @@ public static unsafe partial class Lua
                     {
                         StkId ra = RA(ref state);
                         Debug.Assert(GETARG_B(state.i) == 0); /* 'close must be alive */
-                        // Protect(luaF_close(L, ra, LUA_OK, 1));
-                        // break;
-                        throw new NotImplementedException();
+                        Protect(ref state, () => luaF_close(L, ra, LUA_OK, true));
+                        break;
                     }
 
                 case OpCode.OP_TBC:
@@ -2372,8 +2426,7 @@ public static unsafe partial class Lua
                         }
                         else if (ttisfloat(s2v(ra)))
                         {
-                            // state.cond = luai_numeq(fltvalue(s2v(ra)), cast_num(im));
-                            throw new NotImplementedException();
+                            state.cond = fltvalue(s2v(ra)) == im;
                         }
                         else
                         {
@@ -2491,17 +2544,18 @@ public static unsafe partial class Lua
                 case OpCode.OP_TESTSET:
                     {
                         StkId ra = RA(ref state);
-                        // TValue* rb = vRB(ref state);
-                        // if (l_isfalse(rb) == GETARG_k(i))
-                        //     pc++;
-                        // else
-                        // {
-                        //     setobj2s(L, ra, rb);
-                        //     donextjump(ci);
-                        // }
-                        //
-                        // break;
-                        throw new NotImplementedException();
+                        TValue* rb = vRB(ref state);
+                        if (l_isfalse(rb) == GETARG_k(state.i))
+                        {
+                            state.pc++;
+                        }
+                        else
+                        {
+                            setobj2s(L, ra, rb);
+                            donextjump(ref state);
+                        }
+
+                        break;
                     }
 
                 case OpCode.OP_CALL:
@@ -2578,14 +2632,16 @@ public static unsafe partial class Lua
                         savepc(ref state);
                         if (TESTARG_k(state.i))
                         {
-                            //     /* may there be open upvalues? */
-                            //     ci->u2.nres = n; /* save number of returns */
-                            //     if (L->top.p < ci->top.p)
-                            //         L->top.p = ci->top.p;
-                            //     luaF_close(L, base, CLOSEKTOP, 1);
-                            //     updatetrap(ci);
-                            //     updatestack(ci);
-                            throw new NotImplementedException();
+                            /* may there be open upvalues? */
+                            ci->u2.nres = n; /* save number of returns */
+                            if (L->top.p < ci->top.p)
+                            {
+                                L->top.p = ci->top.p;
+                            }
+
+                            luaF_close(L, state.@base, CLOSEKTOP, true);
+                            updatetrap(ref state);
+                            updatestack(ref state, ref ra);
                         }
 
                         if (nparams1 != 0) /* vararg function? */
@@ -2621,40 +2677,40 @@ public static unsafe partial class Lua
                             }
                         }
 
-                        // goto ret;
-                        throw new NotImplementedException();
+                        goto ret;
                     }
 
                 case OpCode.OP_RETURN1:
+                    if (L->hookmask != 0)
                     {
-                        // if (l_unlikely(L->hookmask))
-                        // {
-                        //     StkId ra = RA(i);
-                        //     L->top.p = ra + 1;
-                        //     savepc(ci);
-                        //     luaD_poscall(L, ci, 1); /* no hurry... */
-                        //     trap = 1;
-                        // }
-                        // else
-                        // {
-                        //     /* do the 'poscall' here */
-                        //     int nres = get_nresults(ci->callstatus);
-                        //     L->ci = ci->previous; /* back to caller */
-                        //     if (nres == 0)
-                        //         L->top.p = base - 1; /* asked for no results */
-                        //     else
-                        //     {
-                        //         StkId ra = RA(i);
-                        //         setobjs2s(L, base - 1, ra); /* at least this result */
-                        //         L->top.p = base;
-                        //         for (; l_unlikely(nres > 1); nres--)
-                        //             setnilvalue(s2v(L->top.p++)); /* complete missing results */
-                        //     }
-                        // }
-
-                        // goto ret;
-                        throw new NotImplementedException();
+                        StkId ra = RA(ref state);
+                        L->top.p = ra + 1;
+                        savepc(ref state);
+                        luaD_poscall(L, ci, 1); /* no hurry... */
+                        state.trap = 1;
                     }
+                    else
+                    {
+                        /* do the 'poscall' here */
+                        int nres = get_nresults(ci->callstatus);
+                        L->ci = ci->previous; /* back to caller */
+                        if (nres == 0)
+                        {
+                            L->top.p = state.@base - 1; /* asked for no results */
+                        }
+                        else
+                        {
+                            StkId ra = RA(ref state);
+                            setobjs2s(L, state.@base - 1, ra); /* at least this result */
+                            L->top.p = state.@base;
+                            for (; nres > 1; nres--)
+                            {
+                                setnilvalue(s2v(L->top.p++)); /* complete missing results */
+                            }
+                        }
+                    }
+
+                    goto ret;
 
                 case OpCode.OP_FORLOOP:
                     {
@@ -2704,54 +2760,23 @@ public static unsafe partial class Lua
                            as to-be-closed.
                         */
                         StkId ra = RA(ref state);
-                        // TValue temp; /* to swap control and closing variables */
-                        // setobj(L, &temp, s2v(ra + 3));
-                        // setobjs2s(L, ra + 3, ra + 2);
-                        // setobj2s(L, ra + 2, &temp);
-                        // /* create to-be-closed upvalue (if closing var. is not nil) */
-                        // halfProtect(luaF_newtbcupval(L, ra + 2));
-                        // pc += GETARG_Bx(i); /* go to end of the loop */
-                        // i = *(pc++); /* fetch next instruction */
-                        // lua_assert(GET_OPCODE(i) == OP_TFORCALL && ra == RA(i));
-                        // goto l_tforcall;
-                        throw new NotImplementedException();
+                        TValue temp; /* to swap control and closing variables */
+                        setobj(L, &temp, s2v(ra + 3));
+                        setobjs2s(L, ra + 3, ra + 2);
+                        setobj2s(L, ra + 2, &temp);
+                        /* create to-be-closed upvalue (if closing var. is not nil) */
+                        halfProtect(ref state, () => luaF_newtbcupval(L, ra + 2));
+                        state.pc += GETARG_Bx(state.i); /* go to end of the loop */
+                        state.i = *(state.pc++); /* fetch next instruction */
+                        Debug.Assert(GET_OPCODE(state.i) == OpCode.OP_TFORCALL && ra == RA(ref state));
+                        goto l_tforcall;
                     }
 
                 case OpCode.OP_TFORCALL:
-                    {
-                        l_tforcall:
-                        {
-                            /* 'ra' has the iterator function, 'ra + 1' has the state,
-                               'ra + 2' has the closing variable, and 'ra + 3' has the control
-                               variable. The call will use the stack starting at 'ra + 3',
-                               so that it preserves the first three values, and the first
-                               return will be the new value for the control variable.
-                            */
-                            StkId ra = RA(ref state);
-                            // setobjs2s(L, ra + 5, ra + 3); /* copy the control variable */
-                            // setobjs2s(L, ra + 4, ra + 1); /* copy state */
-                            // setobjs2s(L, ra + 3, ra); /* copy function */
-                            // L->top.p = ra + 3 + 3;
-                            // ProtectNT(luaD_call(L, ra + 3, GETARG_C(i))); /* do the call */
-                            // updatestack(ci); /* stack may have changed */
-                            // i = *(pc++); /* go to next instruction */
-                            // lua_assert(GET_OPCODE(i) == OP_TFORLOOP && ra == RA(i));
-                            // goto l_tforloop;
-                            throw new NotImplementedException();
-                        }
-                    }
+                    goto l_tforcall;
 
                 case OpCode.OP_TFORLOOP:
-                    {
-                        l_tforloop:
-                        {
-                            StkId ra = RA(ref state);
-                            // if (!ttisnil(s2v(ra + 3))) /* continue loop? */
-                            //     pc -= GETARG_Bx(i); /* jump back */
-                            // break;
-                            throw new NotImplementedException();
-                        }
-                    }
+                    goto l_tforloop;
 
                 case OpCode.OP_SETLIST:
                     {
@@ -2824,10 +2849,12 @@ public static unsafe partial class Lua
                 case OpCode.OP_ERRNNIL:
                     {
                         TValue* ra = vRA(ref state);
-                        // if (!ttisnil(ra))
-                        //     halfProtect(luaG_errnnil(L, cl, GETARG_Bx(i)));
-                        // break;
-                        throw new NotImplementedException();
+                        if (!ttisnil(ra))
+                        {
+                            halfProtect(ref state, (ref state) => luaG_errnnil(L, state.cl, GETARG_Bx(state.i)));
+                        }
+
+                        break;
                     }
 
                 case OpCode.OP_VARARGPREP:
@@ -2858,6 +2885,34 @@ public static unsafe partial class Lua
 
             ci = ci->previous;
             goto returning; /* continue running caller in this frame */
+            
+            l_tforcall:
+            {
+                /* 'ra' has the iterator function, 'ra + 1' has the state,
+                   'ra + 2' has the closing variable, and 'ra + 3' has the control
+                   variable. The call will use the stack starting at 'ra + 3',
+                   so that it preserves the first three values, and the first
+                   return will be the new value for the control variable.
+                */
+                StkId ra = RA(ref state);
+                setobjs2s(L, ra + 5, ra + 3); /* copy the control variable */
+                setobjs2s(L, ra + 4, ra + 1); /* copy state */
+                setobjs2s(L, ra + 3, ra); /* copy function */
+                L->top.p = ra + 3 + 3;
+                ProtectNT(ref state, (ref state) => luaD_call(L, ra + 3, (int)GETARG_C(state.i))); /* do the call */
+                updatestack(ref state, ref ra); /* stack may have changed */
+                state.i = *(state.pc++); /* go to next instruction */
+                Debug.Assert(GET_OPCODE(state.i) == OpCode.OP_TFORLOOP && ra == RA(ref state));
+            }
+            
+            l_tforloop:
+            {
+                StkId ra = RA(ref state);
+                if (!ttisnil(s2v(ra + 3))) /* continue loop? */
+                {
+                    state.pc -= GETARG_Bx(state.i); /* jump back */
+                }
+            }
         }
     }
 }

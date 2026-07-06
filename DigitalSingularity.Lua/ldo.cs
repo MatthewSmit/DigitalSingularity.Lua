@@ -68,7 +68,7 @@ public static unsafe partial class Lua
      ** fit in a 16-bit unsigned integer. It must also be compatible with
      ** the size of the C stack.)
      */
-    private const int LUAI_MAXCCALLS =
+    internal const int LUAI_MAXCCALLS =
 #if LUA_TEST
         180;
 #else
@@ -116,5 +116,5 @@ public static unsafe partial class Lua
     [DoesNotReturn]
     private static partial void luaD_throwbaselevel(lua_State* L, byte errcode);
 
-    private static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
+    internal static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud);
 }

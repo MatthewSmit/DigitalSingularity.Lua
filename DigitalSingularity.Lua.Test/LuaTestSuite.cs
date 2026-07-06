@@ -115,7 +115,7 @@ public unsafe class LuaTestSuite
     public void Test(string test)
     {
         lua_State* L = luaL_newstate(); /* create state */
-        Assert.That(L != null);
+        Assert.That(L, Is.Not.Null);
         
         string testFile = Path.Join(Path.GetFullPath("../../../"), test);
         Console.WriteLine($"Runnint test: {testFile}");

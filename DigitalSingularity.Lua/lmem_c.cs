@@ -54,15 +54,18 @@ public static unsafe partial class Lua
         return g->frealloc(g->ud, block, os, ns);
     }
 
-    // /*
-// ** When an allocation fails, it will try again after an emergency
-// ** collection, except when it cannot run a collection.  The GC should
-// ** not be called while the state is not fully built, as the collector
-// ** is not yet fully initialized. Also, it should not be called when
-// ** 'gcstopem' is true, because then the interpreter is in the middle of
-// ** a collection step.
-// */
-// #define cantryagain(g)	(completestate(g) && !g->gcstopem)
+    /*
+    ** When an allocation fails, it will try again after an emergency
+    ** collection, except when it cannot run a collection.  The GC should
+    ** not be called while the state is not fully built, as the collector
+    ** is not yet fully initialised. Also, it should not be called when
+    ** 'gcstopem' is true, because then the interpreter is in the middle of
+    ** a collection step.
+    */
+    private static bool cantryagain(global_State* g)
+    {
+        return completestate(g) && !g->gcstopem;
+    }
 
 #if EMERGENCYGCTESTS
 // /*
@@ -96,7 +99,7 @@ public static unsafe partial class Lua
     */
     private const int MINSIZEARRAY = 4;
 
-    private static partial void* luaM_growaux_(
+    internal static partial void* luaM_growaux_(
         lua_State* L,
         void* block,
         int nelems,
@@ -148,7 +151,7 @@ public static unsafe partial class Lua
     ** to its number of elements, the only option is to raise an
     ** error.
     */
-    private static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int size, int final_n, int size_elem)
+    internal static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int size, int final_n, int size_elem)
     {
         long oldsize = (long)size * size_elem;
         long newsize = (long)final_n * size_elem;
@@ -160,7 +163,7 @@ public static unsafe partial class Lua
 
     /* }================================================================== */
 
-    private static partial void luaM_toobig(lua_State* L)
+    internal static partial void luaM_toobig(lua_State* L)
     {
         luaG_runerror(L, "memory allocation error: block too big");
     }
@@ -168,7 +171,7 @@ public static unsafe partial class Lua
     /*
     ** Free memory
     */
-    private static partial void luaM_free_(lua_State* L, void* block, long osize)
+    internal static partial void luaM_free_(lua_State* L, void* block, long osize)
     {
         global_State* g = G(L);
         Debug.Assert((osize == 0) == (block == null));
@@ -187,20 +190,19 @@ public static unsafe partial class Lua
         long nsize)
     {
         global_State* g = G(L);
-        // if (cantryagain(g))
-        // {
-        //     luaC_fullgc(L, 1); /* try to free some memory... */
-        //     return callfrealloc(g, block, osize, nsize); /* try again */
-        // }
-        //
-        // return null; /* cannot run an emergency collection */
-        throw new NotImplementedException();
+        if (cantryagain(g))
+        {
+            luaC_fullgc(L, true); /* try to free some memory... */
+            return callfrealloc(g, block, osize, nsize); /* try again */
+        }
+
+        return null; /* cannot run an emergency collection */
     }
 
     /*
     ** Generic allocation routine.
     */
-    private static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size)
+    internal static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size)
     {
         global_State* g = G(L);
         Debug.Assert((oldsize == 0) == (block == null));
@@ -219,7 +221,7 @@ public static unsafe partial class Lua
         return newblock;
     }
 
-    private static partial void* luaM_saferealloc_(lua_State* L, void* block, long osize, long nsize)
+    internal static partial void* luaM_saferealloc_(lua_State* L, void* block, long osize, long nsize)
     {
         void* newblock = luaM_realloc_(L, block, osize, nsize);
         if (newblock == null && nsize > 0) /* allocation failed? */
@@ -230,7 +232,7 @@ public static unsafe partial class Lua
         return newblock;
     }
 
-    private static partial void* luaM_malloc_(lua_State* L, long size, int tag)
+    internal static partial void* luaM_malloc_(lua_State* L, long size, int tag)
     {
         if (size == 0)
         {

@@ -22,7 +22,7 @@ public static partial class Lua
     ** Check whether instruction sets top for next instruction, that is,
     ** it results in multiple values.
     */
-    private static partial bool luaP_isOT(uint i)
+    internal static partial bool luaP_isOT(uint i)
     {
         OpCode op = GET_OPCODE(i);
 
@@ -37,7 +37,7 @@ public static partial class Lua
     ** Check whether instruction uses top from previous instruction, that is,
     ** it accepts multiple results.
     */
-    private static partial bool luaP_isIT(uint i)
+    internal static partial bool luaP_isIT(uint i)
     {
         OpCode op = GET_OPCODE(i);
         return op switch

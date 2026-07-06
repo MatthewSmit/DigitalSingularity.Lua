@@ -47,13 +47,12 @@ public static unsafe partial class Lua
 
     private static int tcreate(lua_State* L)
     {
-//   lua_Unsigned sizeseq = (lua_Unsigned)luaL_checkinteger(L, 1);
-//   lua_Unsigned sizerest = (lua_Unsigned)luaL_optinteger(L, 2, 0);
-//   luaL_argcheck(L, sizeseq <= cast_uint(INT_MAX), 1, "out of range");
-//   luaL_argcheck(L, sizerest <= cast_uint(INT_MAX), 2, "out of range");
-//   lua_createtable(L, cast_int(sizeseq), cast_int(sizerest));
-//   return 1;
-        throw new NotImplementedException();
+        ulong sizeseq = (ulong)luaL_checkinteger(L, 1);
+        ulong sizerest = (ulong)luaL_optinteger(L, 2, 0);
+        luaL_argcheck(L, sizeseq <= int.MaxValue, 1, "out of range");
+        luaL_argcheck(L, sizerest <= int.MaxValue, 2, "out of range");
+        lua_createtable(L, (int)sizeseq, (int)sizerest);
+        return 1;
     }
 
     private static int tinsert(lua_State* L)
@@ -195,20 +194,28 @@ public static unsafe partial class Lua
 
     private static int tunpack(lua_State* L)
     {
-//   lua_Unsigned n;
-//   long i = luaL_optinteger(L, 2, 1);
-//   long e = luaL_opt(L, luaL_checkinteger, 3, luaL_len(L, 1));
-//   if (i > e) return 0;  /* empty range */
-//   n = l_castS2U(e) - l_castS2U(i);  /* number of elements minus 1 */
-//   if (l_unlikely(n >= (unsigned int)INT_MAX  ||
-//                  !lua_checkstack(L, (int)(++n))))
-//     return luaL_error(L, "too many results to unpack");
-//   for (; i < e; i++) {  /* push arg[i..e - 1] (to avoid overflows) */
-//     lua_geti(L, 1, i);
-//   }
-//   lua_geti(L, 1, e);  /* push last element */
-//   return (int)n;
-        throw new NotImplementedException();
+        long i = luaL_optinteger(L, 2, 1);
+        long e = lua_isnoneornil(L, 3) ? luaL_len(L, 1) : luaL_checkinteger(L, 3);
+        if (i > e)
+        {
+            return 0; /* empty range */
+        }
+
+        ulong n = (ulong)e - (ulong)i; /* number of elements minus 1 */
+        if (n >= int.MaxValue ||
+            !lua_checkstack(L, (int)(++n)))
+        {
+            return luaL_error(L, "too many results to unpack");
+        }
+
+        for (; i < e; i++)
+        {
+            /* push arg[i..e - 1] (to avoid overflows) */
+            lua_geti(L, 1, i);
+        }
+
+        lua_geti(L, 1, e); /* push last element */
+        return (int)n;
     }
 
 /* }====================================================== */
@@ -408,7 +415,7 @@ public static unsafe partial class Lua
         new("sort", &sort),
     ];
 
-    private static partial int luaopen_table(lua_State* L)
+    public static partial int luaopen_table(lua_State* L)
     {
         luaL_newlib(L, tab_funcs);
         return 1;

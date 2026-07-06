@@ -93,24 +93,31 @@ public static unsafe partial class Lua
         return s;
     }
 
-// static const char *txtToken (LexState *ls, int token) {
-//   switch (token) {
-//     case TK_NAME: case TK_STRING:
-//     case TK_FLT: case TK_INT:
-//       save(ls, '\0');
-//       return luaO_pushfstring(ls->L, "'%s'", luaZ_buffer(ls->buff));
-//     default:
-//       return luaX_token2str(ls, token);
-//   }
-// }
+    private static string txtToken(LexState* ls, int token)
+    {
+        switch (token)
+        {
+            case (int)RESERVED.TK_NAME:
+            case (int)RESERVED.TK_STRING:
+            case (int)RESERVED.TK_FLT:
+            case (int)RESERVED.TK_INT:
+                save(ls, '\0');
+                return luaO_pushfstring(ls->L, "'%s'", new string((sbyte*)luaZ_buffer(ls->buff)));
+            
+            default:
+                return luaX_token2str(ls, token);
+        }
+    }
 
     private static partial void lexerror(LexState* ls, string msg, int token)
     {
-        // msg = luaG_addinfo(ls->L, msg, ls->source, ls->linenumber);
-//   if (token)
-//     luaO_pushfstring(ls->L, "%s near %s", msg, txtToken(ls, token));
-//   luaD_throw(ls->L, LUA_ERRSYNTAX);
-        throw new NotImplementedException();
+        msg = luaG_addinfo(ls->L, msg, ls->source, ls->linenumber);
+        if (token != 0)
+        {
+            luaO_pushfstring(ls->L, "%s near %s", msg, txtToken(ls, token));
+        }
+
+        luaD_throw(ls->L, LUA_ERRSYNTAX);
     }
 
     private static partial void luaX_syntaxerror(LexState* ls, string msg)
@@ -451,11 +458,13 @@ public static unsafe partial class Lua
 
     private static void utf8esc(LexState* ls)
     {
-        byte* buff = stackalloc byte[UTF8BUFFSZ];
-        int n = luaO_utf8esc(buff, readutf8esc(ls));
-        for (; n > 0; n--) /* add 'buff' to string */
+        Span<byte> buff = stackalloc byte[UTF8BUFFSZ];
+        Span<byte> result = luaO_utf8esc(buff, readutf8esc(ls));
+        
+        // add 'buff' to string 
+        foreach (byte b in result)
         {
-            save(ls, buff[UTF8BUFFSZ - n]);
+            save(ls, b);
         }
     }
 

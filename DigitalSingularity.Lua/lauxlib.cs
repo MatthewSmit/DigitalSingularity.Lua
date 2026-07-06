@@ -1,5 +1,8 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Runtime.InteropServices;
+using System.Text;
+
 public static unsafe partial class Lua
 {
     /* global table */
@@ -36,11 +39,11 @@ public static unsafe partial class Lua
 
     public static partial int luaL_typeerror(lua_State* L, int arg, string tname);
 
-    public static partial byte* luaL_checklstring(lua_State* L, int arg, long* l);
+    public static partial string luaL_checklstring(lua_State* L, int arg);
     
     public static partial string luaL_checknetstring(lua_State* L, int arg);
 
-    public static partial byte* luaL_optlstring(lua_State* L, int arg, string def, long* l);
+    public static partial string luaL_optlstring(lua_State* L, int arg, string? def);
 
     public static partial double luaL_checknumber(lua_State* L, int arg);
 
@@ -56,7 +59,7 @@ public static unsafe partial class Lua
 
     public static partial void luaL_checkany(lua_State* L, int arg);
 
-    public static partial int luaL_newmetatable(lua_State* L, string tname);
+    public static partial bool luaL_newmetatable(lua_State* L, string tname);
 
     public static partial void luaL_setmetatable(lua_State* L, string tname);
 
@@ -64,13 +67,13 @@ public static unsafe partial class Lua
 
     public static partial void* luaL_checkudata(lua_State* L, int ud, string tname);
 
-    public static partial void luaL_where(lua_State* L, int lvl);
+    public static partial void luaL_where(lua_State* L, int level);
 
     public static partial int luaL_error(lua_State* L, string fmt, params object[] args);
 
-    public static partial int luaL_checkoption(lua_State* L, int arg, string def, string[] lst);
+    public static partial int luaL_checkoption(lua_State* L, int arg, string? def, string[] lst);
 
-    public static partial int luaL_fileresult(lua_State* L, int stat, string fname);
+    public static partial int luaL_fileresult(lua_State* L, bool stat, string? fname);
 
     public static partial int luaL_execresult(lua_State* L, int stat);
 
@@ -100,17 +103,16 @@ public static unsafe partial class Lua
     public static partial uint luaL_makeseed(lua_State* L);
 
     public static partial long luaL_len(lua_State* L, int idx);
-    
-    // public static partial void luaL_addgsub (luaL_Buffer *b, const char *s, const char *p, const char *r); TODO
-    
-    // LUALIB_API const char *(luaL_gsub) (lua_State *L, const char *s, TODO
-    //                                     const char *p, const char *r);
+
+    public static partial void luaL_addgsub(luaL_Buffer* b, string s, string p, string r);
+
+    public static partial string luaL_gsub(lua_State* L, string s, string p, string r);
 
     public static partial void luaL_setfuncs(lua_State* L, ReadOnlySpan<luaL_Reg> l, int nup);
 
     public static partial bool luaL_getsubtable(lua_State* L, int idx, string fname);
 
-    public static partial void luaL_traceback(lua_State* L, lua_State* L1, string msg, int level);
+    public static partial void luaL_traceback(lua_State* L, lua_State* L1, string? msg, int level);
 
     public static partial void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb);
 
@@ -142,20 +144,20 @@ public static unsafe partial class Lua
 
     public static void luaL_argexpected(lua_State* L, bool cond, int arg, string tname)
     {
-        if (cond)
+        if (!cond)
         {
             luaL_typeerror(L, arg, tname);
         }
     }
 
-    public static byte* luaL_checkstring(lua_State* L, int n)
+    public static string luaL_checkstring(lua_State* L, int n)
     {
-        return luaL_checklstring(L, n, null);
+        return luaL_checklstring(L, n);
     }
 
-    public static byte* luaL_optstring(lua_State* L, int n, string d)
+    public static string luaL_optstring(lua_State* L, int n, string? d)
     {
-        return luaL_optlstring(L, n, d, null);
+        return luaL_optlstring(L, n, d);
     }
 
     public static string luaL_typename(lua_State* L, int i)
@@ -224,43 +226,70 @@ public static unsafe partial class Lua
     ** Generic Buffer manipulation
     ** =======================================================
     */
-    
-    // struct luaL_Buffer { TODO
-    //   char *b;  /* buffer address */
-    //   size_t size;  /* buffer size */
-    //   size_t n;  /* number of characters in buffer */
-    //   lua_State *L;
-    //   union {
-    //     LUAI_MAXALIGN;  /* ensure maximum alignment for buffer */
-    //     char b[LUAL_BUFFERSIZE];  /* initial buffer */
-    //   } init;
-    // };
-    //
-    //
-    // #define luaL_bufflen(bf)	((bf)->n) TODO
-    // #define luaL_buffaddr(bf)	((bf)->b) TODO
-    //
-    //
-    // #define luaL_addchar(B,c) \ TODO
-    //   ((void)((B)->n < (B)->size || luaL_prepbuffsize((B), 1)), \
-    //    ((B)->b[(B)->n++] = (c)))
-    //
-    // #define luaL_addsize(B,s)	((B)->n += (s)) TODO
-    //
-    // #define luaL_buffsub(B,s)	((B)->n -= (s)) TODO
-    //
-    // LUALIB_API void (luaL_buffinit) (lua_State *L, luaL_Buffer *B); TODO
-    // LUALIB_API char *(luaL_prepbuffsize) (luaL_Buffer *B, size_t sz); TODO
-    // LUALIB_API void (luaL_addlstring) (luaL_Buffer *B, const char *s, size_t l); TODO
-    // LUALIB_API void (luaL_addstring) (luaL_Buffer *B, const char *s); TODO
-    // LUALIB_API void (luaL_addvalue) (luaL_Buffer *B); TODO
-    // LUALIB_API void (luaL_pushresult) (luaL_Buffer *B); TODO
-    // LUALIB_API void (luaL_pushresultsize) (luaL_Buffer *B, size_t sz); TODO
-    // LUALIB_API char *(luaL_buffinitsize) (lua_State *L, luaL_Buffer *B, size_t sz); TODO
-    //
-    // #define luaL_prepbuffer(B)	luaL_prepbuffsize(B, LUAL_BUFFERSIZE) TODO
-    
-    /* }====================================================== */
+
+    public struct luaL_Buffer
+    {
+        public byte* b; /* buffer address */
+        public long size; /* buffer size */
+        public long n; /* number of characters in buffer */
+        public lua_State* L;
+        public fixed byte init[LUAL_BUFFERSIZE]; /* initial buffer */
+    }
+
+    public static long luaL_bufflen(luaL_Buffer* bf)
+    {
+        return bf->n;
+    }
+
+    public static byte* luaL_buffaddr(luaL_Buffer* bf)
+    {
+        return bf->b;
+    }
+
+    public static void luaL_addchar(luaL_Buffer* B, byte c)
+    {
+        if (B->n < B->size || luaL_prepbuffsize(B, 1) != null)
+        {
+            B->b[B->n++] = c;
+        }
+    }
+
+    public static void luaL_addchar(luaL_Buffer* B, char c)
+    {
+        Rune rune = (Rune)c;
+        if (rune.IsAscii)
+        {
+            luaL_addchar(B, (byte)rune.Value);
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public static void luaL_addsize(luaL_Buffer* B, long s)
+    {
+        B->n += s;
+    }
+
+    public static void luaL_buffsub(luaL_Buffer* B, long s)
+    {
+        B->n -= s;
+    }
+
+    public static partial void luaL_buffinit(lua_State* L, luaL_Buffer* B);
+    public static partial byte* luaL_prepbuffsize(luaL_Buffer* B, long sz);
+    public static partial void luaL_addlstring(luaL_Buffer* B, ReadOnlySpan<char> s);
+    public static partial void luaL_addstring(luaL_Buffer* B, ReadOnlySpan<char> s);
+    public static partial void luaL_addvalue(luaL_Buffer* B);
+    public static partial void luaL_pushresult(luaL_Buffer* B);
+    public static partial void luaL_pushresultsize(luaL_Buffer* B, long sz);
+    public static partial byte* luaL_buffinitsize(lua_State* L, luaL_Buffer* B, long sz);
+
+    public static byte* luaL_prepbuffer(luaL_Buffer* B)
+    {
+        return luaL_prepbuffsize(B, LUAL_BUFFERSIZE);
+    }
     
     /*
     ** {======================================================

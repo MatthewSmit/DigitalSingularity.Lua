@@ -256,7 +256,7 @@ public static unsafe partial class Lua
         string envname,
         string dft)
     {
-        string? dftmark;
+        ReadOnlySpan<char> dftmark;
         string nver = lua_pushfstring(L, "%s%s", envname, LUA_VERSUFFIX);
         string? path = Environment.GetEnvironmentVariable(nver); /* try versioned name */
         if (string.IsNullOrEmpty(path)) /* no versioned environment variable? */
@@ -268,11 +268,7 @@ public static unsafe partial class Lua
         {
             lua_pushstring(L, dft); /* use default */
         }
-        else if ((dftmark = strstr(path, LUA_PATH_SEP + LUA_PATH_SEP)) == null)
-        {
-            lua_pushstring(L, path); /* nothing to change */
-        }
-        else
+        else if (!(dftmark = strstr(path, LUA_PATH_SEP + LUA_PATH_SEP)).IsEmpty)
         {
             /* path contains a ";;": insert default path in its place */
 //     size_t len = strlen(path);
@@ -289,6 +285,10 @@ public static unsafe partial class Lua
 //     }
 //     luaL_pushresult(&b);
             throw new NotImplementedException();
+        }
+        else
+        {
+            lua_pushstring(L, path); /* nothing to change */
         }
 
         lua_setfield(L, -3, fieldname); /* package[fieldname] = path value */
@@ -529,7 +529,7 @@ public static unsafe partial class Lua
     private static int searcher_Lua(lua_State* L)
     {
 //   const char *filename;
-//   const char *name = luaL_checkstring(L, 1);
+        string name = luaL_checkstring(L, 1);
 //   filename = findfile(L, name, "path", LUA_LSUBSEP);
 //   if (filename == null) return 1;  /* module not found in this path */
 //   return checkload(L, (luaL_loadfile(L, filename) == LUA_OK), filename);
@@ -595,49 +595,63 @@ public static unsafe partial class Lua
 
     private static int searcher_preload(lua_State* L)
     {
-//   const char *name = luaL_checkstring(L, 1);
-//   lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
-//   if (lua_getfield(L, -1, name) == LUA_TNIL) {  /* not found? */
-//     lua_pushfstring(L, "no field package.preload['%s']", name);
-//     return 1;
-//   }
-//   else {
-//     lua_pushliteral(L, ":preload:");
-//     return 2;
-//   }
-        throw new NotImplementedException();
+        string name = luaL_checkstring(L, 1);
+        lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
+        if (lua_getfield(L, -1, name) == LUA_TNIL)
+        {
+            /* not found? */
+            lua_pushfstring(L, "no field package.preload['%s']", name);
+            return 1;
+        }
+
+        lua_pushliteral(L, ":preload:");
+        return 2;
     }
 
-// static void findloader (lua_State *L, const char *name) {
-//   int i;
-//   luaL_Buffer msg;  /* to build error message */
-//   /* push 'package.searchers' to index 3 in the stack */
-//   if (l_unlikely(lua_getfield(L, lua_upvalueindex(1), "searchers")
-//                  != LUA_TTABLE))
-//     luaL_error(L, "'package.searchers' must be a table");
-//   luaL_buffinit(L, &msg);
-//   luaL_addstring(&msg, "\n\t");  /* error-message prefix for first message */
-//   /*  iterate over available searchers to find a loader */
-//   for (i = 1; ; i++) {
-//     if (l_unlikely(lua_rawgeti(L, 3, i) == LUA_TNIL)) {  /* no more searchers? */
-//       lua_pop(L, 1);  /* remove nil */
-//       luaL_buffsub(&msg, 2);  /* remove last prefix */
-//       luaL_pushresult(&msg);  /* create error message */
-//       luaL_error(L, "module '%s' not found:%s", name, lua_tostring(L, -1));
-//     }
-//     lua_pushstring(L, name);
-//     lua_call(L, 1, 2);  /* call it */
-//     if (lua_isfunction(L, -2))  /* did it find a loader? */
-//       return;  /* module loader found */
-//     else if (lua_isstring(L, -2)) {  /* searcher returned error message? */
-//       lua_pop(L, 1);  /* remove extra return */
-//       luaL_addvalue(&msg);  /* concatenate error message */
-//       luaL_addstring(&msg, "\n\t");  /* prefix for next message */
-//     }
-//     else  /* no error message */
-//       lua_pop(L, 2);  /* remove both returns */
-//   }
-// }
+    private static void findloader(lua_State* L, string name)
+    {
+        /* push 'package.searchers' to index 3 in the stack */
+        if (lua_getfield(L, lua_upvalueindex(1), "searchers") != LUA_TTABLE)
+        {
+            luaL_error(L, "'package.searchers' must be a table");
+        }
+
+        luaL_Buffer msg; /* to build error message */
+        luaL_buffinit(L, &msg);
+        luaL_addstring(&msg, "\n\t"); /* error-message prefix for first message */
+        /*  iterate over available searchers to find a loader */
+        for (int i = 1;; i++)
+        {
+            if (lua_rawgeti(L, 3, i) == LUA_TNIL)
+            {
+                /* no more searchers? */
+                lua_pop(L, 1); /* remove nil */
+                luaL_buffsub(&msg, 2); /* remove last prefix */
+                luaL_pushresult(&msg); /* create error message */
+                luaL_error(L, "module '%s' not found:%s", name, lua_tostring(L, -1));
+            }
+
+            lua_pushstring(L, name);
+            lua_call(L, 1, 2); /* call it */
+            if (lua_isfunction(L, -2)) /* did it find a loader? */
+            {
+                return; /* module loader found */
+            }
+
+            if (lua_isstring(L, -2))
+            {
+                /* searcher returned error message? */
+                lua_pop(L, 1); /* remove extra return */
+                luaL_addvalue(&msg); /* concatenate error message */
+                luaL_addstring(&msg, "\n\t"); /* prefix for next message */
+            }
+            else
+            {
+                /* no error message */
+                lua_pop(L, 2); /* remove both returns */
+            }
+        }
+    }
 
     private static int ll_require(lua_State* L)
     {
@@ -652,7 +666,7 @@ public static unsafe partial class Lua
 
         /* else must load package */
         lua_pop(L, 1);  /* remove 'getfield' result */
-//   findloader(L, name);
+        findloader(L, name);
 //   lua_rotate(L, -2, 1);  /* function <-> loader data */
 //   lua_pushvalue(L, 1);  /* name is 1st argument to module loader */
 //   lua_pushvalue(L, -3);  /* loader data is 2nd argument */
@@ -672,8 +686,6 @@ public static unsafe partial class Lua
 //   return 2;  /* return module result and loader data */
         throw new NotImplementedException();
     }
-
-    /* }====================================================== */
 
     private static readonly luaL_Reg[] pk_funcs =
     [
@@ -715,7 +727,7 @@ public static unsafe partial class Lua
         lua_setfield(L, -2, "searchers"); /* put it in field 'searchers' */
     }
 
-    private static partial int luaopen_package(lua_State* L)
+    public static partial int luaopen_package(lua_State* L)
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, CLIBS); /* create CLIBS table */
         lua_pop(L, 1); /* will not use it now */

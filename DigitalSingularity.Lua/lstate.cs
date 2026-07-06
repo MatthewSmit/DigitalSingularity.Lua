@@ -33,7 +33,7 @@ public static unsafe partial class Lua
      ** 'finobjrold' -> null: really old       """".
      **
      ** All lists can contain elements older than their main ages, due
-     ** to 'luaC_checkfinaliser' and 'udata2finalize', which move
+     ** to 'luaC_checkfinaliser' and 'udata2finalise', which move
      ** objects between the normal lists and the "marked for finalisation"
      ** lists. Moreover, barriers can age young objects in young lists as
      ** OLD0, which then become OLD1. However, a list never contains
@@ -127,7 +127,7 @@ public static unsafe partial class Lua
      ** there will be a stack check soon after the push. Function frames
      ** never use this extra space, so it does not need to be kept clean.
      */
-    private const int EXTRA_STACK = 5;
+    internal const int EXTRA_STACK = 5;
 
     /*
      ** Size of cache for strings in the API. 'N' is the number of
@@ -142,17 +142,17 @@ public static unsafe partial class Lua
     private const int STRCACHE_M = 5;
 #endif
 
-    private const int BASIC_STACK_SIZE = 2 * LUA_MINSTACK;
+    internal const int BASIC_STACK_SIZE = 2 * LUA_MINSTACK;
 
-    private static int stacksize(lua_State* th)
+    internal static int stacksize(lua_State* th)
     {
         return (int)(th->stack_last.p - th->stack.p);
     }
 
     /* kinds of Garbage Collection */
-    private const byte KGC_INC = 0; /* incremental gc */
-    private const byte KGC_GENMINOR = 1; /* generational gc in minor (regular) mode */
-    private const byte KGC_GENMAJOR = 2; /* generational in major mode */
+    internal const byte KGC_INC = 0; /* incremental gc */
+    internal const byte KGC_GENMINOR = 1; /* generational gc in minor (regular) mode */
+    internal const byte KGC_GENMAJOR = 2; /* generational in major mode */
 
     internal struct stringtable
     {
@@ -237,7 +237,7 @@ public static unsafe partial class Lua
     private const int CIST_RECST = 12; /* the offset, not the mask */
 
     /* call is running a C function (still in first 16 bits) */
-    private const uint CIST_C = 1u << CIST_RECST + 3;
+    internal const uint CIST_C = 1u << CIST_RECST + 3;
 
     /* call is on a fresh "luaV_execute" frame */
     private const uint CIST_FRESH = CIST_C << 1;
@@ -328,10 +328,8 @@ public static unsafe partial class Lua
         internal UpVal* openupval; /* list of open upvalues in this stack */
         internal StkIdRel tbclist; /* list of to-be-closed variables */
         internal GCObject* gclist;
-
         internal lua_State* twups; /* list of threads with open upvalues */
-
-        // struct lua_longjmp *errorJmp;  /* current error recover point */ TODO
+        internal lua_longjmp_data* errorJmp;  /* current error recover point */
         internal CallInfo base_ci; /* CallInfo for first level (C host) */
         internal lua_Hook hook;
         internal nint errfunc; /* current error handling function (stack index) */
@@ -355,6 +353,8 @@ public static unsafe partial class Lua
         public fixed byte extra_[LUA_EXTRASPACE];
         public lua_State l;
     }
+
+    internal static readonly nint LX_l_offset = Marshal.OffsetOf<LX>(nameof(LX.l));
 
     [InlineArray(LUA_NUMTYPES)]
     internal struct TableArray
@@ -484,7 +484,7 @@ public static unsafe partial class Lua
         public LX mainth; /* main thread of this state */
     }
 
-    private static ref global_State* G(lua_State* L)
+    internal static ref global_State* G(lua_State* L)
     {
         return ref L->l_G;
     }
@@ -522,7 +522,7 @@ public static unsafe partial class Lua
         return (LClosure*)o;
     }
 
-    private static CClosure* gco2ccl(GCObject* o)
+    internal static CClosure* gco2ccl(GCObject* o)
     {
         Debug.Assert(o->tt == LUA_VCCL);
         return (CClosure*)o;
@@ -546,7 +546,7 @@ public static unsafe partial class Lua
         return (Proto*)o;
     }
 
-    private static lua_State* gco2th(GCObject* o)
+    internal static lua_State* gco2th(GCObject* o)
     {
         Debug.Assert(o->tt == LUA_VTHREAD);
         return (lua_State*)o;
@@ -561,37 +561,37 @@ public static unsafe partial class Lua
     /*
      ** macro to convert a Lua object into a GCObject
      */
-    private static GCObject* obj2gco(lua_State* v)
+    internal static GCObject* obj2gco(lua_State* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
 
-    private static GCObject* obj2gco(GCObject* v)
+    internal static GCObject* obj2gco(GCObject* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return v;
     }
 
-    private static GCObject* obj2gco(Table* v)
+    internal static GCObject* obj2gco(Table* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
 
-    private static GCObject* obj2gco(TString* v)
+    internal static GCObject* obj2gco(TString* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
 
-    private static GCObject* obj2gco(CClosure* v)
+    internal static GCObject* obj2gco(CClosure* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
     }
 
-    private static GCObject* obj2gco(Udata* v)
+    internal static GCObject* obj2gco(Udata* v)
     {
         Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
         return (GCObject*)v;
@@ -603,29 +603,35 @@ public static unsafe partial class Lua
         return (GCObject*)v;
     }
 
+    private static GCObject* obj2gco(UpVal* v)
+    {
+        Debug.Assert(novariant(v->tt) >= LUA_TSTRING);
+        return (GCObject*)v;
+    }
+
     /* actual number of total memory allocated */
-    private static long gettotalbytes(global_State* g)
+    internal static long gettotalbytes(global_State* g)
     {
         return g->GCtotalbytes - g->GCdebt;
     }
 
-    private static partial void luaE_setdebt(global_State* g, long debt);
+    internal static partial void luaE_setdebt(global_State* g, long debt);
 
     private static partial void luaE_freethread(lua_State* L, lua_State* L1);
 
-    private static partial long luaE_threadsize(lua_State* L);
+    internal static partial long luaE_threadsize(lua_State* L);
 
-    private static partial CallInfo* luaE_extendCI(lua_State* L);
+    internal static partial CallInfo* luaE_extendCI(lua_State* L);
 
-    private static partial void luaE_shrinkCI(lua_State* L);
+    internal static partial void luaE_shrinkCI(lua_State* L);
 
-    private static partial void luaE_checkcstack(lua_State* L);
+    internal static partial void luaE_checkcstack(lua_State* L);
 
-    private static partial void luaE_incCstack(lua_State* L);
+    internal static partial void luaE_incCstack(lua_State* L);
 
-    private static partial void luaE_warning(lua_State* L, string msg, bool tocont);
+    internal static partial void luaE_warning(lua_State* L, string msg, bool tocont);
 
-    private static partial void luaE_warnerror(lua_State* L, string where);
+    internal static partial void luaE_warnerror(lua_State* L, string where);
 
-    private static partial byte luaE_resetthread(lua_State* L, byte status);
+    internal static partial byte luaE_resetthread(lua_State* L, byte status);
 }

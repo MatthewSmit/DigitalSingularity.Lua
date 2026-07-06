@@ -276,7 +276,7 @@ public static unsafe partial class Lua
         setarg(ref i, j + OFFSET_sJ, POS_sJ, SIZE_sJ);
     }
 
-    private static uint CREATE_ABCk(OpCode o, int a, int b, int c, bool k)
+    internal static uint CREATE_ABCk(OpCode o, int a, int b, int c, bool k)
     {
         return (uint)o << POS_OP |
                (uint)a << POS_A |
@@ -338,7 +338,7 @@ public static unsafe partial class Lua
     ** See "Notes" below for more information about some instructions.
     */
 
-    private enum OpCode
+    internal enum OpCode
     {
         /*----------------------------------------------------------------------
           name		args	description
@@ -651,7 +651,7 @@ public static unsafe partial class Lua
         return (luaP_opmodes[(int)m] & (1 << 7)) != 0;
     }
 
-    private static partial bool luaP_isOT(uint i);
+    internal static partial bool luaP_isOT(uint i);
 
-    private static partial bool luaP_isIT(uint i);
+    internal static partial bool luaP_isIT(uint i);
 }

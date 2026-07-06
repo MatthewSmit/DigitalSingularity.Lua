@@ -196,7 +196,7 @@ public static unsafe partial class Lua
     }
 
     /* convert a 'StackValue' to a 'TValue' */
-    private static TValue* s2v(StkId o)
+    internal static TValue* s2v(StkId o)
     {
         return &o->val;
     }
@@ -208,19 +208,19 @@ public static unsafe partial class Lua
      */
 
     /* Standard nil */
-    private const byte LUA_VNIL = LUA_TNIL;
+    internal const byte LUA_VNIL = LUA_TNIL;
 
     /* Empty slot (which might be different from a slot containing nil) */
-    private const byte LUA_VEMPTY = LUA_TNIL | 1 << 4;
+    internal const byte LUA_VEMPTY = LUA_TNIL | 1 << 4;
 
     /* Value returned for a key not found in a table (absent key) */
     private const byte LUA_VABSTKEY = LUA_TNIL | 2 << 4;
 
     /* Special variant to signal that a fast get is accessing a non-table */
-    private const byte LUA_VNOTABLE = LUA_TNIL | 3 << 4;
+    internal const byte LUA_VNOTABLE = LUA_TNIL | 3 << 4;
 
     /* macro to test for (any kind of) nil */
-    private static bool ttisnil(TValue* v)
+    internal static bool ttisnil(TValue* v)
     {
         return checktype(v, LUA_TNIL);
     }
@@ -231,7 +231,7 @@ public static unsafe partial class Lua
      ** other tags. As currently nil is equivalent to LUA_VEMPTY, it is
      ** simpler to just test whether the value is nil.
      */
-    private static bool tagisempty(byte tag)
+    internal static bool tagisempty(byte tag)
     {
         return novariant(tag) == LUA_TNIL;
     }
@@ -242,7 +242,7 @@ public static unsafe partial class Lua
         return checktag(o, LUA_VNIL);
     }
 
-    private static void setnilvalue(TValue* obj)
+    internal static void setnilvalue(TValue* obj)
     {
         settt_(obj, LUA_VNIL);
     }
@@ -312,7 +312,7 @@ public static unsafe partial class Lua
         return t == LUA_VFALSE || novariant(t) == LUA_TNIL;
     }
 
-    private static void setbfvalue(TValue* obj)
+    internal static void setbfvalue(TValue* obj)
     {
         settt_(obj, LUA_VFALSE);
     }
@@ -411,7 +411,7 @@ public static unsafe partial class Lua
      */
 
     /* Variant tags for numbers */
-    private const byte LUA_VNUMINT = LUA_TNUMBER;
+    internal const byte LUA_VNUMINT = LUA_TNUMBER;
     private const byte LUA_VNUMFLT = LUA_TNUMBER | 1 << 4;
 
     private static bool ttisnumber(TValue* o)
@@ -419,12 +419,12 @@ public static unsafe partial class Lua
         return checktype(o, LUA_TNUMBER);
     }
 
-    private static bool ttisfloat(TValue* o)
+    internal static bool ttisfloat(TValue* o)
     {
         return checktag(o, LUA_VNUMFLT);
     }
 
-    private static bool ttisinteger(TValue* o)
+    internal static bool ttisinteger(TValue* o)
     {
         return checktag(o, LUA_VNUMINT);
     }
@@ -435,13 +435,13 @@ public static unsafe partial class Lua
         return ttisinteger(o) ? ivalue(o) : fltvalue(o);
     }
 
-    private static double fltvalue(TValue* o)
+    internal static double fltvalue(TValue* o)
     {
         Debug.Assert(ttisfloat(o));
         return val_(o).n;
     }
 
-    private static long ivalue(TValue* o)
+    internal static long ivalue(TValue* o)
     {
         Debug.Assert(ttisinteger(o));
         return val_(o).i;
@@ -457,7 +457,7 @@ public static unsafe partial class Lua
         return v.i;
     }
 
-    private static void setfltvalue(TValue* obj, double x)
+    internal static void setfltvalue(TValue* obj, double x)
     {
         val_(obj).n = x;
         settt_(obj, LUA_VNUMFLT);
@@ -469,7 +469,7 @@ public static unsafe partial class Lua
         val_(obj).n = x;
     }
 
-    private static void setivalue(TValue* obj, long x)
+    internal static void setivalue(TValue* obj, long x)
     {
         val_(obj).i = x;
         settt_(obj, LUA_VNUMINT);
@@ -494,7 +494,7 @@ public static unsafe partial class Lua
     private const byte LUA_VLNGSTR = LUA_TSTRING | 1 << 4; /* long strings */
     private const byte LUA_VLNGSTR_C = LUA_VLNGSTR | BIT_ISCOLLECTABLE;
 
-    private static bool ttisstring(TValue* o)
+    internal static bool ttisstring(TValue* o)
     {
         return checktype(o, LUA_TSTRING);
     }
@@ -514,13 +514,13 @@ public static unsafe partial class Lua
         return gco2ts(v.gc);
     }
 
-    private static TString* tsvalue(TValue* o)
+    internal static TString* tsvalue(TValue* o)
     {
         Debug.Assert(ttisstring(o));
         return gco2ts(val_(o).gc);
     }
 
-    private static void setsvalue(lua_State* L, TValue* obj, TString* x)
+    internal static void setsvalue(lua_State* L, TValue* obj, TString* x)
     {
         val_(obj).gc = obj2gco(x);
         settt_(obj, ctb(x->tt));
@@ -528,7 +528,7 @@ public static unsafe partial class Lua
     }
 
     /* set a string to the stack */
-    private static void setsvalue2s(lua_State* L, StkId o, TString* s)
+    internal static void setsvalue2s(lua_State* L, StkId o, TString* s)
     {
         setsvalue(L, s2v(o), s);
     }
@@ -540,9 +540,9 @@ public static unsafe partial class Lua
     }
 
     /* Kinds of long strings (stored in 'shrlen') */
-    private const sbyte LSTRREG = -1; /* regular long string */
-    private const sbyte LSTRFIX = -2; /* fixed external long string */
-    private const sbyte LSTRMEM = -3; /* external long string with deallocation */
+    internal const sbyte LSTRREG = -1; /* regular long string */
+    internal const sbyte LSTRFIX = -2; /* fixed external long string */
+    internal const sbyte LSTRMEM = -3; /* external long string with deallocation */
 
     /*
      ** Header for a string value.
@@ -567,8 +567,10 @@ public static unsafe partial class Lua
         public lua_Alloc falloc; /* deallocation function for external strings */
         public void* ud; /* user data for external strings */
     }
+    
+    internal static readonly nint TString_falloc_offset = Marshal.OffsetOf<TString>(nameof(TString.falloc));
 
-    private static bool strisshr(TString* ts)
+    internal static bool strisshr(TString* ts)
     {
         return ts->shrlen >= 0;
     }
@@ -593,25 +595,25 @@ public static unsafe partial class Lua
         return rawgetshrstr(ts);
     }
 
-    private static byte* getlngstr(TString* ts)
+    internal static byte* getlngstr(TString* ts)
     {
         Debug.Assert(!strisshr(ts));
         return ts->contents;
     }
 
-    private static byte* getstr(TString* ts)
+    internal static byte* getstr(TString* ts)
     {
         return strisshr(ts) ? rawgetshrstr(ts) : ts->contents;
     }
 
-    private static string getnetstr(TString* ts)
+    internal static string getnetstr(TString* ts)
     {
         ReadOnlySpan<byte> tmp = new(getstr(ts), checked((int)tsslen(ts)));
         return Encoding.UTF8.GetString(tmp);
     }
 
     /* get string length from 'TString *ts' */
-    private static long tsslen(TString* ts)
+    internal static long tsslen(TString* ts)
     {
         return strisshr(ts) ? ts->shrlen : ts->u.lnglen;
     }
@@ -690,7 +692,7 @@ public static unsafe partial class Lua
      ** Header for userdata with user values;
      ** memory area follows the end of this structure.
      */
-    private struct Udata
+    internal struct Udata
     {
         public GCObject* next;
         public byte tt;
@@ -757,7 +759,7 @@ public static unsafe partial class Lua
     /*
      ** Description of an upvalue for function prototypes
      */
-    private struct Upvaldesc
+    internal struct Upvaldesc
     {
         public TString* name; /* upvalue name (for debug information) */
         public byte instack; /* whether it is in stack (register) */
@@ -769,7 +771,7 @@ public static unsafe partial class Lua
      ** Description of a local variable for function prototypes
      ** (used for debug information)
      */
-    private struct LocVar
+    internal struct LocVar
     {
         public TString* varname;
         public int startpc; /* first point where variable is active */
@@ -786,7 +788,7 @@ public static unsafe partial class Lua
      ** absolute-line array, but we must traverse the 'lineinfo' array
      ** linearly to compute a line.)
      */
-    private struct AbsLineInfo
+    internal struct AbsLineInfo
     {
         public int pc;
         public int line;
@@ -817,7 +819,7 @@ public static unsafe partial class Lua
     /*
      ** Function Prototypes
      */
-    private struct Proto
+    internal struct Proto
     {
         public GCObject* next;
         public byte tt;
@@ -858,9 +860,9 @@ public static unsafe partial class Lua
     /* Variant tags for functions */
     private const byte LUA_VLCL = LUA_TFUNCTION; /* Lua closure */
     private const byte LUA_VLCF = LUA_TFUNCTION | 1 << 4; /* light C function */
-    private const byte LUA_VCCL = LUA_TFUNCTION | 2 << 4; /* C closure */
+    internal const byte LUA_VCCL = LUA_TFUNCTION | 2 << 4; /* C closure */
 
-    private static bool ttisfunction(TValue* o)
+    internal static bool ttisfunction(TValue* o)
     {
         return checktype(o, LUA_TFUNCTION);
     }
@@ -931,7 +933,7 @@ public static unsafe partial class Lua
         setclLvalue(L, s2v(o), cl);
     }
 
-    private static void setfvalue(TValue* obj, lua_CFunction x)
+    internal static void setfvalue(TValue* obj, lua_CFunction x)
     {
         val_(obj).f = x;
         settt_(obj, LUA_VLCF);
@@ -977,12 +979,12 @@ public static unsafe partial class Lua
     }
 
     [InlineArray(1)]
-    private struct TValueArray
+    internal struct TValueArray
     {
         private TValue element0;
     }
 
-    private struct CClosure
+    internal struct CClosure
     {
         public GCObject* next;
         public byte tt;
@@ -993,7 +995,7 @@ public static unsafe partial class Lua
         public TValueArray upvalue; /* list of upvalues */
     }
 
-    private struct LClosure
+    internal struct LClosure
     {
         public GCObject* next;
         public byte tt;
@@ -1037,7 +1039,7 @@ public static unsafe partial class Lua
         return gco2t(val_(o).gc);
     }
 
-    private static void sethvalue(lua_State* L, TValue* obj, Table* x)
+    internal static void sethvalue(lua_State* L, TValue* obj, Table* x)
     {
         val_(obj).gc = obj2gco(x);
         settt_(obj, ctb(LUA_VTABLE));
@@ -1203,7 +1205,7 @@ public static unsafe partial class Lua
     }
 
     /* size of buffer for 'luaO_utf8esc' function */
-    private const int UTF8BUFFSZ = 8;
+    internal const int UTF8BUFFSZ = 8;
 
     /* macro to call 'luaO_pushvfstring' correctly */
     private static void pushvfstring(lua_State* L, object[] argp, string fmt, out string msg)
@@ -1215,27 +1217,25 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial int luaO_utf8esc(byte* buff, uint x);
+    internal static partial byte luaO_ceillog2(uint x);
 
-    private static partial byte luaO_ceillog2(uint x);
+    internal static partial byte luaO_codeparam(uint p);
 
-    private static partial byte luaO_codeparam(uint p);
+    internal static partial long luaO_applyparam(byte p, long x);
 
-    private static partial long luaO_applyparam(byte p, long x);
+    internal static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res);
 
-    private static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res);
+    internal static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res);
 
-    private static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res);
+    internal static partial long luaO_str2num(byte* s, TValue* o);
 
-    private static partial long luaO_str2num(byte* s, TValue* o);
+    internal static partial uint luaO_tostringbuff(TValue* obj, byte* buff);
 
-    private static partial uint luaO_tostringbuff(TValue* obj, byte* buff);
+    internal static partial byte luaO_hexavalue(int c);
 
-    private static partial byte luaO_hexavalue(int c);
+    internal static partial void luaO_tostring(lua_State* L, TValue* obj);
 
-    private static partial void luaO_tostring(lua_State* L, TValue* obj);
+    internal static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args);
 
-    private static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args);
-
-    private static partial void luaO_chunkid(byte* @out, byte* source, long srclen);
+    internal static partial string luaO_chunkid(string source);
 }

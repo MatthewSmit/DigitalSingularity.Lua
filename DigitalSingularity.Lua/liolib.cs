@@ -378,19 +378,26 @@ public static unsafe partial class Lua
     private static int io_lines(lua_State* L)
     {
 //   int toclose;
-//   if (lua_isnone(L, 1)) lua_pushnil(L);  /* at least one argument */
-//   if (lua_isnil(L, 1)) {  /* no file name? */
-//     lua_getfield(L, LUA_REGISTRYINDEX, IO_INPUT);  /* get default input */
-//     lua_replace(L, 1);  /* put it at index 1 */
+        if (lua_isnone(L, 1)) lua_pushnil(L); /* at least one argument */
+        if (lua_isnil(L, 1))
+        {
+            /* no file name? */
+            lua_getfield(L, LUA_REGISTRYINDEX, IO_INPUT); /* get default input */
+            lua_replace(L, 1); /* put it at index 1 */
 //     tofile(L);  /* check that it's a valid file handle */
 //     toclose = 0;  /* do not close it after iteration */
-//   }
-//   else {  /* open a new file */
-//     const char *filename = luaL_checkstring(L, 1);
+            throw new NotImplementedException();
+        }
+        else
+        {
+            /* open a new file */
+            string filename = luaL_checkstring(L, 1);
 //     opencheck(L, filename, "r");
 //     lua_replace(L, 1);  /* put file at index 1 */
 //     toclose = 1;  /* close it after iteration */
-//   }
+            throw new NotImplementedException();
+        }
+
 //   aux_lines(L, toclose);  /* push iteration function */
 //   if (toclose) {
 //     lua_pushnil(L);  /* state */
@@ -825,7 +832,7 @@ public static unsafe partial class Lua
         lua_setfield(L, -2, fname); /* add file to module */
     }
 
-    private static partial int luaopen_io(lua_State* L)
+    public static partial int luaopen_io(lua_State* L)
     {
         luaL_newlib(L, iolib); /* new module */
         createmeta(L);

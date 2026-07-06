@@ -43,7 +43,7 @@ public static unsafe partial class Lua
     /*
      ** Rounding modes for float->integer coercion
      */
-    private enum F2Imod
+    internal enum F2Imod
     {
         F2Ieq, /* no rounding; accepts only integral values */
         F2Ifloor, /* takes the floor of the number */
@@ -169,37 +169,37 @@ public static unsafe partial class Lua
         return luaV_shiftl(x, (long)(0u - (ulong)y));
     }
 
-    private static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2);
+    internal static partial bool luaV_equalobj(lua_State* L, TValue* t1, TValue* t2);
 
-    private static partial bool luaV_lessthan(lua_State* L, TValue* l, TValue* r);
+    internal static partial bool luaV_lessthan(lua_State* L, TValue* l, TValue* r);
 
-    private static partial bool luaV_lessequal(lua_State* L, TValue* l, TValue* r);
+    internal static partial bool luaV_lessequal(lua_State* L, TValue* l, TValue* r);
 
-    private static partial bool luaV_tonumber_(TValue* obj, double* n);
+    internal static partial bool luaV_tonumber_(TValue* obj, double* n);
 
-    private static partial bool luaV_tointeger(TValue* obj, out long p, F2Imod mode);
+    internal static partial bool luaV_tointeger(TValue* obj, out long p, F2Imod mode);
 
-    private static partial bool luaV_tointegerns(TValue* obj, out long p, F2Imod mode);
+    internal static partial bool luaV_tointegerns(TValue* obj, out long p, F2Imod mode);
 
-    private static partial bool luaV_flttointeger(double n, out long p, F2Imod mode);
+    internal static partial bool luaV_flttointeger(double n, out long p, F2Imod mode);
 
-    private static partial byte luaV_finishget(lua_State* L, TValue* t, TValue* key, StkId val, byte tag);
+    internal static partial byte luaV_finishget(lua_State* L, TValue* t, TValue* key, StkId val, byte tag);
 
-    private static partial void luaV_finishset(lua_State* L, TValue* t, TValue* key, TValue* val, int aux);
+    internal static partial void luaV_finishset(lua_State* L, TValue* t, TValue* key, TValue* val, int hres);
 
     private static partial void luaV_finishOp(lua_State* L);
 
     private static partial void luaV_execute(lua_State* L, CallInfo* ci);
 
-    private static partial void luaV_concat(lua_State* L, int total);
+    internal static partial void luaV_concat(lua_State* L, int total);
 
-    private static partial long luaV_idiv(lua_State* L, long x, long y);
+    internal static partial long luaV_idiv(lua_State* L, long x, long y);
 
-    private static partial long luaV_mod(lua_State* L, long x, long y);
+    internal static partial long luaV_mod(lua_State* L, long x, long y);
 
-    private static partial double luaV_modf(lua_State* L, double x, double y);
+    internal static partial double luaV_modf(lua_State* L, double x, double y);
 
-    private static partial long luaV_shiftl(long x, long y);
+    internal static partial long luaV_shiftl(long x, long y);
 
-    private static partial void luaV_objlen(lua_State* L, StkId ra, TValue* rb);
+    internal static partial void luaV_objlen(lua_State* L, StkId ra, TValue* rb);
 }

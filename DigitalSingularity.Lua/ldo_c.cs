@@ -4,22 +4,21 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-// #define errorstatus(s)	((s) > LUA_YIELD)
-//
-//
-// /*
-// ** these macros allow user-specific actions when a thread is
-// ** resumed/yielded.
-// */
-// #if !defined(luai_userstateresume)
-// #define luai_userstateresume(L,n)	((void)L)
-// #endif
-//
-// #if !defined(luai_userstateyield)
-// #define luai_userstateyield(L,n)	((void)L)
-// #endif
-//
-//
+    private static bool errorstatus(byte s)
+    {
+        return s > LUA_YIELD;
+    }
+
+    /*
+     ** these macros allow user-specific actions when a thread is
+     ** resumed/yielded.
+     */
+    private static void luai_userstateresume(lua_State* L, int n)
+    {
+    }
+
+    private static void luai_userstateyield(lua_State* L, int n) { }
+
 // /*
 // ** {======================================================
 // ** Error-recovery functions
@@ -41,9 +40,6 @@ public static unsafe partial class Lua
 // ** longjmp/setjmp otherwise.
 // */
 // #if !defined(LUAI_THROW)				/* { */
-//
-// #if defined(__cplusplus) && !defined(LUA_USE_LONGJMP)	/* { */
-//
 // /* C++ exceptions */
 // #define LUAI_THROW(L,c)		throw(c)
 //
@@ -59,62 +55,57 @@ public static unsafe partial class Lua
 //     c->status = -1;  /* create some error code */
 //   }
 // }
-//
-//
-// #elif defined(LUA_USE_POSIX)				/* }{ */
-//
-// /* in POSIX, use _longjmp/_setjmp (more efficient) */
-// #define LUAI_THROW(L,c)		_longjmp((c)->b, 1)
-// #define LUAI_TRY(L,c,f,ud)	if (_setjmp((c)->b) == 0) ((f)(L, ud))
-//
-// #else							/* }{ */
-//
-// /* ISO C handling with long jumps */
-// #define LUAI_THROW(L,c)		longjmp((c)->b, 1)
-// #define LUAI_TRY(L,c,f,ud)	if (setjmp((c)->b) == 0) ((f)(L, ud))
-//
-// #endif							/* } */
-//
 // #endif							/* } */
 
     private static partial void luaD_seterrorobj(lua_State* L, byte errcode, StkId oldtop)
     {
-//   if (errcode == LUA_ERRMEM) {  /* memory error? */
-//     setsvalue2s(L, oldtop, G(L)->memerrmsg); /* reuse preregistered msg. */
-//   }
-//   else {
-//     Debug.Assert(errorstatus(errcode));  /* must be a real error */
-//     Debug.Assert(!ttisnil(s2v(L->top.p - 1)));  /* with a non-nil object */
-//     setobjs2s(L, oldtop, L->top.p - 1);  /* move it to 'oldtop' */
-//   }
-//   L->top.p = oldtop + 1;  /* top goes back to old top plus error object */
-        throw new NotImplementedException();
+        if (errcode == LUA_ERRMEM)
+        {
+            /* memory error? */
+            setsvalue2s(L, oldtop, G(L)->memerrmsg); /* reuse preregistered msg. */
+        }
+        else
+        {
+            Debug.Assert(errorstatus(errcode)); /* must be a real error */
+            Debug.Assert(!ttisnil(s2v(L->top.p - 1))); /* with a non-nil object */
+            setobjs2s(L, oldtop, L->top.p - 1); /* move it to 'oldtop' */
+        }
+
+        L->top.p = oldtop + 1; /* top goes back to old top plus error object */
     }
 
     private static partial void luaD_throw(lua_State* L, byte errcode)
     {
-//   if (L->errorJmp) {  /* thread has an error handler? */
-//     L->errorJmp->status = errcode;  /* set status */
-//     LUAI_THROW(L, L->errorJmp);  /* jump to it */
-//   }
-//   else {  /* thread has no error handler */
-//     global_State *g = G(L);
-//     lua_State *mainth = mainthread(g);
-//     errcode = luaE_resetthread(L, errcode);  /* close all upvalues */
-//     L->status = errcode;
-//     if (mainth->errorJmp) {  /* main thread has a handler? */
-//       setobjs2s(L, mainth->top.p++, L->top.p - 1);  /* copy error obj. */
-//       luaD_throw(mainth, errcode);  /* re-throw in main thread */
-//     }
-//     else {  /* no handler at all; abort */
-//       if (g->panic) {  /* panic function? */
-//         lua_unlock(L);
-//         g->panic(L);  /* call panic function (last chance to jump out) */
-//       }
-//       abort();
-//     }
-//   }
-        throw new NotImplementedException();
+        if (L->errorJmp != null)
+        {
+            /* thread has an error handler? */
+            L->errorJmp->status = errcode;  /* set status */
+            throw new lua_longjmp(L->errorJmp); /* jump to it */
+        }
+
+        /* thread has no error handler */
+        global_State* g = G(L);
+        lua_State* mainth = mainthread(g);
+        errcode = luaE_resetthread(L, errcode); /* close all upvalues */
+        L->status = errcode;
+        if (mainth->errorJmp != null)
+        {
+            /* main thread has a handler? */
+            setobjs2s(L, mainth->top.p++, L->top.p - 1); /* copy error obj. */
+            luaD_throw(mainth, errcode); /* re-throw in main thread */
+        }
+        else
+        {
+            /* no handler at all; abort */
+            if (g->panic != null)
+            {
+                /* panic function? */
+                lua_unlock(L);
+                g->panic(L); /* call panic function (last chance to jump out) */
+            }
+
+            throw new lua_longjmp(null);
+        }
     }
 
     private static partial void luaD_throwbaselevel(lua_State* L, byte errcode)
@@ -128,42 +119,33 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-    private static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud)
+    internal static partial byte luaD_rawrunprotected(lua_State* L, Pfunc f, void* ud)
     {
         uint oldnCcalls = L->nCcalls;
-        lua_longjmp lj = new();
-        lj.status = LUA_OK;
-        //   lj.previous = L->errorJmp;  /* chain new error handler */
-        //   L->errorJmp = &lj;
+        lua_longjmp_data lj = new()
+        {
+            status = LUA_OK,
+            previous = L->errorJmp, /* chain new error handler */
+        };
+        L->errorJmp = &lj;
         try
         {
             f(L, ud);
         }
         catch (lua_longjmp c1)
         {
-            throw new NotImplementedException();
+            if (c1.Data != &lj) /* not the correct level? */
+            {
+                throw; /* rethrow to upper level */
+            }
         }
-        // catch (Exception e)
+        // TODO
+        // catch (Exception) /* non-Lua exception */
         // {
-        //     throw new NotImplementedException();
+        //     lj.status = unchecked((byte)-1); /* create some error code */
         // }
 
-
-// static void LUAI_TRY (lua_State *L, lua_longjmp *c, Pfunc f, void *ud) {
-//   try {
-//     f(L, ud);  /* call function protected */
-//   }
-//   catch (lua_longjmp *c1) { /* Lua error */
-//     if (c1 != c)  /* not the correct level? */
-//       throw;  /* rethrow to upper level */
-//   }
-//   catch (...) {  /* non-Lua exception */
-//     c->status = -1;  /* create some error code */
-//   }
-
-        //   LUAI_TRY(L, &lj, f, ud);  /* call 'f' catching errors */
-
-        //   L->errorJmp = lj.previous;  /* restore old error handler */
+        L->errorJmp = lj.previous;  /* restore old error handler */
         L->nCcalls = oldnCcalls;
         return lj.status;
     }
@@ -387,13 +369,15 @@ public static unsafe partial class Lua
             }
         }
 
-//   /* else stack overflow */
-//   /* add extra size to be able to handle the error message */
-//   luaD_reallocstack(L, ERRORSTACKSIZE, raiseerror);
-//   if (raiseerror)
-//     luaG_runerror(L, "stack overflow");
-//   return 0;
-        throw new NotImplementedException();
+        /* else stack overflow */
+        /* add extra size to be able to handle the error message */
+        luaD_reallocstack(L, ERRORSTACKSIZE, raiseerror);
+        if (raiseerror)
+        {
+            luaG_runerror(L, "stack overflow");
+        }
+
+        return false;
     }
 
     /*
@@ -553,29 +537,37 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Check whether 'func' has a '__call' metafield. If so, put it in the
-// ** stack, below original 'func', so that 'luaD_precall' can call it.
-// ** Raise an error if there is no '__call' metafield.
-// ** Bits CIST_CCMT in status count how many _call metamethods were
-// ** invoked and how many corresponding extra arguments were pushed.
-// ** (This count will be saved in the 'callstatus' of the call).
-// **  Raise an error if this counter overflows.
-// */
-// static unsigned tryfuncTM (lua_State *L, StkId func, unsigned status) {
-//   const TValue *tm;
-//   StkId p;
-//   tm = luaT_gettmbyobj(L, s2v(func), TM_CALL);
-//   if (l_unlikely(ttisnil(tm)))  /* no metamethod? */
-//     luaG_callerror(L, s2v(func));
-//   for (p = L->top.p; p > func; p--)  /* open space for metamethod */
-//     setobjs2s(L, p, p-1);
-//   L->top.p++;  /* stack space pre-allocated by the caller */
-//   setobj2s(L, func, tm);  /* metamethod is the new function to be called */
-//   if ((status & MAX_CCMT) == MAX_CCMT)  /* is counter full? */
-//     luaG_runerror(L, "'__call' chain too long");
-//   return status + (1u << CIST_CCMT);  /* increment counter */
-// }
+    /*
+    ** Check whether 'func' has a '__call' metafield. If so, put it in the
+    ** stack, below original 'func', so that 'luaD_precall' can call it.
+    ** Raise an error if there is no '__call' metafield.
+    ** Bits CIST_CCMT in status count how many _call metamethods were
+    ** invoked and how many corresponding extra arguments were pushed.
+    ** (This count will be saved in the 'callstatus' of the call).
+    **  Raise an error if this counter overflows.
+    */
+    private static uint tryfuncTM(lua_State* L, StkId func, uint status)
+    {
+        TValue* tm = luaT_gettmbyobj(L, s2v(func), TMS.CALL);
+        if (ttisnil(tm)) /* no metamethod? */
+        {
+            luaG_callerror(L, s2v(func));
+        }
+
+        for (StkId p = L->top.p; p > func; p--) /* open space for metamethod */
+        {
+            setobjs2s(L, p, p - 1);
+        }
+
+        L->top.p++; /* stack space pre-allocated by the caller */
+        setobj2s(L, func, tm); /* metamethod is the new function to be called */
+        if ((status & MAX_CCMT) == MAX_CCMT) /* is counter full? */
+        {
+            luaG_runerror(L, "'__call' chain too long");
+        }
+
+        return status + (1u << CIST_CCMT); /* increment counter */
+    }
 
     /* Generic case for 'moveresult' */
     private static void genmoveresults(lua_State* L, StkId res, int nres, int wanted)
@@ -623,38 +615,42 @@ public static unsafe partial class Lua
                 }
                 else /* at least one result */
                 {
-                    setobjs2s(L, res, L->top.p - nres);  /* move it to proper place */
+                    setobjs2s(L, res, L->top.p - nres); /* move it to proper place */
                 }
 
                 L->top.p = res + 1;
                 return;
 
             case LUA_MULTRET + 1:
-                genmoveresults(L, res, nres, nres);  /* we want all results */
+                genmoveresults(L, res, nres, nres); /* we want all results */
                 break;
-            
+
             default:
+                /* two/more results and/or to-be-closed variables */
+                int wanted = get_nresults(fwanted);
+                if ((fwanted & CIST_TBC) != 0)
                 {
-                    /* two/more results and/or to-be-closed variables */
-//       int wanted = get_nresults(fwanted);
-//       if (fwanted & CIST_TBC) {  /* to-be-closed variables? */
-//         L->ci->u2.nres = nres;
-//         L->ci->callstatus |= CIST_CLSRET;  /* in case of yields */
-//         res = luaF_close(L, res, CLOSEKTOP, 1);
-//         L->ci->callstatus &= ~CIST_CLSRET;
-//         if (L->hookmask) {  /* if needed, call hook after '__close's */
-//           ptrdiff_t savedres = savestack(L, res);
-//           rethook(L, L->ci, nres);
-//           res = restorestack(L, savedres);  /* hook can move stack */
-//         }
-//         if (wanted == LUA_MULTRET)
-//           wanted = nres;  /* we want all results */
-//       }
-//       genmoveresults(L, res, nres, wanted);
-//       break;
-                    throw new NotImplementedException();
+                    /* to-be-closed variables? */
+                    L->ci->u2.nres = nres;
+                    L->ci->callstatus |= CIST_CLSRET; /* in case of yields */
+                    res = luaF_close(L, res, CLOSEKTOP, true);
+                    L->ci->callstatus &= ~CIST_CLSRET;
+                    if (L->hookmask != 0)
+                    {
+                        /* if needed, call hook after '__close's */
+                        nint savedres = savestack(L, res);
+                        rethook(L, L->ci, nres);
+                        res = restorestack(L, savedres); /* hook can move stack */
+                    }
+
+                    if (wanted == LUA_MULTRET)
+                    {
+                        wanted = nres; /* we want all results */
+                    }
                 }
-        }
+
+                genmoveresults(L, res, nres, wanted);
+                break; }
     }
 
     /*
@@ -813,13 +809,10 @@ public static unsafe partial class Lua
                 }
 
             default:
-                {
-                    /* not a function */
-                    checkstackp(L, 1, ref func); /* space for metamethod */
-//       status = tryfuncTM(L, func, status);  /* try '__call' metamethod */
-//       goto retry;  /* try again with metamethod */
-                    throw new NotImplementedException();
-                }
+                /* not a function */
+                checkstackp(L, 1, ref func); /* space for metamethod */
+                status = tryfuncTM(L, func, status); /* try '__call' metamethod */
+                goto retry; /* try again with metamethod */
         }
     }
 
@@ -902,22 +895,22 @@ public static unsafe partial class Lua
 //      do not change status */
 //   return status;
 // }
-//
-//
-// /*
-// ** Completes the execution of a C function interrupted by an yield.
-// ** The interruption must have happened while the function was either
-// ** closing its tbc variables in 'moveresults' or executing
-// ** 'lua_callk'/'lua_pcallk'. In the first case, it just redoes
-// ** 'luaD_poscall'. In the second case, the call to 'finishpcallk'
-// ** finishes the interrupted execution of 'lua_pcallk'.  After that, it
-// ** calls the continuation of the interrupted function and finally it
-// ** completes the job of the 'luaD_call' that called the function.  In
-// ** the call to 'adjustresults', we do not know the number of results
-// ** of the function called by 'lua_callk'/'lua_pcallk', so we are
-// ** conservative and use LUA_MULTRET (always adjust).
-// */
-// static void finishCcall (lua_State *L, CallInfo *ci) {
+
+    /*
+    ** Completes the execution of a C function interrupted by an yield.
+    ** The interruption must have happened while the function was either
+    ** closing its tbc variables in 'moveresults' or executing
+    ** 'lua_callk'/'lua_pcallk'. In the first case, it just redoes
+    ** 'luaD_poscall'. In the second case, the call to 'finishpcallk'
+    ** finishes the interrupted execution of 'lua_pcallk'.  After that, it
+    ** calls the continuation of the interrupted function and finally it
+    ** completes the job of the 'luaD_call' that called the function.  In
+    ** the call to 'adjustresults', we do not know the number of results
+    ** of the function called by 'lua_callk'/'lua_pcallk', so we are
+    ** conservative and use LUA_MULTRET (always adjust).
+    */
+    private static void finishCcall(lua_State* L, CallInfo* ci)
+    {
 //   int n;  /* actual number of results from C function */
 //   if (ci->callstatus & CIST_CLSRET) {  /* was closing TBC variable? */
 //     Debug.Assert(ci->callstatus & CIST_TBC);
@@ -938,146 +931,187 @@ public static unsafe partial class Lua
 //     api_checknelems(L, n);
 //   }
 //   luaD_poscall(L, ci, n);  /* finish 'luaD_call' */
-// }
-//
-//
-// /*
-// ** Executes "full continuation" (everything in the stack) of a
-// ** previously interrupted coroutine until the stack is empty (or another
-// ** interruption long-jumps out of the loop).
-// */
-// static void unroll (lua_State *L, void *ud) {
-//   CallInfo *ci;
-//   UNUSED(ud);
-//   while ((ci = L->ci) != &L->base_ci) {  /* something in the stack */
-//     if (!isLua(ci))  /* C function? */
-//       finishCcall(L, ci);  /* complete its execution */
-//     else {  /* Lua function */
-//       luaV_finishOp(L);  /* finish interrupted instruction */
-//       luaV_execute(L, ci);  /* execute down to higher C 'boundary' */
-//     }
-//   }
-// }
-//
-//
-// /*
-// ** Try to find a suspended protected call (a "recover point") for the
-// ** given thread.
-// */
-// static CallInfo *findpcall (lua_State *L) {
-//   CallInfo *ci;
-//   for (ci = L->ci; ci != null; ci = ci->previous) {  /* search for a pcall */
-//     if (ci->callstatus & CIST_YPCALL)
-//       return ci;
-//   }
-//   return null;  /* no pending pcall */
-// }
-//
-//
-// /*
-// ** Signal an error in the call to 'lua_resume', not in the execution
-// ** of the coroutine itself. (Such errors should not be handled by any
-// ** coroutine error handler and should not kill the coroutine.)
-// */
-// static int resume_error (lua_State *L, const char *msg, int narg) {
-//   api_checkpop(L, narg);
-//   L->top.p -= narg;  /* remove args from the stack */
-//   setsvalue2s(L, L->top.p, luaS_new(L, msg));  /* push error message */
-//   api_incr_top(L);
-//   lua_unlock(L);
-//   return LUA_ERRRUN;
-// }
-//
-//
-// /*
-// ** Do the work for 'lua_resume' in protected mode. Most of the work
-// ** depends on the status of the coroutine: initial state, suspended
-// ** inside a hook, or regularly suspended (optionally with a continuation
-// ** function), plus erroneous cases: non-suspended coroutine or dead
-// ** coroutine.
-// */
-// static void resume (lua_State *L, void *ud) {
-//   int n = *(cast(int*, ud));  /* number of arguments */
-//   StkId firstArg = L->top.p - n;  /* first argument */
-//   CallInfo *ci = L->ci;
-//   if (L->status == LUA_OK)  /* starting a coroutine? */
-//     ccall(L, firstArg - 1, LUA_MULTRET, 0);  /* just call its body */
-//   else {  /* resuming from previous yield */
-//     Debug.Assert(L->status == LUA_YIELD);
-//     L->status = LUA_OK;  /* mark that it is running (again) */
-//     if (isLua(ci)) {  /* yielded inside a hook? */
-//       /* undo increment made by 'luaG_traceexec': instruction was not
-//          executed yet */
-//       Debug.Assert(ci->callstatus & CIST_HOOKYIELD);
-//       ci->u.l.savedpc--;
-//       L->top.p = firstArg;  /* discard arguments */
-//       luaV_execute(L, ci);  /* just continue running Lua code */
-//     }
-//     else {  /* 'common' yield */
-//       if (ci->u.c.k != null) {  /* does it have a continuation function? */
-//         lua_unlock(L);
-//         n = (*ci->u.c.k)(L, LUA_YIELD, ci->u.c.ctx); /* call continuation */
-//         lua_lock(L);
-//         api_checknelems(L, n);
-//       }
-//       luaD_poscall(L, ci, n);  /* finish 'luaD_call' */
-//     }
-//     unroll(L, null);  /* run continuation */
-//   }
-// }
-//
-//
-// /*
-// ** Unrolls a coroutine in protected mode while there are recoverable
-// ** errors, that is, errors inside a protected call. (Any error
-// ** interrupts 'unroll', and this loop protects it again so it can
-// ** continue.) Stops with a normal end (status == LUA_OK), an yield
-// ** (status == LUA_YIELD), or an unprotected error ('findpcall' doesn't
-// ** find a recover point).
-// */
-// static TStatus precover (lua_State *L, TStatus status) {
-//   CallInfo *ci;
-//   while (errorstatus(status) && (ci = findpcall(L)) != null) {
-//     L->ci = ci;  /* go down to recovery functions */
-//     setcistrecst(ci, status);  /* status to finish 'pcall' */
-//     status = luaD_rawrunprotected(L, unroll, null);
-//   }
-//   return status;
-// }
-
-    public static partial int lua_resume(lua_State* L, lua_State* from, int nargs, int* nresults)
-    {
-//   TStatus status;
-//   lua_lock(L);
-//   if (L->status == LUA_OK) {  /* may be starting a coroutine */
-//     if (L->ci != &L->base_ci)  /* not in base level? */
-//       return resume_error(L, "cannot resume non-suspended coroutine", nargs);
-//     else if (L->top.p - (L->ci->func.p + 1) == nargs)  /* no function? */
-//       return resume_error(L, "cannot resume dead coroutine", nargs);
-//   }
-//   else if (L->status != LUA_YIELD)  /* ended with errors? */
-//     return resume_error(L, "cannot resume dead coroutine", nargs);
-//   L->nCcalls = (from) ? getCcalls(from) : 0;
-//   if (getCcalls(L) >= LUAI_MAXCCALLS)
-//     return resume_error(L, "C stack overflow", nargs);
-//   L->nCcalls++;
-//   luai_userstateresume(L, nargs);
-//   api_checkpop(L, (L->status == LUA_OK) ? nargs + 1 : nargs);
-//   status = luaD_rawrunprotected(L, resume, &nargs);
-//    /* continue running after recoverable errors */
-//   status = precover(L, status);
-//   if (l_likely(!errorstatus(status)))
-//     Debug.Assert(status == L->status);  /* normal end or yield */
-//   else {  /* unrecoverable error */
-//     L->status = status;  /* mark thread as 'dead' */
-//     luaD_seterrorobj(L, status, L->top.p);  /* push error message */
-//     L->ci->top.p = L->top.p;
-//   }
-//   *nresults = (status == LUA_YIELD) ? L->ci->u2.nyield
-//                                     : cast_int(L->top.p - (L->ci->func.p + 1));
-//   lua_unlock(L);
-//   return APIstatus(status);
         throw new NotImplementedException();
+    }
+
+    /*
+     ** Executes "full continuation" (everything in the stack) of a
+     ** previously interrupted coroutine until the stack is empty (or another
+     ** interruption long-jumps out of the loop).
+     */
+    private static void unroll(lua_State* L, void* ud)
+    {
+        CallInfo* ci;
+        while ((ci = L->ci) != &L->base_ci)
+        {
+            /* something in the stack */
+            if (!isLua(ci)) /* C function? */
+            {
+                finishCcall(L, ci); /* complete its execution */
+            }
+            else
+            {
+                /* Lua function */
+                luaV_finishOp(L); /* finish interrupted instruction */
+                luaV_execute(L, ci); /* execute down to higher C 'boundary' */
+            }
+        }
+    }
+
+    /*
+     ** Try to find a suspended protected call (a "recover point") for the
+     ** given thread.
+     */
+    private static CallInfo* findpcall(lua_State* L)
+    {
+        for (CallInfo* ci = L->ci; ci != null; ci = ci->previous)
+        {
+            // search for a pcall 
+            if ((ci->callstatus & CIST_YPCALL) != 0)
+            {
+                return ci;
+            }
+        }
+
+        return null; /* no pending pcall */
+    }
+
+    /*
+     ** Signal an error in the call to 'lua_resume', not in the execution
+     ** of the coroutine itself. (Such errors should not be handled by any
+     ** coroutine error handler and should not kill the coroutine.)
+     */
+    private static int resume_error(lua_State* L, string msg, int narg)
+    {
+        api_checkpop(L, narg);
+        L->top.p -= narg; /* remove args from the stack */
+        setsvalue2s(L, L->top.p, luaS_new(L, msg)); /* push error message */
+        api_incr_top(L);
+        lua_unlock(L);
+        return LUA_ERRRUN;
+    }
+
+    /*
+     ** Do the work for 'lua_resume' in protected mode. Most of the work
+     ** depends on the status of the coroutine: initial state, suspended
+     ** inside a hook, or regularly suspended (optionally with a continuation
+     ** function), plus erroneous cases: non-suspended coroutine or dead
+     ** coroutine.
+     */
+    private static void resume(lua_State* L, void* ud)
+    {
+        int n = *(int*)ud; /* number of arguments */
+        StkId firstArg = L->top.p - n; /* first argument */
+        CallInfo* ci = L->ci;
+        if (L->status == LUA_OK) /* starting a coroutine? */
+        {
+            ccall(L, firstArg - 1, LUA_MULTRET, 0); /* just call its body */
+        }
+        else
+        {
+            // resuming from previous yield 
+            Debug.Assert(L->status == LUA_YIELD);
+            L->status = LUA_OK; /* mark that it is running (again) */
+            if (isLua(ci))
+            {
+                /* yielded inside a hook? */
+                /* undo increment made by 'luaG_traceexec': instruction was not
+                   executed yet */
+                Debug.Assert((ci->callstatus & CIST_HOOKYIELD) != 0);
+                ci->u.l.savedpc--;
+                L->top.p = firstArg; /* discard arguments */
+                luaV_execute(L, ci); /* just continue running Lua code */
+            }
+            else
+            {
+                /* 'common' yield */
+                if (ci->u.c.k != null!)
+                {
+                    /* does it have a continuation function? */
+                    lua_unlock(L);
+                    n = ci->u.c.k(L, LUA_YIELD, (void*)ci->u.c.ctx); /* call continuation */
+                    lua_lock(L);
+                    api_checknelems(L, n);
+                }
+
+                luaD_poscall(L, ci, n); /* finish 'luaD_call' */
+            }
+
+            unroll(L, null); /* run continuation */
+        }
+    }
+
+    /*
+     ** Unrolls a coroutine in protected mode while there are recoverable
+     ** errors, that is, errors inside a protected call. (Any error
+     ** interrupts 'unroll', and this loop protects it again so it can
+     ** continue.) Stops with a normal end (status == LUA_OK), an yield
+     ** (status == LUA_YIELD), or an unprotected error ('findpcall' doesn't
+     ** find a recover point).
+     */
+    private static byte precover(lua_State* L, byte status)
+    {
+        CallInfo* ci;
+        while (errorstatus(status) && (ci = findpcall(L)) != null)
+        {
+            L->ci = ci; /* go down to recovery functions */
+            setcistrecst(ci, status); /* status to finish 'pcall' */
+            status = luaD_rawrunprotected(L, unroll, null);
+        }
+
+        return status;
+    }
+
+    public static partial int lua_resume(lua_State* L, lua_State* from, int narg, int* nres)
+    {
+        lua_lock(L);
+        if (L->status == LUA_OK)
+        {
+            /* may be starting a coroutine */
+            if (L->ci != &L->base_ci) /* not in base level? */
+            {
+                return resume_error(L, "cannot resume non-suspended coroutine", narg);
+            }
+
+            if (L->top.p - (L->ci->func.p + 1) == narg) /* no function? */
+            {
+                return resume_error(L, "cannot resume dead coroutine", narg);
+            }
+        }
+        else if (L->status != LUA_YIELD) /* ended with errors? */
+        {
+            return resume_error(L, "cannot resume dead coroutine", narg);
+        }
+
+        L->nCcalls = from != null ? getCcalls(from) : 0;
+        if (getCcalls(L) >= LUAI_MAXCCALLS)
+        {
+            return resume_error(L, "C stack overflow", narg);
+        }
+
+        L->nCcalls++;
+        luai_userstateresume(L, narg);
+        api_checkpop(L, (L->status == LUA_OK) ? narg + 1 : narg);
+        byte status = luaD_rawrunprotected(L, resume, &narg);
+        /* continue running after recoverable errors */
+        status = precover(L, status);
+        if (!errorstatus(status))
+        {
+            Debug.Assert(status == L->status); /* normal end or yield */
+        }
+        else
+        {
+            /* unrecoverable error */
+            L->status = status; /* mark thread as 'dead' */
+            luaD_seterrorobj(L, status, L->top.p); /* push error message */
+            L->ci->top.p = L->top.p;
+        }
+
+        *nres = (status == LUA_YIELD)
+            ? L->ci->u2.nyield
+            : (int)(L->top.p - (L->ci->func.p + 1));
+        lua_unlock(L);
+        return status;
     }
 
     public static partial bool lua_isyieldable(lua_State* L)
@@ -1087,38 +1121,49 @@ public static unsafe partial class Lua
 
     public static partial int lua_yieldk(lua_State* L, int nresults, IntPtr ctx, lua_KFunction k)
     {
-//   CallInfo *ci;
-//   luai_userstateyield(L, nresults);
-//   lua_lock(L);
-//   ci = L->ci;
-//   api_checkpop(L, nresults);
-//   if (l_unlikely(!yieldable(L))) {
-//     if (L != mainthread(G(L)))
-//       luaG_runerror(L, "attempt to yield across a C-call boundary");
-//     else
-//       luaG_runerror(L, "attempt to yield from outside a coroutine");
-//   }
-//   L->status = LUA_YIELD;
-//   ci->u2.nyield = nresults;  /* save number of results */
-//   if (isLua(ci)) {  /* inside a hook? */
-//     Debug.Assert(!isLuacode(ci));
-//     api_check(L, nresults == 0, "hooks cannot yield values");
-//     api_check(L, k == null, "hooks cannot continue after yielding");
-//   }
-//   else {
-//     if ((ci->u.c.k = k) != null)  /* is there a continuation? */
-//       ci->u.c.ctx = ctx;  /* save context */
-//     luaD_throw(L, LUA_YIELD);
-//   }
-//   Debug.Assert(ci->callstatus & CIST_HOOKED);  /* must be inside a hook */
-//   lua_unlock(L);
-//   return 0;  /* return to 'luaD_hook' */
-        throw new NotImplementedException();
+        luai_userstateyield(L, nresults);
+        lua_lock(L);
+        CallInfo* ci = L->ci;
+        api_checkpop(L, nresults);
+        if (!yieldable(L))
+        {
+            if (L != mainthread(G(L)))
+            {
+                luaG_runerror(L, "attempt to yield across a C-call boundary");
+            }
+            else
+            {
+                luaG_runerror(L, "attempt to yield from outside a coroutine");
+            }
+        }
+
+        L->status = LUA_YIELD;
+        ci->u2.nyield = nresults; /* save number of results */
+        if (isLua(ci))
+        {
+            /* inside a hook? */
+            Debug.Assert(!isLuacode(ci));
+            Debug.Assert(nresults == 0, "hooks cannot yield values");
+            Debug.Assert(k == null, "hooks cannot continue after yielding");
+        }
+        else
+        {
+            if ((ci->u.c.k = k) != null) /* is there a continuation? */
+            {
+                ci->u.c.ctx = ctx; /* save context */
+            }
+
+            luaD_throw(L, LUA_YIELD);
+        }
+
+        Debug.Assert((ci->callstatus & CIST_HOOKED) != 0); /* must be inside a hook */
+        lua_unlock(L);
+        return 0; /* return to 'luaD_hook' */
     }
-    
+
     /*
-    ** Auxiliary structure to call 'luaF_close' in protected mode.
-    */
+     ** Auxiliary structure to call 'luaF_close' in protected mode.
+     */
     private struct CloseP
     {
         public StkId level;
@@ -1177,10 +1222,9 @@ public static unsafe partial class Lua
             /* an error occurred? */
             L->ci = old_ci;
             L->allowhook = old_allowhooks;
-//     status = luaD_closeprotected(L, old_top, status);
-//     luaD_seterrorobj(L, status, restorestack(L, old_top));
-//     luaD_shrinkstack(L);   /* restore stack size in case of overflow */
-            throw new NotImplementedException();
+            status = luaD_closeprotected(L, oldtop, status);
+            luaD_seterrorobj(L, status, restorestack(L, oldtop));
+            luaD_shrinkstack(L); /* restore stack size in case of overflow */
         }
 
         L->errfunc = old_errfunc;

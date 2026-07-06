@@ -1,7 +1,9 @@
 namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
+using System.Text.Unicode;
 
 public static unsafe partial class Lua
 {
@@ -22,7 +24,7 @@ public static unsafe partial class Lua
      ** Computes ceil(log2(x)), which is the smallest integer n such that
      ** x <= (1 << n).
      */
-    private static partial byte luaO_ceillog2(uint x)
+    internal static partial byte luaO_ceillog2(uint x)
     {
         int l = 0;
         x--;
@@ -43,7 +45,7 @@ public static unsafe partial class Lua
      ** to signal that. So, the real value is (1xxxx) * 2^(eeee - 7 - 1) if
      ** eeee != 0, and (xxxx) * 2^-7 otherwise (subnormal numbers).
      */
-    private static partial byte luaO_codeparam(uint p)
+    internal static partial byte luaO_codeparam(uint p)
     {
         if (p >= ((long)0x1F << 0xF - 7 - 1) * 100u) /* overflow? */
         {
@@ -73,7 +75,7 @@ public static unsafe partial class Lua
      ** more significant bits, as long as the multiplication does not
      ** overflow, so we check which order is best.
      */
-    private static partial long luaO_applyparam(byte p, long x)
+    internal static partial long luaO_applyparam(byte p, long x)
     {
         const long MAX_LMEM = 0x7FFFFFFFFFFFFFFFL;
 
@@ -150,7 +152,7 @@ public static unsafe partial class Lua
         };
     }
 
-    private static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res)
+    internal static partial bool luaO_rawarith(lua_State* L, int op, TValue* p1, TValue* p2, TValue* res)
     {
         switch (op)
         {
@@ -204,16 +206,16 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res)
+    internal static partial void luaO_arith(lua_State* L, int op, TValue* p1, TValue* p2, StkId res)
     {
-//   if (!luaO_rawarith(L, op, p1, p2, s2v(res))) {
-//     /* could not perform raw operation; try metamethod */
-//     luaT_trybinTM(L, p1, p2, res, cast(TMS, (op - LUA_OPADD) + TM_ADD));
-//   }
-        throw new NotImplementedException();
+        if (!luaO_rawarith(L, op, p1, p2, s2v(res)))
+        {
+            // could not perform raw operation; try metamethod 
+            luaT_trybinTM(L, p1, p2, res, (op - LUA_OPADD) + TMS.ADD);
+        }
     }
 
-    private static partial byte luaO_hexavalue(int c)
+    internal static partial byte luaO_hexavalue(int c)
     {
         Debug.Assert(lisxdigit(c));
         if (lisdigit(c))
@@ -356,9 +358,9 @@ public static unsafe partial class Lua
             return null;
         }
 
-        byte* endptr = l_str2dloc(s, result, mode); /* try to convert */
-        if (endptr == null)
-        {
+        return l_str2dloc(s, result, mode); /* try to convert */
+        // if (endptr == null)
+        // {
             /* failed? may be a different locale */
 //     char buff[L_MAXLENNUM + 1];
 //     const char *pdot = strchr(s, '.');
@@ -369,10 +371,10 @@ public static unsafe partial class Lua
 //     endptr = l_str2dloc(buff, result, mode);  /* try again */
 //     if (endptr != null)
 //       endptr = s + (endptr - buff);  /* make relative to 's' */
-            throw new NotImplementedException();
-        }
+            // throw new NotImplementedException();
+        // }
 
-        return endptr;
+        // return endptr;
     }
 
     private const ulong MAXBY10 = long.MaxValue / 10;
@@ -428,7 +430,7 @@ public static unsafe partial class Lua
         return s;
     }
 
-    private static partial long luaO_str2num(byte* s, TValue* o)
+    internal static partial long luaO_str2num(byte* s, TValue* o)
     {
         long i;
         double n;
@@ -451,31 +453,11 @@ public static unsafe partial class Lua
         return e - s + 1;  /* success; return string size */
     }
 
-    private static partial int luaO_utf8esc(byte* buff, uint x)
+    internal static Span<byte> luaO_utf8esc(Span<byte> buff, uint x)
     {
-        int n = 1; /* number of bytes put in buffer (backwards) */
-        Debug.Assert(x <= 0x7FFFFFFFu);
-        if (x < 0x80) /* ASCII? */
-        {
-            buff[UTF8BUFFSZ - 1] = (byte)x;
-        }
-
-        else
-        {
-            /* need continuation bytes */
-            uint mfb = 0x3f; /* maximum that fits in first byte */
-            do
-            {
-                /* add continuation bytes */
-                buff[UTF8BUFFSZ - (n++)] = (byte)(0x80 | (x & 0x3f));
-                x >>= 6; /* remove added bits */
-                mfb >>= 1; /* now there is one less bit available in first byte */
-            } while (x > mfb); /* still needs continuation byte? */
-
-            buff[UTF8BUFFSZ - n] = (byte)(~mfb << 1 | x); /* add first byte */
-        }
-
-        return n;
+        Rune rune = new(x);
+        int length = rune.EncodeToUtf8(buff);   
+        return buff[..length];
     }
 
     /*
@@ -491,16 +473,17 @@ public static unsafe partial class Lua
 // #error "invalid value for LUA_N2SBUFFSZ"
 // #endif
 
-// /*
-// ** Convert a float to a string, adding it to a buffer. First try with
-// ** a not too large number of digits, to avoid noise (for instance,
-// ** 1.1 going to "1.1000000000000001"). If that lose precision, so
-// ** that reading the result back gives a different number, then do the
-// ** conversion again with extra precision. Moreover, if the numeral looks
-// ** like an integer (without a decimal point or an exponent), add ".0" to
-// ** its end.
-// */
-// static int tostringbuffFloat (double n, char *buff) {
+    /*
+    ** Convert a float to a string, adding it to a buffer. First try with
+    ** a not too large number of digits, to avoid noise (for instance,
+    ** 1.1 going to "1.1000000000000001"). If that lose precision, so
+    ** that reading the result back gives a different number, then do the
+    ** conversion again with extra precision. Moreover, if the numeral looks
+    ** like an integer (without a decimal point or an exponent), add ".0" to
+    ** its end.
+    */
+    private static int tostringbuffFloat(double n, byte* buff)
+    {
 //   /* first conversion */
 //   int len = l_sprintf(buff, LUA_N2SBUFFSZ, LUA_NUMBER_FMT,
 //                             (LUAI_UACNUMBER)n);
@@ -516,33 +499,42 @@ public static unsafe partial class Lua
 //     buff[len++] = '0';  /* adds '.0' to result */
 //   }
 //   return len;
-// }
-
-    /*
-    ** Convert a number object to a string, adding it to a buffer.
-    */
-    private static partial uint luaO_tostringbuff(TValue* obj, byte* buff)
-    {
-//   int len;
-//   Debug.Assert(ttisnumber(obj));
-//   if (ttisinteger(obj))
-//     len = lua_integer2str(buff, LUA_N2SBUFFSZ, ivalue(obj));
-//   else
-//     len = tostringbuffFloat(fltvalue(obj), buff);
-//   Debug.Assert(len < LUA_N2SBUFFSZ);
-//   return cast_uint(len);
         throw new NotImplementedException();
     }
-    
+
     /*
-    ** Convert a number object to a Lua string, replacing the value at 'obj'
-    */
-    private static partial void luaO_tostring(lua_State* L, TValue* obj)
+     ** Convert a number object to a string, adding it to a buffer.
+     */
+    internal static partial uint luaO_tostringbuff(TValue* obj, byte* buff)
     {
-//   char buff[LUA_N2SBUFFSZ];
-//   unsigned len = luaO_tostringbuff(obj, buff);
-//   setsvalue(L, obj, luaS_newlstr(L, buff, len));
-        throw new NotImplementedException();
+        int len;
+        Debug.Assert(ttisnumber(obj));
+        if (ttisinteger(obj))
+        {
+            string result = ivalue(obj).ToString(CultureInfo.InvariantCulture);
+            len = result.Length;
+            for (int i = 0; i < len; i++)
+            {
+                buff[i] = (byte)result[i];
+            }
+        }
+        else
+        {
+            len = tostringbuffFloat(fltvalue(obj), buff);
+        }
+
+        Debug.Assert(len < LUA_N2SBUFFSZ);
+        return (uint)len;
+    }
+
+    /*
+     ** Convert a number object to a Lua string, replacing the value at 'obj'
+     */
+    internal static partial void luaO_tostring(lua_State* L, TValue* obj)
+    {
+        byte* buff = stackalloc byte[LUA_N2SBUFFSZ];
+        uint len = luaO_tostringbuff(obj, buff);
+        setsvalue(L, obj, luaS_newlstr(L, buff, (int)len));
     }
 
     /*
@@ -638,10 +630,10 @@ public static unsafe partial class Lua
     private static void addstr2buff(BuffFS* buff, string str)
     {
         byte[] data = Encoding.UTF8.GetBytes(str);
-        addstr2buff(buff, data, data.Length);
+        addstr2buff(buff, data);
     }
 
-    private static void addstr2buff(BuffFS* buff, ReadOnlySpan<byte> str, int slen)
+    private static void addstr2buff(BuffFS* buff, ReadOnlySpan<byte> str)
     {
         int left = buff->buffsize - buff->blen; /* space left in the buffer */
         if (buff->err != 0) /* do nothing else after an error */
@@ -649,7 +641,7 @@ public static unsafe partial class Lua
             return;
         }
 
-        if (slen > left)
+        if (str.Length > left)
         {
             /* new string doesn't fit into current buffer? */
 //     if (slen > ((MAX_SIZE/2) - buff->blen)) {  /* overflow? */
@@ -677,35 +669,39 @@ public static unsafe partial class Lua
             throw new NotImplementedException();
         }
 
-        Span<byte> dest = new(buff->b + buff->blen, slen);
-        str[..slen].CopyTo(dest); /* copy new content */
-        buff->blen += slen;
+        Span<byte> dest = new(buff->b + buff->blen, str.Length);
+        str[..str.Length].CopyTo(dest); /* copy new content */
+        buff->blen += str.Length;
     }
 
-// /*
-// ** Add a numeral to the buffer.
-// */
-// static void addnum2buff (BuffFS *buff, TValue *num) {
-//   char numbuff[LUA_N2SBUFFSZ];
-//   unsigned len = luaO_tostringbuff(num, numbuff);
-//   addstr2buff(buff, numbuff, len);
-// }
+    /*
+    ** Add a numeral to the buffer.
+    */
+    private static void addnum2buff(BuffFS* buff, TValue* num)
+    {
+        ReadOnlySpan<byte> numbuff = stackalloc byte[LUA_N2SBUFFSZ];
+        uint len = luaO_tostringbuff(num, numbuff.ToPointer());
+        addstr2buff(buff, numbuff[..(int)len]);
+    }
 
     /*
     ** this function handles only '%d', '%c', '%f', '%p', '%s', and '%%'
        conventional formats, plus Lua-specific '%I' and '%U'
     */
-    private static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
+    internal static partial string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
     {
-        byte[] tmp = Encoding.UTF8.GetBytes(fmt);
-        ReadOnlySpan<byte> fmtSpan = tmp;
+        byte[] fmtBytes = Encoding.UTF8.GetBytes(fmt);
+        ReadOnlySpan<byte> fmtSpan = fmtBytes;
         BuffFS buff; /* holds last part of the result */
         initbuff(L, &buff);
+        
+        Span<byte> bf = stackalloc byte[UTF8BUFFSZ];
+        
         ReadOnlySpan<byte> e; /* points to next '%' */
         int i = 0;
         while (!(e = strchr(fmtSpan, '%')).IsEmpty)
         {
-            addstr2buff(&buff, fmtSpan, fmt.Length - e.Length); /* add 'fmt' up to '%' */
+            addstr2buff(&buff, fmtSpan[..(fmtSpan.Length - e.Length)]); /* add 'fmt' up to '%' */
             switch ((char)e[1])
             {
                 /* conversion specifier */
@@ -720,77 +716,68 @@ public static unsafe partial class Lua
                 case 'c':
                     {
                         /* an 'int' as a character */
-//         char c = cast_char(va_arg(argp, int));
-//         addstr2buff(&buff, &c, sizeof(char));
-//         break;
-                        throw new NotImplementedException();
+                        byte c = Convert.ToByte(args[i++], CultureInfo.InvariantCulture);
+                        addstr2buff(&buff, [c]);
+                        break;
                     }
+                
                 case 'd':
                     {
                         /* an 'int' */
                         TValue num;
                         setivalue(&num, (int)args[i++]);
-//         addnum2buff(&buff, &num);
-//         break;
-                        throw new NotImplementedException();
+                        addnum2buff(&buff, &num);
+                        break;
                     }
-                
+
                 case 'I':
                     {
                         /* a 'long' */
-//         TValue num;
-//         setivalue(&num, cast_Integer(va_arg(argp, l_uacInt)));
-//         addnum2buff(&buff, &num);
-//         break;
-                        throw new NotImplementedException();
+                        TValue num;
+                        setivalue(&num, (long)args[i++]);
+                        addnum2buff(&buff, &num);
+                        break;
                     }
+
                 case 'f':
                     {
                         /* a 'double' */
-//         TValue num;
-//         setfltvalue(&num, cast_num(va_arg(argp, l_uacNumber)));
-//         addnum2buff(&buff, &num);
-//         break;
-                        throw new NotImplementedException();
+                        TValue num;
+                        setfltvalue(&num, (double)args[i++]);
+                        addnum2buff(&buff, &num);
+                        break;
                     }
+
                 case 'p':
                     {
                         /* a pointer */
-//         char bf[LUA_N2SBUFFSZ];  /* enough space for '%p' */
-//         void *p = va_arg(argp, void *);
-//         int len = lua_pointer2str(bf, LUA_N2SBUFFSZ, p);
-//         addstr2buff(&buff, bf, cast_uint(len));
-//         break;
-                        throw new NotImplementedException();
+                        nint p = (nint)args[i++];
+                        addstr2buff(&buff, $"0x{p:X8}");
+                        break;
                     }
+                
                 case 'U':
                     {
                         /* an 'unsigned long' as a UTF-8 sequence */
-//         char bf[UTF8BUFFSZ];
-//         unsigned long arg = va_arg(argp, unsigned long);
-//         int len = luaO_utf8esc(bf, cast(uint, arg));
-//         addstr2buff(&buff, bf + UTF8BUFFSZ - len, cast_uint(len));
-//         break;
-                        throw new NotImplementedException();
+                        ulong arg = (ulong)args[i++];
+                        Span<byte> result = luaO_utf8esc(bf, (uint)arg);
+                        addstr2buff(&buff, result);
+                        break;
                     }
+                
                 case '%':
-                    {
-//         addstr2buff(&buff, "%", 1);
-//         break;
-                        throw new NotImplementedException();
-                    }
+                    addstr2buff(&buff, "%"u8);
+                    break;
+                
                 default:
-                    {
-//         addstr2buff(&buff, e, 2);  /* keep unknown format in the result */
-//         break;
-                        throw new NotImplementedException();
-                    }
+                    addstr2buff(&buff, e[..2]);  /* keep unknown format in the result */
+                    break;
             }
 
             fmtSpan = e[2..]; /* skip '%' and the specifier */
         }
 
-        addstr2buff(&buff, fmtSpan, fmtSpan.Length); /* rest of 'fmt' */
+        addstr2buff(&buff, fmtSpan); /* rest of 'fmt' */
         string? msg = clearbuff(&buff); /* empty buffer into a new string */
 
         if (msg == null) /* error? */
@@ -801,50 +788,64 @@ public static unsafe partial class Lua
         return msg;
     }
 
-    /* }================================================================== */
+    private const string RETS = "...";
+    private const string PRE = "[string \"";
+    private const string POS = "\"]";
 
-// #define RETS	"..."
-// #define PRE	"[string \""
-// #define POS	"\"]"
-//
 // #define addstr(a,b,l)	( memcpy(a,b,(l) * sizeof(char)), a += (l) )
 
-    private static partial void luaO_chunkid(byte* @out, byte* source, long srclen)
+    internal static partial string luaO_chunkid(string source)
     {
-//   size_t bufflen = LUA_IDSIZE;  /* free space in buffer */
-//   if (*source == '=') {  /* 'literal' source */
-//     if (srclen <= bufflen)  /* small enough? */
-//       memcpy(out, source + 1, srclen * sizeof(char));
-//     else {  /* truncate it */
-//       addstr(out, source + 1, bufflen - 1);
-//       *out = '\0';
-//     }
-//   }
-//   else if (*source == '@') {  /* file name */
-//     if (srclen <= bufflen)  /* small enough? */
-//       memcpy(out, source + 1, srclen * sizeof(char));
-//     else {  /* add '...' before rest of name */
-//       addstr(out, RETS, LL(RETS));
-//       bufflen -= LL(RETS);
-//       memcpy(out, source + 1 + srclen - bufflen, bufflen * sizeof(char));
-//     }
-//   }
-//   else {  /* string; format as [string "source"] */
-//     const char *nl = strchr(source, '\n');  /* find first new line (if any) */
-//     addstr(out, PRE, LL(PRE));  /* add prefix */
-//     bufflen -= LL(PRE RETS POS) + 1;  /* save space for prefix+suffix+'\0' */
-//     if (srclen < bufflen && nl == null) {  /* small one-line source? */
-//       addstr(out, source, srclen);  /* keep it */
-//     }
-//     else {
-//       if (nl != null)
-//         srclen = ct_diff2sz(nl - source);  /* stop at first newline */
-//       if (srclen > bufflen) srclen = bufflen;
-//       addstr(out, source, srclen);
-//       addstr(out, RETS, LL(RETS));
-//     }
-//     memcpy(out, POS, (LL(POS) + 1) * sizeof(char));
-//   }
-        throw new NotImplementedException();
+        const int bufflen = LUA_IDSIZE; /* free space in buffer */
+        if (source[0] == '=')
+        {
+            /* 'literal' source */
+            if (source.Length <= bufflen) /* small enough? */
+            {
+                return source[1..];
+            }
+
+            return source[1..bufflen];
+        }
+
+        if (source[0] == '@')
+        {
+            /* file name */
+            if (source.Length <= bufflen) /* small enough? */
+            {
+                return source[1..];
+            }
+
+            /* add '...' before rest of name */
+            return RETS + source[1..(bufflen - RETS.Length)];
+        }
+
+        /* string; format as [string "source"] */
+        int nl = source.IndexOf('\n'); /* find first new line (if any) */
+        string result = PRE; /* add prefix */
+        int len2 = bufflen - (PRE.Length + RETS.Length + POS.Length);
+        if (source.Length < len2 && nl < 0)
+        {
+            /* small one-line source? */
+            result += source; /* keep it */
+        }
+        else
+        {
+            int srclen = source.Length;
+            if (nl >= 0)
+            {
+                srclen = nl; /* stop at first newline */
+            }
+
+            if (srclen > len2)
+            {
+                srclen = len2;
+            }
+
+            result += source[..srclen];
+            result += RETS;
+        }
+
+        return result + POS;
     }
 }

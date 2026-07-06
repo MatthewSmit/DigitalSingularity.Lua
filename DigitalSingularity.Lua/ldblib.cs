@@ -8,22 +8,24 @@ public static unsafe partial class Lua
     ** See Copyright Notice in lua.h
     */
 
-// /*
-// ** The hook table at registry[HOOKKEY] maps threads to their current
-// ** hook function.
-// */
-// static const char *const HOOKKEY = "_HOOKKEY";
-//
-//
-// /*
-// ** If L1 != L, L1 can be in any state, and therefore there are no
-// ** guarantees about its stack space; any push in L1 must be
-// ** checked.
-// */
-// static void checkstack (lua_State *L, lua_State *L1, int n) {
-//   if (l_unlikely(L != L1 && !lua_checkstack(L1, n)))
-//     luaL_error(L, "stack overflow");
-// }
+    /*
+    ** The hook table at registry[HOOKKEY] maps threads to their current
+    ** hook function.
+    */
+    private const string HOOKKEY = "_HOOKKEY";
+
+    /*
+    ** If L1 != L, L1 can be in any state, and therefore there are no
+    ** guarantees about its stack space; any push in L1 must be
+    ** checked.
+    */
+    private static void checkstack(lua_State* L, lua_State* L1, int n)
+    {
+        if (L != L1 && !lua_checkstack(L1, n))
+        {
+            luaL_error(L, "stack overflow");
+        }
+    }
 
     private static int db_getregistry(lua_State* L)
     {
@@ -76,59 +78,67 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Auxiliary function used by several library functions: check for
-// ** an optional thread as function's first argument and set 'arg' with
-// ** 1 if this argument is present (so that functions can skip it to
-// ** access their other arguments)
-// */
-// static lua_State *getthread (lua_State *L, int *arg) {
-//   if (lua_isthread(L, 1)) {
-//     *arg = 1;
-//     return lua_tothread(L, 1);
-//   }
-//   else {
-//     *arg = 0;
-//     return L;  /* function will operate over current thread */
-//   }
-// }
-//
-//
-// /*
-// ** Variations of 'lua_settable', used by 'db_getinfo' to put results
-// ** from 'lua_getinfo' into result table. Key is always a string;
-// ** value can be a string, an int, or a boolean.
-// */
-// static void settabss (lua_State *L, const char *k, const char *v) {
-//   lua_pushstring(L, v);
-//   lua_setfield(L, -2, k);
-// }
-//
-// static void settabsi (lua_State *L, const char *k, int v) {
-//   lua_pushinteger(L, v);
-//   lua_setfield(L, -2, k);
-// }
-//
-// static void settabsb (lua_State *L, const char *k, int v) {
-//   lua_pushboolean(L, v);
-//   lua_setfield(L, -2, k);
-// }
-//
-//
-// /*
-// ** In function 'db_getinfo', the call to 'lua_getinfo' may push
-// ** results on the stack; later it creates the result table to put
-// ** these objects. Function 'treatstackoption' puts the result from
-// ** 'lua_getinfo' on top of the result table so that it can call
-// ** 'lua_setfield'.
-// */
-// static void treatstackoption (lua_State *L, lua_State *L1, const char *fname) {
-//   if (L == L1)
-//     lua_rotate(L, -2, 1);  /* exchange object and table */
-//   else
-//     lua_xmove(L1, L, 1);  /* move object to the "main" stack */
-//   lua_setfield(L, -2, fname);  /* put object into table */
-// }
+    /*
+    ** Auxiliary function used by several library functions: check for
+    ** an optional thread as function's first argument and set 'arg' with
+    ** 1 if this argument is present (so that functions can skip it to
+    ** access their other arguments)
+    */
+    private static lua_State* getthread(lua_State* L, out bool arg)
+    {
+        if (lua_isthread(L, 1))
+        {
+            arg = true;
+            return lua_tothread(L, 1);
+        }
+
+        arg = false;
+        return L; /* function will operate over current thread */
+    }
+
+    /*
+    ** Variations of 'lua_settable', used by 'db_getinfo' to put results
+    ** from 'lua_getinfo' into result table. Key is always a string;
+    ** value can be a string, an int, or a boolean.
+    */
+    private static void settabss(lua_State* L, string k, string? v)
+    {
+        lua_pushstring(L, v);
+        lua_setfield(L, -2, k);
+    }
+
+    private static void settabsi(lua_State* L, string k, int v)
+    {
+        lua_pushinteger(L, v);
+        lua_setfield(L, -2, k);
+    }
+
+    private static void settabsb(lua_State* L, string k, bool v)
+    {
+        lua_pushboolean(L, v);
+        lua_setfield(L, -2, k);
+    }
+
+    /*
+    ** In function 'db_getinfo', the call to 'lua_getinfo' may push
+    ** results on the stack; later it creates the result table to put
+    ** these objects. Function 'treatstackoption' puts the result from
+    ** 'lua_getinfo' on top of the result table so that it can call
+    ** 'lua_setfield'.
+    */
+    private static void treatstackoption(lua_State* L, lua_State* L1, string fname)
+    {
+        if (L == L1)
+        {
+            lua_rotate(L, -2, 1); /* exchange object and table */
+        }
+        else
+        {
+            lua_xmove(L1, L, 1); /* move object to the "main" stack */
+        }
+
+        lua_setfield(L, -2, fname); /* put object into table */
+    }
 
     /*
      ** Calls 'lua_getinfo' and collects all results in a new table.
@@ -138,59 +148,87 @@ public static unsafe partial class Lua
      */
     private static int db_getinfo(lua_State* L)
     {
-//   lua_Debug ar;
-//   int arg;
-//   lua_State *L1 = getthread(L, &arg);
-//   const char *options = luaL_optstring(L, arg+2, "flnSrtu");
-//   checkstack(L, L1, 3);
-//   luaL_argcheck(L, options[0] != '>', arg + 2, "invalid option '>'");
-//   if (lua_isfunction(L, arg + 1)) {  /* info about a function? */
-//     options = lua_pushfstring(L, ">%s", options);  /* add '>' to 'options' */
-//     lua_pushvalue(L, arg + 1);  /* move function to 'L1' stack */
-//     lua_xmove(L, L1, 1);
-//   }
-//   else {  /* stack level */
-//     if (!lua_getstack(L1, (int)luaL_checkinteger(L, arg + 1), &ar)) {
-//       luaL_pushfail(L);  /* level out of range */
-//       return 1;
-//     }
-//   }
-//   if (!lua_getinfo(L1, options, &ar))
-//     return luaL_argerror(L, arg+2, "invalid option");
-//   lua_newtable(L);  /* table to collect results */
-//   if (strchr(options, 'S')) {
-//     lua_pushlstring(L, ar.source, ar.srclen);
-//     lua_setfield(L, -2, "source");
-//     settabss(L, "short_src", ar.short_src);
-//     settabsi(L, "linedefined", ar.linedefined);
-//     settabsi(L, "lastlinedefined", ar.lastlinedefined);
-//     settabss(L, "what", ar.what);
-//   }
-//   if (strchr(options, 'l'))
-//     settabsi(L, "currentline", ar.currentline);
-//   if (strchr(options, 'u')) {
-//     settabsi(L, "nups", ar.nups);
-//     settabsi(L, "nparams", ar.nparams);
-//     settabsb(L, "isvararg", ar.isvararg);
-//   }
-//   if (strchr(options, 'n')) {
-//     settabss(L, "name", ar.name);
-//     settabss(L, "namewhat", ar.namewhat);
-//   }
-//   if (strchr(options, 'r')) {
-//     settabsi(L, "ftransfer", ar.ftransfer);
-//     settabsi(L, "ntransfer", ar.ntransfer);
-//   }
-//   if (strchr(options, 't')) {
-//     settabsb(L, "istailcall", ar.istailcall);
-//     settabsi(L, "extraargs", ar.extraargs);
-//   }
-//   if (strchr(options, 'L'))
-//     treatstackoption(L, L1, "activelines");
-//   if (strchr(options, 'f'))
-//     treatstackoption(L, L1, "func");
-//   return 1;  /* return table */
-        throw new NotImplementedException();
+        lua_Debug ar = new();
+
+        lua_State* L1 = getthread(L, out bool arg);
+        string options = luaL_optstring(L, arg ? 3 : 2, "flnSrtu");
+        checkstack(L, L1, 3);
+        luaL_argcheck(L, options[0] != '>', arg ? 3 : 2, "invalid option '>'");
+
+        if (lua_isfunction(L, arg ? 2 : 1))
+        {
+            /* info about a function? */
+            options = lua_pushfstring(L, ">%s", options); /* add '>' to 'options' */
+            lua_pushvalue(L, arg ? 2 : 1); /* move function to 'L1' stack */
+            lua_xmove(L, L1, 1);
+        }
+        else
+        {
+            /* stack level */
+            if (!lua_getstack(L1, (int)luaL_checkinteger(L, arg ? 2 : 1), ref ar))
+            {
+                luaL_pushfail(L); /* level out of range */
+                return 1;
+            }
+        }
+
+        if (!lua_getinfo(L1, options, ref ar))
+        {
+            return luaL_argerror(L, arg ? 3 : 2, "invalid option");
+        }
+
+        lua_newtable(L); /* table to collect results */
+        if (options.Contains('S'))
+        {
+            lua_pushlstring(L, ar.source);
+            lua_setfield(L, -2, "source");
+            settabss(L, "short_src", ar.short_src);
+            settabsi(L, "linedefined", ar.linedefined);
+            settabsi(L, "lastlinedefined", ar.lastlinedefined);
+            settabss(L, "what", ar.what);
+        }
+
+        if (options.Contains('l'))
+        {
+            settabsi(L, "currentline", ar.currentline);
+        }
+
+        if (options.Contains('u'))
+        {
+            settabsi(L, "nups", ar.nups);
+            settabsi(L, "nparams", ar.nparams);
+            settabsb(L, "isvararg", ar.isvararg);
+        }
+
+        if (options.Contains('n'))
+        {
+            settabss(L, "name", ar.name);
+            settabss(L, "namewhat", ar.namewhat);
+        }
+
+        if (options.Contains('r'))
+        {
+            settabsi(L, "ftransfer", ar.ftransfer);
+            settabsi(L, "ntransfer", ar.ntransfer);
+        }
+
+        if (options.Contains('t'))
+        {
+            settabsb(L, "istailcall", ar.istailcall);
+            settabsi(L, "extraargs", ar.extraargs);
+        }
+
+        if (options.Contains('L'))
+        {
+            treatstackoption(L, L1, "activelines");
+        }
+
+        if (options.Contains('f'))
+        {
+            treatstackoption(L, L1, "func");
+        }
+
+        return 1; /* return table */
     }
 
     private static int db_getlocal(lua_State* L)
@@ -314,11 +352,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Call hook function registered at hook table for the current
-// ** thread (if there is one)
-// */
-// static void hookf (lua_State *L, lua_Debug *ar) {
+    /*
+    ** Call hook function registered at hook table for the current
+    ** thread (if there is one)
+    */
+    private static void hookf(lua_State* L, ref lua_Debug ar)
+    {
 //   static const char *const hooknames[] =
 //     {"call", "return", "line", "count", "tail call"};
 //   lua_getfield(L, LUA_REGISTRYINDEX, HOOKKEY);
@@ -331,9 +370,9 @@ public static unsafe partial class Lua
 //     Debug.Assert(lua_getinfo(L, "lS", ar));
 //     lua_call(L, 2, 0);  /* call hook function */
 //   }
-// }
-//
-//
+        throw new NotImplementedException();
+    }
+
 // /*
 // ** Convert a string mask (for 'sethook') into a bit mask
 // */
@@ -392,24 +431,33 @@ public static unsafe partial class Lua
 
     private static int db_gethook(lua_State* L)
     {
-//   int arg;
-//   lua_State *L1 = getthread(L, &arg);
+        lua_State* L1 = getthread(L, out bool arg);
+        int mask = lua_gethookmask(L1);
+        lua_Hook hook = lua_gethook(L1);
+        if (hook == null!)
+        {
+            /* no hook? */
+            luaL_pushfail(L);
+            return 1;
+        }
+
+        lua_Hook hookfPtr = &hookf;
+        if (hook != hookfPtr) /* external hook? */
+        {
+            lua_pushliteral(L, "external hook");
+        }
+        else
+        {
+            /* hook table must exist */
+            lua_getfield(L, LUA_REGISTRYINDEX, HOOKKEY);
+            checkstack(L, L1, 1);
+            lua_pushthread(L1);
+            lua_xmove(L1, L, 1);
+            lua_rawget(L, -2); /* 1st result = hooktable[L1] */
+            lua_remove(L, -2); /* remove hook table */
+        }
+
 //   char buff[5];
-//   int mask = lua_gethookmask(L1);
-//   lua_Hook hook = lua_gethook(L1);
-//   if (hook == null) {  /* no hook? */
-//     luaL_pushfail(L);
-//     return 1;
-//   }
-//   else if (hook != hookf)  /* external hook? */
-//     lua_pushliteral(L, "external hook");
-//   else {  /* hook table must exist */
-//     lua_getfield(L, LUA_REGISTRYINDEX, HOOKKEY);
-//     checkstack(L, L1, 1);
-//     lua_pushthread(L1); lua_xmove(L1, L, 1);
-//     lua_rawget(L, -2);   /* 1st result = hooktable[L1] */
-//     lua_remove(L, -2);  /* remove hook table */
-//   }
 //   lua_pushstring(L, unmakemask(mask, buff));  /* 2nd result = mask */
 //   lua_pushinteger(L, lua_gethookcount(L1));  /* 3rd result = count */
 //   return 3;
@@ -467,7 +515,7 @@ public static unsafe partial class Lua
         new("traceback", &db_traceback),
     ];
 
-    private static partial int luaopen_debug(lua_State* L)
+    public static partial int luaopen_debug(lua_State* L)
     {
         luaL_newlib(L, dblib);
         return 1;

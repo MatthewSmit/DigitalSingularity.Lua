@@ -21,17 +21,17 @@ public static unsafe partial class Lua
     /*
     ** Possible states of the Garbage Collector
     */
-    private const byte GCSpropagate = 0;
-    private const byte GCSenteratomic = 1;
+    internal const byte GCSpropagate = 0;
+    internal const byte GCSenteratomic = 1;
     private const byte GCSatomic = 2;
-    private const byte GCSswpallgc = 3;
+    internal const byte GCSswpallgc = 3;
     private const byte GCSswpfinobj = 4;
     private const byte GCSswptobefnz = 5;
     private const byte GCSswpend = 6;
-    private const byte GCScallfin = 7;
-    private const byte GCSpause = 8;
+    internal const byte GCScallfin = 7;
+    internal const byte GCSpause = 8;
 
-    private static bool issweepphase(global_State* g)
+    internal static bool issweepphase(global_State* g)
     {
         return GCSswpallgc <= g->gcstate && g->gcstate <= GCSswpend;
     }
@@ -44,7 +44,7 @@ public static unsafe partial class Lua
     ** are white again.
     */
 
-    private static bool keepinvariant(global_State* g)
+    internal static bool keepinvariant(global_State* g)
     {
         return g->gcstate <= GCSatomic;
     }
@@ -52,12 +52,12 @@ public static unsafe partial class Lua
     /*
     ** some useful bit tricks
     */
-    private static void resetbits(ref byte x, byte m)
+    internal static void resetbits(ref byte x, byte m)
     {
         x &= (byte)~m;
     }
 
-    private static void setbits(ref byte x, byte m)
+    internal static void setbits(ref byte x, byte m)
     {
         x |= m;
     }
@@ -67,12 +67,12 @@ public static unsafe partial class Lua
         return (x & m) != 0;
     }
 
-    private static byte bitmask(byte b)
+    internal static byte bitmask(byte b)
     {
         return (byte)(1 << b);
     }
 
-    private static void l_setbit(ref byte x, byte b)
+    internal static void l_setbit(ref byte x, byte b)
     {
         setbits(ref x, bitmask(b));
     }
@@ -94,31 +94,31 @@ public static unsafe partial class Lua
      */
     private const byte WHITE0BIT = 3;  /* object is white (type 0) */
     private const byte WHITE1BIT = 4;  /* object is white (type 1) */
-    private const byte BLACKBIT = 5;  /* object is black */
-    private const byte FINALIZEDBIT = 6;  /* object has been marked for finalisation */
+    internal const byte BLACKBIT = 5;  /* object is black */
+    private const byte FINALISEDBIT = 6;  /* object has been marked for finalisation */
 
     private const byte TESTBIT = 7;
 
-    private const byte WHITEBITS = 1 << WHITE0BIT | 1 << WHITE1BIT;
+    internal const byte WHITEBITS = 1 << WHITE0BIT | 1 << WHITE1BIT;
 
-    private static bool iswhite(GCObject* x)
+    internal static bool iswhite(GCObject* x)
     {
         return testbits(x->marked, WHITEBITS);
     }
 
-    private static bool isblack(GCObject* x)
+    internal static bool isblack(GCObject* x)
     {
         return testbit(x->marked, BLACKBIT);
     }
 
-    private static bool isgrey(GCObject* x) /* neither white nor black */
+    internal static bool isgrey(GCObject* x) /* neither white nor black */
     {
         return !testbits(x->marked, (byte)(WHITEBITS | bitmask(BLACKBIT)));
     }
 
-    private static bool tofinalise(GCObject* x)
+    internal static bool tofinalise(GCObject* x)
     {
-        return testbit(x->marked, FINALIZEDBIT);
+        return testbit(x->marked, FINALISEDBIT);
     }
 
     private static byte otherwhite(global_State* g)
@@ -131,12 +131,12 @@ public static unsafe partial class Lua
         return (m & ow) != 0;
     }
 
-    private static bool isdead(global_State* g, GCObject* v)
+    internal static bool isdead(global_State* g, GCObject* v)
     {
         return isdeadm(otherwhite(g), v->marked);
     }
 
-    private static void changewhite(GCObject* x)
+    internal static void changewhite(GCObject* x)
     {
         x->marked ^= WHITEBITS;
     }
@@ -147,33 +147,33 @@ public static unsafe partial class Lua
         l_setbit(ref x->marked, BLACKBIT);
     }
 
-    private static byte luaC_white(global_State* g)
+    internal static byte luaC_white(global_State* g)
     {
         return (byte)(g->currentwhite & WHITEBITS);
     }
 
     /* object age in generational mode */
-    private const byte G_NEW = 0;	/* created in current cycle */
-    private const byte G_SURVIVAL = 1;	/* created in previous cycle */
-    private const byte G_OLD0 = 2;	/* marked old by frw. barrier in this cycle */
+    internal const byte G_NEW = 0;	/* created in current cycle */
+    internal const byte G_SURVIVAL = 1;	/* created in previous cycle */
+    internal const byte G_OLD0 = 2;	/* marked old by frw. barrier in this cycle */
     private const byte G_OLD1 = 3;	/* first full cycle as old */
-    private const byte G_OLD = 4;	/* really old object (not to be visited) */
-    private const byte G_TOUCHED1 = 5;	/* old object touched this cycle */
-    private const byte G_TOUCHED2 = 6;	/* old object touched in previous cycle */
+    internal const byte G_OLD = 4;	/* really old object (not to be visited) */
+    internal const byte G_TOUCHED1 = 5;	/* old object touched this cycle */
+    internal const byte G_TOUCHED2 = 6;	/* old object touched in previous cycle */
 
     private const byte AGEBITS = 7;  /* all age bits (111) */
 
-    private static byte getage(GCObject* o)
+    internal static byte getage(GCObject* o)
     {
         return (byte)(o->marked & AGEBITS);
     }
 
-    private static void setage(GCObject* o, byte a)
+    internal static void setage(GCObject* o, byte a)
     {
         o->marked = (byte)(o->marked & ~AGEBITS | a);
     }
 
-    private static bool isold(GCObject* o)
+    internal static bool isold(GCObject* o)
     {
         return getage(o) > G_SURVIVAL;
     }
@@ -269,11 +269,11 @@ public static unsafe partial class Lua
     /*
     ** Control when GC is running:
     */
-    private const byte GCSTPUSR = 1;  /* bit true when GC stopped by user */
-    private const byte GCSTPGC = 2;  /* bit true when GC stopped by itself */
-    private const byte GCSTPCLS = 4;  /* bit true when closing Lua state */
+    internal const byte GCSTPUSR = 1;  /* bit true when GC stopped by user */
+    internal const byte GCSTPGC = 2;  /* bit true when GC stopped by itself */
+    internal const byte GCSTPCLS = 4;  /* bit true when closing Lua state */
 
-    private static bool gcrunning(global_State* g)
+    internal static bool gcrunning(global_State* g)
     {
         return g->gcstp == 0;
     }
@@ -292,23 +292,17 @@ public static unsafe partial class Lua
 // 	{ if (gcrunning(G(L))) { pre; luaC_fullgc(L, emg); pos; } }
 // #endif
 
-// #define luaC_condGC(L,pre,pos) \
-// 	{ if (G(L)->GCdebt <= 0) { pre; luaC_step(L); pos;}; \
-// 	  condchangemem(L,pre,pos,0); }
-
     /* more often than not, 'pre'/'pos' are empty */
     private static void luaC_checkGC(lua_State* L)
     {
+        if (G(L)->GCdebt <= 0)
         {
-            if (G(L)->GCdebt <= 0)
-            {
-                luaC_step(L);
-            }
+            luaC_step(L);
+        }
 
-            if (gcrunning(G(L)))
-            {
-                luaC_fullgc(L, false);
-            }
+        if (gcrunning(G(L)))
+        {
+            luaC_fullgc(L, false);
         }
     }
 
@@ -344,25 +338,25 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaC_fix(lua_State* L, GCObject* o);
+    internal static partial void luaC_fix(lua_State* L, GCObject* o);
 
-    private static partial void luaC_freeallobjects(lua_State* L);
+    internal static partial void luaC_freeallobjects(lua_State* L);
 
-    private static partial void luaC_step(lua_State* L);
+    internal static partial void luaC_step(lua_State* L);
 
-    private static partial void luaC_runtilstate(lua_State* L, int state, bool fast);
+    internal static partial void luaC_runtilstate(lua_State* L, int state, bool fast);
 
-    private static partial void luaC_fullgc(lua_State* L, bool isemergency);
+    internal static partial void luaC_fullgc(lua_State* L, bool isemergency);
 
-    private static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz);
+    internal static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz);
 
-    private static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset);
+    internal static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset);
 
-    private static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v);
+    internal static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v);
 
-    private static partial void luaC_barrierback_(lua_State* L, GCObject* o);
+    internal static partial void luaC_barrierback_(lua_State* L, GCObject* o);
 
-    private static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt);
+    internal static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt);
 
-    private static partial void luaC_changemode(lua_State* L, int newmode);
+    internal static partial void luaC_changemode(lua_State* L, int newmode);
 }

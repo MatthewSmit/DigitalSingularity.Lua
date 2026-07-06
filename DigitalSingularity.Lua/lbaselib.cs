@@ -72,21 +72,27 @@ public static unsafe partial class Lua
 
     private static int luaB_tonumber(lua_State* L)
     {
-//   if (lua_isnoneornil(L, 2)) {  /* standard conversion? */
-//     if (lua_type(L, 1) == LUA_TNUMBER) {  /* already a number? */
-//       lua_settop(L, 1);  /* yes; return it */
-//       return 1;
-//     }
-//     else {
-//       size_t l;
-//       const char *s = lua_tolstring(L, 1, &l);
-//       if (s != null && lua_stringtonumber(L, s) == l + 1)
-//         return 1;  /* successful conversion to number */
-//       /* else not a number */
-//       luaL_checkany(L, 1);  /* (but there must be some parameter) */
-//     }
-//   }
-//   else {
+        if (lua_isnoneornil(L, 2))
+        {
+            /* standard conversion? */
+            if (lua_type(L, 1) == LUA_TNUMBER)
+            {
+                /* already a number? */
+                lua_settop(L, 1); /* yes; return it */
+                return 1;
+            }
+
+            string? s = luaL_tonetstring(L, 1);
+            if (s != null && lua_stringtonumber(L, s) == s.Length + 1)
+            {
+                return 1; /* successful conversion to number */
+            }
+
+            /* else not a number */
+            luaL_checkany(L, 1); /* (but there must be some parameter) */
+        }
+        else
+        {
 //     size_t l;
 //     const char *s;
 //     long n = 0;  /* to avoid warnings */
@@ -98,48 +104,54 @@ public static unsafe partial class Lua
 //       lua_pushinteger(L, n);
 //       return 1;
 //     }  /* else not a number */
-//   }  /* else not a number */
-//   luaL_pushfail(L);  /* not a number */
-//   return 1;
-        throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
+        /* else not a number */
+
+        luaL_pushfail(L); /* not a number */
+        return 1;
     }
 
     private static int luaB_error(lua_State* L)
     {
-//   int level = (int)luaL_optinteger(L, 2, 1);
-//   lua_settop(L, 1);
-//   if (lua_type(L, 1) == LUA_TSTRING && level > 0) {
-//     luaL_where(L, level);   /* add extra information */
-//     lua_pushvalue(L, 1);
-//     lua_concat(L, 2);
-//   }
-//   return lua_error(L);
-        throw new NotImplementedException();
+        int level = (int)luaL_optinteger(L, 2, 1);
+        lua_settop(L, 1);
+        if (lua_type(L, 1) == LUA_TSTRING && level > 0)
+        {
+            luaL_where(L, level); /* add extra information */
+            lua_pushvalue(L, 1);
+            lua_concat(L, 2);
+        }
+
+        return lua_error(L);
     }
 
     private static int luaB_getmetatable(lua_State* L)
     {
-//   luaL_checkany(L, 1);
-//   if (!lua_getmetatable(L, 1)) {
-//     lua_pushnil(L);
-//     return 1;  /* no metatable */
-//   }
-//   luaL_getmetafield(L, 1, "__metatable");
-//   return 1;  /* returns either __metatable field (if present) or metatable */
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        if (!lua_getmetatable(L, 1))
+        {
+            lua_pushnil(L);
+            return 1; /* no metatable */
+        }
+
+        luaL_getmetafield(L, 1, "__metatable");
+        return 1; /* returns either __metatable field (if present) or metatable */
     }
 
     private static int luaB_setmetatable(lua_State* L)
     {
-//   int t = lua_type(L, 2);
-//   luaL_checktype(L, 1, LUA_TTABLE);
-//   luaL_argexpected(L, t == LUA_TNIL || t == LUA_TTABLE, 2, "nil or table");
-//   if (l_unlikely(luaL_getmetafield(L, 1, "__metatable") != LUA_TNIL))
-//     return luaL_error(L, "cannot change a protected metatable");
-//   lua_settop(L, 2);
-//   lua_setmetatable(L, 1);
-//   return 1;
-        throw new NotImplementedException();
+        int t = lua_type(L, 2);
+        luaL_checktype(L, 1, LUA_TTABLE);
+        luaL_argexpected(L, t is LUA_TNIL or LUA_TTABLE, 2, "nil or table");
+        if (luaL_getmetafield(L, 1, "__metatable") != LUA_TNIL)
+        {
+            return luaL_error(L, "cannot change a protected metatable");
+        }
+
+        lua_settop(L, 2);
+        lua_setmetatable(L, 1);
+        return 1;
     }
 
     private static int luaB_rawequal(lua_State* L)
@@ -153,33 +165,33 @@ public static unsafe partial class Lua
 
     private static int luaB_rawlen(lua_State* L)
     {
-//   int t = lua_type(L, 1);
-//   luaL_argexpected(L, t == LUA_TTABLE || t == LUA_TSTRING, 1,
-//                       "table or string");
-//   lua_pushinteger(L, l_castU2S(lua_rawlen(L, 1)));
-//   return 1;
-        throw new NotImplementedException();
+        int t = lua_type(L, 1);
+        luaL_argexpected(
+            L,
+            t is LUA_TTABLE or LUA_TSTRING,
+            1,
+            "table or string");
+        lua_pushinteger(L, (long)lua_rawlen(L, 1));
+        return 1;
     }
 
     private static int luaB_rawget(lua_State* L)
     {
-//   luaL_checktype(L, 1, LUA_TTABLE);
-//   luaL_checkany(L, 2);
-//   lua_settop(L, 2);
-//   lua_rawget(L, 1);
-//   return 1;
-        throw new NotImplementedException();
+        luaL_checktype(L, 1, LUA_TTABLE);
+        luaL_checkany(L, 2);
+        lua_settop(L, 2);
+        lua_rawget(L, 1);
+        return 1;
     }
 
     private static int luaB_rawset(lua_State* L)
     {
-//   luaL_checktype(L, 1, LUA_TTABLE);
-//   luaL_checkany(L, 2);
-//   luaL_checkany(L, 3);
-//   lua_settop(L, 3);
-//   lua_rawset(L, 1);
-//   return 1;
-        throw new NotImplementedException();
+        luaL_checktype(L, 1, LUA_TTABLE);
+        luaL_checkany(L, 2);
+        luaL_checkany(L, 3);
+        lua_settop(L, 3);
+        lua_rawset(L, 1);
+        return 1;
     }
 
     private static int pushmode(lua_State* L, int oldmode)
@@ -193,48 +205,71 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** check whether call to 'lua_gc' was valid (not inside a finalizer)
-// */
-// #define checkvalres(res) { if (res == -1) break; }
+    private static string[] opts =
+    [
+        "stop", "restart", "collect",
+        "count", "step", "isrunning", "generational", "incremental",
+        "param",
+    ];
+
+    private static byte[] optsnum =
+    [
+        LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
+        LUA_GCCOUNT, LUA_GCSTEP, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC,
+        LUA_GCPARAM,
+    ];
 
     private static int luaB_collectgarbage(lua_State* L)
     {
-//   static const char *const opts[] = {"stop", "restart", "collect",
-//     "count", "step", "isrunning", "generational", "incremental",
-//     "param", null};
-//   static const char optsnum[] = {LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
-//     LUA_GCCOUNT, LUA_GCSTEP, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC,
-//     LUA_GCPARAM};
-//   int o = optsnum[luaL_checkoption(L, 1, "collect", opts)];
-//   switch (o) {
-//     case LUA_GCCOUNT: {
-//       int k = lua_gc(L, o);
-//       int b = lua_gc(L, LUA_GCCOUNTB);
-//       checkvalres(k);
-//       lua_pushnumber(L, (double)k + ((double)b/1024));
-//       return 1;
-//     }
-//     case LUA_GCSTEP: {
-//       long n = luaL_optinteger(L, 2, 0);
-//       int res = lua_gc(L, o, cast_sizet(n));
-//       checkvalres(res);
-//       lua_pushboolean(L, res);
-//       return 1;
-//     }
-//     case LUA_GCISRUNNING: {
-//       int res = lua_gc(L, o);
-//       checkvalres(res);
-//       lua_pushboolean(L, res);
-//       return 1;
-//     }
-//     case LUA_GCGEN: {
-//       return pushmode(L, lua_gc(L, o));
-//     }
-//     case LUA_GCINC: {
-//       return pushmode(L, lua_gc(L, o));
-//     }
-//     case LUA_GCPARAM: {
+        int o = optsnum[luaL_checkoption(L, 1, "collect", opts)];
+        switch (o)
+        {
+            case LUA_GCCOUNT:
+                {
+                    int k = lua_gc(L, o);
+                    int b = lua_gc(L, LUA_GCCOUNTB);
+                    if (k == -1)
+                    {
+                        break;
+                    }
+
+                    lua_pushnumber(L, k + ((double)b / 1024));
+                    return 1;
+                }
+
+            case LUA_GCSTEP:
+                {
+                    long n = luaL_optinteger(L, 2, 0);
+                    int res = lua_gc(L, o, n);
+                    if (res == -1)
+                    {
+                        break;
+                    }
+
+                    lua_pushboolean(L, res > 0);
+                    return 1;
+                }
+
+            case LUA_GCISRUNNING:
+                {
+                    int res = lua_gc(L, o);
+                    if (res == -1)
+                    {
+                        break;
+                    }
+
+                    lua_pushboolean(L, res > 0);
+                    return 1;
+                }
+
+            case LUA_GCGEN:
+                return pushmode(L, lua_gc(L, o));
+
+            case LUA_GCINC:
+                return pushmode(L, lua_gc(L, o));
+
+            case LUA_GCPARAM:
+                {
 //       static const char *const params[] = {
 //         "minormul", "majorminor", "minormajor",
 //         "pause", "stepmul", "stepsize", null};
@@ -245,17 +280,24 @@ public static unsafe partial class Lua
 //       long value = luaL_optinteger(L, 3, -1);
 //       lua_pushinteger(L, lua_gc(L, o, p, (int)value));
 //       return 1;
-//     }
-//     default: {
-//       int res = lua_gc(L, o);
-//       checkvalres(res);
-//       lua_pushinteger(L, res);
-//       return 1;
-//     }
-//   }
-//   luaL_pushfail(L);  /* invalid call (inside a finalizer) */
-//   return 1;
-        throw new NotImplementedException();
+                    throw new NotImplementedException();
+                }
+
+            default:
+                {
+                    int res = lua_gc(L, o);
+                    if (res == -1)
+                    {
+                        break;
+                    }
+
+                    lua_pushinteger(L, res);
+                    return 1;
+                }
+        }
+
+        luaL_pushfail(L); /* invalid call (inside a finaliser) */
+        return 1;
     }
 
     private static int luaB_type(lua_State* L)
@@ -268,15 +310,15 @@ public static unsafe partial class Lua
 
     private static int luaB_next(lua_State* L)
     {
-//   luaL_checktype(L, 1, LUA_TTABLE);
-//   lua_settop(L, 2);  /* create a 2nd argument if there isn't one */
-//   if (lua_next(L, 1))
-//     return 2;
-//   else {
-//     lua_pushnil(L);
-//     return 1;
-//   }
-        throw new NotImplementedException();
+        luaL_checktype(L, 1, LUA_TTABLE);
+        lua_settop(L, 2); /* create a 2nd argument if there isn't one */
+        if (lua_next(L, 1))
+        {
+            return 2;
+        }
+
+        lua_pushnil(L);
+        return 1;
     }
 
 // static int pairscont (lua_State *L, int status, nint k) {
@@ -301,15 +343,16 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Traversal function for 'ipairs'
-// */
-// static int ipairsaux (lua_State *L) {
-//   long i = luaL_checkinteger(L, 2);
-//   i = luaL_intop(+, i, 1);
-//   lua_pushinteger(L, i);
-//   return (lua_geti(L, 1, i) == LUA_TNIL) ? 1 : 2;
-// }
+    /*
+    ** Traversal function for 'ipairs'
+    */
+    private static int ipairsaux(lua_State* L)
+    {
+        long i = luaL_checkinteger(L, 2);
+        i++;
+        lua_pushinteger(L, i);
+        return lua_geti(L, 1, i) == LUA_TNIL ? 1 : 2;
+    }
 
 /*
  ** 'ipairs' function. Returns 'ipairsaux', given "table", 0.
@@ -317,12 +360,11 @@ public static unsafe partial class Lua
  */
     private static int luaB_ipairs(lua_State* L)
     {
-//   luaL_checkany(L, 1);
-//   lua_pushcfunction(L, ipairsaux);  /* iteration function */
-//   lua_pushvalue(L, 1);  /* state */
-//   lua_pushinteger(L, 0);  /* initial value */
-//   return 3;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        lua_pushcfunction(L, &ipairsaux); /* iteration function */
+        lua_pushvalue(L, 1); /* state */
+        lua_pushinteger(L, 0); /* initial value */
+        return 3;
     }
 
     private static int load_aux(lua_State* L, int status, int envidx)
@@ -399,9 +441,8 @@ public static unsafe partial class Lua
     private static int luaB_load(lua_State* L)
     {
 //   int status;
-//   size_t l;
-//   const char *s = lua_tolstring(L, 1, &l);
-//   const char *mode = getMode(L, 3);
+        byte* s = lua_tolstring(L, 1, out long l);
+        // var mode = getMode(L, 3);
 //   int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
 //   if (s != null) {  /* loading a string? */
 //     const char *chunkname = luaL_optstring(L, 2, s);
@@ -443,12 +484,11 @@ public static unsafe partial class Lua
         }
 
         /* error */
-//     luaL_checkany(L, 1);  /* there must be a condition */
-//     lua_remove(L, 1);  /* remove it */
-//     lua_pushliteral(L, "assertion failed!");  /* default message */
-//     lua_settop(L, 1);  /* leave only message (default if no other one) */
-//     return luaB_error(L);  /* call 'error' */
-        throw new NotImplementedException();
+        luaL_checkany(L, 1); /* there must be a condition */
+        lua_remove(L, 1); /* remove it */
+        lua_pushliteral(L, "assertion failed!"); /* default message */
+        lua_settop(L, 1); /* leave only message (default if no other one) */
+        return luaB_error(L); /* call 'error' */
     }
 
     private static int luaB_select(lua_State* L)
@@ -468,32 +508,33 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** Continuation function for 'pcall' and 'xpcall'. Both functions
-// ** already pushed a 'true' before doing the call, so in case of success
-// ** 'finishpcall' only has to return everything in the stack minus
-// ** 'extra' values (where 'extra' is exactly the number of items to be
-// ** ignored).
-// */
-// static int finishpcall (lua_State *L, int status, nint extra) {
-//   if (l_unlikely(status != LUA_OK && status != LUA_YIELD)) {  /* error? */
-//     lua_pushboolean(L, 0);  /* first result (false) */
-//     lua_pushvalue(L, -2);  /* error message */
-//     return 2;  /* return false, msg */
-//   }
-//   else
-//     return lua_gettop(L) - (int)extra;  /* return all results */
-// }
+    /*
+    ** Continuation function for 'pcall' and 'xpcall'. Both functions
+    ** already pushed a 'true' before doing the call, so in case of success
+    ** 'finishpcall' only has to return everything in the stack minus
+    ** 'extra' values (where 'extra' is exactly the number of items to be
+    ** ignored).
+    */
+    private static int finishpcall(lua_State* L, int status, void* extra)
+    {
+        if (status != LUA_OK && status != LUA_YIELD)
+        {
+            /* error? */
+            lua_pushboolean(L, false); /* first result (false) */
+            lua_pushvalue(L, -2); /* error message */
+            return 2; /* return false, msg */
+        }
+
+        return lua_gettop(L) - (int)extra; /* return all results */
+    }
 
     private static int luaB_pcall(lua_State* L)
     {
-//   int status;
-//   luaL_checkany(L, 1);
-//   lua_pushboolean(L, 1);  /* first result if no errors */
-//   lua_insert(L, 1);  /* put it in place */
-//   status = lua_pcallk(L, lua_gettop(L) - 2, LUA_MULTRET, 0, 0, finishpcall);
-//   return finishpcall(L, status, 0);
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        lua_pushboolean(L, true); /* first result if no errors */
+        lua_insert(L, 1); /* put it in place */
+        int status = lua_pcallk(L, lua_gettop(L) - 2, LUA_MULTRET, 0, 0, &finishpcall);
+        return finishpcall(L, status, null);
     }
 
 /*
@@ -516,10 +557,9 @@ public static unsafe partial class Lua
 
     private static int luaB_tostring(lua_State* L)
     {
-//   luaL_checkany(L, 1);
-//   luaL_tolstring(L, 1, null);
-//   return 1;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        luaL_tolstring(L, 1, out _);
+        return 1;
     }
 
     private static readonly luaL_Reg[] base_funcs =
@@ -552,7 +592,7 @@ public static unsafe partial class Lua
         new("_VERSION", null),
     ];
 
-    private static partial int luaopen_base(lua_State* L)
+    public static partial int luaopen_base(lua_State* L)
     {
         /* open lib into global table */
         lua_pushglobaltable(L);

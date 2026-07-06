@@ -21,18 +21,17 @@ public static unsafe partial class Lua
         return s2v(L->ci->func.p + (k));
     }
 
-    // static int runC (lua_State *L, lua_State *L1, const char *pc);
-
     private static void setnameval(lua_State* L, string name, int val)
     {
         lua_pushinteger(L, val);
         lua_setfield(L, -2, name);
     }
 
-// static void pushobject (lua_State *L, const TValue *o) {
-//   setobj2s(L, L->top.p, o);
-//   api_incr_top(L);
-// }
+    private static void pushobject(lua_State* L, TValue* o)
+    {
+        setobj2s(L, L->top.p, o);
+        api_incr_top(L);
+    }
 
     private static void badexit(string fmt, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2)
     {
@@ -247,7 +246,6 @@ public static unsafe partial class Lua
             return null; // fake a memory allocation error
         }
 
-        memHeader* newblock;
         long commonsize = oldsize < size ? oldsize : size;
         long realsize = sizeof(memHeader) + size + MARKSIZE;
         if (realsize < size)
@@ -255,7 +253,7 @@ public static unsafe partial class Lua
             return null; // arithmetic overflow!
         }
 
-        newblock = (memHeader*)NativeMemory.Alloc((nuint)realsize); // alloc a new block
+        memHeader* newblock = (memHeader*)NativeMemory.Alloc((nuint)realsize); // alloc a new block
         if (newblock == null)
         {
             return null; // really out of memory?
@@ -842,18 +840,20 @@ public static unsafe partial class Lua
 
     private static int listk(lua_State* L)
     {
-//   Proto *p;
-//   int i;
-//   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-//                  1, "Lua function expected");
-//   p = getproto(obj_at(L, 1));
-//   lua_createtable(L, p->sizek, 0);
-//   for (i=0; i<p->sizek; i++) {
-//     pushobject(L, p->k+i);
-//     lua_rawseti(L, -2, i+1);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        luaL_argcheck(
+            L,
+            lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+            1,
+            "Lua function expected");
+        Proto* p = getproto(obj_at(L, 1));
+        lua_createtable(L, p->sizek, 0);
+        for (int i = 0; i < p->sizek; i++)
+        {
+            pushobject(L, p->k + i);
+            lua_rawseti(L, -2, i + 1);
+        }
+
+        return 1;
     }
 
     private static int listabslineinfo(lua_State* L)
@@ -955,20 +955,27 @@ public static unsafe partial class Lua
 
     private static int mem_query(lua_State* L)
     {
-//   if (lua_isnone(L, 1)) {
-//     lua_pushinteger(L, cast_Integer(l_memcontrol.total));
-//     lua_pushinteger(L, cast_Integer(l_memcontrol.numblocks));
-//     lua_pushinteger(L, cast_Integer(l_memcontrol.maxmem));
-//     return 3;
-//   }
-//   else if (lua_isnumber(L, 1)) {
-//     unsigned long limit = cast(unsigned long, luaL_checkinteger(L, 1));
-//     if (limit == 0) limit = ULONG_MAX;
-//     l_memcontrol.memlimit = limit;
-//     return 0;
-//   }
-//   else {
-//     const char *t = luaL_checkstring(L, 1);
+        if (lua_isnone(L, 1))
+        {
+            lua_pushinteger(L, l_memcontrol->total);
+            lua_pushinteger(L, l_memcontrol->numblocks);
+            lua_pushinteger(L, l_memcontrol->maxmem);
+            return 3;
+        }
+
+        if (lua_isnumber(L, 1))
+        {
+            long limit = luaL_checkinteger(L, 1);
+            if (limit == 0)
+            {
+                limit = long.MaxValue;
+            }
+
+            l_memcontrol->memlimit = limit;
+            return 0;
+        }
+
+        //     const char *t = luaL_checkstring(L, 1);
 //     int i;
 //     for (i = LUA_NUMTYPES - 1; i >= 0; i--) {
 //       if (strcmp(t, ttypename(i)) == 0) {
@@ -977,7 +984,6 @@ public static unsafe partial class Lua
 //       }
 //     }
 //     return luaL_error(L, "unknown type '%s'", t);
-//   }
         throw new NotImplementedException();
     }
 
@@ -1365,7 +1371,7 @@ public static unsafe partial class Lua
 
     private static int d2s(lua_State* L)
     {
-//   double d = cast(double, luaL_checknumber(L, 1));
+        double d = luaL_checknumber(L, 1);
 //   lua_pushlstring(L, cast_charp(&d), sizeof(d));
 //   return 1;
         throw new NotImplementedException();
@@ -1400,11 +1406,12 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// static lua_State *getstate (lua_State *L) {
-//   lua_State *L1 = cast(lua_State *, lua_touserdata(L, 1));
-//   luaL_argcheck(L, L1 != null, 1, "state expected");
-//   return L1;
-// }
+    private static lua_State* getstate(lua_State* L)
+    {
+        lua_State* L1 = (lua_State*)lua_touserdata(L, 1);
+        luaL_argcheck(L, L1 != null, 1, "state expected");
+        return L1;
+    }
 
     private static int loadlib(lua_State* L)
     {
@@ -1464,52 +1471,60 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// struct Aux { jmp_buf jb; const char *paniccode; lua_State *L; };
+    private sealed class Aux
+    {
+        public string? paniccode;
+        public lua_State* L;
+    }
 
-/*
- ** does a long-jump back to "main program".
- */
+    /*
+    ** does a long-jump back to "main program".
+    */
     private static int panicback(lua_State* L)
     {
-//   struct Aux *b;
-//   lua_checkstack(L, 1);  /* open space for 'Aux' struct */
-//   lua_getfield(L, LUA_REGISTRYINDEX, "_jmpbuf");  /* get 'Aux' struct */
-//   b = (struct Aux *)lua_touserdata(L, -1);
-//   lua_pop(L, 1);  /* remove 'Aux' struct */
-//   runC(b->L, L, b->paniccode);  /* run optional panic code */
-//   longjmp(b->jb, 1);
-//   return 1;  /* to avoid warnings */
+        lua_checkstack(L, 1);  /* open space for 'Aux' struct */
+        lua_getfield(L, LUA_REGISTRYINDEX, "_jmpbuf");  /* get 'Aux' struct */
+        Aux b = GCHandle<Aux>.FromIntPtr((nint)lua_touserdata(L, -1)).Target;
+        lua_pop(L, 1);  /* remove 'Aux' struct */
+        // runC(b.L, L, b.paniccode);  /* run optional panic code */
+        // throw new lua_longjmp(null);
         throw new NotImplementedException();
     }
 
     private static int checkpanic(lua_State* L)
     {
-//   struct Aux b;
-//   void *ud;
-//   lua_State *L1;
-//   const char *code = luaL_checkstring(L, 1);
-//   lua_Alloc f = lua_getallocf(L, &ud);
-//   b.paniccode = luaL_optstring(L, 2, "");
-//   b.L = L;
-//   L1 = lua_newstate(f, ud, 0);  /* create new state */
-//   if (L1 == null) {  /* error? */
-//     lua_pushstring(L, MEMERRMSG);
-//     return 1;
-//   }
-//   lua_atpanic(L1, panicback);  /* set its panic function */
-//   lua_pushlightuserdata(L1, &b);
-//   lua_setfield(L1, LUA_REGISTRYINDEX, "_jmpbuf");  /* store 'Aux' struct */
-//   if (setjmp(b.jb) == 0) {  /* set jump buffer */
-//     runC(L, L1, code);  /* run code unprotected */
-//     lua_pushliteral(L, "no errors");
-//   }
-//   else {  /* error handling */
-//     /* move error message to original state */
-//     lua_pushstring(L, lua_tostring(L1, -1));
-//   }
-//   lua_close(L1);
-//   return 1;
-        throw new NotImplementedException();
+        string code = luaL_checkstring(L, 1);
+        lua_Alloc f = lua_getallocf(L, out void* ud);
+
+        Aux b = new();
+        using GCHandle<Aux> bhandle = new(b);
+
+        b.paniccode = luaL_optstring(L, 2, "");
+        b.L = L;
+        lua_State* L1 = lua_newstate(f, ud, 0); /* create new state */
+        if (L1 == null)
+        {
+            /* error? */
+            lua_pushstring(L, MEMERRMSG);
+            return 1;
+        }
+
+        lua_atpanic(L1, &panicback); /* set its panic function */
+        lua_pushlightuserdata(L1, bhandle.ToPointer());
+        lua_setfield(L1, LUA_REGISTRYINDEX, "_jmpbuf"); /* store 'Aux' struct */
+        try
+        {
+            runC(L, L1, code); /* run code unprotected */
+            lua_pushliteral(L, "no errors");
+        }
+        catch (lua_longjmp)
+        {
+            /* move error message to original state */
+            lua_pushstring(L, lua_tostring(L1, -1));
+        }
+
+        lua_close(L1);
+        return 1;
     }
 
     private static int externKstr(lua_State* L)
@@ -1554,88 +1569,142 @@ public static unsafe partial class Lua
      */
 
 // static void sethookaux (lua_State *L, int mask, int count, const char *code);
-//
-// static const char *const delimits = " \t\n,;";
-//
-// static void skip (const char **pc) {
-//   for (;;) {
-//     if (**pc != '\0' && strchr(delimits, **pc)) (*pc)++;
-//     else if (**pc == '#') {  /* comment? */
-//       while (**pc != '\n' && **pc != '\0') (*pc)++;  /* until end-of-line */
-//     }
-//     else break;
-//   }
-// }
-//
-// static int getnum_aux (lua_State *L, lua_State *L1, const char **pc) {
-//   int res = 0;
-//   int sig = 1;
-//   skip(pc);
-//   if (**pc == '.') {
-//     res = cast_int(lua_tointeger(L1, -1));
-//     lua_pop(L1, 1);
-//     (*pc)++;
-//     return res;
-//   }
-//   else if (**pc == '*') {
-//     res = lua_gettop(L1);
-//     (*pc)++;
-//     return res;
-//   }
-//   else if (**pc == '!') {
-//     (*pc)++;
-//     if (**pc == 'G')
-//       res = LUA_RIDX_GLOBALS;
-//     else if (**pc == 'M')
-//       res = LUA_RIDX_MAINTHREAD;
-//     else Debug.Assert(0);
-//     (*pc)++;
-//     return res;
-//   }
-//   else if (**pc == '-') {
-//     sig = -1;
-//     (*pc)++;
-//   }
-//   if (!lisdigit(cast_uchar(**pc)))
-//     luaL_error(L, "number expected (%s)", *pc);
-//   while (lisdigit(cast_uchar(**pc))) res = res*10 + (*(*pc)++) - '0';
-//   return sig*res;
-// }
-//
-// static const char *getstring_aux (lua_State *L, char *buff, const char **pc) {
+
+    private static string delimits = " \t\n,;";
+
+    private static void skip(ref ReadOnlySpan<char> pc)
+    {
+        while(!pc.IsEmpty)
+        {
+            if (delimits.Contains(pc[0]))
+            {
+                pc = pc[1..];
+            }
+            else if (pc[0] == '#')
+            {
+                /* comment? */
+                while (!pc.IsEmpty && pc[0] != '\n')
+                {
+                    pc = pc[1..]; /* until end-of-line */
+                }
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+
+    private static int getnum_aux(lua_State* L, lua_State* L1, ref ReadOnlySpan<char> pc)
+    {
+        skip(ref pc);
+        if (pc[0] == '.')
+        {
+            int res = (int)lua_tointeger(L1, -1);
+            lua_pop(L1, 1);
+            pc = pc[1..];
+            return res;
+        }
+
+        if (pc[0] == '*')
+        {
+            int res = lua_gettop(L1);
+            pc = pc[1..];
+            return res;
+        }
+
+        if (pc[0] == '!')
+        {
+            int res = pc[1] switch
+            {
+                'G' => LUA_RIDX_GLOBALS,
+                'M' => LUA_RIDX_MAINTHREAD,
+                _ => throw new InvalidOperationException(),
+            };
+
+            pc = pc[2..];
+            return res;
+        }
+
+        int sig = 1;
+        if (pc[0] == '-')
+        {
+            sig = -1;
+            pc = pc[1..];
+        }
+
+        if (!lisdigit(pc[0]))
+        {
+            luaL_error(L, "number expected (%s)", pc.ToString());
+        }
+
+        int result = 0;
+        while (!pc.IsEmpty && lisdigit(pc[0]))
+        {
+            result = result * 10 + pc[0] - '0';
+            pc = pc[1..];
+        }
+
+        return sig * result;
+    }
+
+    private static ReadOnlySpan<char> getstring_aux(lua_State* L, ref ReadOnlySpan<char> pc)
+    {
 //   int i = 0;
-//   skip(pc);
-//   if (**pc == '"' || **pc == '\'') {  /* quoted string? */
-//     int quote = *(*pc)++;
+        skip(ref pc);
+        if (!pc.IsEmpty && (pc[0] == '"' || pc[0] == '\''))
+        {
+            // quoted string?
+            char quote = pc[0];
+            pc = pc[1..];
 //     while (**pc != quote) {
 //       if (**pc == '\0') luaL_error(L, "unfinished string in C script");
 //       buff[i++] = *(*pc)++;
 //     }
 //     (*pc)++;
-//   }
-//   else {
-//     while (**pc != '\0' && !strchr(delimits, **pc))
-//       buff[i++] = *(*pc)++;
-//   }
-//   buff[i] = '\0';
-//   return buff;
-// }
-//
-//
-// static int getindex_aux (lua_State *L, lua_State *L1, const char **pc) {
-//   skip(pc);
-//   switch (*(*pc)++) {
-//     case 'R': return LUA_REGISTRYINDEX;
-//     case 'U': return lua_upvalueindex(getnum_aux(L, L1, pc));
-//     default: {
-//       int n;
-//       (*pc)--;  /* to read again */
-//       n = getnum_aux(L, L1, pc);
-//       if (n == 0) return 0;
-//       else return lua_absindex(L1, n);
-//     }
-//   }
-// }
+            throw new NotImplementedException();
+        }
+        else
+        {
+            int index = pc.IndexOfAny(delimits);
+            if (index >= 0)
+            {
+                ReadOnlySpan<char> result = pc[..index];
+                pc = pc[index..];
+                return result;
+            }
+            else
+            {
+                ReadOnlySpan<char> result = pc;
+                pc = ReadOnlySpan<char>.Empty;
+                return result;
+            }
+        }
+    }
+
+    private static int getindex_aux(lua_State* L, lua_State* L1, ref ReadOnlySpan<char> pc)
+    {
+        skip(ref pc);
+        switch (pc[0])
+        {
+            case 'R':
+                pc = pc[1..];
+                return LUA_REGISTRYINDEX;
+
+            case 'U':
+                pc = pc[1..];
+                return lua_upvalueindex(getnum_aux(L, L1, ref pc));
+
+            default:
+                int n = getnum_aux(L, L1, ref pc);
+                if (n == 0)
+                {
+                    return 0;
+                }
+
+                return lua_absindex(L1, n);
+        }
+    }
 
     private static readonly string[] statcodes =
     [
@@ -1656,299 +1725,439 @@ public static unsafe partial class Lua
         }
     }
 
-// #define EQ(s1)	(strcmp(s1, inst) == 0)
-//
-// #define getnum		(getnum_aux(L, L1, &pc))
-// #define getstring	(getstring_aux(L, buff, &pc))
-// #define getindex	(getindex_aux(L, L1, &pc))
-//
-//
-// static int testC (lua_State *L);
-// static int Cfunck (lua_State *L, int status, nint ctx);
-//
-// /*
-// ** arithmetic operation encoding for 'arith' instruction
-// ** LUA_OPIDIV  -> \
-// ** LUA_OPSHL   -> <
-// ** LUA_OPSHR   -> >
-// ** LUA_OPUNM   -> _
-// ** LUA_OPBNOT  -> !
-// */
-// static const char ops[] = "+-*%^/\\&|~<>_!";
-//
-// static int runC (lua_State *L, lua_State *L1, const char *pc) {
-//   char buff[300];
-//   int status = 0;
-//   if (pc == null) return luaL_error(L, "attempt to runC null script");
-//   for (;;) {
-//     const char *inst = getstring;
-//     if EQ("") return 0;
-//     else if EQ("absindex") {
-//       lua_pushinteger(L1, getindex);
-//     }
-//     else if EQ("append") {
-//       int t = getindex;
-//       int i = cast_int(lua_rawlen(L1, t));
-//       lua_rawseti(L1, t, i + 1);
-//     }
-//     else if EQ("arith") {
-//       int op;
-//       skip(&pc);
+    /*
+    ** arithmetic operation encoding for 'arith' instruction
+    ** LUA_OPIDIV  -> \
+    ** LUA_OPSHL   -> <
+    ** LUA_OPSHR   -> >
+    ** LUA_OPUNM   -> _
+    ** LUA_OPBNOT  -> !
+    */
+    private const string ops = "+-*%^/\\&|~<>_!";
+
+    private static int runC(lua_State* L, lua_State* L1, string? ppc)
+    {
+        if (ppc == null)
+        {
+            return luaL_error(L, "attempt to runC null script");
+        }
+
+        ReadOnlySpan<char> pc = ppc;
+
+        int status = 0;
+        while (true)
+        {
+            ReadOnlySpan<char> inst = getstring_aux(L, ref pc);
+            switch (inst)
+            {
+                case "":
+                    return 0;
+
+                case "absindex":
+                    lua_pushinteger(L1, getindex_aux(L, L1, ref pc));
+                    break;
+
+                case "append":
+                    {
+                        int t = getindex_aux(L, L1, ref pc);
+                        int i = (int)lua_rawlen(L1, t);
+                        lua_rawseti(L1, t, i + 1);
+                        break;
+                    }
+
+                case "arith":
+                    {
+                        //       int op;
+                        skip(ref pc);
 //       op = cast_int(strchr(ops, *pc++) - ops);
 //       lua_arith(L1, op);
-//     }
-//     else if EQ("call") {
-//       int narg = getnum;
-//       int nres = getnum;
-//       lua_call(L1, narg, nres);
-//     }
-//     else if EQ("callk") {
-//       int narg = getnum;
-//       int nres = getnum;
-//       int i = getindex;
-//       lua_callk(L1, narg, nres, i, Cfunck);
-//     }
-//     else if EQ("checkstack") {
-//       int sz = getnum;
-//       const char *msg = getstring;
+                        throw new NotImplementedException();
+                        break;
+                    }
+
+                case "call":
+                    {
+                        int narg = getnum_aux(L, L1, ref pc);
+                        int nres = getnum_aux(L, L1, ref pc);
+                        lua_call(L1, narg, nres);
+                        break;
+                    }
+
+                case "callk":
+                    {
+                        int narg = getnum_aux(L, L1, ref pc);
+                        int nres = getnum_aux(L, L1, ref pc);
+                        int i = getindex_aux(L, L1, ref pc);
+                        lua_callk(L1, narg, nres, (nuint)i, &Cfunck);
+                        break;
+                    }
+
+                case "checkstack":
+                    {
+                        int sz = getnum_aux(L, L1, ref pc);
+//       const char *msg = getstring_aux(L, ref pc);
 //       if (*msg == '\0')
 //         msg = null;  /* to test 'luaL_checkstack' with no message */
 //       luaL_checkstack(L1, sz, msg);
-//     }
-//     else if EQ("rawcheckstack") {
-//       int sz = getnum;
-//       lua_pushboolean(L1, lua_checkstack(L1, sz));
-//     }
-//     else if EQ("compare") {
-//       const char *opt = getstring;  /* EQ, LT, or LE */
+                        throw new NotImplementedException();
+                        break;
+                    }
+
+                case "rawcheckstack":
+                    {
+                        int sz = getnum_aux(L, L1, ref pc);
+                        lua_pushboolean(L1, lua_checkstack(L1, sz));
+                        break;
+                    }
+
+                case "compare":
+//       const char *opt = getstring_aux(L, ref pc);  /* EQ, LT, or LE */
 //       int op = (opt[0] == 'E') ? LUA_OPEQ
 //                                : (opt[1] == 'T') ? LUA_OPLT : LUA_OPLE;
-//       int a = getindex;
-//       int b = getindex;
+//       int a = getindex_aux(L, L1, ref pc);
+//       int b = getindex_aux(L, L1, ref pc);
 //       lua_pushboolean(L1, lua_compare(L1, a, b, op));
-//     }
-//     else if EQ("concat") {
-//       lua_concat(L1, getnum);
-//     }
-//     else if EQ("copy") {
-//       int f = getindex;
-//       lua_copy(L1, f, getindex);
-//     }
-//     else if EQ("func2num") {
-//       lua_CFunction func = lua_tocfunction(L1, getindex);
-//       lua_pushinteger(L1, cast_st2S(cast_sizet(func)));
-//     }
-//     else if EQ("getfield") {
-//       int t = getindex;
-//       int tp = lua_getfield(L1, t, getstring);
+                    throw new NotImplementedException();
+                    break;
+
+                case "concat":
+                    lua_concat(L1, getnum_aux(L, L1, ref pc));
+                    break;
+
+                case "copy":
+                    {
+                        int f = getindex_aux(L, L1, ref pc);
+                        lua_copy(L1, f, getindex_aux(L, L1, ref pc));
+                        break;
+                    }
+
+                case "func2num":
+                    {
+                        lua_CFunction func = lua_tocfunction(L1, getindex_aux(L, L1, ref pc));
+                        // lua_pushinteger(L1, cast_st2S((nint)(func)));
+                        throw new NotImplementedException();
+                        break;
+                    }
+
+                case "getfield":
+//       int t = getindex_aux(L, L1, ref pc);
+//       int tp = lua_getfield(L1, t, getstring_aux(L, ref pc));
 //       Debug.Assert(tp == lua_type(L1, -1));
-//     }
-//     else if EQ("getglobal") {
-//       lua_getglobal(L1, getstring);
-//     }
-//     else if EQ("getmetatable") {
-//       if (lua_getmetatable(L1, getindex) == 0)
+                    throw new NotImplementedException();
+                    break;
+
+                case "getglobal":
+//       lua_getglobal(L1, getstring_aux(L, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "getmetatable":
+//       if (lua_getmetatable(L1, getindex_aux(L, L1, ref pc)) == 0)
 //         lua_pushnil(L1);
-//     }
-//     else if EQ("gettable") {
-//       int tp = lua_gettable(L1, getindex);
+                    throw new NotImplementedException();
+                    break;
+
+                case "gettable":
+//       int tp = lua_gettable(L1, getindex_aux(L, L1, ref pc));
 //       Debug.Assert(tp == lua_type(L1, -1));
-//     }
-//     else if EQ("gettop") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "gettop":
 //       lua_pushinteger(L1, lua_gettop(L1));
-//     }
-//     else if EQ("gsub") {
-//       int a = getnum; int b = getnum; int c = getnum;
+                    throw new NotImplementedException();
+                    break;
+
+                case "gsub":
+//       int a = getnum_aux(L, L1, ref pc); int b = getnum_aux(L, L1, ref pc); int c = getnum_aux(L, L1, ref pc);
 //       luaL_gsub(L1, lua_tostring(L1, a),
 //                     lua_tostring(L1, b),
 //                     lua_tostring(L1, c));
-//     }
-//     else if EQ("insert") {
-//       lua_insert(L1, getnum);
-//     }
-//     else if EQ("iscfunction") {
-//       lua_pushboolean(L1, lua_iscfunction(L1, getindex));
-//     }
-//     else if EQ("isfunction") {
-//       lua_pushboolean(L1, lua_isfunction(L1, getindex));
-//     }
-//     else if EQ("isnil") {
-//       lua_pushboolean(L1, lua_isnil(L1, getindex));
-//     }
-//     else if EQ("isnull") {
-//       lua_pushboolean(L1, lua_isnone(L1, getindex));
-//     }
-//     else if EQ("isnumber") {
-//       lua_pushboolean(L1, lua_isnumber(L1, getindex));
-//     }
-//     else if EQ("isstring") {
-//       lua_pushboolean(L1, lua_isstring(L1, getindex));
-//     }
-//     else if EQ("istable") {
-//       lua_pushboolean(L1, lua_istable(L1, getindex));
-//     }
-//     else if EQ("isudataval") {
-//       lua_pushboolean(L1, lua_islightuserdata(L1, getindex));
-//     }
-//     else if EQ("isuserdata") {
-//       lua_pushboolean(L1, lua_isuserdata(L1, getindex));
-//     }
-//     else if EQ("len") {
-//       lua_len(L1, getindex);
-//     }
-//     else if EQ("Llen") {
-//       lua_pushinteger(L1, luaL_len(L1, getindex));
-//     }
-//     else if EQ("loadfile") {
-//       luaL_loadfile(L1, luaL_checkstring(L1, getnum));
-//     }
-//     else if EQ("loadstring") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "insert":
+//       lua_insert(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "iscfunction":
+//       lua_pushboolean(L1, lua_iscfunction(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isfunction":
+//       lua_pushboolean(L1, lua_isfunction(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isnil":
+//       lua_pushboolean(L1, lua_isnil(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isnull":
+//       lua_pushboolean(L1, lua_isnone(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isnumber":
+//       lua_pushboolean(L1, lua_isnumber(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isstring":
+//       lua_pushboolean(L1, lua_isstring(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "istable":
+//       lua_pushboolean(L1, lua_istable(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isudataval":
+//       lua_pushboolean(L1, lua_islightuserdata(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "isuserdata":
+//       lua_pushboolean(L1, lua_isuserdata(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "len":
+//       lua_len(L1, getindex_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "Llen":
+//       lua_pushinteger(L1, luaL_len(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "loadfile":
+//       luaL_loadfile(L1, luaL_checkstring(L1, getnum_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "loadstring":
 //       size_t slen;
-//       const char *s = luaL_checklstring(L1, getnum, &slen);
-//       const char *name = getstring;
-//       const char *mode = getstring;
+//       const char *s = luaL_checklstring(L1, getnum_aux(L, L1, ref pc), &slen);
+//       const char *name = getstring_aux(L, ref pc);
+//       const char *mode = getstring_aux(L, ref pc);
 //       luaL_loadbufferx(L1, s, slen, name, mode);
-//     }
-//     else if EQ("newmetatable") {
-//       lua_pushboolean(L1, luaL_newmetatable(L1, getstring));
-//     }
-//     else if EQ("newtable") {
-//       lua_newtable(L1);
-//     }
-//     else if EQ("newthread") {
-//       lua_newthread(L1);
-//     }
-//     else if EQ("resetthread") {
-//       lua_pushinteger(L1, lua_resetthread(L1));  /* deprecated */
-//     }
-//     else if EQ("newuserdata") {
-//       lua_newuserdata(L1, cast_sizet(getnum));
-//     }
-//     else if EQ("next") {
-//       lua_next(L1, -2);
-//     }
-//     else if EQ("objsize") {
-//       lua_pushinteger(L1, l_castU2S(lua_rawlen(L1, getindex)));
-//     }
-//     else if EQ("pcall") {
-//       int narg = getnum;
-//       int nres = getnum;
-//       status = lua_pcall(L1, narg, nres, getnum);
-//     }
-//     else if EQ("pcallk") {
-//       int narg = getnum;
-//       int nres = getnum;
-//       int i = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "newmetatable":
+//       lua_pushboolean(L1, luaL_newmetatable(L1, getstring_aux(L, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "newtable":
+                    lua_newtable(L1);
+                    break;
+
+                case "newthread":
+                    lua_newthread(L1);
+                    break;
+
+                case "resetthread":
+                    lua_pushinteger(L1, lua_resetthread(L1)); /* deprecated */
+                    break;
+
+                case "newuserdata":
+                    lua_newuserdata(L1, getnum_aux(L, L1, ref pc));
+                    break;
+
+                case "next":
+                    lua_next(L1, -2);
+                    break;
+
+                case "objsize":
+//       lua_pushinteger(L1, l_castU2S(lua_rawlen(L1, getindex_aux(L, L1, ref pc))));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pcall":
+//       int narg = getnum_aux(L, L1, ref pc);
+//       int nres = getnum_aux(L, L1, ref pc);
+//       status = lua_pcall(L1, narg, nres, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pcallk":
+//       int narg = getnum_aux(L, L1, ref pc);
+//       int nres = getnum_aux(L, L1, ref pc);
+//       int i = getindex_aux(L, L1, ref pc);
 //       status = lua_pcallk(L1, narg, nres, 0, i, Cfunck);
-//     }
-//     else if EQ("pop") {
-//       lua_pop(L1, getnum);
-//     }
-//     else if EQ("printstack") {
-//       int n = getnum;
+                    throw new NotImplementedException();
+                    break;
+
+                case "pop":
+//       lua_pop(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "printstack":
+//       int n = getnum_aux(L, L1, ref pc);
 //       if (n != 0) {
 //         lua_printvalue(s2v(L->ci->func.p + n));
 //         printf("\n");
 //       }
 //       else lua_printstack(L1);
-//     }
-//     else if EQ("print") {
-//       const char *msg = getstring;
+                    throw new NotImplementedException();
+                    break;
+
+                case "print":
+//       const char *msg = getstring_aux(L, ref pc);
 //       printf("%s\n", msg);
-//     }
-//     else if EQ("warningC") {
-//       const char *msg = getstring;
+                    throw new NotImplementedException();
+                    break;
+
+                case "warningC":
+//       const char *msg = getstring_aux(L, ref pc);
 //       lua_warning(L1, msg, 1);
-//     }
-//     else if EQ("warning") {
-//       const char *msg = getstring;
+                    throw new NotImplementedException();
+                    break;
+
+                case "warning":
+//       const char *msg = getstring_aux(L, ref pc);
 //       lua_warning(L1, msg, 0);
-//     }
-//     else if EQ("pushbool") {
-//       lua_pushboolean(L1, getnum);
-//     }
-//     else if EQ("pushcclosure") {
-//       lua_pushcclosure(L1, testC, getnum);
-//     }
-//     else if EQ("pushint") {
-//       lua_pushinteger(L1, getnum);
-//     }
-//     else if EQ("pushnil") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushbool":
+//       lua_pushboolean(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushcclosure":
+//       lua_pushcclosure(L1, testC, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushint":
+//       lua_pushinteger(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushnil":
 //       lua_pushnil(L1);
-//     }
-//     else if EQ("pushnum") {
-//       lua_pushnumber(L1, (double)getnum);
-//     }
-//     else if EQ("pushstatus") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushnum":
+//       lua_pushnumber(L1, (double)getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushstatus":
 //       lua_pushstring(L1, statcodes[status]);
-//     }
-//     else if EQ("pushstring") {
-//       lua_pushstring(L1, getstring);
-//     }
-//     else if EQ("pushupvalueindex") {
-//       lua_pushinteger(L1, lua_upvalueindex(getnum));
-//     }
-//     else if EQ("pushvalue") {
-//       lua_pushvalue(L1, getindex);
-//     }
-//     else if EQ("pushfstringI") {
-//       lua_pushfstring(L1, lua_tostring(L, -2), (int)lua_tointeger(L, -1));
-//     }
-//     else if EQ("pushfstringS") {
-//       lua_pushfstring(L1, lua_tostring(L, -2), lua_tostring(L, -1));
-//     }
-//     else if EQ("pushfstringP") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushstring":
+//       lua_pushstring(L1, getstring_aux(L, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "pushupvalueindex":
+                    lua_pushinteger(L1, lua_upvalueindex(getnum_aux(L, L1, ref pc)));
+                    break;
+
+                case "pushvalue":
+                    lua_pushvalue(L1, getindex_aux(L, L1, ref pc));
+                    break;
+
+                case "pushfstringI":
+                    lua_pushfstring(L1, lua_tostring(L, -2), (int)lua_tointeger(L, -1));
+                    break;
+
+                case "pushfstringS":
+                    lua_pushfstring(L1, lua_tostring(L, -2), lua_tostring(L, -1));
+                    break;
+
+                case "pushfstringP":
 //       lua_pushfstring(L1, lua_tostring(L, -2), lua_topointer(L, -1));
-//     }
-//     else if EQ("rawget") {
-//       int t = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawget":
+//       int t = getindex_aux(L, L1, ref pc);
 //       lua_rawget(L1, t);
-//     }
-//     else if EQ("rawgeti") {
-//       int t = getindex;
-//       lua_rawgeti(L1, t, getnum);
-//     }
-//     else if EQ("rawgetp") {
-//       int t = getindex;
-//       lua_rawgetp(L1, t, cast_voidp(cast_sizet(getnum)));
-//     }
-//     else if EQ("rawset") {
-//       int t = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawgeti":
+//       int t = getindex_aux(L, L1, ref pc);
+//       lua_rawgeti(L1, t, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawgetp":
+//       int t = getindex_aux(L, L1, ref pc);
+//       lua_rawgetp(L1, t, cast_voidp(cast_sizet(getnum_aux(L, L1, ref pc))));
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawset":
+//       int t = getindex_aux(L, L1, ref pc);
 //       lua_rawset(L1, t);
-//     }
-//     else if EQ("rawseti") {
-//       int t = getindex;
-//       lua_rawseti(L1, t, getnum);
-//     }
-//     else if EQ("rawsetp") {
-//       int t = getindex;
-//       lua_rawsetp(L1, t, cast_voidp(cast_sizet(getnum)));
-//     }
-//     else if EQ("remove") {
-//       lua_remove(L1, getnum);
-//     }
-//     else if EQ("replace") {
-//       lua_replace(L1, getindex);
-//     }
-//     else if EQ("resume") {
-//       int i = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawseti":
+//       int t = getindex_aux(L, L1, ref pc);
+//       lua_rawseti(L1, t, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "rawsetp":
+//       int t = getindex_aux(L, L1, ref pc);
+//       lua_rawsetp(L1, t, cast_voidp(cast_sizet(getnum_aux(L, L1, ref pc))));
+                    throw new NotImplementedException();
+                    break;
+
+                case "remove":
+//       lua_remove(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "replace":
+//       lua_replace(L1, getindex_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "resume":
+//       int i = getindex_aux(L, L1, ref pc);
 //       int nres;
-//       status = lua_resume(lua_tothread(L1, i), L, getnum, &nres);
-//     }
-//     else if EQ("traceback") {
-//       const char *msg = getstring;
-//       int level = getnum;
+//       status = lua_resume(lua_tothread(L1, i), L, getnum_aux(L, L1, ref pc), &nres);
+                    throw new NotImplementedException();
+                    break;
+
+                case "traceback":
+//       const char *msg = getstring_aux(L, ref pc);
+//       int level = getnum_aux(L, L1, ref pc);
 //       luaL_traceback(L1, L1, msg, level);
-//     }
-//     else if EQ("threadstatus") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "threadstatus":
 //       lua_pushstring(L1, statcodes[lua_status(L1)]);
-//     }
-//     else if EQ("alloccount") {
-//       l_memcontrol.countlimit = cast_uint(getnum);
-//     }
-//     else if EQ("return") {
-//       int n = getnum;
-//       if (L1 != L) {
+                    throw new NotImplementedException();
+                    break;
+
+                case "alloccount":
+//       l_memcontrol.countlimit = cast_uint(getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "return":
+                    int n = getnum_aux(L, L1, ref pc);
+                    if (L1 != L)
+                    {
 //         int i;
 //         for (i = 0; i < n; i++) {
 //           int idx = -(n - i);
@@ -1961,159 +2170,219 @@ public static unsafe partial class Lua
 //               break;
 //           }
 //         }
-//       }
-//       return n;
-//     }
-//     else if EQ("rotate") {
-//       int i = getindex;
-//       lua_rotate(L1, i, getnum);
-//     }
-//     else if EQ("setfield") {
-//       int t = getindex;
-//       const char *s = getstring;
+                        throw new NotImplementedException();
+                    }
+
+                    return n;
+
+                case "rotate":
+//       int i = getindex_aux(L, L1, ref pc);
+//       lua_rotate(L1, i, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "setfield":
+//       int t = getindex_aux(L, L1, ref pc);
+//       const char *s = getstring_aux(L, ref pc);
 //       lua_setfield(L1, t, s);
-//     }
-//     else if EQ("seti") {
-//       int t = getindex;
-//       lua_seti(L1, t, getnum);
-//     }
-//     else if EQ("setglobal") {
-//       const char *s = getstring;
+                    throw new NotImplementedException();
+                    break;
+
+                case "seti":
+//       int t = getindex_aux(L, L1, ref pc);
+//       lua_seti(L1, t, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "setglobal":
+//       const char *s = getstring_aux(L, ref pc);
 //       lua_setglobal(L1, s);
-//     }
-//     else if EQ("sethook") {
-//       int mask = getnum;
-//       int count = getnum;
-//       const char *s = getstring;
+                    throw new NotImplementedException();
+                    break;
+
+                case "sethook":
+//       int mask = getnum_aux(L, L1, ref pc);
+//       int count = getnum_aux(L, L1, ref pc);
+//       const char *s = getstring_aux(L, ref pc);
 //       sethookaux(L1, mask, count, s);
-//     }
-//     else if EQ("setmetatable") {
-//       int idx = getindex;
-//       lua_setmetatable(L1, idx);
-//     }
-//     else if EQ("settable") {
-//       lua_settable(L1, getindex);
-//     }
-//     else if EQ("settop") {
-//       lua_settop(L1, getnum);
-//     }
-//     else if EQ("testudata") {
-//       int i = getindex;
-//       lua_pushboolean(L1, luaL_testudata(L1, i, getstring) != null);
-//     }
-//     else if EQ("error") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "setmetatable":
+                    lua_setmetatable(L1, getindex_aux(L, L1, ref pc));
+                    break;
+
+                case "settable":
+                    lua_settable(L1, getindex_aux(L, L1, ref pc));
+                    break;
+
+                case "settop":
+                    lua_settop(L1, getnum_aux(L, L1, ref pc));
+                    break;
+
+                case "testudata":
+//       int i = getindex_aux(L, L1, ref pc);
+//       lua_pushboolean(L1, luaL_testudata(L1, i, getstring_aux(L, ref pc)) != null);
+                    throw new NotImplementedException();
+                    break;
+
+                case "error":
 //       lua_error(L1);
-//     }
-//     else if EQ("abort") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "abort":
 //       abort();
-//     }
-//     else if EQ("throw") {
+                    throw new NotImplementedException();
+                    break;
+
+                case "throw":
 // #if defined(__cplusplus)
 // static struct X { int x; } x;
 //       throw x;
 // #else
 //       luaL_error(L1, "C++");
 // #endif
-//       break;
-//     }
-//     else if EQ("tobool") {
-//       lua_pushboolean(L1, lua_toboolean(L1, getindex));
-//     }
-//     else if EQ("tocfunction") {
-//       lua_pushcfunction(L1, lua_tocfunction(L1, getindex));
-//     }
-//     else if EQ("tointeger") {
-//       lua_pushinteger(L1, lua_tointeger(L1, getindex));
-//     }
-//     else if EQ("tonumber") {
-//       lua_pushnumber(L1, lua_tonumber(L1, getindex));
-//     }
-//     else if EQ("topointer") {
-//       lua_pushlightuserdata(L1, cast_voidp(lua_topointer(L1, getindex)));
-//     }
-//     else if EQ("touserdata") {
-//       lua_pushlightuserdata(L1, lua_touserdata(L1, getindex));
-//     }
-//     else if EQ("tostring") {
-//       const char *s = lua_tostring(L1, getindex);
+                    throw new NotImplementedException();
+                    break;
+
+                case "tobool":
+//       lua_pushboolean(L1, lua_toboolean(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "tocfunction":
+//       lua_pushcfunction(L1, lua_tocfunction(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "tointeger":
+//       lua_pushinteger(L1, lua_tointeger(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "tonumber":
+//       lua_pushnumber(L1, lua_tonumber(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "topointer":
+//       lua_pushlightuserdata(L1, cast_voidp(lua_topointer(L1, getindex_aux(L, L1, ref pc))));
+                    throw new NotImplementedException();
+                    break;
+
+                case "touserdata":
+//       lua_pushlightuserdata(L1, lua_touserdata(L1, getindex_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "tostring":
+//       const char *s = lua_tostring(L1, getindex_aux(L, L1, ref pc));
 //       const char *s1 = lua_pushstring(L1, s);
 //       cast_void(s1);  /* to avoid warnings */
 //       lua_longassert((s == null && s1 == null) || strcmp(s, s1) == 0);
-//     }
-//     else if EQ("Ltolstring") {
-//       luaL_tolstring(L1, getindex, null);
-//     }
-//     else if EQ("type") {
-//       lua_pushstring(L1, luaL_typename(L1, getnum));
-//     }
-//     else if EQ("xmove") {
-//       int f = getindex;
-//       int t = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "Ltolstring":
+//       luaL_tolstring(L1, getindex_aux(L, L1, ref pc), null);
+                    throw new NotImplementedException();
+                    break;
+
+                case "type":
+//       lua_pushstring(L1, luaL_typename(L1, getnum_aux(L, L1, ref pc)));
+                    throw new NotImplementedException();
+                    break;
+
+                case "xmove":
+//       int f = getindex_aux(L, L1, ref pc);
+//       int t = getindex_aux(L, L1, ref pc);
 //       lua_State *fs = (f == 0) ? L1 : lua_tothread(L1, f);
 //       lua_State *ts = (t == 0) ? L1 : lua_tothread(L1, t);
-//       int n = getnum;
+//       int n = getnum_aux(L, L1, ref pc);
 //       if (n == 0) n = lua_gettop(fs);
 //       lua_xmove(fs, ts, n);
-//     }
-//     else if EQ("isyieldable") {
-//       lua_pushboolean(L1, lua_isyieldable(lua_tothread(L1, getindex)));
-//     }
-//     else if EQ("yield") {
-//       return lua_yield(L1, getnum);
-//     }
-//     else if EQ("yieldk") {
-//       int nres = getnum;
-//       int i = getindex;
+                    throw new NotImplementedException();
+                    break;
+
+                case "isyieldable":
+//       lua_pushboolean(L1, lua_isyieldable(lua_tothread(L1, getindex_aux(L, L1, ref pc))));
+                    throw new NotImplementedException();
+                    break;
+
+                case "yield":
+//       return lua_yield(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "yieldk":
+//       int nres = getnum_aux(L, L1, ref pc);
+//       int i = getindex_aux(L, L1, ref pc);
 //       return lua_yieldk(L1, nres, i, Cfunck);
-//     }
-//     else if EQ("toclose") {
-//       lua_toclose(L1, getnum);
-//     }
-//     else if EQ("closeslot") {
-//       lua_closeslot(L1, getnum);
-//     }
-//     else if EQ("argerror") {
-//       int arg = getnum;
-//       luaL_argerror(L1, arg, getstring);
-//     }
-//     else luaL_error(L, "unknown instruction %s", buff);
-//   }
-//   return 0;
-// }
+                    throw new NotImplementedException();
+                    break;
+
+                case "toclose":
+//       lua_toclose(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "closeslot":
+//       lua_closeslot(L1, getnum_aux(L, L1, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                case "argerror":
+//       int arg = getnum_aux(L, L1, ref pc);
+//       luaL_argerror(L1, arg, getstring_aux(L, ref pc));
+                    throw new NotImplementedException();
+                    break;
+
+                default:
+                    luaL_error(L, "unknown instruction %s", inst.ToString());
+                    break;
+            }
+        }
+
+        return 0;
+    }
 
     private static int testC(lua_State* L)
     {
-//   lua_State *L1;
-//   const char *pc;
-//   if (lua_isuserdata(L, 1)) {
-//     L1 = getstate(L);
-//     pc = luaL_checkstring(L, 2);
-//   }
-//   else if (lua_isthread(L, 1)) {
-//     L1 = lua_tothread(L, 1);
-//     pc = luaL_checkstring(L, 2);
-//   }
-//   else {
-//     L1 = L;
-//     pc = luaL_checkstring(L, 1);
-//   }
-//   return runC(L, L1, pc);
-        throw new NotImplementedException();
+        lua_State* L1;
+        string pc;
+        if (lua_isuserdata(L, 1))
+        {
+            L1 = getstate(L);
+            pc = luaL_checkstring(L, 2);
+        }
+        else if (lua_isthread(L, 1))
+        {
+            L1 = lua_tothread(L, 1);
+            pc = luaL_checkstring(L, 2);
+        }
+        else
+        {
+            L1 = L;
+            pc = luaL_checkstring(L, 1);
+        }
+
+        return runC(L, L1, pc);
     }
 
     private static int Cfunc(lua_State* L)
     {
-//   return runC(L, L, lua_tostring(L, lua_upvalueindex(1)));
-        throw new NotImplementedException();
+        return runC(L, L, lua_tostring(L, lua_upvalueindex(1)));
     }
 
-// static int Cfunck (lua_State *L, int status, nint ctx) {
-//   lua_pushstring(L, statcodes[status]);
-//   lua_setglobal(L, "status");
-//   lua_pushinteger(L, cast_Integer(ctx));
-//   lua_setglobal(L, "ctx");
-//   return runC(L, L, lua_tostring(L, cast_int(ctx)));
-// }
+    private static int Cfunck(lua_State* L, int status, void* ctx)
+    {
+        lua_pushstring(L, statcodes[status]);
+        lua_setglobal(L, "status");
+        lua_pushinteger(L, (long)ctx);
+        lua_setglobal(L, "ctx");
+        return runC(L, L, lua_tostring(L, (int)ctx));
+    }
 
     private static int makeCfunc(lua_State* L)
     {

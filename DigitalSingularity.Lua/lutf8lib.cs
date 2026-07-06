@@ -274,7 +274,7 @@ public static unsafe partial class Lua
         new("charpattern", null),
     ];
 
-    private static partial int luaopen_utf8(lua_State* L)
+    public static partial int luaopen_utf8(lua_State* L)
     {
         luaL_newlib(L, funcs);
         lua_pushlstring(L, UTF8PATT);

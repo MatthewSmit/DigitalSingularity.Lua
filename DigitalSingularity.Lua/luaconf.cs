@@ -197,7 +197,7 @@ public static unsafe partial class Lua
         ? LUA_CDIR +
           "?.dll;" +
           LUA_CDIR +
-          "..\\lib\\lua\\" +
+          @"..\lib\lua\" +
           LUA_VDIR +
           "\\?.dll;" +
           LUA_CDIR +
@@ -286,27 +286,36 @@ public static unsafe partial class Lua
 // ** nevertheless they are still available here.)
 // */
 // /* #define LUA_COMPAT_MATHLIB */
-//
-//
-// /*
-// @@ The following macros supply trivial compatibility for some
-// ** changes in the API. The macros themselves document how to
-// ** change your code to avoid using them.
-// ** (Once more, these macros were officially removed in 5.3, but they are
-// ** still available here.)
-// */
-// #define lua_strlen(L,i)		lua_rawlen(L, (i))
-//
-// #define lua_objlen(L,i)		lua_rawlen(L, (i))
-//
-// #define lua_equal(L,idx1,idx2)		lua_compare(L,(idx1),(idx2),LUA_OPEQ)
-// #define lua_lessthan(L,idx1,idx2)	lua_compare(L,(idx1),(idx2),LUA_OPLT)
-//
-// /* }================================================================== */
-//
-//
-//
-// /*
+
+
+    /*
+    @@ The following macros supply trivial compatibility for some
+    ** changes in the API. The macros themselves document how to
+    ** change your code to avoid using them.
+    ** (Once more, these macros were officially removed in 5.3, but they are
+    ** still available here.)
+    */
+    public static ulong lua_strlen(lua_State* L, int i)
+    {
+        return lua_rawlen(L, i);
+    }
+    
+    public static ulong lua_objlen(lua_State* L, int i)
+    {
+        return lua_rawlen(L, i);
+    }
+
+    public static bool lua_equal(lua_State* L, int idx1, int idx2)
+    {
+        return lua_compare(L, idx1, idx2, LUA_OPEQ);
+    }
+
+    public static bool lua_lessthan(lua_State* L, int idx1, int idx2)
+    {
+        return lua_compare(L, idx1, idx2, LUA_OPLT);
+    }
+
+    // /*
 // ** {==================================================================
 // ** Configuration for Numbers (low-level part).
 // ** Change these definitions if no predefined LUA_FLOAT_* / LUA_INT_*
@@ -370,9 +379,6 @@ public static unsafe partial class Lua
 // #define LUA_INTEGER_FMT		"%" LUA_INTEGER_FRMLEN "d"
 //
 // #define LUAI_UACINT		LUA_INTEGER
-//
-// #define lua_integer2str(s,sz,n)  \
-// 	l_sprintf((s), sz, LUA_INTEGER_FMT, (LUAI_UACINT)(n))
 //
 // /*
 // ** use LUAI_UACINT here to avoid problems with promotions (which
@@ -470,15 +476,7 @@ public static unsafe partial class Lua
 // #if !defined(LUA_USE_C89)
 // #define lua_strx2number(s,p)		lua_str2number(s,p)
 // #endif
-//
-//
-// /*
-// @@ lua_pointer2str converts a pointer to a readable string in a
-// ** non-specified way.
-// */
-// #define lua_pointer2str(buff,sz,p)	l_sprintf(buff,sz,"%p",p)
-//
-//
+
 // /*
 // @@ lua_number2strx converts a float to a hexadecimal numeral.
 // ** In C99, 'sprintf' (with format specifiers '%a'/'%A') does that.
@@ -544,7 +542,7 @@ public static unsafe partial class Lua
     ** of a function in debug information.
     ** CHANGE it if you want a different size.
     */
-    private const int LUA_IDSIZE = 60;
+    internal const int LUA_IDSIZE = 60;
 
     /*
     @@ LUAL_BUFFERSIZE is the initial buffer size used by the lauxlib

@@ -39,12 +39,10 @@ public static unsafe class Program
     /*
     ** Hook set by signal function to stop the interpreter.
     */
-    private static void lstop(lua_State* L, lua_Debug* ar)
+    private static void lstop(lua_State* L, ref lua_Debug ar)
     {
-//   (void)ar;  /* unused arg. */
-//   lua_sethook(L, null, 0, 0);  /* reset hook */
-//   luaL_error(L, "interrupted!");
-        throw new NotImplementedException();
+        lua_sethook(L, null, 0, 0); /* reset hook */
+        luaL_error(L, "interrupted!");
     }
 
     private static bool inSignal;
@@ -131,24 +129,27 @@ public static unsafe class Program
     */
     private static int msghandler(lua_State* L)
     {
-//   const char *msg = lua_tostring(L, 1);
-//   if (msg == null) {  /* is error object not a string? */
+        string? msg = lua_tostring(L, 1);
+        if (msg == null)
+        {
+            /* is error object not a string? */
 //     if (luaL_callmeta(L, 1, "__tostring") &&  /* does it have a metamethod */
 //         lua_type(L, -1) == LUA_TSTRING)  /* that produces a string? */
 //       return 1;  /* that is the message */
 //     else
 //       msg = lua_pushfstring(L, "(error object is a %s value)",
 //                                luaL_typename(L, 1));
-//   }
-//   luaL_traceback(L, L, msg, 1);  /* append a standard traceback */
-//   return 1;  /* return the traceback */
-        throw new NotImplementedException();
+            throw new NotImplementedException();
+        }
+
+        luaL_traceback(L, L, msg, 1); /* append a standard traceback */
+        return 1; /* return the traceback */
     }
 
     /*
-    ** Interface to 'lua_pcall', which sets appropriate message function
-    ** and C-signal handler. Used to run all chunks.
-    */
+     ** Interface to 'lua_pcall', which sets appropriate message function
+     ** and C-signal handler. Used to run all chunks.
+     */
     public static int docall(lua_State* L, int narg, int nres)
     {
         int @base = lua_gettop(L) - narg; /* function index */

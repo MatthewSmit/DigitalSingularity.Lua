@@ -1,8 +1,12 @@
 namespace DigitalSingularity.Lua;
 
-internal sealed class lua_longjmp : Exception
+internal unsafe struct lua_longjmp_data
 {
-    public lua_longjmp? previous;
-//   jmp_buf b; TODO
+    public lua_longjmp_data* previous;
     public byte status; /* error code */
+}
+
+internal sealed unsafe class lua_longjmp(lua_longjmp_data* data) : Exception
+{
+    public lua_longjmp_data* Data { get; } = data;
 }

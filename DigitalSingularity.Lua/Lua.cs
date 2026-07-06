@@ -1,5 +1,5 @@
 ﻿global using unsafe lua_Alloc = delegate* managed<void*, void*, long, long, void*>;
-global using unsafe lua_Hook = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, DigitalSingularity.Lua.Lua.lua_Debug*, void>;
+global using unsafe lua_Hook = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, ref DigitalSingularity.Lua.Lua.lua_Debug, void>;
 global using unsafe lua_WarnFunction = delegate* managed<void*, string, bool, void>;
 global using unsafe lua_CFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int>;
 global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, void*, int>;
@@ -201,7 +201,7 @@ public static unsafe partial class Lua
 
     public static partial bool lua_rawequal(lua_State* L, int index1, int index2);
 
-    public static partial int lua_compare(lua_State* L, int idx1, int idx2, int op);
+    public static partial bool lua_compare(lua_State* L, int idx1, int idx2, int op);
 
     /*
     ** push functions (C -> stack)
@@ -211,7 +211,8 @@ public static unsafe partial class Lua
     public static partial void lua_pushnumber(lua_State* L, double n);
 
     public static partial void lua_pushinteger(lua_State* L, long n);
-
+    
+    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<byte> s);
     public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<char> s);
 
     public static partial void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
@@ -270,9 +271,9 @@ public static unsafe partial class Lua
 
     public static partial void lua_rawsetp(lua_State* L, int idx, void* p);
 
-    public static partial int lua_setmetatable(lua_State* L, int objindex);
+    public static partial bool lua_setmetatable(lua_State* L, int objindex);
 
-    public static partial int lua_setiuservalue(lua_State* L, int idx, int n);
+    public static partial bool lua_setiuservalue(lua_State* L, int idx, int n);
 
     /*
     ** 'load' and 'call' functions (load and run Lua code)
@@ -303,7 +304,7 @@ public static unsafe partial class Lua
 
     public static partial int lua_load(lua_State* L, lua_Reader reader, void* dt, string? chunkname, string? mode);
 
-    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, int strip);
+    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, bool strip);
 
     /*
     ** coroutine functions
@@ -367,7 +368,7 @@ public static unsafe partial class Lua
 
     public static partial int lua_error(lua_State* L);
 
-    public static partial int lua_next(lua_State* L, int idx);
+    public static partial bool lua_next(lua_State* L, int idx);
 
     public static partial void lua_concat(lua_State* L, int n);
 
@@ -502,7 +503,7 @@ public static unsafe partial class Lua
         lua_pop(L, 1);
     }
 
-    private static void lua_replace(lua_State* L, int idx)
+    public static void lua_replace(lua_State* L, int idx)
     {
         lua_copy(L, -1, idx);
         lua_pop(L, 1);
@@ -526,7 +527,7 @@ public static unsafe partial class Lua
         return lua_getiuservalue(L, idx, 1);
     }
 
-    public static int lua_setuservalue(lua_State* L, int idx)
+    public static bool lua_setuservalue(lua_State* L, int idx)
     {
         return lua_setiuservalue(L, idx, 1);
     }
@@ -561,17 +562,19 @@ public static unsafe partial class Lua
     public const int LUA_MASKLINE = 1 << LUA_HOOKLINE;
     public const int LUA_MASKCOUNT = 1 << LUA_HOOKCOUNT;
 
-    public static partial int lua_getstack(lua_State* L, int level, lua_Debug* ar);
+    public static partial bool lua_getstack(lua_State* L, int level, ref lua_Debug ar);
 
-    public static partial int lua_getinfo(lua_State* L, string what, lua_Debug* ar);
+    public static partial bool lua_getinfo(lua_State* L, string what, ref lua_Debug ar);
 
-    public static partial string lua_getlocal(lua_State* L, lua_Debug* ar, int n);
+    public static partial string? lua_getlocal(lua_State* L, int n);
+    
+    public static partial string? lua_getlocal(lua_State* L, ref lua_Debug ar, int n);
 
-    public static partial string lua_setlocal(lua_State* L, lua_Debug* ar, int n);
+    public static partial string? lua_setlocal(lua_State* L, ref lua_Debug ar, int n);
 
-    public static partial string lua_getupvalue(lua_State* L, int funcindex, int n);
+    public static partial string? lua_getupvalue(lua_State* L, int funcindex, int n);
 
-    public static partial string lua_setupvalue(lua_State* L, int funcindex, int n);
+    public static partial string? lua_setupvalue(lua_State* L, int funcindex, int n);
 
     public static partial void* lua_upvalueid(lua_State* L, int fidx, int n);
     
@@ -587,27 +590,27 @@ public static unsafe partial class Lua
 
     public struct lua_Debug
     {
-//   int event;
-//   const char *name;	/* (n) */
-//   const char *namewhat;	/* (n) 'global', 'local', 'field', 'method' */
-//   const char *what;	/* (S) 'Lua', 'C', 'main', 'tail' */
-//   const char *source;	/* (S) */
-//   size_t srclen;	/* (S) */
-//   int currentline;	/* (l) */
-//   int linedefined;	/* (S) */
-//   int lastlinedefined;	/* (S) */
-//   unsigned char nups;	/* (u) number of upvalues */
-//   unsigned char nparams;/* (u) number of parameters */
-//   char isvararg;        /* (u) */
-//   unsigned char extraargs;  /* (t) number of extra arguments */
-//   char istailcall;	/* (t) */
-//   int ftransfer;   /* (r) index of first value transferred */
-//   int ntransfer;   /* (r) number of transferred values */
-//   char short_src[LUA_IDSIZE]; /* (S) */
-//   /* private part */
-//   struct CallInfo *i_ci;  /* active function */
+        public int @event;
+        public string? name; /* (n) */
+        public string? namewhat; /* (n) 'global', 'local', 'field', 'method' */
+        public string what; /* (S) 'Lua', 'C', 'main', 'tail' */
+        public string source; /* (S) */
+        public int currentline; /* (l) */
+        public int linedefined; /* (S) */
+        public int lastlinedefined; /* (S) */
+        public byte nups;	/* (u) number of upvalues */
+        public byte nparams; /* (u) number of parameters */
+        public bool isvararg;        /* (u) */
+        public byte extraargs;  /* (t) number of extra arguments */
+        public bool istailcall;	/* (t) */
+        public int ftransfer;   /* (r) index of first value transferred */
+        public int ntransfer;   /* (r) number of transferred values */
+        public string short_src; /* (S) */
+
+        /* private part */
+        internal CallInfo* i_ci; /* active function */
     }
-    
+
     /* }====================================================================== */
 
     public static readonly string LUA_VERSION_MAJOR = LUA_VERSION_MAJOR_N.ToString(CultureInfo.InvariantCulture);

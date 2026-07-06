@@ -6,7 +6,7 @@ public static unsafe partial class Lua
      * WARNING: if you change the order of this enumeration,
      * grep "ORDER TM" and "ORDER OP"
      */
-    private enum TMS
+    internal enum TMS
     {
         INDEX,
         NEWINDEX,
@@ -68,7 +68,7 @@ public static unsafe partial class Lua
         return gfasttm(G(l), mt, e);
     }
 
-    private static string ttypename(byte x) => luaT_typenames_[x + 1];
+    private static string ttypename(int x) => luaT_typenames_[x + 1];
 
     private static readonly string[] luaT_typenames_ =
     [
@@ -78,11 +78,11 @@ public static unsafe partial class Lua
         "upvalue", "proto", /* these last cases are used for tests only */
     ];
 
-    private static partial string luaT_objtypename(lua_State* L, TValue* o);
+    internal static partial string luaT_objtypename(lua_State* L, TValue* o);
 
-    private static partial TValue* luaT_gettm(Table* events, TMS @event, TString* ename);
+    internal static partial TValue* luaT_gettm(Table* events, TMS @event, TString* ename);
 
-    private static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event);
+    internal static partial TValue* luaT_gettmbyobj(lua_State* L, TValue* o, TMS @event);
 
     private static partial void luaT_init(lua_State* L);
 
@@ -104,7 +104,7 @@ public static unsafe partial class Lua
 
     private static partial void luaT_trybiniTM(lua_State* L, TValue* p1, long i2, bool flip, StkId res, TMS @event);
 
-    private static partial int luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event);
+    private static partial bool luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event);
 
     private static partial bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, int inv, bool isfloat, TMS @event);
 

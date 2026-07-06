@@ -49,7 +49,7 @@ public class LuaHelperTests
             byte* endPtr = ptr;
             double result = Lua.strtod(ptr, &endPtr);
             
-            using (Assert.EnterMultipleScope())
+            
             {
                 Assert.That(result, Is.EqualTo(expected));
                 Assert.That(*endPtr, Is.EqualTo(0));

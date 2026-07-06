@@ -4,38 +4,39 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-// #define fromstate(L)	(cast(LX *, cast(lu_byte *, (L)) - offsetof(LX, l)))
+    private static LX* fromstate(lua_State* L) => (LX*)((byte*)L - LX_l_offset);
 
     /*
-    ** these macros allow user-specific actions when a thread is
-    ** created/deleted
-    */
+     ** these macros allow user-specific actions when a thread is
+     ** created/deleted
+     */
 
     private static L_EXTRA* getlock(lua_State* l)
     {
         return (L_EXTRA*)lua_getextraspace(l);
     }
-    
-#if LUA_TEST
+
+#if LUA_TEST && false // TODO
     private static void luai_userstateopen(lua_State* l)
     {
         getlock(l)->@lock = 0;
         getlock(l)->plock = &getlock(l)->@lock;
     }
-    
+
     private static void luai_userstateclose(lua_State* l)
     {
         Debug.Assert(getlock(l)->@lock == 1 && getlock(l)->plock == &getlock(l)->@lock);
     }
-   
-// #define luai_userstatethread(l,l1) \
-//   Debug.Assert(getlock(l1)->plock == getlock(l)->plock)
-// #define luai_userstatefree(l,l1) \
-//   Debug.Assert(getlock(l)->plock == getlock(l1)->plock)
-#else
-    private static void luai_userstateopen(lua_State* l) { }
-    private static void luai_userstateclose(lua_State* l) { }
-#endif
+
+    private static void luai_userstatethread(lua_State* l, lua_State* l1)
+    {
+        Debug.Assert(getlock(l1)->plock == getlock(l)->plock);
+    }
+
+    private static void luai_userstatefree(lua_State* l, lua_State* l1)
+    {
+        Debug.Assert(getlock(l)->plock == getlock(l1)->plock);
+    }
 
     private static void lua_lock(lua_State* l)
     {
@@ -48,16 +49,26 @@ public static unsafe partial class Lua
         int result = --*getlock(l)->plock;
         Debug.Assert(result == 0);
     }
+#else
+    private static void luai_userstateopen(lua_State* l) { }
+    private static void luai_userstateclose(lua_State* l) { }
+
+    private static void luai_userstatethread(lua_State* l, lua_State* l1) { }
+    private static void luai_userstatefree(lua_State* l, lua_State* l1) { }
+
+    private static void lua_lock(lua_State* l) { }
+    private static void lua_unlock(lua_State* l) { }
+#endif
 
     /*
-    ** set GCdebt to a new value keeping the real number of allocated
-    ** objects (GCtotalobjs - GCdebt) invariant and avoiding overflows in
-    ** 'GCtotalobjs'.
-    */
-    private static partial void luaE_setdebt(global_State* g, long debt)
+     ** set GCdebt to a new value keeping the real number of allocated
+     ** objects (GCtotalobjs - GCdebt) invariant and avoiding overflows in
+     ** 'GCtotalobjs'.
+     */
+    internal static partial void luaE_setdebt(global_State* g, long debt)
     {
         const long MAX_LMEM = 0x7FFFFFFFFFFFFFFFL;
-            
+
         long tb = gettotalbytes(g);
         Debug.Assert(tb > 0);
         if (debt > MAX_LMEM - tb)
@@ -69,7 +80,7 @@ public static unsafe partial class Lua
         g->GCdebt = debt;
     }
 
-    private static partial CallInfo* luaE_extendCI(lua_State* L)
+    internal static partial CallInfo* luaE_extendCI(lua_State* L)
     {
         Debug.Assert(L->ci->next == null);
         CallInfo* ci = luaM_new<CallInfo>(L);
@@ -83,8 +94,8 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** free all CallInfo structures not in use by a thread
-    */
+     ** free all CallInfo structures not in use by a thread
+     */
     private static void freeCI(lua_State* L)
     {
         CallInfo* ci = L->ci;
@@ -102,7 +113,7 @@ public static unsafe partial class Lua
      ** free half of the CallInfo structures not in use by a thread,
      ** keeping the first one.
      */
-    private static partial void luaE_shrinkCI(lua_State* L)
+    internal static partial void luaE_shrinkCI(lua_State* L)
     {
         CallInfo* ci = L->ci->next; /* first free CallInfo */
         if (ci == null)
@@ -129,13 +140,13 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Called when 'getCcalls(L)' larger or equal to LUAI_MAXCCALLS.
-    ** If equal, raises an overflow error. If value is larger than
-    ** LUAI_MAXCCALLS (which means it is handling an overflow) but
-    ** not much larger, does not report an error (to allow overflow
-    ** handling to work).
-    */
-    private static partial void luaE_checkcstack(lua_State* L)
+     ** Called when 'getCcalls(L)' larger or equal to LUAI_MAXCCALLS.
+     ** If equal, raises an overflow error. If value is larger than
+     ** LUAI_MAXCCALLS (which means it is handling an overflow) but
+     ** not much larger, does not report an error (to allow overflow
+     ** handling to work).
+     */
+    internal static partial void luaE_checkcstack(lua_State* L)
     {
         if (getCcalls(L) == LUAI_MAXCCALLS)
         {
@@ -148,7 +159,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaE_incCstack(lua_State* L)
+    internal static partial void luaE_incCstack(lua_State* L)
     {
         L->nCcalls++;
         if (getCcalls(L) >= LUAI_MAXCCALLS)
@@ -227,13 +238,13 @@ public static unsafe partial class Lua
     private static void f_luaopen(lua_State* L, void* ud)
     {
         global_State* g = G(L);
-        stack_init(L, L);  /* init stack */
+        stack_init(L, L); /* init stack */
         init_registry(L, g);
         luaS_init(L);
         luaT_init(L);
         luaX_init(L);
-        g->gcstp = 0;  /* allow gc */
-        setnilvalue(&g->nilvalue);  /* now state is complete */
+        g->gcstp = 0; /* allow gc */
+        setnilvalue(&g->nilvalue); /* now state is complete */
         luai_userstateopen(L);
     }
 
@@ -249,9 +260,9 @@ public static unsafe partial class Lua
         L->nci = 0;
         L->twups = L; /* thread has no upvalues */
         L->nCcalls = 0;
-        // L->errorJmp = null;
+        L->errorJmp = null;
         L->hook = null;
-        // L->hookmask = 0; TODO
+        L->hookmask = 0;
         L->basehookcount = 0;
         L->allowhook = true;
         resethookcount(L);
@@ -262,7 +273,7 @@ public static unsafe partial class Lua
         L->base_ci.previous = L->base_ci.next = null;
     }
 
-    private static partial long luaE_threadsize(lua_State* L)
+    internal static partial long luaE_threadsize(lua_State* L)
     {
         long sz = sizeof(LX) + (uint)L->nci * sizeof(CallInfo);
         if (L->stack.p != null!)
@@ -298,44 +309,42 @@ public static unsafe partial class Lua
 
     public static partial lua_State* lua_newthread(lua_State* L)
     {
-//   global_State *g = G(L);
-//   GCObject *o;
-//   lua_State *L1;
-//   lua_lock(L);
-//   luaC_checkGC(L);
-//   /* create new thread */
-//   o = luaC_newobjdt(L, LUA_TTHREAD, sizeof(LX), offsetof(LX, l));
-//   L1 = gco2th(o);
-//   /* anchor it on L stack */
-//   setthvalue2s(L, L->top.p, L1);
-//   api_incr_top(L);
-//   preinit_thread(L1, g);
-//   L1->hookmask = L->hookmask;
-//   L1->basehookcount = L->basehookcount;
-//   L1->hook = L->hook;
-//   resethookcount(L1);
-//   /* initialize L1 extra space */
-//   memcpy(lua_getextraspace(L1), lua_getextraspace(mainthread(g)),
-//          LUA_EXTRASPACE);
-//   luai_userstatethread(L, L1);
-//   stack_init(L1, L);  /* init stack */
-//   lua_unlock(L);
-//   return L1;
-        throw new NotImplementedException();
+        global_State* g = G(L);
+        lua_lock(L);
+        luaC_checkGC(L);
+        // create new thread 
+        GCObject* o = luaC_newobjdt(L, LUA_TTHREAD, sizeof(LX), LX_l_offset);
+        lua_State* L1 = gco2th(o);
+        // anchor it on L stack 
+        setthvalue2s(L, L->top.p, L1);
+        api_incr_top(L);
+        preinit_thread(L1, g);
+        L1->hookmask = L->hookmask;
+        L1->basehookcount = L->basehookcount;
+        L1->hook = L->hook;
+        resethookcount(L1);
+        // initialise L1 extra space 
+        memcpy(
+            lua_getextraspace(L1),
+            lua_getextraspace(mainthread(g)),
+            LUA_EXTRASPACE);
+        luai_userstatethread(L, L1);
+        stack_init(L1, L); /* init stack */
+        lua_unlock(L);
+        return L1;
     }
 
     private static partial void luaE_freethread(lua_State* L, lua_State* L1)
     {
-//   LX *l = fromstate(L1);
-//   luaF_closeupval(L1, L1->stack.p);  /* close all upvalues */
-//   Debug.Assert(L1->openupval == null);
-//   luai_userstatefree(L, L1);
-//   freestack(L1);
-//   luaM_free(L, l);
-        throw new NotImplementedException();
+        LX* l = fromstate(L1);
+        luaF_closeupval(L1, L1->stack.p); /* close all upvalues */
+        Debug.Assert(L1->openupval == null);
+        luai_userstatefree(L, L1);
+        freestack(L1);
+        luaM_free(L, l);
     }
 
-    private static partial byte luaE_resetthread(lua_State* L, byte status)
+    internal static partial byte luaE_resetthread(lua_State* L, byte status)
     {
         resetCI(L);
         if (status == LUA_YIELD)
@@ -443,7 +452,7 @@ public static unsafe partial class Lua
         close_state(L);
     }
 
-    private static partial void luaE_warning(lua_State* L, string msg, bool tocont)
+    internal static partial void luaE_warning(lua_State* L, string msg, bool tocont)
     {
         lua_WarnFunction wf = G(L)->warnf;
         if (wf != null)
@@ -453,20 +462,19 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Generate a warning from an error message
-    */
-    private static partial void luaE_warnerror(lua_State* L, string where)
+     ** Generate a warning from an error message
+     */
+    internal static partial void luaE_warnerror(lua_State* L, string where)
     {
-//   TValue *errobj = s2v(L->top.p - 1);  /* error object */
-//   const char *msg = (ttisstring(errobj))
-//                   ? getstr(tsvalue(errobj))
-//                   : "error object is not a string";
-//   /* produce warning "error in %s (%s)" (where, msg) */
-//   luaE_warning(L, "error in ", 1);
-//   luaE_warning(L, where, 1);
-//   luaE_warning(L, " (", 1);
-//   luaE_warning(L, msg, 1);
-//   luaE_warning(L, ")", 0);
-        throw new NotImplementedException();
+        TValue* errobj = s2v(L->top.p - 1); /* error object */
+        string msg = (ttisstring(errobj))
+            ? getnetstr(tsvalue(errobj))
+            : "error object is not a string";
+        /* produce warning "error in %s (%s)" (where, msg) */
+        luaE_warning(L, "error in ", true);
+        luaE_warning(L, where, true);
+        luaE_warning(L, " (", true);
+        luaE_warning(L, msg, true);
+        luaE_warning(L, ")", false);
     }
 }

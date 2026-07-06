@@ -26,5 +26,5 @@ public static unsafe partial class Lua
     private static partial LClosure* luaU_undump(lua_State* L, Zio* Z, string name, int @fixed);
 
     /* dump one chunk; from ldump.c */
-    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, int strip);
+    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, bool strip);
 }

@@ -1,5 +1,8 @@
 ﻿namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+using System.Text;
+
 public static unsafe partial class Lua
 {
     /*
@@ -8,285 +11,329 @@ public static unsafe partial class Lua
     ** See Copyright Notice in lua.h
     */
 
-// typedef struct {
-//   lua_State *L;
-//   lua_Writer writer;
-//   void *data;
-//   size_t offset;  /* current position relative to beginning of dump */
-//   int strip;
-//   int status;
-//   Table *h;  /* table to track saved strings */
-//   lua_Unsigned nstr;  /* counter for counting saved strings */
-// } DumpState;
-//
-//
-// /*
-// ** All high-level dumps go through dumpVector; you can change it to
-// ** change the endianness of the result
-// */
-// #define dumpVector(D,v,n)	dumpBlock(D,v,(n)*sizeof((v)[0]))
-//
-// #define dumpLiteral(D, s)	dumpBlock(D,s,sizeof(s) - sizeof(char))
-//
-//
-// /*
-// ** Dump the block of memory pointed by 'b' with given 'size'.
-// ** 'b' should not be null, except for the last call signaling the end
-// ** of the dump.
-// */
-// static void dumpBlock (DumpState *D, const void *b, size_t size) {
-//   if (D->status == 0) {  /* do not write anything after an error */
-//     lua_unlock(D->L);
-//     D->status = (*D->writer)(D->L, b, size, D->data);
-//     lua_lock(D->L);
-//     D->offset += size;
-//   }
-// }
-//
-//
-// /*
-// ** Dump enough zeros to ensure that current position is a multiple of
-// ** 'align'.
-// */
-// static void dumpAlign (DumpState *D, unsigned align) {
-//   unsigned padding = align - cast_uint(D->offset % align);
-//   if (padding < align) {  /* padding == align means no padding */
-//     static long paddingContent = 0;
-//     Debug.Assert(align <= sizeof(long));
-//     dumpBlock(D, &paddingContent, padding);
-//   }
-//   Debug.Assert(D->offset % align == 0);
-// }
-//
-//
-// #define dumpVar(D,x)		dumpVector(D,&x,1)
-//
-//
-// static void dumpByte (DumpState *D, int y) {
-//   lu_byte x = (lu_byte)y;
-//   dumpVar(D, x);
-// }
-//
-//
-// /*
-// ** size for 'dumpVarint' buffer: each byte can store up to 7 bits.
-// ** (The "+6" rounds up the division.)
-// */
-// #define DIBS    ((l_numbits(lua_Unsigned) + 6) / 7)
-//
-// /*
-// ** Dumps an unsigned integer using the MSB Varint encoding
-// */
-// static void dumpVarint (DumpState *D, lua_Unsigned x) {
-//   lu_byte buff[DIBS];
-//   unsigned n = 1;
-//   buff[DIBS - 1] = x & 0x7f;  /* fill least-significant byte */
-//   while ((x >>= 7) != 0)  /* fill other bytes in reverse order */
-//     buff[DIBS - (++n)] = cast_byte((x & 0x7f) | 0x80);
-//   dumpVector(D, buff + DIBS - n, n);
-// }
-//
-//
-// static void dumpSize (DumpState *D, size_t sz) {
-//   dumpVarint(D, cast(lua_Unsigned, sz));
-// }
-//
-//
-// static void dumpInt (DumpState *D, int x) {
-//   Debug.Assert(x >= 0);
-//   dumpVarint(D, cast_uint(x));
-// }
-//
-//
-// static void dumpNumber (DumpState *D, double x) {
-//   dumpVar(D, x);
-// }
-//
-//
-// /*
-// ** Signed integers are coded to keep small values small. (Coding -1 as
-// ** 0xfff...fff would use too many bytes to save a quite common value.)
-// ** A non-negative x is coded as 2x; a negative x is coded as -2x - 1.
-// ** (0 => 0; -1 => 1; 1 => 2; -2 => 3; 2 => 4; ...)
-// */
-// static void dumpInteger (DumpState *D, long x) {
-//   lua_Unsigned cx = (x >= 0) ? 2u * l_castS2U(x)
-//                              : (2u * ~l_castS2U(x)) + 1;
-//   dumpVarint(D, cx);
-// }
-//
-//
-// /*
-// ** Dump a String. First dump its "size":
-// ** size==0 is followed by an index and means "reuse saved string with
-// ** that index"; index==0 means null.
-// ** size>=1 is followed by the string contents with real size==size-1 and
-// ** means that string, which will be saved with the next available index.
-// ** The real size does not include the ending '\0' (which is not dumped),
-// ** so adding 1 to it cannot overflow a size_t.
-// */
-// static void dumpString (DumpState *D, TString *ts) {
-//   if (ts == null) {
-//     dumpVarint(D, 0);  /* will "reuse" null */
-//     dumpVarint(D, 0);  /* special index for null */
-//   }
-//   else {
-//     TValue idx;
-//     int tag = luaH_getstr(D->h, ts, &idx);
-//     if (!tagisempty(tag)) {  /* string already saved? */
-//       dumpVarint(D, 0);  /* reuse a saved string */
-//       dumpVarint(D, l_castS2U(ivalue(&idx)));  /* index of saved string */
-//     }
-//     else {  /* must write and save the string */
-//       TValue key, value;  /* to save the string in the hash */
-//       size_t size;
-//       const char *s = getlstr(ts, size);
-//       dumpSize(D, size + 1);
-//       dumpVector(D, s, size + 1);  /* include ending '\0' */
-//       D->nstr++;  /* one more saved string */
-//       setsvalue(D->L, &key, ts);  /* the string is the key */
-//       setivalue(&value, l_castU2S(D->nstr));  /* its index is the value */
-//       luaH_set(D->L, D->h, &key, &value);  /* h[ts] = nstr */
-//       /* integer value does not need barrier */
-//     }
-//   }
-// }
-//
-//
-// static void dumpCode (DumpState *D, const Proto *f) {
-//   dumpInt(D, f->sizecode);
-//   dumpAlign(D, sizeof(f->code[0]));
-//   Debug.Assert(f->code != null);
-//   dumpVector(D, f->code, cast_uint(f->sizecode));
-// }
-//
-//
-// static void dumpFunction (DumpState *D, const Proto *f);
-//
-// static void dumpConstants (DumpState *D, const Proto *f) {
-//   int i;
-//   int n = f->sizek;
-//   dumpInt(D, n);
-//   for (i = 0; i < n; i++) {
-//     const TValue *o = &f->k[i];
-//     int tt = ttypetag(o);
-//     dumpByte(D, tt);
-//     switch (tt) {
-//       case LUA_VNUMFLT:
-//         dumpNumber(D, fltvalue(o));
-//         break;
-//       case LUA_VNUMINT:
-//         dumpInteger(D, ivalue(o));
-//         break;
-//       case LUA_VSHRSTR:
-//       case LUA_VLNGSTR:
-//         dumpString(D, tsvalue(o));
-//         break;
-//       default:
-//         Debug.Assert(tt == LUA_VNIL || tt == LUA_VFALSE || tt == LUA_VTRUE);
-//     }
-//   }
-// }
-//
-//
-// static void dumpProtos (DumpState *D, const Proto *f) {
-//   int i;
-//   int n = f->sizep;
-//   dumpInt(D, n);
-//   for (i = 0; i < n; i++)
-//     dumpFunction(D, f->p[i]);
-// }
-//
-//
-// static void dumpUpvalues (DumpState *D, const Proto *f) {
-//   int i, n = f->sizeupvalues;
-//   dumpInt(D, n);
-//   for (i = 0; i < n; i++) {
-//     dumpByte(D, f->upvalues[i].instack);
-//     dumpByte(D, f->upvalues[i].idx);
-//     dumpByte(D, f->upvalues[i].kind);
-//   }
-// }
-//
-//
-// static void dumpDebug (DumpState *D, const Proto *f) {
-//   int i, n;
-//   n = (D->strip) ? 0 : f->sizelineinfo;
-//   dumpInt(D, n);
-//   if (f->lineinfo != null)
-//     dumpVector(D, f->lineinfo, cast_uint(n));
-//   n = (D->strip) ? 0 : f->sizeabslineinfo;
-//   dumpInt(D, n);
-//   if (n > 0) {
-//     /* 'abslineinfo' is an array of structures of int's */
-//     dumpAlign(D, sizeof(int));
-//     dumpVector(D, f->abslineinfo, cast_uint(n));
-//   }
-//   n = (D->strip) ? 0 : f->sizelocvars;
-//   dumpInt(D, n);
-//   for (i = 0; i < n; i++) {
-//     dumpString(D, f->locvars[i].varname);
-//     dumpInt(D, f->locvars[i].startpc);
-//     dumpInt(D, f->locvars[i].endpc);
-//   }
-//   n = (D->strip) ? 0 : f->sizeupvalues;
-//   dumpInt(D, n);
-//   for (i = 0; i < n; i++)
-//     dumpString(D, f->upvalues[i].name);
-// }
-//
-//
-// static void dumpFunction (DumpState *D, const Proto *f) {
-//   dumpInt(D, f->linedefined);
-//   dumpInt(D, f->lastlinedefined);
-//   dumpByte(D, f->numparams);
-//   dumpByte(D, f->flag);
-//   dumpByte(D, f->maxstacksize);
-//   dumpCode(D, f);
-//   dumpConstants(D, f);
-//   dumpUpvalues(D, f);
-//   dumpProtos(D, f);
-//   dumpString(D, D->strip ? null : f->source);
-//   dumpDebug(D, f);
-// }
-//
-//
-// #define dumpNumInfo(D, tvar, value)  \
-//   { tvar i = value; dumpByte(D, sizeof(tvar)); dumpVar(D, i); }
-//
-//
-// static void dumpHeader (DumpState *D) {
-//   dumpLiteral(D, LUA_SIGNATURE);
-//   dumpByte(D, LUAC_VERSION);
-//   dumpByte(D, LUAC_FORMAT);
-//   dumpLiteral(D, LUAC_DATA);
-//   dumpNumInfo(D, int, LUAC_INT);
-//   dumpNumInfo(D, Instruction, LUAC_INST);
-//   dumpNumInfo(D, long, LUAC_INT);
-//   dumpNumInfo(D, double, LUAC_NUM);
-// }
+    private struct DumpState
+    {
+        public lua_State* L;
+        public lua_Writer writer;
+        public void* data;
+        public long offset; /* current position relative to beginning of dump */
+        public bool strip;
+        public int status;
+        public Table* h; /* table to track saved strings */
+        public ulong nstr; /* counter for counting saved strings */
+    }
 
     /*
-    ** dump Lua function as precompiled chunk
+    ** All high-level dumps go through dumpVector; you can change it to
+    ** change the endianness of the result
     */
-    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, int strip)
+    private static void dumpVector<T>(ref DumpState D, T* v, int n)
+        where T : unmanaged
     {
-//   DumpState D;
-//   D.h = luaH_new(L);  /* aux. table to keep strings already dumped */
-//   sethvalue2s(L, L->top.p, D.h);  /* anchor it */
-//   L->top.p++;
-//   D.L = L;
-//   D.writer = w;
-//   D.offset = 0;
-//   D.data = data;
-//   D.strip = strip;
-//   D.status = 0;
-//   D.nstr = 0;
-//   dumpHeader(&D);
-//   dumpByte(&D, f->sizeupvalues);
-//   dumpFunction(&D, f);
-//   dumpBlock(&D, null, 0);  /* signal end of dump */
-//   return D.status;
-        throw new NotImplementedException();
+        dumpBlock(ref D, v, (n) * sizeof(T));
+    }
+
+    private static void dumpLiteral(ref DumpState D, string s)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        fixed (byte* ptr = data)
+        {
+            dumpBlock(ref D, ptr, data.Length);
+        }
+    }
+
+    /*
+     ** Dump the block of memory pointed by 'b' with given 'size'.
+     ** 'b' should not be null, except for the last call signalling the end
+     ** of the dump.
+     */
+    private static void dumpBlock(ref DumpState D, void* b, long size)
+    {
+        if (D.status != 0)
+        {
+            /* do not write anything after an error */
+            return;
+        }
+
+        lua_unlock(D.L);
+        D.status = D.writer(D.L, b, size, D.data);
+        lua_lock(D.L);
+        D.offset += size;
+    }
+
+    /*
+    ** Dump enough zeros to ensure that current position is a multiple of
+    ** 'align'.
+    */
+    private static void dumpAlign(ref DumpState D, uint align)
+    {
+        uint padding = align - (uint)(D.offset % align);
+        if (padding < align)
+        {
+            /* padding == align means no padding */
+            long paddingContent = 0;
+            Debug.Assert(align <= sizeof(long));
+            dumpBlock(ref D, &paddingContent, padding);
+        }
+
+        Debug.Assert(D.offset % align == 0);
+    }
+
+    private static void dumpVar<T>(ref DumpState D, T x)
+        where T : unmanaged
+    {
+        dumpVector(ref D, &x, 1);
+    }
+
+    private static void dumpByte(ref DumpState D, int y)
+    {
+        byte x = (byte)y;
+        dumpVar(ref D, x);
+    }
+
+    /*
+    ** size for 'dumpVarint' buffer: each byte can store up to 7 bits.
+    ** (The "+6" rounds up the division.)
+    */
+    private const int DIBS = (sizeof(ulong) * 8 + 6) / 7;
+
+    /*
+    ** Dumps an unsigned integer using the MSB Varint encoding
+    */
+    private static void dumpVarint(ref DumpState D, ulong x)
+    {
+        byte* buff = stackalloc byte[DIBS];
+        int n = 1;
+        buff[DIBS - 1] = (byte)(x & 0x7f);  /* fill least-significant byte */
+        while ((x >>= 7) != 0)  /* fill other bytes in reverse order */
+        {
+            buff[DIBS - (++n)] = (byte)((x & 0x7f) | 0x80);
+        }
+
+        dumpVector(ref D, buff + DIBS - n, n);
+    }
+
+    private static void dumpSize(ref DumpState D, long sz)
+    {
+        dumpVarint(ref D, (ulong)sz);
+    }
+
+    private static void dumpInt(ref DumpState D, int x)
+    {
+        Debug.Assert(x >= 0);
+        dumpVarint(ref D, (uint)x);
+    }
+
+    private static void dumpNumber(ref DumpState D, double x)
+    {
+        dumpVar(ref D, x);
+    }
+
+    /*
+    ** Signed integers are coded to keep small values small. (Coding -1 as
+    ** 0xfff...fff would use too many bytes to save a quite common value.)
+    ** A non-negative x is coded as 2x; a negative x is coded as -2x - 1.
+    ** (0 => 0; -1 => 1; 1 => 2; -2 => 3; 2 => 4; ...)
+    */
+    private static void dumpInteger(ref DumpState D, long x)
+    {
+        ulong cx = x >= 0
+            ? 2u * (ulong)x
+            : 2u * unchecked(~(ulong)x) + 1;
+        dumpVarint(ref D, cx);
+    }
+
+    /*
+    ** Dump a String. First dump its "size":
+    ** size==0 is followed by an index and means "reuse saved string with
+    ** that index"; index==0 means null.
+    ** size>=1 is followed by the string contents with real size==size-1 and
+    ** means that string, which will be saved with the next available index.
+    ** The real size does not include the ending '\0' (which is not dumped),
+    ** so adding 1 to it cannot overflow a size_t.
+    */
+    private static void dumpString(ref DumpState D, TString* ts)
+    {
+        if (ts == null)
+        {
+            dumpVarint(ref D, 0); /* will "reuse" null */
+            dumpVarint(ref D, 0); /* special index for null */
+        }
+        else
+        {
+            TValue idx;
+            byte tag = luaH_getstr(D.h, ts, &idx);
+            if (!tagisempty(tag))
+            {
+                /* string already saved? */
+                dumpVarint(ref D, 0); /* reuse a saved string */
+                dumpVarint(ref D, (ulong)ivalue(&idx)); /* index of saved string */
+            }
+            else
+            {
+                /* must write and save the string */
+                TValue key, value; /* to save the string in the hash */
+                byte* s = getlstr(ts, out long size);
+                dumpSize(ref D, size + 1);
+                dumpVector(ref D, s, (int)(size + 1)); /* include ending '\0' */
+                D.nstr++; /* one more saved string */
+                setsvalue(D.L, &key, ts); /* the string is the key */
+                setivalue(&value, (long)(D.nstr)); /* its index is the value */
+                luaH_set(D.L, D.h, &key, &value); /* h[ts] = nstr */
+                /* integer value does not need barrier */
+            }
+        }
+    }
+
+    private static void dumpCode(ref DumpState D, Proto* f)
+    {
+        dumpInt(ref D, f->sizecode);
+        dumpAlign(ref D, sizeof(uint));
+        Debug.Assert(f->code != null);
+        dumpVector(ref D, f->code, f->sizecode);
+    }
+
+    private static void dumpConstants(ref DumpState D, Proto* f)
+    {
+        int n = f->sizek;
+        dumpInt(ref D, n);
+        for (int i = 0; i < n; i++)
+        {
+            TValue* o = &f->k[i];
+            int tt = ttypetag(o);
+            dumpByte(ref D, tt);
+            switch (tt)
+            {
+                case LUA_VNUMFLT:
+                    dumpNumber(ref D, fltvalue(o));
+                    break;
+                case LUA_VNUMINT:
+                    dumpInteger(ref D, ivalue(o));
+                    break;
+                case LUA_VSHRSTR:
+                case LUA_VLNGSTR:
+                    dumpString(ref D, tsvalue(o));
+                    break;
+                default:
+                    Debug.Assert(tt is LUA_VNIL or LUA_VFALSE or LUA_VTRUE);
+                    break;
+            }
+        }
+    }
+
+    private static void dumpProtos(ref DumpState D, Proto* f)
+    {
+        int n = f->sizep;
+        dumpInt(ref D, n);
+        for (int i = 0; i < n; i++)
+        {
+            dumpFunction(ref D, f->p[i]);
+        }
+    }
+
+    private static void dumpUpvalues(ref DumpState D, Proto* f)
+    {
+        int i, n = f->sizeupvalues;
+        dumpInt(ref D, n);
+        for (i = 0; i < n; i++)
+        {
+            dumpByte(ref D, f->upvalues[i].instack);
+            dumpByte(ref D, f->upvalues[i].idx);
+            dumpByte(ref D, f->upvalues[i].kind);
+        }
+    }
+
+    private static void dumpDebug(ref DumpState D, Proto* f)
+    {
+        int n = D.strip ? 0 : f->sizelineinfo;
+        dumpInt(ref D, n);
+        if (f->lineinfo != null)
+        {
+            dumpVector(ref D, f->lineinfo, n);
+        }
+
+        n = D.strip ? 0 : f->sizeabslineinfo;
+        dumpInt(ref D, n);
+        if (n > 0)
+        {
+            /* 'abslineinfo' is an array of structures of int's */
+            dumpAlign(ref D, sizeof(int));
+            dumpVector(ref D, f->abslineinfo, n);
+        }
+
+        n = D.strip ? 0 : f->sizelocvars;
+        dumpInt(ref D, n);
+        for (int i = 0; i < n; i++)
+        {
+            dumpString(ref D, f->locvars[i].varname);
+            dumpInt(ref D, f->locvars[i].startpc);
+            dumpInt(ref D, f->locvars[i].endpc);
+        }
+
+        n = D.strip ? 0 : f->sizeupvalues;
+        dumpInt(ref D, n);
+        for (int i = 0; i < n; i++)
+        {
+            dumpString(ref D, f->upvalues[i].name);
+        }
+    }
+
+    private static void dumpFunction(ref DumpState D, Proto* f)
+    {
+        dumpInt(ref D, f->linedefined);
+        dumpInt(ref D, f->lastlinedefined);
+        dumpByte(ref D, f->numparams);
+        dumpByte(ref D, f->flag);
+        dumpByte(ref D, f->maxstacksize);
+        dumpCode(ref D, f);
+        dumpConstants(ref D, f);
+        dumpUpvalues(ref D, f);
+        dumpProtos(ref D, f);
+        dumpString(ref D, D.strip ? null : f->source);
+        dumpDebug(ref D, f);
+    }
+
+    private static void dumpNumInfo<T>(ref DumpState D, T value)
+        where T : unmanaged
+    {
+        dumpByte(ref D, sizeof(T));
+        dumpVar(ref D, value);
+    }
+
+    private static void dumpHeader(ref DumpState D)
+    {
+        dumpLiteral(ref D, LUA_SIGNATURE);
+        dumpByte(ref D, LUAC_VERSION);
+        dumpByte(ref D, LUAC_FORMAT);
+        dumpLiteral(ref D, LUAC_DATA);
+        dumpNumInfo(ref D, LUAC_INT);
+        dumpNumInfo<uint>(ref D, LUAC_INST);
+        dumpNumInfo<long>(ref D, LUAC_INT);
+        dumpNumInfo(ref D, LUAC_NUM);
+    }
+
+    /*
+     ** dump Lua function as precompiled chunk
+     */
+    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, bool strip)
+    {
+        DumpState D = new()
+        {
+            h = luaH_new(L), /* aux. table to keep strings already dumped */
+            L = L,
+            writer = w,
+            offset = 0,
+            data = data,
+            strip = strip,
+            status = 0,
+            nstr = 0,
+        };
+        sethvalue2s(L, L->top.p, D.h); /* anchor it */
+        L->top.p++;
+        dumpHeader(ref D);
+        dumpByte(ref D, f->sizeupvalues);
+        dumpFunction(ref D, f);
+        dumpBlock(ref D, null, 0); /* signal end of dump */
+        return D.status;
     }
 }

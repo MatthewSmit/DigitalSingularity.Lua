@@ -67,7 +67,7 @@ public static unsafe partial class Lua
         return *s1 - s2[i];
     }
 
-    private static int strlen(byte* str)
+    internal static int strlen(byte* str)
     {
         if (str == null)
         {
@@ -417,7 +417,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static void memcpy(void* dest, void* src, long n)
+    internal static void memcpy(void* dest, void* src, long n)
     {
         Debug.Assert(n <= uint.MaxValue);
         Unsafe.CopyBlock(dest, src, (uint)n);
@@ -442,15 +442,15 @@ public static unsafe partial class Lua
         return new ReadOnlySpan<byte>();
     }
     
-    private static string? strstr(string s, string sub)
+    private static ReadOnlySpan<char> strstr(ReadOnlySpan<char> s, ReadOnlySpan<char> sub)
     {
         int i = s.IndexOf(sub, StringComparison.Ordinal);
         if (i >= 0)
         {
-            return sub[i..];
+            return s[i..];
         }
 
-        return null;
+        return ReadOnlySpan<char>.Empty;
     }
     
     /*

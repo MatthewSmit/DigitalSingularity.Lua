@@ -1,6 +1,7 @@
 ﻿namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 public static unsafe partial class Lua
@@ -19,8 +20,11 @@ public static unsafe partial class Lua
         return i <= LUA_REGISTRYINDEX;
     }
 
-    // /* test for upvalue */
-// #define isupvalue(i)		((i) < LUA_REGISTRYINDEX)
+    /* test for upvalue */
+    private static bool isupvalue(int i)
+    {
+        return i < LUA_REGISTRYINDEX;
+    }
 
     /*
      ** Convert an acceptable index to a pointer to its respective value.
@@ -56,16 +60,18 @@ public static unsafe partial class Lua
         /* upvalues */
         idx = LUA_REGISTRYINDEX - idx;
         Debug.Assert(idx <= MAXUPVAL + 1, "upvalue index too large");
-//     if (ttisCclosure(s2v(ci->func.p))) {  /* C closure? */
-//       CClosure *func = clCvalue(s2v(ci->func.p));
-//       return (idx <= func->nupvalues) ? &func->upvalue[idx-1]
-//                                       : &G(L)->nilvalue;
-//     }
-//     else {  /* light C function or Lua function (through a hook)?) */
-//       api_check(L, ttislcf(s2v(ci->func.p)), "caller not a C function");
-//       return &G(L)->nilvalue;  /* no upvalues */
-//     }
-        throw new NotImplementedException();
+        if (ttisCclosure(s2v(ci->func.p)))
+        {
+            /* C closure? */
+            CClosure* func = clCvalue(s2v(ci->func.p));
+            return (idx <= func->nupvalues)
+                ? &func->upvalue[idx - 1]
+                : &G(L)->nilvalue;
+        }
+
+        /* light C function or Lua function (through a hook)?) */
+        Debug.Assert(ttislcf(s2v(ci->func.p)), "caller not a C function");
+        return &G(L)->nilvalue; /* no upvalues */
     }
 
     /*
@@ -114,19 +120,23 @@ public static unsafe partial class Lua
 
     public static partial void lua_xmove(lua_State* from, lua_State* to, int n)
     {
-//   int i;
-//   if (from == to) return;
-//   lua_lock(to);
-//   api_checkpop(from, n);
-//   api_check(from, G(from) == G(to), "moving among independent states");
-//   api_check(from, to->ci->top.p - to->top.p >= n, "stack overflow");
-//   from->top.p -= n;
-//   for (i = 0; i < n; i++) {
-//     setobjs2s(to, to->top.p, from->top.p + i);
-//     to->top.p++;  /* stack already checked by previous 'api_check' */
-//   }
-//   lua_unlock(to);
-        throw new NotImplementedException();
+        if (from == to)
+        {
+            return;
+        }
+
+        lua_lock(to);
+        api_checkpop(from, n);
+        Debug.Assert(G(from) == G(to), "moving among independent states");
+        Debug.Assert(to->ci->top.p - to->top.p >= n, "stack overflow");
+        from->top.p -= n;
+        for (int i = 0; i < n; i++)
+        {
+            setobjs2s(to, to->top.p, from->top.p + i);
+            to->top.p++; /* stack already checked by previous 'api_check' */
+        }
+
+        lua_unlock(to);
     }
 
     public static partial lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf)
@@ -198,15 +208,14 @@ public static unsafe partial class Lua
 
     public static partial void lua_closeslot(lua_State* L, int idx)
     {
-//   StkId level;
-//   lua_lock(L);
-//   level = index2stack(L, idx);
-//   api_check(L, (L->ci->callstatus & CIST_TBC) && (L->tbclist.p == level),
-//      "no variable to close at given level");
-//   level = luaF_close(L, level, CLOSEKTOP, 0);
-//   setnilvalue(s2v(level));
-//   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        StkId level = index2stack(L, idx);
+        Debug.Assert(
+            (L->ci->callstatus & CIST_TBC) != 0 && (L->tbclist.p == level),
+            "no variable to close at given level");
+        level = luaF_close(L, level, CLOSEKTOP, false);
+        setnilvalue(s2v(level));
+        lua_unlock(L);
     }
 
     /*
@@ -246,18 +255,19 @@ public static unsafe partial class Lua
 
     public static partial void lua_copy(lua_State* L, int fromidx, int toidx)
     {
-//   TValue *fr, *to;
-//   lua_lock(L);
-//   fr = index2value(L, fromidx);
-//   to = index2value(L, toidx);
-//   api_check(L, isvalid(L, to), "invalid index");
-//   setobj(L, to, fr);
-//   if (isupvalue(toidx))  /* function upvalue? */
-//     luaC_barrier(L, clCvalue(s2v(L->ci->func.p)), fr);
-//   /* LUA_REGISTRYINDEX does not need gc barrier
-//      (collector revisits it before finishing collection) */
-//   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        TValue* fr = index2value(L, fromidx);
+        TValue* to = index2value(L, toidx);
+        Debug.Assert(isvalid(L, to), "invalid index");
+        setobj(L, to, fr);
+        if (isupvalue(toidx)) /* function upvalue? */
+        {
+            luaC_barrier(L, (GCObject*)clCvalue(s2v(L->ci->func.p)), fr);
+        }
+
+        /* LUA_REGISTRYINDEX does not need gc barrier
+           (collector revisits it before finishing collection) */
+        lua_unlock(L);
     }
 
     public static partial void lua_pushvalue(lua_State* L, int idx)
@@ -281,7 +291,7 @@ public static unsafe partial class Lua
     public static partial string lua_typename(lua_State* L, int t)
     {
         Debug.Assert(t is >= LUA_TNONE and < LUA_NUMTYPES, "invalid type");
-        return ttypename((byte)t);
+        return ttypename(t);
     }
 
     public static partial bool lua_iscfunction(lua_State* L, int idx)
@@ -324,62 +334,73 @@ public static unsafe partial class Lua
 
     public static partial void lua_arith(lua_State* L, int op)
     {
-//   lua_lock(L);
-//   if (op != LUA_OPUNM && op != LUA_OPBNOT)
-//     api_checkpop(L, 2);  /* all other operations expect two operands */
-//   else {  /* for unary operations, add fake 2nd operand */
-//     api_checkpop(L, 1);
-//     setobjs2s(L, L->top.p, L->top.p - 1);
-//     api_incr_top(L);
-//   }
-//   /* first operand at top - 2, second at top - 1; result go to top - 2 */
-//   luaO_arith(L, op, s2v(L->top.p - 2), s2v(L->top.p - 1), L->top.p - 2);
-//   L->top.p--;  /* pop second operand */
-//   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        if (op != LUA_OPUNM && op != LUA_OPBNOT)
+        {
+            api_checkpop(L, 2); /* all other operations expect two operands */
+        }
+        else
+        {
+            // for unary operations, add fake 2nd operand 
+            api_checkpop(L, 1);
+            setobjs2s(L, L->top.p, L->top.p - 1);
+            api_incr_top(L);
+        }
+
+        // first operand at top - 2, second at top - 1; result go to top - 2 
+        luaO_arith(L, op, s2v(L->top.p - 2), s2v(L->top.p - 1), L->top.p - 2);
+        L->top.p--; /* pop second operand */
+        lua_unlock(L);
     }
 
-    public static partial int lua_compare(lua_State* L, int idx1, int idx2, int op)
+    public static partial bool lua_compare(lua_State* L, int idx1, int idx2, int op)
     {
-//   const TValue *o1;
-//   const TValue *o2;
-//   int i = 0;
-//   lua_lock(L);  /* may call tag method */
-//   o1 = index2value(L, index1);
-//   o2 = index2value(L, index2);
-//   if (isvalid(L, o1) && isvalid(L, o2)) {
-//     switch (op) {
-//       case LUA_OPEQ: i = luaV_equalobj(L, o1, o2); break;
-//       case LUA_OPLT: i = luaV_lessthan(L, o1, o2); break;
-//       case LUA_OPLE: i = luaV_lessequal(L, o1, o2); break;
-//       default: api_check(L, 0, "invalid option");
-//     }
-//   }
-//   lua_unlock(L);
-//   return i;
-        throw new NotImplementedException();
+        bool i = false;
+        lua_lock(L); /* may call tag method */
+        TValue* o1 = index2value(L, idx1);
+        TValue* o2 = index2value(L, idx2);
+        if (isvalid(L, o1) && isvalid(L, o2))
+        {
+            switch (op)
+            {
+                case LUA_OPEQ: i = luaV_equalobj(L, o1, o2); break;
+                case LUA_OPLT: i = luaV_lessthan(L, o1, o2); break;
+                case LUA_OPLE: i = luaV_lessequal(L, o1, o2); break;
+                default:
+                    Debug.Fail("invalid option");
+                    throw new InvalidOperationException();
+            }
+        }
+
+        lua_unlock(L);
+        return i;
     }
 
     public static partial uint lua_numbertocstring(lua_State* L, int idx, byte* buff)
     {
-//   const TValue *o = index2value(L, idx);
-//   if (ttisnumber(o)) {
-//     unsigned len = luaO_tostringbuff(o, buff);
-//     buff[len++] = '\0';  /* add final zero */
-//     return len;
-//   }
-//   else
-//     return 0;
-        throw new NotImplementedException();
+        TValue* o = index2value(L, idx);
+        if (ttisnumber(o))
+        {
+            uint len = luaO_tostringbuff(o, buff);
+            buff[len++] = 0;  /* add final zero */
+            return len;
+        }
+
+        return 0;
     }
 
     public static partial long lua_stringtonumber(lua_State* L, string s)
     {
-//   size_t sz = luaO_str2num(s, s2v(L->top.p));
-//   if (sz != 0)
-//     api_incr_top(L);
-//   return sz;
-        throw new NotImplementedException();
+        fixed (byte* ptr = Encoding.UTF8.GetBytes(s))
+        {
+            long sz = luaO_str2num(ptr, s2v(L->top.p));
+            if (sz != 0)
+            {
+                api_incr_top(L);
+            }
+
+            return sz;
+        }
     }
 
     public static partial double lua_tonumberx(lua_State* L, int idx, out bool isnum)
@@ -409,15 +430,17 @@ public static unsafe partial class Lua
         TValue* o = index2value(L, idx);
         if (!ttisstring(o))
         {
-//     if (!cvt2str(o)) {  /* not convertible? */
-//       if (len != null) *len = 0;
-//       lua_unlock(L);
-//       return null;
-//     }
-//     luaO_tostring(L, o);
-//     luaC_checkGC(L);
-//     o = index2value(L, idx);  /* previous call may reallocate the stack */
-            throw new NotImplementedException();
+            if (!cvt2str(o))
+            {
+                // not convertible? 
+                len = 0;
+                lua_unlock(L);
+                return null;
+            }
+
+            luaO_tostring(L, o);
+            luaC_checkGC(L);
+            o = index2value(L, idx); /* previous call may reallocate the stack */
         }
 
         lua_unlock(L);
@@ -426,21 +449,23 @@ public static unsafe partial class Lua
 
     public static partial ulong lua_rawlen(lua_State* L, int idx)
     {
-//   const TValue *o = index2value(L, idx);
-//   switch (ttypetag(o)) {
-//     case LUA_VSHRSTR: return cast(lua_Unsigned, tsvalue(o)->shrlen);
-//     case LUA_VLNGSTR: return cast(lua_Unsigned, tsvalue(o)->u.lnglen);
-//     case LUA_VUSERDATA: return cast(lua_Unsigned, uvalue(o)->len);
-//     case LUA_VTABLE: {
-//       lua_Unsigned res;
-//       lua_lock(L);
-//       res = luaH_getn(L, hvalue(o));
-//       lua_unlock(L);
-//       return res;
-//     }
-//     default: return 0;
-//   }
-        throw new NotImplementedException();
+        TValue* o = index2value(L, idx);
+        return ttypetag(o) switch
+        {
+            LUA_VSHRSTR => (ulong)tsvalue(o)->shrlen,
+            LUA_VLNGSTR => (ulong)tsvalue(o)->u.lnglen,
+            LUA_VUSERDATA => (ulong)uvalue(o)->len,
+            LUA_VTABLE => GetTableRawLength(),
+            _ => 0,
+        };
+
+        ulong GetTableRawLength()
+        {
+            lua_lock(L);
+            ulong res = luaH_getn(L, hvalue(o));
+            lua_unlock(L);
+            return res;
+        }
     }
 
     public static partial lua_CFunction lua_tocfunction(lua_State* L, int idx)
@@ -524,6 +549,33 @@ public static unsafe partial class Lua
         lua_lock(L);
         setivalue(s2v(L->top.p), n);
         api_incr_top(L);
+        lua_unlock(L);
+    }
+
+    /*
+     ** Pushes on the stack a string with given length. Avoid using 's' when
+     ** 'len' == 0 (as 's' can be null in that case), due to later use of
+     ** 'memcmp' and 'memcpy'.
+     */
+    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<byte> s)
+    {
+        lua_lock(L);
+        TString* ts;
+        if (s.IsEmpty)
+        {
+            ts = luaS_new(L, "");
+        }
+        else
+        {
+            fixed (byte* ptr = s)
+            {
+                ts = luaS_newlstr(L, ptr, s.Length);
+            }
+        }
+
+        setsvalue2s(L, L->top.p, ts);
+        api_incr_top(L);
+        luaC_checkGC(L);
         lua_unlock(L);
     }
 
@@ -693,26 +745,26 @@ public static unsafe partial class Lua
 
     public static partial int lua_getglobal(lua_State* L, string name)
     {
-//   TValue gt;
-//   lua_lock(L);
-//   getGlobalTable(L, &gt);
-//   return auxgetstr(L, &gt, name);
-        throw new NotImplementedException();
+        TValue gt;
+        lua_lock(L);
+        getGlobalTable(L, &gt);
+        return auxgetstr(L, &gt, name);
     }
 
     public static partial int lua_gettable(lua_State* L, int idx)
     {
-//   lu_byte tag;
-//   TValue *t;
-//   lua_lock(L);
-//   api_checkpop(L, 1);
-//   t = index2value(L, idx);
-//   luaV_fastget(t, s2v(L->top.p - 1), s2v(L->top.p - 1), luaH_get, tag);
-//   if (tagisempty(tag))
-//     tag = luaV_finishget(L, t, s2v(L->top.p - 1), L->top.p - 1, tag);
-//   lua_unlock(L);
-//   return novariant(tag);
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, 1);
+        TValue* t = index2value(L, idx);
+        byte tag = !ttistable(t) ? LUA_VNOTABLE : luaH_get(hvalue(t), s2v(L->top.p - 1), s2v(L->top.p - 1));
+
+        if (tagisempty(tag))
+        {
+            tag = luaV_finishget(L, t, s2v(L->top.p - 1), L->top.p - 1, tag);
+        }
+
+        lua_unlock(L);
+        return novariant(tag);
     }
 
     public static partial int lua_getfield(lua_State* L, int idx, string k)
@@ -723,20 +775,17 @@ public static unsafe partial class Lua
 
     public static partial int lua_geti(lua_State* L, int idx, long n)
     {
-//   TValue *t;
-//   lu_byte tag;
-//   lua_lock(L);
-//   t = index2value(L, idx);
-//   luaV_fastgeti(t, n, s2v(L->top.p), tag);
-//   if (tagisempty(tag)) {
-//     TValue key;
-//     setivalue(&key, n);
-//     tag = luaV_finishget(L, t, &key, L->top.p, tag);
-//   }
-//   api_incr_top(L);
-//   lua_unlock(L);
-//   return novariant(tag);
-        throw new NotImplementedException();
+        lua_lock(L);
+        TValue* t = index2value(L, idx);
+        luaV_fastgeti(t, n, s2v(L->top.p), out byte tag);
+        if (tagisempty(tag)) {
+            TValue key;
+            setivalue(&key, n);
+            tag = luaV_finishget(L, t, &key, L->top.p, tag);
+        }
+        api_incr_top(L);
+        lua_unlock(L);
+        return novariant(tag);
     }
 
     private static int finishrawget(lua_State* L, byte tag)
@@ -778,20 +827,17 @@ public static unsafe partial class Lua
 
     public static partial int lua_rawgetp(lua_State* L, int idx, void* p)
     {
-//   Table *t;
-//   TValue k;
-//   lua_lock(L);
-//   t = gettable(L, idx);
-//   setpvalue(&k, cast_voidp(p));
-//   return finishrawget(L, luaH_get(t, &k, s2v(L->top.p)));
-        throw new NotImplementedException();
+        lua_lock(L);
+        Table* t = gettable(L, idx);
+        TValue k;
+        setpvalue(&k, p);
+        return finishrawget(L, luaH_get(t, &k, s2v(L->top.p)));
     }
 
     public static partial void lua_createtable(lua_State* L, int narr, int nrec)
     {
-        Table* t;
         lua_lock(L);
-        t = luaH_new(L);
+        Table* t = luaH_new(L);
         sethvalue2s(L, L->top.p, t);
         api_incr_top(L);
         if (narr > 0 || nrec > 0)
@@ -829,23 +875,25 @@ public static unsafe partial class Lua
 
     public static partial int lua_getiuservalue(lua_State* L, int idx, int n)
     {
-//   TValue *o;
-//   int t;
-//   lua_lock(L);
-//   o = index2value(L, idx);
-//   api_check(L, ttisfulluserdata(o), "full userdata expected");
-//   if (n <= 0 || n > uvalue(o)->nuvalue) {
-//     setnilvalue(s2v(L->top.p));
-//     t = LUA_TNONE;
-//   }
-//   else {
-//     setobj2s(L, L->top.p, &uvalue(o)->uv[n - 1].uv);
-//     t = ttype(s2v(L->top.p));
-//   }
-//   api_incr_top(L);
-//   lua_unlock(L);
-//   return t;
-        throw new NotImplementedException();
+        lua_lock(L);
+        TValue* o = index2value(L, idx);
+        Debug.Assert(ttisfulluserdata(o), "full userdata expected");
+
+        int t;
+        if (n <= 0 || n > uvalue(o)->nuvalue)
+        {
+            setnilvalue(s2v(L->top.p));
+            t = LUA_TNONE;
+        }
+        else
+        {
+            setobj2s(L, L->top.p, &((TValue*)uvalue(o)->uv)[n - 1]);
+            t = ttype(s2v(L->top.p));
+        }
+
+        api_incr_top(L);
+        lua_unlock(L);
+        return t;
     }
 
     /*
@@ -887,19 +935,21 @@ public static unsafe partial class Lua
 
     public static partial void lua_settable(lua_State* L, int idx)
     {
-//   TValue *t;
-//   int hres;
-//   lua_lock(L);
-//   api_checkpop(L, 2);
-//   t = index2value(L, idx);
-//   luaV_fastset(t, s2v(L->top.p - 2), s2v(L->top.p - 1), hres, luaH_pset);
-//   if (hres == HOK)
-//     luaV_finishfastset(L, t, s2v(L->top.p - 1));
-//   else
-//     luaV_finishset(L, t, s2v(L->top.p - 2), s2v(L->top.p - 1), hres);
-//   L->top.p -= 2;  /* pop index and value */
-//   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, 2);
+        TValue* t = index2value(L, idx);
+        int hres = !ttistable(t) ? HNOTATABLE : luaH_pset(hvalue(t), s2v(L->top.p - 2), s2v(L->top.p - 1));
+        if (hres == HOK)
+        {
+            luaV_finishfastset(L, t, s2v(L->top.p - 1));
+        }
+        else
+        {
+            luaV_finishset(L, t, s2v(L->top.p - 2), s2v(L->top.p - 1), hres);
+        }
+
+        L->top.p -= 2; /* pop index and value */
+        lua_unlock(L);
     }
 
     public static partial void lua_setfield(lua_State* L, int idx, string k)
@@ -910,36 +960,35 @@ public static unsafe partial class Lua
 
     public static partial void lua_seti(lua_State* L, int idx, long n)
     {
-//   TValue *t;
-//   int hres;
-//   lua_lock(L);
-//   api_checkpop(L, 1);
-//   t = index2value(L, idx);
-//   luaV_fastseti(t, n, s2v(L->top.p - 1), hres);
-//   if (hres == HOK)
-//     luaV_finishfastset(L, t, s2v(L->top.p - 1));
-//   else {
-//     TValue temp;
-//     setivalue(&temp, n);
-//     luaV_finishset(L, t, &temp, s2v(L->top.p - 1), hres);
-//   }
-//   L->top.p--;  /* pop value */
-//   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, 1);
+        TValue* t = index2value(L, idx);
+        luaV_fastseti(t, n, s2v(L->top.p - 1), out int hres);
+        if (hres == HOK)
+        {
+            luaV_finishfastset(L, t, s2v(L->top.p - 1));
+        }
+        else
+        {
+            TValue temp;
+            setivalue(&temp, n);
+            luaV_finishset(L, t, &temp, s2v(L->top.p - 1), hres);
+        }
+
+        L->top.p--; /* pop value */
+        lua_unlock(L);
     }
 
     private static void aux_rawset(lua_State* L, int idx, TValue* key, int n)
     {
-        //   Table *t;
-        //   lua_lock(L);
-        //   api_checkpop(L, n);
-        //   t = gettable(L, idx);
-        //   luaH_set(L, t, key, s2v(L->top.p - 1));
-        //   invalidateTMcache(t);
-        //   luaC_barrierback(L, obj2gco(t), s2v(L->top.p - 1));
-        //   L->top.p -= n;
-        //   lua_unlock(L);
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, n);
+        Table* t = gettable(L, idx);
+        luaH_set(L, t, key, s2v(L->top.p - 1));
+        invalidateTMcache(t);
+        luaC_barrierback(L, obj2gco(t), s2v(L->top.p - 1));
+        L->top.p -= n;
+        lua_unlock(L);
     }
 
     public static partial void lua_rawset(lua_State* L, int idx)
@@ -965,7 +1014,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static partial int lua_setmetatable(lua_State* L, int objindex)
+    public static partial bool lua_setmetatable(lua_State* L, int objindex)
     {
         lua_lock(L);
         api_checkpop(L, 1);
@@ -989,8 +1038,7 @@ public static unsafe partial class Lua
                 if (mt != null)
                 {
                     luaC_objbarrier(L, gcvalue(obj), (GCObject*)mt);
-//         luaC_checkfinaliser(L, gcvalue(obj), mt);
-                    throw new NotImplementedException();
+                    luaC_checkfinaliser(L, gcvalue(obj), mt);
                 }
 
                 break;
@@ -1000,7 +1048,7 @@ public static unsafe partial class Lua
                 if (mt != null)
                 {
                     luaC_objbarrier(L, (GCObject*)uvalue(obj), (GCObject*)mt);
-//         luaC_checkfinaliser(L, gcvalue(obj), mt);
+                    luaC_checkfinaliser(L, gcvalue(obj), mt);
                 }
 
                 break;
@@ -1012,28 +1060,31 @@ public static unsafe partial class Lua
 
         L->top.p--;
         lua_unlock(L);
-        return 1;
+        return true;
     }
 
-    public static partial int lua_setiuservalue(lua_State* L, int idx, int n)
+    public static partial bool lua_setiuservalue(lua_State* L, int idx, int n)
     {
-//   TValue *o;
-//   int res;
-//   lua_lock(L);
-//   api_checkpop(L, 1);
-//   o = index2value(L, idx);
-//   api_check(L, ttisfulluserdata(o), "full userdata expected");
-//   if (!(cast_uint(n) - 1u < cast_uint(uvalue(o)->nuvalue)))
-//     res = 0;  /* 'n' not in [1, uvalue(o)->nuvalue] */
-//   else {
-//     setobj(L, &uvalue(o)->uv[n - 1].uv, s2v(L->top.p - 1));
-//     luaC_barrierback(L, gcvalue(o), s2v(L->top.p - 1));
-//     res = 1;
-//   }
-//   L->top.p--;
-//   lua_unlock(L);
-//   return res;
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, 1);
+        TValue* o = index2value(L, idx);
+        Debug.Assert(ttisfulluserdata(o), "full userdata expected");
+
+        bool res;
+        if (!((uint)n - 1u < uvalue(o)->nuvalue))
+        {
+            res = false; /* 'n' not in [1, uvalue(o)->nuvalue] */
+        }
+        else
+        {
+            setobj(L, &((TValue*)uvalue(o)->uv)[n - 1], s2v(L->top.p - 1));
+            luaC_barrierback(L, gcvalue(o), s2v(L->top.p - 1));
+            res = true;
+        }
+
+        L->top.p--;
+        lua_unlock(L);
+        return res;
     }
 
     /*
@@ -1189,19 +1240,17 @@ public static unsafe partial class Lua
      ** Dump a Lua function, calling 'writer' to write its parts. Ensure
      ** the stack returns with its original size.
      */
-    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, int strip)
+    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, bool strip)
     {
-//   int status;
-//   ptrdiff_t otop = savestack(L, L->top.p);  /* original top */
-//   TValue *f = s2v(L->top.p - 1);  /* function to be dumped */
-//   lua_lock(L);
-//   api_checkpop(L, 1);
-//   api_check(L, isLfunction(f), "Lua function expected");
-//   status = luaU_dump(L, clLvalue(f)->p, writer, data, strip);
-//   L->top.p = restorestack(L, otop);  /* restore top */
-//   lua_unlock(L);
-//   return status;
-        throw new NotImplementedException();
+        nint otop = savestack(L, L->top.p); /* original top */
+        TValue* f = s2v(L->top.p - 1); /* function to be dumped */
+        lua_lock(L);
+        api_checkpop(L, 1);
+        Debug.Assert(isLfunction(f), "Lua function expected");
+        int status = luaU_dump(L, clLvalue(f)->p, writer, data, strip);
+        L->top.p = restorestack(L, otop); /* restore top */
+        lua_unlock(L);
+        return status;
     }
 
     public static partial int lua_status(lua_State* L)
@@ -1234,50 +1283,55 @@ public static unsafe partial class Lua
                 break;
 
             case LUA_GCCOLLECT:
-                {
-//       luaC_fullgc(L, 0);
-//       break;
-                    throw new NotImplementedException();
-                }
+                luaC_fullgc(L, false);
+                break;
 
             case LUA_GCCOUNT:
-                {
-//       /* GC values are expressed in Kbytes: #bytes/2^10 */
-//       res = cast_int(gettotalbytes(g) >> 10);
-//       break;
-                    throw new NotImplementedException();
-                }
+                // GC values are expressed in Kbytes: #bytes/2^10 
+                res = (int)(gettotalbytes(g) >> 10);
+                break;
 
             case LUA_GCCOUNTB:
-                {
-//       res = cast_int(gettotalbytes(g) & 0x3ff);
-//       break;
-                    throw new NotImplementedException();
-                }
+                res = (int)(gettotalbytes(g) & 0x3ff);
+                break;
 
             case LUA_GCSTEP:
                 {
-//       lu_byte oldstp = g->gcstp;
-//       l_mem n = cast(l_mem, va_arg(argp, size_t));
-//       int work = 0;  /* true if GC did some work */
-//       g->gcstp = 0;  /* allow GC to run (other bits must be zero here) */
-//       if (n <= 0)
-//         n = g->GCdebt;  /* force to run one basic step */
-//       luaE_setdebt(g, g->GCdebt - n);
-//       luaC_condGC(L, (void)0, work = 1);
-//       if (work && g->gcstate == GCSpause)  /* end of cycle? */
-//         res = 1;  /* signal it */
-//       g->gcstp = oldstp;  /* restore previous state */
-//       break;
-                    throw new NotImplementedException();
+                    byte oldstp = g->gcstp;
+                    long n = (long)args[0];
+                    bool work = false; /* true if GC did some work */
+                    g->gcstp = 0; /* allow GC to run (other bits must be zero here) */
+                    if (n <= 0)
+                    {
+                        n = g->GCdebt; /* force to run one basic step */
+                    }
+
+                    luaE_setdebt(g, g->GCdebt - n);
+                    if (G(L)->GCdebt <= 0)
+                    {
+                        luaC_step(L);
+                        work = true;
+
+#if HARDMEMTESTS
+                        if (gcrunning(G(L)))
+                        {
+                            luaC_fullgc(L, false);
+                        }
+#endif
+                    }
+
+                    if (work && g->gcstate == GCSpause) /* end of cycle? */
+                    {
+                        res = 1; /* signal it */
+                    }
+
+                    g->gcstp = oldstp; /* restore previous state */
+                    break;
                 }
 
             case LUA_GCISRUNNING:
-                {
-//       res = gcrunning(g);
-//       break;
-                    throw new NotImplementedException();
-                }
+                res = gcrunning(g) ? 1 : 0;
+                break;
 
             case LUA_GCGEN:
                 res = (g->gckind == KGC_INC) ? LUA_GCINC : LUA_GCGEN;
@@ -1318,35 +1372,40 @@ public static unsafe partial class Lua
      */
     public static partial int lua_error(lua_State* L)
     {
-//   TValue *errobj;
-//   lua_lock(L);
-//   errobj = s2v(L->top.p - 1);
-//   api_checkpop(L, 1);
-//   /* error object is the memory error message? */
-//   if (ttisshrstring(errobj) && eqshrstr(tsvalue(errobj), G(L)->memerrmsg))
-//     luaM_error(L);  /* raise a memory error */
-//   else
-//     luaG_errormsg(L);  /* raise a regular error */
-//   /* code unreachable; will unlock when control actually leaves the kernel */
-//   return 0;  /* to avoid warnings */
-        throw new NotImplementedException();
+        lua_lock(L);
+        TValue* errobj = s2v(L->top.p - 1);
+        api_checkpop(L, 1);
+        // error object is the memory error message? 
+        if (ttisshrstring(errobj) && eqshrstr(tsvalue(errobj), G(L)->memerrmsg))
+        {
+            luaM_error(L); /* raise a memory error */
+        }
+        else
+        {
+            luaG_errormsg(L); /* raise a regular error */
+        }
+
+        /* code unreachable; will unlock when control actually leaves the kernel */
+        return 0; /* to avoid warnings */
     }
 
-    public static partial int lua_next(lua_State* L, int idx)
+    public static partial bool lua_next(lua_State* L, int idx)
     {
-//   Table *t;
-//   int more;
-//   lua_lock(L);
-//   api_checkpop(L, 1);
-//   t = gettable(L, idx);
-//   more = luaH_next(L, t, L->top.p - 1);
-//   if (more)
-//     api_incr_top(L);
-//   else  /* no more elements */
-//     L->top.p--;  /* pop key */
-//   lua_unlock(L);
-//   return more;
-        throw new NotImplementedException();
+        lua_lock(L);
+        api_checkpop(L, 1);
+        Table* t = gettable(L, idx);
+        bool more = luaH_next(L, t, L->top.p - 1);
+        if (more)
+        {
+            api_incr_top(L);
+        }
+        else /* no more elements */
+        {
+            L->top.p--; /* pop key */
+        }
+
+        lua_unlock(L);
+        return more;
     }
 
     public static partial void lua_toclose(lua_State* L, int idx)
@@ -1432,101 +1491,139 @@ public static unsafe partial class Lua
         return getudatamem(u);
     }
 
-// static const char *aux_upvalue (TValue *fi, int n, TValue **val,
-//                                 GCObject **owner) {
-//   switch (ttypetag(fi)) {
-//     case LUA_VCCL: {  /* C closure */
-//       CClosure *f = clCvalue(fi);
-//       if (!(cast_uint(n) - 1u < cast_uint(f->nupvalues)))
-//         return null;  /* 'n' not in [1, f->nupvalues] */
-//       *val = &f->upvalue[n-1];
-//       if (owner) *owner = obj2gco(f);
-//       return "";
-//     }
-//     case LUA_VLCL: {  /* Lua closure */
-//       LClosure *f = clLvalue(fi);
-//       TString *name;
-//       Proto *p = f->p;
-//       if (!(cast_uint(n) - 1u  < cast_uint(p->sizeupvalues)))
-//         return null;  /* 'n' not in [1, p->sizeupvalues] */
-//       *val = f->upvals[n-1]->v.p;
-//       if (owner) *owner = obj2gco(f->upvals[n - 1]);
-//       name = p->upvalues[n-1].name;
-//       return (name == null) ? "(no name)" : getstr(name);
-//     }
-//     default: return null;  /* not a closure */
-//   }
-// }
-
-    public static partial string lua_getupvalue(lua_State* L, int funcindex, int n)
+    private static string? aux_upvalue(
+        TValue* fi,
+        int n,
+        TValue** val,
+        GCObject** owner)
     {
-//   const char *name;
-//   TValue *val = null;  /* to avoid warnings */
-//   lua_lock(L);
-//   name = aux_upvalue(index2value(L, funcindex), n, &val, null);
-//   if (name) {
-//     setobj2s(L, L->top.p, val);
-//     api_incr_top(L);
-//   }
-//   lua_unlock(L);
-//   return name;
-        throw new NotImplementedException();
+        switch (ttypetag(fi))
+        {
+            case LUA_VCCL:
+                {
+                    /* C closure */
+                    CClosure* f = clCvalue(fi);
+                    if (!((uint)n - 1u < f->nupvalues))
+                    {
+                        return null; /* 'n' not in [1, f->nupvalues] */
+                    }
+
+                    *val = &f->upvalue[n - 1];
+                    if (owner != null)
+                    {
+                        *owner = obj2gco(f);
+                    }
+
+                    return "";
+                }
+
+            case LUA_VLCL:
+                {
+                    /* Lua closure */
+                    LClosure* f = clLvalue(fi);
+                    Proto* p = f->p;
+                    if (!((uint)n - 1u < (uint)p->sizeupvalues))
+                    {
+                        return null; /* 'n' not in [1, p->sizeupvalues] */
+                    }
+
+                    *val = (&f->upvals)[n - 1]->v.p;
+                    if (owner != null)
+                    {
+                        *owner = obj2gco((&f->upvals)[n - 1]);
+                    }
+
+                    TString* name = p->upvalues[n - 1].name;
+                    return name == null ? "(no name)" : getnetstr(name);
+                }
+
+            default:
+                return null; /* not a closure */
+        }
     }
 
-    public static partial string lua_setupvalue(lua_State* L, int funcindex, int n)
+    public static partial string? lua_getupvalue(lua_State* L, int funcindex, int n)
     {
-//   const char *name;
-//   TValue *val = null;  /* to avoid warnings */
-//   GCObject *owner = null;  /* to avoid warnings */
-//   TValue *fi;
-//   lua_lock(L);
-//   fi = index2value(L, funcindex);
-//   api_checknelems(L, 1);
-//   name = aux_upvalue(fi, n, &val, &owner);
-//   if (name) {
-//     L->top.p--;
-//     setobj(L, val, s2v(L->top.p));
-//     luaC_barrier(L, owner, val);
-//   }
-//   lua_unlock(L);
-//   return name;
-        throw new NotImplementedException();
+        lua_lock(L);
+        TValue* val = null; /* to avoid warnings */
+        string? name = aux_upvalue(index2value(L, funcindex), n, &val, null);
+        if (name != null)
+        {
+            setobj2s(L, L->top.p, val);
+            api_incr_top(L);
+        }
+
+        lua_unlock(L);
+        return name;
     }
 
-// static UpVal **getupvalref (lua_State *L, int fidx, int n, LClosure **pf) {
-//   static const UpVal *const nullup = null;
-//   LClosure *f;
-//   TValue *fi = index2value(L, fidx);
-//   api_check(L, ttisLclosure(fi), "Lua function expected");
-//   f = clLvalue(fi);
-//   if (pf) *pf = f;
-//   if (1 <= n && n <= f->p->sizeupvalues)
-//     return &f->upvals[n - 1];  /* get its upvalue pointer */
-//   else
-//     return (UpVal**)&nullup;
-// }
+    public static partial string? lua_setupvalue(lua_State* L, int funcindex, int n)
+    {
+        lua_lock(L);
+        TValue* fi = index2value(L, funcindex);
+        api_checknelems(L, 1);
+        TValue* val = null; /* to avoid warnings */
+        GCObject* owner = null; /* to avoid warnings */
+        string? name = aux_upvalue(fi, n, &val, &owner);
+        if (name != null)
+        {
+            L->top.p--;
+            setobj(L, val, s2v(L->top.p));
+            luaC_barrier(L, owner, val);
+        }
+
+        lua_unlock(L);
+        return name;
+    }
+    
+    private static readonly UpVal** nullup = (UpVal**)NativeMemory.Alloc((nuint)nint.Size);
+
+    private static UpVal** getupvalref(lua_State* L, int fidx, int n, LClosure** pf)
+    {
+        TValue* fi = index2value(L, fidx);
+        Debug.Assert(ttisLclosure(fi), "Lua function expected");
+        LClosure* f = clLvalue(fi);
+        if (pf != null)
+        {
+            *pf = f;
+        }
+        
+        if (1 <= n && n <= f->p->sizeupvalues)
+        {
+            return &(&f->upvals)[n - 1];  /* get its upvalue pointer */
+        }
+
+        return nullup;
+    }
 
     public static partial void* lua_upvalueid(lua_State* L, int fidx, int n)
     {
-//   TValue *fi = index2value(L, fidx);
-//   switch (ttypetag(fi)) {
-//     case LUA_VLCL: {  /* lua closure */
-//       return *getupvalref(L, fidx, n, null);
-//     }
-//     case LUA_VCCL: {  /* C closure */
-//       CClosure *f = clCvalue(fi);
-//       if (1 <= n && n <= f->nupvalues)
-//         return &f->upvalue[n - 1];
-//       /* else */
-//     }  /* FALLTHROUGH */
-//     case LUA_VLCF:
-//       return null;  /* light C functions have no upvalues */
-//     default: {
-//       api_check(L, 0, "function expected");
-//       return null;
-//     }
-//   }
-        throw new NotImplementedException();
+        TValue* fi = index2value(L, fidx);
+        switch (ttypetag(fi))
+        {
+            case LUA_VLCL:
+                /* lua closure */
+                return *getupvalref(L, fidx, n, null);
+
+            case LUA_VCCL:
+                {
+                    /* C closure */
+                    CClosure* f = clCvalue(fi);
+                    if (1 <= n && n <= f->nupvalues)
+                    {
+                        return &f->upvalue[n - 1];
+                    }
+
+                    return null;
+                }
+
+            case LUA_VLCF:
+                return null; /* light C functions have no upvalues */
+            
+            default:
+                Debug.Fail("function expected");
+                return null;
+        }
     }
 
     public static partial void lua_upvaluejoin(lua_State* L, int fidx1, int n1, int fidx2, int n2)

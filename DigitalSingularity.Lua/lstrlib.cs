@@ -26,25 +26,34 @@ public static unsafe partial class Lua
         throw new NotImplementedException();
     }
 
-// /*
-// ** translate a relative initial string position
-// ** (negative means back from end): clip result to [1, inf).
-// ** The length of any string in Lua must fit in a long,
-// ** so there are no overflows in the casts.
-// ** The inverted comparison avoids a possible overflow
-// ** computing '-pos'.
-// */
-// static size_t posrelatI (long pos, size_t len) {
-//   if (pos > 0)
-//     return (size_t)pos;
-//   else if (pos == 0)
-//     return 1;
-//   else if (pos < -(long)len)  /* inverted comparison */
-//     return 1;  /* clip to 1 */
-//   else return len + (size_t)pos + 1;
-// }
-//
-//
+    /*
+    ** translate a relative initial string position
+    ** (negative means back from end): clip result to [1, inf).
+    ** The length of any string in Lua must fit in a long,
+    ** so there are no overflows in the casts.
+    ** The inverted comparison avoids a possible overflow
+    ** computing '-pos'.
+    */
+    private static long posrelatI(long pos, long len)
+    {
+        if (pos > 0)
+        {
+            return pos;
+        }
+
+        if (pos == 0)
+        {
+            return 1;
+        }
+
+        if (pos < -len) /* inverted comparison */
+        {
+            return 1; /* clip to 1 */
+        }
+
+        return len + pos + 1;
+    }
+
 // /*
 // ** Gets an optional ending string position from argument 'arg',
 // ** with default value 'def'.
@@ -240,94 +249,97 @@ public static unsafe partial class Lua
     ];
 
 #else
-    private static int tonum(lua_State* L, int arg)
+    private static bool tonum(lua_State* L, int arg)
     {
         if (lua_type(L, arg) == LUA_TNUMBER)
         {
             /* already a number? */
             lua_pushvalue(L, arg);
-            return 1;
+            return true;
         }
 
         /* check whether it is a numerical string */
-//     size_t len;
-//     const char *s = lua_tolstring(L, arg, &len);
-//     return (s != null && lua_stringtonumber(L, s) == len + 1);
-        throw new NotImplementedException();
+        string? s = luaL_tonetstring(L, arg);
+        return s != null && lua_stringtonumber(L, s) == s.Length + 1;
     }
 
-// /*
-// ** To be here, either the first operand was a string or the first
-// ** operand didn't have a corresponding metamethod. (Otherwise, that
-// ** other metamethod would have been called.) So, if this metamethod
-// ** doesn't work, the only other option would be for the second
-// ** operand to have a different metamethod.
-// */
-// static void trymt (lua_State *L, const char *mtkey, const char *opname) {
-//   lua_settop(L, 2);  /* back to the original arguments */
-//   if (l_unlikely(lua_type(L, 2) == LUA_TSTRING ||
-//                  !luaL_getmetafield(L, 2, mtkey)))
-//     luaL_error(L, "attempt to %s a '%s' with a '%s'", opname,
-//                   luaL_typename(L, -2), luaL_typename(L, -1));
-//   lua_insert(L, -3);  /* put metamethod before arguments */
-//   lua_call(L, 2, 1);  /* call metamethod */
-// }
-//
-//
-// static int arith (lua_State *L, int op, const char *mtname) {
-//   if (tonum(L, 1) && tonum(L, 2))
-//     lua_arith(L, op);  /* result will be on the top */
-//   else
-//     trymt(L, mtname, mtname + 2);
-//   return 1;
-// }
+    /*
+     ** To be here, either the first operand was a string or the first
+     ** operand didn't have a corresponding metamethod. (Otherwise, that
+     ** other metamethod would have been called.) So, if this metamethod
+     ** doesn't work, the only other option would be for the second
+     ** operand to have a different metamethod.
+     */
+    private static void trymt(lua_State* L, string mtkey, string opname)
+    {
+        lua_settop(L, 2); /* back to the original arguments */
+        if (lua_type(L, 2) == LUA_TSTRING ||
+            luaL_getmetafield(L, 2, mtkey) == 0)
+        {
+            luaL_error(
+                L,
+                "attempt to %s a '%s' with a '%s'",
+                opname,
+                luaL_typename(L, -2),
+                luaL_typename(L, -1));
+        }
+
+        lua_insert(L, -3); /* put metamethod before arguments */
+        lua_call(L, 2, 1); /* call metamethod */
+    }
+
+    private static int arith(lua_State* L, int op, string mtname)
+    {
+        if (tonum(L, 1) && tonum(L, 2))
+        {
+            lua_arith(L, op); /* result will be on the top */
+        }
+        else
+        {
+            trymt(L, mtname, mtname[2..]);
+        }
+
+        return 1;
+    }
 
     private static int arith_add(lua_State* L)
     {
-//   return arith(L, LUA_OPADD, "__add");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPADD, "__add");
     }
 
     private static int arith_sub(lua_State* L)
     {
-//   return arith(L, LUA_OPSUB, "__sub");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPSUB, "__sub");
     }
 
     private static int arith_mul(lua_State* L)
     {
-//   return arith(L, LUA_OPMUL, "__mul");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPMUL, "__mul");
     }
 
     private static int arith_mod(lua_State* L)
     {
-//   return arith(L, LUA_OPMOD, "__mod");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPMOD, "__mod");
     }
 
     private static int arith_pow(lua_State* L)
     {
-//   return arith(L, LUA_OPPOW, "__pow");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPPOW, "__pow");
     }
 
     private static int arith_div(lua_State* L)
     {
-//   return arith(L, LUA_OPDIV, "__div");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPDIV, "__div");
     }
 
     private static int arith_idiv(lua_State* L)
     {
-//   return arith(L, LUA_OPIDIV, "__idiv");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPIDIV, "__idiv");
     }
 
     private static int arith_unm(lua_State* L)
     {
-//   return arith(L, LUA_OPUNM, "__unm");
-        throw new NotImplementedException();
+        return arith(L, LUA_OPUNM, "__unm");
     }
 
     private static readonly luaL_Reg[] stringmetamethods =
@@ -342,10 +354,7 @@ public static unsafe partial class Lua
         new("__unm", &arith_unm),
         new("__index", null), /* placeholder */
     ];
-
 #endif
-
-    /* }====================================================== */
 
     /*
      ** {======================================================
@@ -379,9 +388,8 @@ public static unsafe partial class Lua
 // #if !defined(MAXCCALLS)
 // #define MAXCCALLS	200
 // #endif
-//
-//
-// #define L_ESC		'%'
+
+    private const char L_ESC = '%';
 // #define SPECIALS	"^$*+?.([%-"
 //
 //
@@ -774,10 +782,9 @@ public static unsafe partial class Lua
 
     private static int str_find_aux(lua_State* L, bool find)
     {
-        long ls, lp;
-        byte* s = luaL_checklstring(L, 1, &ls);
-        byte* p = luaL_checklstring(L, 2, &lp);
-//   size_t init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
+        string s = luaL_checklstring(L, 1);
+        string p = luaL_checklstring(L, 2);
+        long init = posrelatI(luaL_optinteger(L, 3, 1), s.Length) - 1;
 //   if (init > ls) {  /* start after string's end? */
 //     luaL_pushfail(L);  /* cannot find anything */
 //     return 1;
@@ -944,22 +951,23 @@ public static unsafe partial class Lua
 
     private static int str_gsub(lua_State* L)
     {
-//   size_t srcl, lp;
-//   const char *src = luaL_checklstring(L, 1, &srcl);  /* subject */
-//   const char *p = luaL_checklstring(L, 2, &lp);  /* pattern */
-//   const char *lastmatch = null;  /* end of last match */
-//   int tr = lua_type(L, 3);  /* replacement type */
-//   /* max replacements */
-//   long max_s = luaL_optinteger(L, 4, cast_st2S(srcl) + 1);
-//   int anchor = (*p == '^');
+        string src = luaL_checklstring(L, 1); /* subject */
+        string p = luaL_checklstring(L, 2); /* pattern */
+        string? lastmatch = null; /* end of last match */
+        int tr = lua_type(L, 3); /* replacement type */
+        /* max replacements */
+        long max_s = luaL_optinteger(L, 4, (long)src.Length + 1);
+        bool anchor = p[0] == '^';
 //   long n = 0;  /* replacement count */
 //   int changed = 0;  /* change flag */
 //   MatchState ms;
-//   luaL_Buffer b;
-//   luaL_argexpected(L, tr == LUA_TNUMBER || tr == LUA_TSTRING ||
-//                    tr == LUA_TFUNCTION || tr == LUA_TTABLE, 3,
-//                       "string/function/table");
-//   luaL_buffinit(L, &b);
+        luaL_argexpected(
+            L,
+            tr is LUA_TNUMBER or LUA_TSTRING or LUA_TFUNCTION or LUA_TTABLE,
+            3,
+            "string/function/table");
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
 //   if (anchor) {
 //     p++; lp--;  /* skip anchor character */
 //   }
@@ -1080,19 +1088,17 @@ public static unsafe partial class Lua
 // ** is maximum exponent + 1). (99+3+1, adding some extra, 110)
 // */
 // #define MAX_ITEMF	(110 + l_floatatt(MAX_10_EXP))
-//
-//
-// /*
-// ** All formats except '%f' do not need that large limit.  The other
-// ** float formats use exponents, so that they fit in the 99 limit for
-// ** significant digits; 's' for large strings and 'q' add items directly
-// ** to the buffer; all integer formats also fit in the 99 limit.  The
-// ** worst case are floats: they may need 99 significant digits, plus
-// ** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
-// */
-// #define MAX_ITEM	120
-//
-//
+
+    /*
+    ** All formats except '%f' do not need that large limit.  The other
+    ** float formats use exponents, so that they fit in the 99 limit for
+    ** significant digits; 's' for large strings and 'q' add items directly
+    ** to the buffer; all integer formats also fit in the 99 limit.  The
+    ** worst case are floats: they may need 99 significant digits, plus
+    ** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
+    */
+    private const int MAX_ITEM = 120;
+
 // /* valid flags in a format specification */
 // #if !defined(L_FMTFLAGSF)
 //
@@ -1275,27 +1281,37 @@ public static unsafe partial class Lua
 
     private static int str_format(lua_State* L)
     {
-//   int top = lua_gettop(L);
-//   int arg = 1;
-//   size_t sfl;
-//   const char *strfrmt = luaL_checklstring(L, arg, &sfl);
-//   const char *strfrmt_end = strfrmt+sfl;
+        int top = lua_gettop(L);
+        int arg = 1;
+        ReadOnlySpan<char> strfrmt = luaL_checklstring(L, arg);
 //   const char *flags;
-//   luaL_Buffer b;
-//   luaL_buffinit(L, &b);
-//   while (strfrmt < strfrmt_end) {
-//     if (*strfrmt != L_ESC)
-//       luaL_addchar(&b, *strfrmt++);
-//     else if (*++strfrmt == L_ESC)
-//       luaL_addchar(&b, *strfrmt++);  /* %% */
-//     else { /* format item */
+        luaL_Buffer b;
+        luaL_buffinit(L, &b);
+        while (!strfrmt.IsEmpty)
+        {
+            if (strfrmt[0] != L_ESC)
+            {
+                luaL_addchar(&b, strfrmt[0]);
+                strfrmt = strfrmt[1..];
+            }
+            else if (strfrmt[1] == L_ESC)
+            {
+                luaL_addchar(&b, strfrmt[2]); /* %% */
+                strfrmt = strfrmt[3..];
+            }
+            else
+            {
+                /* format item */
 //       char form[MAX_FORMAT];  /* to store the format ('%...') */
-//       unsigned maxitem = MAX_ITEM;  /* maximum length for the result */
-//       char *buff = luaL_prepbuffsize(&b, maxitem);  /* to put result */
-//       int nb = 0;  /* number of bytes in result */
-//       if (++arg > top)
-//         return luaL_argerror(L, arg, "no value");
-//       strfrmt = getformat(L, strfrmt, form);
+                int maxitem = MAX_ITEM; /* maximum length for the result */
+                byte* buff = luaL_prepbuffsize(&b, maxitem); /* to put result */
+                int nb = 0; /* number of bytes in result */
+                if (++arg > top)
+                {
+                    return luaL_argerror(L, arg, "no value");
+                }
+
+                //       strfrmt = getformat(L, strfrmt, form);
 //       switch (*strfrmt++) {
 //         case 'c': {
 //           checkformat(L, form, L_FMTFLAGSC, 0);
@@ -1375,11 +1391,12 @@ public static unsafe partial class Lua
 //       }
 //       Debug.Assert(cast_uint(nb) < maxitem);
 //       luaL_addsize(&b, cast_uint(nb));
-//     }
-//   }
-//   luaL_pushresult(&b);
-//   return 1;
-        throw new NotImplementedException();
+                throw new NotImplementedException();
+            }
+        }
+
+        luaL_pushresult(&b);
+        return 1;
     }
 
 /* }====================================================== */
@@ -1449,7 +1466,7 @@ public static unsafe partial class Lua
 // */
 // static int digit (int c) { return '0' <= c && c <= '9'; }
 //
-// static size_t getnum (const char **fmt, size_t df) {
+// static size_t getnum_aux(L, L1, ref pc) (const char **fmt, size_t df) {
 //   if (!digit(**fmt))  /* no number? */
 //     return df;  /* return default value */
 //   else {
@@ -1467,7 +1484,7 @@ public static unsafe partial class Lua
 // ** than the maximum size of integers.
 // */
 // static unsigned getnumlimit (Header *h, const char **fmt, size_t df) {
-//   size_t sz = getnum(fmt, df);
+//   size_t sz = getnum_aux(L, L1, ref pc)(fmt, df);
 //   if (l_unlikely((sz - 1u) >= MAXINTSIZE))
 //     return cast_uint(luaL_error(h->L,
 //                "integral size (%d) out of limits [1,%d]", sz, MAXINTSIZE));
@@ -1510,7 +1527,7 @@ public static unsafe partial class Lua
 //     case 'I': *size = getnumlimit(h, fmt, sizeof(int)); return Kuint;
 //     case 's': *size = getnumlimit(h, fmt, sizeof(size_t)); return Kstring;
 //     case 'c':
-//       *size = getnum(fmt, cast_sizet(-1));
+//       *size = getnum_aux(L, L1, ref pc)(fmt, cast_sizet(-1));
 //       if (l_unlikely(*size == cast_sizet(-1)))
 //         luaL_error(h->L, "missing size for format option 'c'");
 //       return Kchar;
@@ -1716,7 +1733,7 @@ public static unsafe partial class Lua
     private static int str_packsize(lua_State* L)
     {
 //   Header h;
-//   const char *fmt = luaL_checkstring(L, 1);  /* format string */
+        string fmt = luaL_checkstring(L, 1);  /* format string */
 //   size_t totalsize = 0;  /* accumulate total size of result */
 //   initheader(L, &h);
 //   while (*fmt != '\0') {
@@ -1885,7 +1902,7 @@ public static unsafe partial class Lua
     /*
      ** Open string library
      */
-    private static partial int luaopen_string(lua_State* L)
+    public static partial int luaopen_string(lua_State* L)
     {
         luaL_newlib(L, strlib);
         createmetatable(L);

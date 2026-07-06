@@ -6,8 +6,7 @@ public static unsafe partial class Lua
 {
     public static void luaM_error(lua_State* L)
     {
-        // luaD_throw(L, LUA_ERRMEM)
-        throw new NotImplementedException();
+        luaD_throw(L, LUA_ERRMEM);
     }
 
     /*
@@ -41,13 +40,13 @@ public static unsafe partial class Lua
         luaM_free_(L, b, sizeof(T));
     }
 
-    private static void luaM_freearray<T>(lua_State* L, T* b, long n)
+    internal static void luaM_freearray<T>(lua_State* L, T* b, long n)
         where T : unmanaged
     {
         luaM_free_(L, b, n * sizeof(T));
     }
 
-    private static void luaM_freearray<T>(lua_State* L, T** b, long n)
+    internal static void luaM_freearray<T>(lua_State* L, T** b, long n)
         where T : unmanaged
     {
         luaM_free_(L, b, n * sizeof(T*));
@@ -59,7 +58,7 @@ public static unsafe partial class Lua
         return (T*)luaM_malloc_(L, sizeof(T), 0);
     }
 
-    private static T* luaM_newvector<T>(lua_State* L, int n)
+    internal static T* luaM_newvector<T>(lua_State* L, int n)
         where T : unmanaged
     {
         return (T*)luaM_malloc_(L, (long)n * sizeof(T), 0);
@@ -138,16 +137,16 @@ public static unsafe partial class Lua
     }
 
     [DoesNotReturn]
-    private static partial void luaM_toobig(lua_State* L);
+    internal static partial void luaM_toobig(lua_State* L);
 
     /* not to be called directly */
-    private static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size);
+    internal static partial void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size);
 
-    private static partial void* luaM_saferealloc_(lua_State* L, void* block, long oldsize, long size);
+    internal static partial void* luaM_saferealloc_(lua_State* L, void* block, long oldsize, long size);
 
-    private static partial void luaM_free_(lua_State* L, void* block, long osize);
+    internal static partial void luaM_free_(lua_State* L, void* block, long osize);
 
-    private static partial void* luaM_growaux_(
+    internal static partial void* luaM_growaux_(
         lua_State* L,
         void* block,
         int nelems,
@@ -156,7 +155,7 @@ public static unsafe partial class Lua
         int limit,
         string what);
 
-    private static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int nelem, int final_n, int size_elem);
-    
-    private static partial void* luaM_malloc_(lua_State* L, long size, int tag);
+    internal static partial void* luaM_shrinkvector_(lua_State* L, void* block, ref int nelem, int final_n, int size_elem);
+
+    internal static partial void* luaM_malloc_(lua_State* L, long size, int tag);
 }

@@ -66,15 +66,15 @@ public static unsafe partial class Lua
         luaZ_resizebuffer(L, buff, 0);
     }
 
-    private static partial void luaZ_init(lua_State* L, Zio* z, lua_Reader reader, void* data);
+    internal static partial void luaZ_init(lua_State* L, Zio* z, lua_Reader reader, void* data);
 
-    private static partial long luaZ_read(Zio* z, void* b, long n);	/* read next n bytes */
+    internal static partial long luaZ_read(Zio* z, void* b, long n);	/* read next n bytes */
 
-    private static partial void* luaZ_getaddr(Zio* z, long n);
+    internal static partial void* luaZ_getaddr(Zio* z, long n);
 
     /* --------- Private Part ------------------ */
 
-    private struct Zio
+    internal struct Zio
     {
         public long n; /* bytes still unread */
         public byte* p; /* current position in buffer */
@@ -83,5 +83,5 @@ public static unsafe partial class Lua
         public lua_State* L; /* Lua state (for reader) */
     }
 
-    private static partial int luaZ_fill(Zio* z);
+    internal static partial int luaZ_fill(Zio* z);
 }

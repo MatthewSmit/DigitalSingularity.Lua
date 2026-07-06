@@ -234,7 +234,7 @@ public static unsafe partial class Lua
     ** be done is generational mode, as its sweep does not distinguish
     ** white from dead.)
     */
-    private static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v)
+    internal static partial void luaC_barrier_(lua_State* L, GCObject* o, GCObject* v)
     {
         global_State* g = G(L);
         Debug.Assert(isblack(o) && iswhite(v) && !isdead(g, v) && !isdead(g, o));
@@ -263,7 +263,7 @@ public static unsafe partial class Lua
      ** barrier that moves collector backward, that is, mark the black object
      ** pointing to a white object as gray again.
      */
-    private static partial void luaC_barrierback_(lua_State* L, GCObject* o)
+    internal static partial void luaC_barrierback_(lua_State* L, GCObject* o)
     {
         global_State* g = G(L);
         Debug.Assert(isblack(o) && !isdead(g, o));
@@ -283,7 +283,7 @@ public static unsafe partial class Lua
         }
     }
 
-    private static partial void luaC_fix(lua_State* L, GCObject* o)
+    internal static partial void luaC_fix(lua_State* L, GCObject* o)
     {
         global_State* g = G(L);
         Debug.Assert(g->allgc == o); /* object must be 1st in 'allgc' list! */
@@ -298,7 +298,7 @@ public static unsafe partial class Lua
      ** create a new collectable object (with given type, size, and offset)
      ** and link it to 'allgc' list.
      */
-    private static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset)
+    internal static partial GCObject* luaC_newobjdt(lua_State* L, byte tt, long sz, long offset)
     {
         global_State* g = G(L);
         byte* p = (byte*)luaM_newobject(L, novariant(tt), sz);
@@ -313,7 +313,7 @@ public static unsafe partial class Lua
     /*
      ** create a new collectable object with no offset.
      */
-    private static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz)
+    internal static partial GCObject* luaC_newobj(lua_State* L, byte tt, long sz)
     {
         return luaC_newobjdt(L, tt, sz, 0);
     }
@@ -683,13 +683,14 @@ public static unsafe partial class Lua
 
     private static long traverseudata(global_State* g, Udata* u)
     {
-//   int i;
-//   markobjectN(g, u->metatable);  /* mark its metatable */
-//   for (i = 0; i < u->nuvalue; i++)
-//     markvalue(g, &u->uv[i].uv);
-//   genlink(g, obj2gco(u));
-//   return 1 + u->nuvalue;
-        throw new NotImplementedException();
+        markobjectN(g, (GCObject*)u->metatable); /* mark its metatable */
+        for (int i = 0; i < u->nuvalue; i++)
+        {
+            markvalue(g, &((TValue*)u->uv)[i]);
+        }
+
+        genlink(g, obj2gco(u));
+        return 1 + u->nuvalue;
     }
 
     /*
@@ -977,9 +978,8 @@ public static unsafe partial class Lua
                 break;
 
             case LUA_VTHREAD:
-//       luaE_freethread(L, gco2th(o));
-//       break;
-                throw new NotImplementedException();
+                luaE_freethread(L, gco2th(o));
+                break;
 
             case LUA_VUSERDATA:
                 {
@@ -1084,57 +1084,64 @@ public static unsafe partial class Lua
         }
     }
 
-// /*
-// ** Get the next udata to be finalized from the 'tobefnz' list, and
-// ** link it back into the 'allgc' list.
-// */
-// static GCObject *udata2finalize (global_State *g) {
-//   GCObject *o = g->tobefnz;  /* get first element */
-//   Debug.Assert(tofinalise(o));
-//   g->tobefnz = o->next;  /* remove it from 'tobefnz' list */
-//   o->next = g->allgc;  /* return it to 'allgc' list */
-//   g->allgc = o;
-//   resetbit(o->marked, FINALIZEDBIT);  /* object is "normal" again */
-//   if (issweepphase(g))
-//     makewhite(g, o);  /* "sweep" object */
-//   else if (getage(o) == G_OLD1)
-//     g->firstold1 = o;  /* it is the first OLD1 object in the list */
-//   return o;
-// }
-//
-//
-// static void dothecall (lua_State *L, void *ud) {
-//   UNUSED(ud);
-//   luaD_callnoyield(L, L->top.p - 2, 0);
-// }
+    /*
+    ** Get the next udata to be finalised from the 'tobefnz' list, and
+    ** link it back into the 'allgc' list.
+    */
+    private static GCObject* udata2finalise(global_State* g)
+    {
+        GCObject* o = g->tobefnz; /* get first element */
+        Debug.Assert(tofinalise(o));
+        g->tobefnz = o->next; /* remove it from 'tobefnz' list */
+        o->next = g->allgc; /* return it to 'allgc' list */
+        g->allgc = o;
+        resetbit(ref o->marked, FINALISEDBIT); /* object is "normal" again */
+        if (issweepphase(g))
+        {
+            makewhite(g, o); /* "sweep" object */
+        }
+        else if (getage(o) == G_OLD1)
+        {
+            g->firstold1 = o; /* it is the first OLD1 object in the list */
+        }
+
+        return o;
+    }
+
+    private static void dothecall(lua_State* L, void* ud)
+    {
+        luaD_callnoyield(L, L->top.p - 2, 0);
+    }
 
     private static void GCTM(lua_State* L)
     {
-//   global_State *g = G(L);
-//   const TValue *tm;
-//   TValue v;
-//   Debug.Assert(!g->gcemergency);
-//   setgcovalue(L, &v, udata2finalize(g));
-//   tm = luaT_gettmbyobj(L, &v, TM_GC);
-//   if (!notm(tm)) {  /* is there a finalizer? */
-//     TStatus status;
-//     lu_byte oldah = L->allowhook;
-//     lu_byte oldgcstp  = g->gcstp;
-//     g->gcstp |= GCSTPGC;  /* avoid GC steps */
-//     L->allowhook = 0;  /* stop debug hooks during GC metamethod */
-//     setobj2s(L, L->top.p++, tm);  /* push finalizer... */
-//     setobj2s(L, L->top.p++, &v);  /* ... and its argument */
-//     L->ci->callstatus |= CIST_FIN;  /* will run a finalizer */
-//     status = luaD_pcall(L, dothecall, null, savestack(L, L->top.p - 2), 0);
-//     L->ci->callstatus &= ~CIST_FIN;  /* not running a finalizer anymore */
-//     L->allowhook = oldah;  /* restore hooks */
-//     g->gcstp = oldgcstp;  /* restore state */
-//     if (l_unlikely(status != LUA_OK)) {  /* error while running __gc? */
-//       luaE_warnerror(L, "__gc");
-//       L->top.p--;  /* pops error object */
-//     }
-//   }
-        throw new NotImplementedException();
+        global_State* g = G(L);
+        Debug.Assert(!g->gcemergency);
+
+        TValue v;
+        setgcovalue(L, &v, udata2finalise(g));
+        TValue* tm = luaT_gettmbyobj(L, &v, TMS.GC);
+        if (!notm(tm))
+        {
+            // is there a finaliser?
+            bool oldah = L->allowhook;
+            byte oldgcstp = g->gcstp;
+            g->gcstp |= GCSTPGC; /* avoid GC steps */
+            L->allowhook = false; /* stop debug hooks during GC metamethod */
+            setobj2s(L, L->top.p++, tm); /* push finaliser... */
+            setobj2s(L, L->top.p++, &v); /* ... and its argument */
+            L->ci->callstatus |= CIST_FIN; /* will run a finaliser */
+            byte status = luaD_pcall(L, dothecall, null, savestack(L, L->top.p - 2), 0);
+            L->ci->callstatus &= ~CIST_FIN; /* not running a finaliser anymore */
+            L->allowhook = oldah; /* restore hooks */
+            g->gcstp = oldgcstp; /* restore state */
+            if (status != LUA_OK)
+            {
+                /* error while running __gc? */
+                luaE_warnerror(L, "__gc");
+                L->top.p--; /* pops error object */
+            }
+        }
     }
 
     /*
@@ -1169,7 +1176,7 @@ public static unsafe partial class Lua
      ** don't need to be traversed. In incremental mode, 'finobjold1' is null,
      ** so the whole list is traversed.)
      */
-    private static void separatetobefnz(global_State* g, int all)
+    private static void separatetobefnz(global_State* g, bool all)
     {
         GCObject** p = &g->finobj;
         GCObject** lastnext = findlast(&g->tobefnz);
@@ -1177,74 +1184,90 @@ public static unsafe partial class Lua
         GCObject* curr;
         while ((curr = *p) != g->finobjold1)
         {
-            /* traverse all finalizable objects */
-//     Debug.Assert(tofinalise(curr));
-//     if (!(iswhite(curr) || all))  /* not being collected? */
-//       p = &curr->next;  /* don't bother with it */
-//     else {
-//       if (curr == g->finobjsur)  /* removing 'finobjsur'? */
-//         g->finobjsur = curr->next;  /* correct it */
-//       *p = curr->next;  /* remove 'curr' from 'finobj' list */
-//       curr->next = *lastnext;  /* link at the end of 'tobefnz' list */
-//       *lastnext = curr;
-//       lastnext = &curr->next;
-//     }
-            throw new NotImplementedException();
+            // traverse all finalisable objects 
+            Debug.Assert(tofinalise(curr));
+            if (!(iswhite(curr) || all)) /* not being collected? */
+            {
+                p = &curr->next; /* don't bother with it */
+            }
+            else
+            {
+                if (curr == g->finobjsur) /* removing 'finobjsur'? */
+                {
+                    g->finobjsur = curr->next; /* correct it */
+                }
+
+                *p = curr->next; /* remove 'curr' from 'finobj' list */
+                curr->next = *lastnext; /* link at the end of 'tobefnz' list */
+                *lastnext = curr;
+                lastnext = &curr->next;
+            }
         }
     }
 
-// /*
-// ** If pointer 'p' points to 'o', move it to the next element.
-// */
-// static void checkpointer (GCObject **p, GCObject *o) {
-//   if (o == *p)
-//     *p = o->next;
-// }
-//
-//
-// /*
-// ** Correct pointers to objects inside 'allgc' list when
-// ** object 'o' is being removed from the list.
-// */
-// static void correctpointers (global_State *g, GCObject *o) {
-//   checkpointer(&g->survival, o);
-//   checkpointer(&g->old1, o);
-//   checkpointer(&g->reallyold, o);
-//   checkpointer(&g->firstold1, o);
-// }
+    /*
+    ** If pointer 'p' points to 'o', move it to the next element.
+    */
+    private static void checkpointer(ref GCObject* p, GCObject* o)
+    {
+        if (o == p)
+        {
+            p = o->next;
+        }
+    }
 
     /*
-    ** if object 'o' has a finaliser, remove it from 'allgc' list (must
-    ** search the list to find it) and link it in 'finobj' list.
-    */
-    private static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt)
+     ** Correct pointers to objects inside 'allgc' list when
+     ** object 'o' is being removed from the list.
+     */
+    private static void correctpointers(global_State* g, GCObject* o)
     {
-//   global_State *g = G(L);
-//   if (tofinalise(o) ||                 /* obj. is already marked... */
-//       gfasttm(g, mt, TM_GC) == null ||    /* or has no finalizer... */
-//       (g->gcstp & GCSTPCLS))                   /* or closing state? */
-//     return;  /* nothing to be done */
-//   else {  /* move 'o' to 'finobj' list */
-//     GCObject **p;
-//     if (issweepphase(g)) {
-//       makewhite(g, o);  /* "sweep" object 'o' */
-//       if (g->sweepgc == &o->next)  /* should not remove 'sweepgc' object */
-//         g->sweepgc = sweeptolive(L, g->sweepgc);  /* change 'sweepgc' */
-//     }
-//     else
-//       correctpointers(g, o);
-//     /* search for pointer pointing to 'o' */
-//     for (p = &g->allgc; *p != o; p = &(*p)->next) { /* empty */ }
-//     *p = o->next;  /* remove 'o' from 'allgc' list */
-//     o->next = g->finobj;  /* link it in 'finobj' list */
-//     g->finobj = o;
-//     l_setbit(o->marked, FINALIZEDBIT);  /* mark it as such */
-//   }
-        throw new NotImplementedException();
+        checkpointer(ref g->survival, o);
+        checkpointer(ref g->old1, o);
+        checkpointer(ref g->reallyold, o);
+        checkpointer(ref g->firstold1, o);
     }
-    
-    /* }====================================================== */
 
+    /*
+     ** if object 'o' has a finaliser, remove it from 'allgc' list (must
+     ** search the list to find it) and link it in 'finobj' list.
+     */
+    internal static partial void luaC_checkfinaliser(lua_State* L, GCObject* o, Table* mt)
+    {
+        global_State* g = G(L);
+        if (tofinalise(o) || /* obj. is already marked... */
+            gfasttm(g, mt, TMS.GC) == null || /* or has no finaliser... */
+            (g->gcstp & GCSTPCLS) != 0) /* or closing state? */
+        {
+            return; /* nothing to be done */
+        }
+
+        /* move 'o' to 'finobj' list */
+        if (issweepphase(g))
+        {
+            makewhite(g, o); /* "sweep" object 'o' */
+            if (g->sweepgc == &o->next) /* should not remove 'sweepgc' object */
+            {
+                g->sweepgc = sweeptolive(L, g->sweepgc); /* change 'sweepgc' */
+            }
+        }
+        else
+        {
+            correctpointers(g, o);
+        }
+
+        // search for pointer pointing to 'o' 
+        GCObject** p;
+        for (p = &g->allgc; *p != o; p = &(*p)->next)
+        {
+            /* empty */
+        }
+
+        *p = o->next; /* remove 'o' from 'allgc' list */
+        o->next = g->finobj; /* link it in 'finobj' list */
+        g->finobj = o;
+        l_setbit(ref o->marked, FINALISEDBIT); /* mark it as such */
+    }
 
     /*
     ** {======================================================
@@ -1267,18 +1290,22 @@ public static unsafe partial class Lua
     **     GCmajorminor: number of bytes marked in last major collection.
     */
     
-// /*
-// ** Set the "time" to wait before starting a new incremental cycle;
-// ** cycle will start when number of bytes in use hits the threshold of
-// ** approximately (marked * pause / 100).
-// */
-// static void setpause (global_State *g) {
-//   l_mem threshold = applygcparam(g, PAUSE, g->GCmarked);
-//   l_mem debt = threshold - gettotalbytes(g);
-//   if (debt < 0) debt = 0;
-//   luaE_setdebt(g, debt);
-// }
+    /*
+    ** Set the "time" to wait before starting a new incremental cycle;
+    ** cycle will start when number of bytes in use hits the threshold of
+    ** approximately (marked * pause / 100).
+    */
+    private static void setpause(global_State* g)
+    {
+        long threshold = applygcparam(g, LUA_GCPPAUSE, g->GCmarked);
+        long debt = threshold - gettotalbytes(g);
+        if (debt < 0)
+        {
+            debt = 0;
+        }
 
+        luaE_setdebt(g, debt);
+    }
 
     /*
      ** Sweep a list of objects to enter generational mode.  Deletes dead
@@ -1656,7 +1683,7 @@ public static unsafe partial class Lua
     /*
      ** Change collector mode to 'newmode'.
      */
-    private static partial void luaC_changemode(lua_State* L, int newmode)
+    internal static partial void luaC_changemode(lua_State* L, int newmode)
     {
         global_State* g = G(L);
         if (g->gckind == KGC_GENMAJOR) /* doing major collections? */
@@ -1688,37 +1715,39 @@ public static unsafe partial class Lua
         entergen(L, g);
     }
 
-// /*
-// ** After an atomic incremental step from a major collection,
-// ** check whether collector could return to minor collections.
-// ** It checks whether the number of bytes 'tobecollected'
-// ** is greater than 'majorminor'% of the number of bytes added
-// ** since the last collection ('addedbytes').
-// */
-// static int checkmajorminor (lua_State *L, global_State *g) {
-//   if (g->gckind == KGC_GENMAJOR) {  /* generational mode? */
-//     l_mem numbytes = gettotalbytes(g);
-//     l_mem addedbytes = numbytes - g->GCmajorminor;
-//     l_mem limit = applygcparam(g, MAJORMINOR, addedbytes);
-//     l_mem tobecollected = numbytes - g->GCmarked;
-//     if (tobecollected > limit) {
-//       atomic2gen(L, g);  /* return to generational mode */
-//       setminordebt(g);
-//       return 1;  /* exit incremental collection */
-//     }
-//   }
-//   g->GCmajorminor = g->GCmarked;  /* prepare for next collection */
-//   return 0;  /* stay doing incremental collections */
-// }
-//
-// /* }====================================================== */
-//
-//
-// /*
-// ** {======================================================
-// ** GC control
-// ** =======================================================
-// */
+    /*
+    ** After an atomic incremental step from a major collection,
+    ** check whether collector could return to minor collections.
+    ** It checks whether the number of bytes 'tobecollected'
+    ** is greater than 'majorminor'% of the number of bytes added
+    ** since the last collection ('addedbytes').
+    */
+    private static bool checkmajorminor(lua_State* L, global_State* g)
+    {
+        if (g->gckind == KGC_GENMAJOR)
+        {
+            /* generational mode? */
+            long numbytes = gettotalbytes(g);
+            long addedbytes = numbytes - g->GCmajorminor;
+            long limit = applygcparam(g, LUA_GCPMAJORMINOR, addedbytes);
+            long tobecollected = numbytes - g->GCmarked;
+            if (tobecollected > limit)
+            {
+                atomic2gen(L, g); /* return to generational mode */
+                setminordebt(g);
+                return true; /* exit incremental collection */
+            }
+        }
+
+        g->GCmajorminor = g->GCmarked; /* prepare for next collection */
+        return false; /* stay doing incremental collections */
+    }
+
+    /*
+     ** {======================================================
+     ** GC control
+     ** =======================================================
+     */
 
     /*
     ** Enter first sweep phase.
@@ -1753,12 +1782,12 @@ public static unsafe partial class Lua
      ** Call all finalisers of the objects in the given Lua state, and
      ** then free all objects, except for the main thread.
      */
-    private static partial void luaC_freeallobjects(lua_State* L)
+    internal static partial void luaC_freeallobjects(lua_State* L)
     {
         global_State* g = G(L);
         g->gcstp = GCSTPCLS; /* no extra finalisers after here */
         luaC_changemode(L, KGC_INC);
-        separatetobefnz(g, 1); /* separate all objects with finalisers */
+        separatetobefnz(g, true); /* separate all objects with finalisers */
         Debug.Assert(g->finobj == null);
         callallpendingfinalisers(L);
         deletelist(L, g->allgc, obj2gco(mainthread(g)));
@@ -1792,7 +1821,7 @@ public static unsafe partial class Lua
         clearbyvalues(g, g->allweak, null);
         GCObject* origweak = g->weak;
         GCObject* origall = g->allweak;
-        separatetobefnz(g, 0); /* separate objects to be finalised */
+        separatetobefnz(g, false); /* separate objects to be finalised */
         markbeingfnz(g); /* mark objects that will be finalised */
         propagateall(g); /* remark, to propagate 'resurrection' */
         convergeephemerons(g);
@@ -1878,17 +1907,18 @@ public static unsafe partial class Lua
                 break;
 
             case GCSenteratomic:
+                atomic(L);
+                if (checkmajorminor(L, g))
                 {
-                    atomic(L);
-//       if (checkmajorminor(L, g))
-//         stepresult = step2minor;
-//       else {
-//         entersweep(L);
-//         stepresult = atomicstep;
-//       }
-//       break;
-                    throw new NotImplementedException();
+                    stepresult = step2minor;
                 }
+                else
+                {
+                    entersweep(L);
+                    stepresult = atomicstep;
+                }
+
+                break;
 
             case GCSswpallgc:
                 /* sweep "regular" objects */
@@ -1946,7 +1976,7 @@ public static unsafe partial class Lua
      ** (The option 'fast' is only for testing; in normal code, 'fast'
      ** here is always true.)
      */
-    private static partial void luaC_runtilstate(lua_State* L, int state, bool fast)
+    internal static partial void luaC_runtilstate(lua_State* L, int state, bool fast)
     {
         global_State* g = G(L);
         Debug.Assert(g->gckind == KGC_INC);
@@ -1965,24 +1995,34 @@ public static unsafe partial class Lua
     */
     private static void incstep(lua_State* L, global_State* g)
     {
-//   l_mem stepsize = applygcparam(g, STEPSIZE, 100);
-//   l_mem work2do = applygcparam(g, STEPMUL, stepsize / cast_int(sizeof(void*)));
-//   l_mem stres;
-//   int fast = (work2do == 0);  /* special case: do a full collection */
-//   do {  /* repeat until enough work */
-//     stres = singlestep(L, fast);  /* perform one single step */
-//     if (stres == step2minor)  /* returned to minor collections? */
-//       return;  /* nothing else to be done here */
-//     else if (stres == step2pause || (stres == atomicstep && !fast))
-//       break;  /* end of cycle or atomic */
-//     else
-//       work2do -= stres;
-//   } while (fast || work2do > 0);
-//   if (g->gcstate == GCSpause)
-//     setpause(g);  /* pause until next cycle */
-//   else
-//     luaE_setdebt(g, stepsize);
-        throw new NotImplementedException();
+        long stepsize = applygcparam(g, LUA_GCPSTEPSIZE, 100);
+        long work2do = applygcparam(g, LUA_GCPSTEPMUL, stepsize / sizeof(void*));
+        bool fast = work2do == 0; /* special case: do a full collection */
+        do
+        {
+            // repeat until enough work 
+            long stres = singlestep(L, fast); /* perform one single step */
+            if (stres == step2minor) /* returned to minor collections? */
+            {
+                return; /* nothing else to be done here */
+            }
+
+            if (stres == step2pause || (stres == atomicstep && !fast))
+            {
+                break; /* end of cycle or atomic */
+            }
+
+            work2do -= stres;
+        } while (fast || work2do > 0);
+
+        if (g->gcstate == GCSpause)
+        {
+            setpause(g); /* pause until next cycle */
+        }
+        else
+        {
+            luaE_setdebt(g, stepsize);
+        }
     }
 
 // #if !defined(luai_tracegc)
@@ -1994,7 +2034,7 @@ public static unsafe partial class Lua
      ** stopped by the user, set a reasonable debt to avoid it being called
      ** at every single check.)
      */
-    private static partial void luaC_step(lua_State* L)
+    internal static partial void luaC_step(lua_State* L)
     {
         global_State* g = G(L);
         Debug.Assert(!g->gcemergency);
@@ -2035,14 +2075,16 @@ public static unsafe partial class Lua
     */
     private static void fullinc(lua_State* L, global_State* g)
     {
-//   if (keepinvariant(g))  /* black objects? */
-//     entersweep(L); /* sweep everything to turn them back to white */
-//   /* finish any pending sweep phase to start a new cycle */
-//   luaC_runtilstate(L, GCSpause, 1);
-//   luaC_runtilstate(L, GCScallfin, 1);  /* run up to finalisers */
-//   luaC_runtilstate(L, GCSpause, 1);  /* finish collection */
-//   setpause(g);
-        throw new NotImplementedException();
+        if (keepinvariant(g)) /* black objects? */
+        {
+            entersweep(L); /* sweep everything to turn them back to white */
+        }
+
+        // finish any pending sweep phase to start a new cycle 
+        luaC_runtilstate(L, GCSpause, true);
+        luaC_runtilstate(L, GCScallfin, true); /* run up to finalisers */
+        luaC_runtilstate(L, GCSpause, true); /* finish collection */
+        setpause(g);
     }
 
 /*
@@ -2050,7 +2092,7 @@ public static unsafe partial class Lua
  ** some operations which could change the interpreter state in some
  ** unexpected ways (running finalizers and shrinking some structures).
  */
-    private static partial void luaC_fullgc(lua_State* L, bool isemergency)
+internal static partial void luaC_fullgc(lua_State* L, bool isemergency)
     {
         global_State* g = G(L);
         Debug.Assert(!g->gcemergency);

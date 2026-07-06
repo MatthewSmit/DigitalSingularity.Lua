@@ -27,7 +27,7 @@ public static unsafe partial class Lua
      ** may have any of these metamethods. (First access that fails after the
      ** clearing will set the bit again.)
      */
-    private static void invalidateTMcache(Table* t)
+    internal static void invalidateTMcache(Table* t)
     {
         t->flags &= unchecked((byte)~maskflags);
     }
@@ -40,7 +40,7 @@ public static unsafe partial class Lua
     private const byte BITDUMMY = 1 << 6;
     private const byte NOTBITDUMMY = unchecked((byte)~BITDUMMY);
 
-    private static bool isdummy(Table* t)
+    internal static bool isdummy(Table* t)
     {
         return (t->flags & BITDUMMY) != 0;
     }
@@ -107,9 +107,9 @@ public static unsafe partial class Lua
     }
 
     /* results from pset */
-    private const int HOK = 0;
-    private const int HNOTFOUND = 1;
-    private const int HNOTATABLE = 2;
+    internal const int HOK = 0;
+    internal const int HNOTFOUND = 1;
+    internal const int HNOTATABLE = 2;
     private const int HFIRSTNODE = 3;
 
     /*
@@ -204,44 +204,44 @@ public static unsafe partial class Lua
         *getArrVal(h, k) = val->value_;
     }
 
-    private static partial byte luaH_get(Table* t, TValue* key, TValue* res);
+    internal static partial byte luaH_get(Table* t, TValue* key, TValue* res);
 
-    private static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res);
+    internal static partial byte luaH_getshortstr(Table* t, TString* key, TValue* res);
 
-    private static partial byte luaH_getstr(Table* t, TString* key, TValue* res);
+    internal static partial byte luaH_getstr(Table* t, TString* key, TValue* res);
 
-    private static partial byte luaH_getint(Table* t, long key, TValue* res);
+    internal static partial byte luaH_getint(Table* t, long key, TValue* res);
 
     /* Special get for metamethods */
-    private static partial TValue* luaH_Hgetshortstr(Table* t, TString* key);
+    internal static partial TValue* luaH_Hgetshortstr(Table* t, TString* key);
 
-    private static partial int luaH_psetint(Table* t, long key, TValue* val);
+    internal static partial int luaH_psetint(Table* t, long key, TValue* val);
 
-    private static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val);
+    internal static partial int luaH_psetshortstr(Table* t, TString* key, TValue* val);
 
-    private static partial int luaH_psetstr(Table* t, TString* key, TValue* val);
+    internal static partial int luaH_psetstr(Table* t, TString* key, TValue* val);
 
-    private static partial int luaH_pset(Table* t, TValue* key, TValue* val);
+    internal static partial int luaH_pset(Table* t, TValue* key, TValue* val);
 
-    private static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value);
+    internal static partial void luaH_setint(lua_State* L, Table* t, long key, TValue* value);
 
-    private static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value);
+    internal static partial void luaH_set(lua_State* L, Table* t, TValue* key, TValue* value);
 
-    private static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres);
+    internal static partial void luaH_finishset(lua_State* L, Table* t, TValue* key, TValue* value, int hres);
 
-    private static partial Table* luaH_new(lua_State* L);
+    internal static partial Table* luaH_new(lua_State* L);
 
-    private static partial void luaH_resize(lua_State* L, Table* t, uint nasize, uint nhsize);
+    internal static partial void luaH_resize(lua_State* L, Table* t, uint nasize, uint nhsize);
 
-    private static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize);
+    internal static partial void luaH_resizearray(lua_State* L, Table* t, uint nasize);
 
-    private static partial long luaH_size(Table* t);
+    internal static partial long luaH_size(Table* t);
 
     private static partial void luaH_free(lua_State* L, Table* t);
 
-    private static partial int luaH_next(lua_State* L, Table* t, StkId key);
+    internal static partial bool luaH_next(lua_State* L, Table* t, StkId key);
 
-    private static partial ulong luaH_getn(lua_State* L, Table* t);
+    internal static partial ulong luaH_getn(lua_State* L, Table* t);
 
 #if LUA_DEBUG
     private static partial Node* luaH_mainposition(Table* t, TValue* key);

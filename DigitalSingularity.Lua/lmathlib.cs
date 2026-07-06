@@ -102,14 +102,17 @@ public static unsafe partial class Lua
 
     private static int math_ceil(lua_State* L)
     {
-//   if (lua_isinteger(L, 1))
-//     lua_settop(L, 1);  /* integer is its own ceiling */
-//   else {
-//     double d = (ceil)(luaL_checknumber(L, 1));
-//     pushnumint(L, d);
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        if (lua_isinteger(L, 1))
+        {
+            lua_settop(L, 1); /* integer is its own ceiling */
+        }
+        else
+        {
+            double d = Math.Ceiling(luaL_checknumber(L, 1));
+            pushnumint(L, d);
+        }
+
+        return 1;
     }
 
     private static int math_fmod(lua_State* L)
@@ -442,19 +445,22 @@ public static unsafe partial class Lua
 
     private static int math_randomseed(lua_State* L)
     {
-//   RanState *state = (RanState *)lua_touserdata(L, lua_upvalueindex(1));
-//   lua_Unsigned n1, n2;
-//   if (lua_isnone(L, 1)) {
-//     n1 = luaL_makeseed(L);  /* "random" seed */
-//     n2 = I2UInt(nextrand(state->s));  /* in case seed is not that random... */
-//   }
-//   else {
-//     n1 = l_castS2U(luaL_checkinteger(L, 1));
-//     n2 = l_castS2U(luaL_optinteger(L, 2, 0));
-//   }
-//   setseed(L, state->s, n1, n2);
-//   return 2;  /* return seeds */
-        throw new NotImplementedException();
+        RanState* state = (RanState*)lua_touserdata(L, lua_upvalueindex(1));
+        ulong n1;
+        ulong n2;
+        if (lua_isnone(L, 1))
+        {
+            n1 = luaL_makeseed(L); /* "random" seed */
+            n2 = nextrand(state->s); /* in case seed is not that random... */
+        }
+        else
+        {
+            n1 = (ulong)luaL_checkinteger(L, 1);
+            n2 = (ulong)luaL_optinteger(L, 2, 0);
+        }
+
+        setseed(L, state->s, n1, n2);
+        return 2; /* return seeds */
     }
 
     private static readonly luaL_Reg[] randfuncs =
@@ -566,7 +572,7 @@ public static unsafe partial class Lua
     /*
      ** Open math library
      */
-    private static partial int luaopen_math(lua_State* L)
+    public static partial int luaopen_math(lua_State* L)
     {
         luaL_newlib(L, mathlib);
         lua_pushnumber(L, Math.PI);

@@ -1,5 +1,7 @@
 namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
     /*
@@ -126,7 +128,7 @@ public static unsafe partial class Lua
 
     private static int os_execute(lua_State* L)
     {
-//   const char *cmd = luaL_optstring(L, 1, null);
+        string cmd = luaL_optstring(L, 1, null);
 //   int stat;
 //   errno = 0;
 //   stat = l_system(cmd);
@@ -177,9 +179,8 @@ public static unsafe partial class Lua
 
     private static int os_clock(lua_State* L)
     {
-//   lua_pushnumber(L, ((double)clock())/(double)CLOCKS_PER_SEC);
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency);
+        return 1;
     }
 
 // /*
@@ -417,7 +418,7 @@ public static unsafe partial class Lua
 
     /* }====================================================== */
 
-    private static partial int luaopen_os(lua_State* L)
+    public static partial int luaopen_os(lua_State* L)
     {
         luaL_newlib(L, syslib);
         return 1;

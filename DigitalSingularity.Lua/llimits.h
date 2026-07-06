@@ -84,7 +84,6 @@ typedef LUAI_UACINT l_uacInt;
 #define assert_code(c)		((void)0)
 #endif
 
-#define check_exp(c,e)		(lua_assert(c), (e))
 /* to avoid problems with conditions too long */
 #define lua_longassert(c)	assert_code((c) ? (void)0 : lua_assert(0))
 
@@ -230,14 +229,10 @@ typedef void (*voidf)(void);
 /* the others are quite standard operations */
 #if !defined(luai_numadd)
 #define luai_numadd(L,a,b)      ((a)+(b))
-#define luai_numsub(L,a,b)      ((a)-(b))
-#define luai_nummul(L,a,b)      ((a)*(b))
 #define luai_numunm(L,a)        (-(a))
 #define luai_numeq(a,b)         ((a)==(b))
 #define luai_numlt(a,b)         ((a)<(b))
 #define luai_numle(a,b)         ((a)<=(b))
-#define luai_numgt(a,b)         ((a)>(b))
-#define luai_numge(a,b)         ((a)>=(b))
 #define luai_numisnan(a)        (!luai_numeq((a), (a)))
 #endif
 
