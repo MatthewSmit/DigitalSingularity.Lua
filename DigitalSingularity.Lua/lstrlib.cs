@@ -1,7 +1,11 @@
 namespace DigitalSingularity.Lua;
 
+using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 public static unsafe partial class Lua
@@ -12,32 +16,28 @@ public static unsafe partial class Lua
      ** See Copyright Notice in lua.h
      */
 
-// /*
-// ** maximum number of captures that a pattern can do during
-// ** pattern-matching. This limit is arbitrary, but must fit in
-// ** an unsigned char.
-// */
-// #if !defined(LUA_MAXCAPTURES)
-// #define LUA_MAXCAPTURES		32
-// #endif
+    /*
+     ** maximum number of captures that a pattern can do during
+     ** pattern-matching. This limit is arbitrary, but must fit in
+     ** an unsigned char.
+     */
+    private const int LUA_MAXCAPTURES = 32;
 
     private static int str_len(lua_State* L)
     {
-//   size_t l;
-//   luaL_checklstring(L, 1, &l);
-//   lua_pushinteger(L, (long)l);
-//   return 1;
-        throw new NotImplementedException();
+        int l = luaL_checklstring(L, 1).Length;
+        lua_pushinteger(L, l);
+        return 1;
     }
 
     /*
-    ** translate a relative initial string position
-    ** (negative means back from end): clip result to [1, inf).
-    ** The length of any string in Lua must fit in a long,
-    ** so there are no overflows in the casts.
-    ** The inverted comparison avoids a possible overflow
-    ** computing '-pos'.
-    */
+     ** translate a relative initial string position
+     ** (negative means back from end): clip result to [1, inf).
+     ** The length of any string in Lua must fit in a long,
+     ** so there are no overflows in the casts.
+     ** The inverted comparison avoids a possible overflow
+     ** computing '-pos'.
+     */
     private static long posrelatI(long pos, long len)
     {
         if (pos > 0)
@@ -58,75 +58,91 @@ public static unsafe partial class Lua
         return len + pos + 1;
     }
 
-// /*
-// ** Gets an optional ending string position from argument 'arg',
-// ** with default value 'def'.
-// ** Negative means back from end: clip result to [0, len]
-// */
-// static size_t getendpos (lua_State *L, int arg, long def,
-//                          size_t len) {
-//   long pos = luaL_optinteger(L, arg, def);
-//   if (pos > (long)len)
-//     return len;
-//   else if (pos >= 0)
-//     return (size_t)pos;
-//   else if (pos < -(long)len)
-//     return 0;
-//   else return len + (size_t)pos + 1;
-// }
+    /*
+    ** Gets an optional ending string position from argument 'arg',
+    ** with default value 'def'.
+    ** Negative means back from end: clip result to [0, len]
+    */
+    private static long getendpos(lua_State* L, int arg, long def, long len)
+    {
+        long pos = luaL_optinteger(L, arg, def);
+        if (pos > len)
+        {
+            return len;
+        }
+
+        if (pos >= 0)
+        {
+            return pos;
+        }
+
+        if (pos < -len)
+        {
+            return 0;
+        }
+
+        return len + pos + 1;
+    }
 
     private static int str_sub(lua_State* L)
     {
-//   size_t l;
-//   const char *s = luaL_checklstring(L, 1, &l);
-//   size_t start = posrelatI(luaL_checkinteger(L, 2), l);
-//   size_t end = getendpos(L, 3, -1, l);
-//   if (start <= end)
-//     lua_pushlstring(L, s + start - 1, (end - start) + 1);
-//   else lua_pushliteral(L, "");
-//   return 1;
-        throw new NotImplementedException();
+        ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
+        int start = (int)posrelatI(luaL_checkinteger(L, 2), s.Length);
+        int end = (int)getendpos(L, 3, -1, s.Length);
+        if (start <= end)
+        {
+            lua_pushlstring(L, s.Slice(start - 1, (end - start) + 1));
+        }
+        else
+        {
+            lua_pushliteral(L, "");
+        }
+
+        return 1;
     }
 
     private static int str_reverse(lua_State* L)
     {
-//   size_t l, i;
-//   luaL_Buffer b;
-//   const char *s = luaL_checklstring(L, 1, &l);
-//   char *p = luaL_buffinitsize(L, &b, l);
-//   for (i = 0; i < l; i++)
-//     p[i] = s[l - i - 1];
-//   luaL_pushresultsize(&b, l);
-//   return 1;
-        throw new NotImplementedException();
+        ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
+        luaL_Buffer b;
+        byte* p = luaL_buffinitsize(L, &b, s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            p[i] = s[s.Length - i - 1];
+        }
+
+        luaL_pushresultsize(&b, s.Length);
+        return 1;
     }
 
     private static int str_lower(lua_State* L)
     {
-//   size_t l;
-//   size_t i;
-//   luaL_Buffer b;
-//   const char *s = luaL_checklstring(L, 1, &l);
-//   char *p = luaL_buffinitsize(L, &b, l);
-//   for (i=0; i<l; i++)
-//     p[i] = cast_char(tolower(cast_uchar(s[i])));
-//   luaL_pushresultsize(&b, l);
-//   return 1;
-        throw new NotImplementedException();
+        ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
+
+        luaL_Buffer b;
+        byte* p = luaL_buffinitsize(L, &b, s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            p[i] = (byte)char.ToLowerInvariant((char)s[i]);
+        }
+
+        luaL_pushresultsize(&b, s.Length);
+        return 1;
     }
 
     private static int str_upper(lua_State* L)
     {
-//   size_t l;
-//   size_t i;
-//   luaL_Buffer b;
-//   const char *s = luaL_checklstring(L, 1, &l);
-//   char *p = luaL_buffinitsize(L, &b, l);
-//   for (i=0; i<l; i++)
-//     p[i] = cast_char(toupper(cast_uchar(s[i])));
-//   luaL_pushresultsize(&b, l);
-//   return 1;
-        throw new NotImplementedException();
+        ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
+
+        luaL_Buffer b;
+        byte* p = luaL_buffinitsize(L, &b, s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            p[i] = (byte)char.ToUpperInvariant((char)s[i]);
+        }
+
+        luaL_pushresultsize(&b, s.Length);
+        return 1;
     }
 
     /*
@@ -136,117 +152,133 @@ public static unsafe partial class Lua
     private static int str_rep(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
-         long n = luaL_checkinteger(L, 2);
-         ReadOnlySpan<byte> sep = luaL_optlstring(L, 3);
-         if (n <= 0)
-         {
-             lua_pushliteral(L, "");
-             return 1;
-         }
+        long n = luaL_checkinteger(L, 2);
+        ReadOnlySpan<byte> sep = luaL_optlstring(L, 3);
+        if (n <= 0)
+        {
+            lua_pushliteral(L, "");
+            return 1;
+        }
 
-         if (s.Length + sep.Length > long.MaxValue / n)
-         {
-             return luaL_error(L, "resulting string too large");
-         }
+        if (s.Length + sep.Length > long.MaxValue / n)
+        {
+            return luaL_error(L, "resulting string too large");
+        }
 
-         long totallen = n * (s.Length + sep.Length) - sep.Length;
-         luaL_Buffer b;
-         byte* p = luaL_buffinitsize(L, &b, totallen);
-         Span<byte> dest = new(p, checked((int)totallen));
-         while (n-- > 1)
-         {
-             /* first n-1 copies (followed by separator) */
-             s.CopyTo(dest);
-             dest = dest[..s.Length];
-             if (sep.Length > 0)
-             {
-                 /* empty 'memcpy' is not that cheap */
-                 sep.CopyTo(dest);
-                 dest = dest[..sep.Length];
-             }
-         }
+        long totallen = n * (s.Length + sep.Length) - sep.Length;
+        luaL_Buffer b;
+        byte* p = luaL_buffinitsize(L, &b, totallen);
+        Span<byte> dest = new(p, checked((int)totallen));
+        while (n-- > 1)
+        {
+            /* first n-1 copies (followed by separator) */
+            s.CopyTo(dest);
+            dest = dest[s.Length..];
+            if (sep.Length > 0)
+            {
+                /* empty 'memcpy' is not that cheap */
+                sep.CopyTo(dest);
+                dest = dest[sep.Length..];
+            }
+        }
 
-         s.CopyTo(dest);
-         luaL_pushresultsize(&b, totallen);
+        s.CopyTo(dest);
+        luaL_pushresultsize(&b, totallen);
 
-         return 1;
+        return 1;
     }
 
     private static int str_byte(lua_State* L)
     {
-//   size_t l;
-//   const char *s = luaL_checklstring(L, 1, &l);
-//   long pi = luaL_optinteger(L, 2, 1);
-//   size_t posi = posrelatI(pi, l);
-//   size_t pose = getendpos(L, 3, pi, l);
-//   int n, i;
-//   if (posi > pose) return 0;  /* empty interval; return no values */
-//   if (l_unlikely(pose - posi >= (size_t)INT_MAX))  /* arithmetic overflow? */
-//     return luaL_error(L, "string slice too long");
-//   n = (int)(pose -  posi) + 1;
-//   luaL_checkstack(L, n, "string slice too long");
-//   for (i=0; i<n; i++)
-//     lua_pushinteger(L, cast_uchar(s[posi + cast_uint(i) - 1]));
-//   return n;
-        throw new NotImplementedException();
+        ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
+        long pi = luaL_optinteger(L, 2, 1);
+        long posi = posrelatI(pi, s.Length);
+        long pose = getendpos(L, 3, pi, s.Length);
+        if (posi > pose)
+        {
+            return 0; /* empty interval; return no values */
+        }
+
+        if (pose - posi >= int.MaxValue) /* arithmetic overflow? */
+        {
+            return luaL_error(L, "string slice too long");
+        }
+
+        int n = (int)(pose - posi) + 1;
+        luaL_checkstack(L, n, "string slice too long");
+        for (int i = 0; i < n; i++)
+        {
+            lua_pushinteger(L, s[(int)(posi + i - 1)]);
+        }
+
+        return n;
     }
 
     private static int str_char(lua_State* L)
     {
-//   int n = lua_gettop(L);  /* number of arguments */
-//   int i;
-//   luaL_Buffer b;
-//   char *p = luaL_buffinitsize(L, &b, cast_uint(n));
-//   for (i=1; i<=n; i++) {
-//     lua_Unsigned c = (lua_Unsigned)luaL_checkinteger(L, i);
-//     luaL_argcheck(L, c <= (lua_Unsigned)UCHAR_MAX, i, "value out of range");
-//     p[i - 1] = cast_char(cast_uchar(c));
-//   }
-//   luaL_pushresultsize(&b, cast_uint(n));
-//   return 1;
-        throw new NotImplementedException();
+        int n = lua_gettop(L); /* number of arguments */
+        luaL_Buffer b;
+        byte* p = luaL_buffinitsize(L, &b, n);
+        for (int i = 1; i <= n; i++)
+        {
+            ulong c = (ulong)luaL_checkinteger(L, i);
+            luaL_argcheck(L, c <= byte.MaxValue, i, "value out of range");
+            p[i - 1] = (byte)c;
+        }
+
+        luaL_pushresultsize(&b, n);
+        return 1;
     }
 
-// /*
-// ** Buffer to store the result of 'string.dump'. It must be initialized
-// ** after the call to 'lua_dump', to ensure that the function is on the
-// ** top of the stack when 'lua_dump' is called. ('luaL_buffinit' might
-// ** push stuff.)
-// */
-// struct str_Writer {
-//   int init;  /* true iff buffer has been initialized */
-//   luaL_Buffer B;
-// };
-//
-//
-// static int writer (lua_State *L, const void *b, size_t size, void *ud) {
-//   struct str_Writer *state = (struct str_Writer *)ud;
-//   if (!state->init) {
-//     state->init = 1;
-//     luaL_buffinit(L, &state->B);
-//   }
-//   if (b == null) {  /* finishing dump? */
-//     luaL_pushresult(&state->B);  /* push result */
-//     lua_replace(L, 1);  /* move it to reserved slot */
-//   }
-//   else
-//     luaL_addlstring(&state->B, (const char *)b, size);
-//   return 0;
-// }
+    /*
+    ** Buffer to store the result of 'string.dump'. It must be initialised
+    ** after the call to 'lua_dump', to ensure that the function is on the
+    ** top of the stack when 'lua_dump' is called. ('luaL_buffinit' might
+    ** push stuff.)
+    */
+    private struct str_Writer
+    {
+        public bool init; /* true iff buffer has been initialised */
+        public luaL_Buffer B;
+    }
+
+    private static int writer(lua_State* L, void* b, long size, void* ud)
+    {
+        str_Writer* state = (str_Writer*)ud;
+        if (!state->init)
+        {
+            state->init = true;
+            luaL_buffinit(L, &state->B);
+        }
+
+        if (b == null)
+        {
+            /* finishing dump? */
+            luaL_pushresult(&state->B); /* push result */
+            lua_replace(L, 1); /* move it to reserved slot */
+        }
+        else
+        {
+            luaL_addlstring(&state->B, new ReadOnlySpan<byte>((byte*)b, checked((int)size)));
+        }
+
+        return 0;
+    }
 
     private static int str_dump(lua_State* L)
     {
-//   struct str_Writer state;
-//   int strip = lua_toboolean(L, 2);
-//   luaL_argcheck(L, lua_type(L, 1) == LUA_TFUNCTION && !lua_iscfunction(L, 1),
-//                    1, "Lua function expected");
-//   /* ensure function is on the top of the stack and vacate slot 1 */
-//   lua_pushvalue(L, 1);
-//   state.init = 0;
-//   lua_dump(L, writer, &state, strip);
-//   lua_settop(L, 1);  /* leave final result on top */
-//   return 1;
-        throw new NotImplementedException();
+        bool strip = lua_toboolean(L, 2);
+        luaL_argcheck(
+            L,
+            lua_type(L, 1) == LUA_TFUNCTION && !lua_iscfunction(L, 1),
+            1,
+            "Lua function expected");
+        /* ensure function is on the top of the stack and vacate slot 1 */
+        lua_pushvalue(L, 1);
+        str_Writer state = new();
+        lua_dump(L, &writer, &state, strip);
+        lua_settop(L, 1); /* leave final result on top */
+        return 1;
     }
 
     /*
@@ -377,468 +409,717 @@ public static unsafe partial class Lua
      ** =======================================================
      */
 
-// #define CAP_UNFINISHED	(-1)
-// #define CAP_POSITION	(-2)
-//
-//
-// typedef struct MatchState {
-//   const char *src_init;  /* init of source string */
-//   const char *src_end;  /* end ('\0') of source string */
-//   const char *p_end;  /* end ('\0') of pattern */
-//   lua_State *L;
-//   int matchdepth;  /* control for recursive depth (to avoid C stack overflow) */
-//   int level;  /* total number of captures (finished or unfinished) */
-//   struct {
-//     const char *init;
-//     ptrdiff_t len;  /* length or special value (CAP_*) */
-//   } capture[LUA_MAXCAPTURES];
-// } MatchState;
-//
-//
-// /* recursive function */
-// static const char *match (MatchState *ms, const char *s, const char *p);
-//
-//
-// /* maximum recursion depth for 'match' */
-// #if !defined(MAXCCALLS)
-// #define MAXCCALLS	200
-// #endif
+    private const int CAP_UNFINISHED = -1;
+    private const int CAP_POSITION = -2;
+
+    private struct MatchState
+    {
+        public struct Capture
+        {
+            public byte* init;
+            public long len; /* length or special value (CAP_*) */
+        }
+
+        public struct CaptureArray
+        {
+            public Capture capture0;
+            public Capture capture1;
+            public Capture capture2;
+            public Capture capture3;
+            public Capture capture4;
+            public Capture capture5;
+            public Capture capture6;
+            public Capture capture7;
+            public Capture capture8;
+            public Capture capture9;
+            public Capture capture10;
+            public Capture capture11;
+            public Capture capture12;
+            public Capture capture13;
+            public Capture capture14;
+            public Capture capture15;
+            public Capture capture16;
+            public Capture capture17;
+            public Capture capture18;
+            public Capture capture19;
+            public Capture capture20;
+            public Capture capture21;
+            public Capture capture22;
+            public Capture capture23;
+            public Capture capture24;
+            public Capture capture25;
+            public Capture capture26;
+            public Capture capture27;
+            public Capture capture28;
+            public Capture capture29;
+            public Capture capture30;
+            public Capture capture31;
+
+            static CaptureArray()
+            {
+                Debug.Assert(LUA_MAXCAPTURES <= 32);
+            }
+
+            public ref Capture this[int index]
+            {
+                get => ref Unsafe.Add(ref this.capture0, index);
+            }
+        }
+
+        public byte* src_init; /* init of source string */
+        public byte* src_end; /* end ('\0') of source string */
+        public byte* p_end; /* end ('\0') of pattern */
+        public lua_State* L;
+        public int matchdepth; /* control for recursive depth (to avoid C stack overflow) */
+        public int level; /* total number of captures (finished or unfinished) */
+        public CaptureArray capture;
+    }
+
+    /* maximum recursion depth for 'match' */
+    private const int MAXCCALLS = 200;
 
     private const char L_ESC = '%';
-// #define SPECIALS	"^$*+?.([%-"
-//
-//
-// static int check_capture (MatchState *ms, int l) {
-//   l -= '1';
-//   if (l_unlikely(l < 0 || l >= ms->level ||
-//                  ms->capture[l].len == CAP_UNFINISHED))
-//     return luaL_error(ms->L, "invalid capture index %%%d", l + 1);
-//   return l;
-// }
-//
-//
-// static int capture_to_close (MatchState *ms) {
-//   int level = ms->level;
-//   for (level--; level>=0; level--)
-//     if (ms->capture[level].len == CAP_UNFINISHED) return level;
-//   return luaL_error(ms->L, "invalid pattern capture");
-// }
-//
-//
-// static const char *classend (MatchState *ms, const char *p) {
-//   switch (*p++) {
-//     case L_ESC: {
-//       if (l_unlikely(p == ms->p_end))
-//         luaL_error(ms->L, "malformed pattern (ends with '%%')");
-//       return p+1;
-//     }
-//     case '[': {
-//       if (*p == '^') p++;
-//       do {  /* look for a ']' */
-//         if (l_unlikely(p == ms->p_end))
-//           luaL_error(ms->L, "malformed pattern (missing ']')");
-//         if (*(p++) == L_ESC && p < ms->p_end)
-//           p++;  /* skip escapes (e.g. '%]') */
-//       } while (*p != ']');
-//       return p+1;
-//     }
-//     default: {
-//       return p;
-//     }
-//   }
-// }
-//
-//
-// static int match_class (int c, int cl) {
-//   int res;
-//   switch (tolower(cl)) {
-//     case 'a' : res = isalpha(c); break;
-//     case 'c' : res = iscntrl(c); break;
-//     case 'd' : res = isdigit(c); break;
-//     case 'g' : res = isgraph(c); break;
-//     case 'l' : res = islower(c); break;
-//     case 'p' : res = ispunct(c); break;
-//     case 's' : res = isspace(c); break;
-//     case 'u' : res = isupper(c); break;
-//     case 'w' : res = isalnum(c); break;
-//     case 'x' : res = isxdigit(c); break;
-//     case 'z' : res = (c == 0); break;  /* deprecated option */
-//     default: return (cl == c);
-//   }
-//   return (islower(cl) ? res : !res);
-// }
-//
-//
-// static int matchbracketclass (int c, const char *p, const char *ec) {
-//   int sig = 1;
-//   if (*(p+1) == '^') {
-//     sig = 0;
-//     p++;  /* skip the '^' */
-//   }
-//   while (++p < ec) {
-//     if (*p == L_ESC) {
-//       p++;
-//       if (match_class(c, cast_uchar(*p)))
-//         return sig;
-//     }
-//     else if ((*(p+1) == '-') && (p+2 < ec)) {
-//       p+=2;
-//       if (cast_uchar(*(p-2)) <= c && c <= cast_uchar(*p))
-//         return sig;
-//     }
-//     else if (cast_uchar(*p) == c) return sig;
-//   }
-//   return !sig;
-// }
-//
-//
-// static int singlematch (MatchState *ms, const char *s, const char *p,
-//                         const char *ep) {
-//   if (s >= ms->src_end)
-//     return 0;
-//   else {
-//     int c = cast_uchar(*s);
-//     switch (*p) {
-//       case '.': return 1;  /* matches any char */
-//       case L_ESC: return match_class(c, cast_uchar(*(p+1)));
-//       case '[': return matchbracketclass(c, p, ep-1);
-//       default:  return (cast_uchar(*p) == c);
-//     }
-//   }
-// }
-//
-//
-// static const char *matchbalance (MatchState *ms, const char *s,
-//                                    const char *p) {
-//   if (l_unlikely(p >= ms->p_end - 1))
-//     luaL_error(ms->L, "malformed pattern (missing arguments to '%%b')");
-//   if (*s != *p) return null;
-//   else {
-//     int b = *p;
-//     int e = *(p+1);
-//     int cont = 1;
-//     while (++s < ms->src_end) {
-//       if (*s == e) {
-//         if (--cont == 0) return s+1;
-//       }
-//       else if (*s == b) cont++;
-//     }
-//   }
-//   return null;  /* string ends out of balance */
-// }
-//
-//
-// static const char *max_expand (MatchState *ms, const char *s,
-//                                  const char *p, const char *ep) {
-//   ptrdiff_t i = 0;  /* counts maximum expand for item */
-//   while (singlematch(ms, s + i, p, ep))
-//     i++;
-//   /* keeps trying to match with the maximum repetitions */
-//   while (i>=0) {
-//     const char *res = match(ms, (s+i), ep+1);
-//     if (res) return res;
-//     i--;  /* else didn't match; reduce 1 repetition to try again */
-//   }
-//   return null;
-// }
-//
-//
-// static const char *min_expand (MatchState *ms, const char *s,
-//                                  const char *p, const char *ep) {
-//   for (;;) {
-//     const char *res = match(ms, s, ep+1);
-//     if (res != null)
-//       return res;
-//     else if (singlematch(ms, s, p, ep))
-//       s++;  /* try with one more repetition */
-//     else return null;
-//   }
-// }
-//
-//
-// static const char *start_capture (MatchState *ms, const char *s,
-//                                     const char *p, int what) {
-//   const char *res;
-//   int level = ms->level;
-//   if (level >= LUA_MAXCAPTURES) luaL_error(ms->L, "too many captures");
-//   ms->capture[level].init = s;
-//   ms->capture[level].len = what;
-//   ms->level = level+1;
-//   if ((res=match(ms, s, p)) == null)  /* match failed? */
-//     ms->level--;  /* undo capture */
-//   return res;
-// }
-//
-//
-// static const char *end_capture (MatchState *ms, const char *s,
-//                                   const char *p) {
-//   int l = capture_to_close(ms);
-//   const char *res;
-//   ms->capture[l].len = s - ms->capture[l].init;  /* close capture */
-//   if ((res = match(ms, s, p)) == null)  /* match failed? */
-//     ms->capture[l].len = CAP_UNFINISHED;  /* undo capture */
-//   return res;
-// }
-//
-//
-// static const char *match_capture (MatchState *ms, const char *s, int l) {
-//   size_t len;
-//   l = check_capture(ms, l);
-//   len = cast_sizet(ms->capture[l].len);
-//   if ((size_t)(ms->src_end-s) >= len &&
-//       memcmp(ms->capture[l].init, s, len) == 0)
-//     return s+len;
-//   else return null;
-// }
-//
-//
-// static const char *match (MatchState *ms, const char *s, const char *p) {
-//   if (l_unlikely(ms->matchdepth-- == 0))
-//     luaL_error(ms->L, "pattern too complex");
-//   init: /* using goto to optimize tail recursion */
-//   if (p != ms->p_end) {  /* end of pattern? */
-//     switch (*p) {
-//       case '(': {  /* start capture */
-//         if (*(p + 1) == ')')  /* position capture? */
-//           s = start_capture(ms, s, p + 2, CAP_POSITION);
-//         else
-//           s = start_capture(ms, s, p + 1, CAP_UNFINISHED);
-//         break;
-//       }
-//       case ')': {  /* end capture */
-//         s = end_capture(ms, s, p + 1);
-//         break;
-//       }
-//       case '$': {
-//         if ((p + 1) != ms->p_end)  /* is the '$' the last char in pattern? */
-//           goto dflt;  /* no; go to default */
-//         s = (s == ms->src_end) ? s : null;  /* check end of string */
-//         break;
-//       }
-//       case L_ESC: {  /* escaped sequences not in the format class[*+?-]? */
-//         switch (*(p + 1)) {
-//           case 'b': {  /* balanced string? */
-//             s = matchbalance(ms, s, p + 2);
-//             if (s != null) {
-//               p += 4; goto init;  /* return match(ms, s, p + 4); */
-//             }  /* else fail (s == null) */
-//             break;
-//           }
-//           case 'f': {  /* frontier? */
-//             const char *ep; char previous;
-//             p += 2;
-//             if (l_unlikely(*p != '['))
-//               luaL_error(ms->L, "missing '[' after '%%f' in pattern");
-//             ep = classend(ms, p);  /* points to what is next */
-//             previous = (s == ms->src_init) ? '\0' : *(s - 1);
-//             if (!matchbracketclass(cast_uchar(previous), p, ep - 1) &&
-//                matchbracketclass(cast_uchar(*s), p, ep - 1)) {
-//               p = ep; goto init;  /* return match(ms, s, ep); */
-//             }
-//             s = null;  /* match failed */
-//             break;
-//           }
-//           case '0': case '1': case '2': case '3':
-//           case '4': case '5': case '6': case '7':
-//           case '8': case '9': {  /* capture results (%0-%9)? */
-//             s = match_capture(ms, s, cast_uchar(*(p + 1)));
-//             if (s != null) {
-//               p += 2; goto init;  /* return match(ms, s, p + 2) */
-//             }
-//             break;
-//           }
-//           default: goto dflt;
-//         }
-//         break;
-//       }
-//       default: dflt: {  /* pattern class plus optional suffix */
-//         const char *ep = classend(ms, p);  /* points to optional suffix */
-//         /* does not match at least once? */
-//         if (!singlematch(ms, s, p, ep)) {
-//           if (*ep == '*' || *ep == '?' || *ep == '-') {  /* accept empty? */
-//             p = ep + 1; goto init;  /* return match(ms, s, ep + 1); */
-//           }
-//           else  /* '+' or no suffix */
-//             s = null;  /* fail */
-//         }
-//         else {  /* matched once */
-//           switch (*ep) {  /* handle optional suffix */
-//             case '?': {  /* optional */
-//               const char *res;
-//               if ((res = match(ms, s + 1, ep + 1)) != null)
-//                 s = res;
-//               else {
-//                 p = ep + 1; goto init;  /* else return match(ms, s, ep + 1); */
-//               }
-//               break;
-//             }
-//             case '+':  /* 1 or more repetitions */
-//               s++;  /* 1 match already done */
-//               /* FALLTHROUGH */
-//             case '*':  /* 0 or more repetitions */
-//               s = max_expand(ms, s, p, ep);
-//               break;
-//             case '-':  /* 0 or more repetitions (minimum) */
-//               s = min_expand(ms, s, p, ep);
-//               break;
-//             default:  /* no suffix */
-//               s++; p = ep; goto init;  /* return match(ms, s + 1, ep); */
-//           }
-//         }
-//         break;
-//       }
-//     }
-//   }
-//   ms->matchdepth++;
-//   return s;
-// }
-//
-//
-//
-// static const char *lmemfind (const char *s1, size_t l1,
-//                                const char *s2, size_t l2) {
-//   if (l2 == 0) return s1;  /* empty strings are everywhere */
-//   else if (l2 > l1) return null;  /* avoids a negative 'l1' */
-//   else {
-//     const char *init;  /* to search for a '*s2' inside 's1' */
-//     l2--;  /* 1st char will be checked by 'memchr' */
-//     l1 = l1-l2;  /* 's2' cannot be found after that */
-//     while (l1 > 0 && (init = (const char *)memchr(s1, *s2, l1)) != null) {
-//       init++;   /* 1st char is already checked */
-//       if (memcmp(init, s2+1, l2) == 0)
-//         return init-1;
-//       else {  /* correct 'l1' and 's1' to try again */
-//         l1 -= ct_diff2sz(init - s1);
-//         s1 = init;
-//       }
-//     }
-//     return null;  /* not found */
-//   }
-// }
-//
-//
-// /*
-// ** get information about the i-th capture. If there are no captures
-// ** and 'i==0', return information about the whole match, which
-// ** is the range 's'..'e'. If the capture is a string, return
-// ** its length and put its address in '*cap'. If it is an integer
-// ** (a position), push it on the stack and return CAP_POSITION.
-// */
-// static ptrdiff_t get_onecapture (MatchState *ms, int i, const char *s,
-//                               const char *e, const char **cap) {
-//   if (i >= ms->level) {
-//     if (l_unlikely(i != 0))
-//       luaL_error(ms->L, "invalid capture index %%%d", i + 1);
-//     *cap = s;
-//     return (e - s);
-//   }
-//   else {
-//     ptrdiff_t capl = ms->capture[i].len;
-//     *cap = ms->capture[i].init;
-//     if (l_unlikely(capl == CAP_UNFINISHED))
-//       luaL_error(ms->L, "unfinished capture");
-//     else if (capl == CAP_POSITION)
-//       lua_pushinteger(ms->L,
-//           ct_diff2S(ms->capture[i].init - ms->src_init) + 1);
-//     return capl;
-//   }
-// }
-//
-//
-// /*
-// ** Push the i-th capture on the stack.
-// */
-// static void push_onecapture (MatchState *ms, int i, const char *s,
-//                                                     const char *e) {
-//   const char *cap;
-//   ptrdiff_t l = get_onecapture(ms, i, s, e, &cap);
-//   if (l != CAP_POSITION)
-//     lua_pushlstring(ms->L, cap, cast_sizet(l));
-//   /* else position was already pushed */
-// }
-//
-//
-// static int push_captures (MatchState *ms, const char *s, const char *e) {
-//   int i;
-//   int nlevels = (ms->level == 0 && s) ? 1 : ms->level;
-//   luaL_checkstack(ms->L, nlevels, "too many captures");
-//   for (i = 0; i < nlevels; i++)
-//     push_onecapture(ms, i, s, e);
-//   return nlevels;  /* number of strings pushed */
-// }
-//
-//
-// /* check whether pattern has no special characters */
-// static int nospecials (const char *p, size_t l) {
-//   size_t upto = 0;
-//   do {
-//     if (strpbrk(p + upto, SPECIALS))
-//       return 0;  /* pattern has a special character */
-//     upto += strlen(p + upto) + 1;  /* may have more after \0 */
-//   } while (upto <= l);
-//   return 1;  /* no special chars found */
-// }
-//
-//
-// static void prepstate (MatchState *ms, lua_State *L,
-//                        const char *s, size_t ls, const char *p, size_t lp) {
-//   ms->L = L;
-//   ms->matchdepth = MAXCCALLS;
-//   ms->src_init = s;
-//   ms->src_end = s + ls;
-//   ms->p_end = p + lp;
-// }
-//
-//
-// static void reprepstate (MatchState *ms) {
-//   ms->level = 0;
-//   Debug.Assert(ms->matchdepth == MAXCCALLS);
-// }
+    private static readonly SearchValues<byte> specialsSearch = SearchValues.Create("^$*+?.([%-"u8);
+
+    private static int check_capture(ref MatchState ms, int l)
+    {
+        l -= '1';
+        if (l < 0 ||
+            l >= ms.level ||
+            ms.capture[l].len == CAP_UNFINISHED)
+        {
+            return luaL_error(ms.L, "invalid capture index %%%d", l + 1);
+        }
+
+        return l;
+    }
+
+    private static int capture_to_close(ref MatchState ms)
+    {
+        int level = ms.level;
+        for (level--; level >= 0; level--)
+        {
+            if (ms.capture[level].len == CAP_UNFINISHED)
+            {
+                return level;
+            }
+        }
+
+        return luaL_error(ms.L, "invalid pattern capture");
+    }
+
+    private static byte* classend(ref MatchState ms, byte* p)
+    {
+        switch (*p++)
+        {
+            case (byte)L_ESC:
+                if (p == ms.p_end)
+                {
+                    luaL_error(ms.L, "malformed pattern (ends with '%%')");
+                }
+
+                return p + 1;
+            
+            case (byte)'[':
+                if (*p == '^')
+                {
+                    p++;
+                }
+
+                do
+                {
+                    /* look for a ']' */
+                    if (p == ms.p_end)
+                    {
+                        luaL_error(ms.L, "malformed pattern (missing ']')");
+                    }
+
+                    if (*p++ == L_ESC && p < ms.p_end)
+                    {
+                        p++; /* skip escapes (e.g. '%]') */
+                    }
+                } while (*p != ']');
+
+                return p + 1;
+
+            default:
+                return p;
+        }
+    }
+
+    private static bool match_class(char c, char cl)
+    {
+        bool res;
+        switch (char.ToLowerInvariant(cl))
+        {
+            case 'a': res = char.IsLetter(c); break;
+            case 'c': res = char.IsControl(c); break;
+            case 'd': res = char.IsDigit(c); break;
+            case 'g': res = c is >= '!' and <= '~'; break;
+            case 'l': res = char.IsLower(c); break;
+            case 'p': res = char.IsPunctuation(c) || char.IsSymbol(c); break;
+            case 's': res = char.IsWhiteSpace(c); break;
+            case 'u': res = char.IsUpper(c); break;
+            case 'w': res = char.IsLetterOrDigit(c); break;
+            case 'x': res = char.IsAsciiHexDigit(c); break;
+            case 'z': res = c == 0; break; /* deprecated option */
+            default: return cl == c;
+        }
+
+        return char.IsLower(cl) ? res : !res;
+    }
+
+    private static bool matchbracketclass(char c, byte* p, byte* ec)
+    {
+        bool sig = true;
+        if (*(p + 1) == '^')
+        {
+            sig = false;
+            p++; /* skip the '^' */
+        }
+
+        while (++p < ec)
+        {
+            if (*p == L_ESC)
+            {
+                p++;
+                if (match_class(c, (char)*p))
+                {
+                    return sig;
+                }
+            }
+            else if (*(p + 1) == '-' && p + 2 < ec)
+            {
+                p += 2;
+                if ((char)*(p - 2) <= c && c <= (char)*p)
+                {
+                    return sig;
+                }
+            }
+            else if ((char)*p == c)
+            {
+                return sig;
+            }
+        }
+
+        return !sig;
+    }
+
+    private static bool singlematch(
+        ref MatchState ms,
+        byte* s,
+        byte* p,
+        byte* ep)
+    {
+        if (s >= ms.src_end)
+        {
+            return false;
+        }
+
+        char c = (char)*s;
+        return (*p) switch
+        {
+            (byte)'.' => true /* matches any char */,
+            (byte)L_ESC => match_class(c, (char)*(p + 1)),
+            (byte)'[' => matchbracketclass(c, p, ep - 1),
+            _ => (char)*p == c,
+        };
+    }
+
+    private static byte* matchbalance(
+        ref MatchState ms,
+        byte* s,
+        byte* p)
+    {
+        if (p >= ms.p_end - 1)
+        {
+            luaL_error(ms.L, "malformed pattern (missing arguments to '%%b')");
+        }
+
+        if (*s != *p)
+        {
+            return null;
+        }
+
+        int b = *p;
+        int e = *(p + 1);
+        int cont = 1;
+        while (++s < ms.src_end)
+        {
+            if (*s == e)
+            {
+                if (--cont == 0)
+                {
+                    return s + 1;
+                }
+            }
+            else if (*s == b)
+            {
+                cont++;
+            }
+        }
+
+        return null; /* string ends out of balance */
+    }
+
+    private static byte* max_expand(
+        ref MatchState ms,
+        byte* s,
+        byte* p,
+        byte* ep)
+    {
+        long i = 0; /* counts maximum expand for item */
+        while (singlematch(ref ms, s + i, p, ep))
+        {
+            i++;
+        }
+
+        /* keeps trying to match with the maximum repetitions */
+        while (i >= 0)
+        {
+            byte* res = match(ref ms, s + i, ep + 1);
+            if (res != null)
+            {
+                return res;
+            }
+
+            i--; /* else didn't match; reduce 1 repetition to try again */
+        }
+
+        return null;
+    }
+
+    private static byte* min_expand(
+        ref MatchState ms,
+        byte* s,
+        byte* p,
+        byte* ep)
+    {
+        for (;;)
+        {
+            byte* res = match(ref ms, s, ep + 1);
+            if (res != null)
+            {
+                return res;
+            }
+
+            if (singlematch(ref ms, s, p, ep))
+            {
+                s++; /* try with one more repetition */
+            }
+            else
+            {
+                return null;
+            }
+        }
+    }
+
+    private static byte* start_capture(
+        ref MatchState ms,
+        byte* s,
+        byte* p,
+        int what)
+    {
+        int level = ms.level;
+        if (level >= LUA_MAXCAPTURES)
+        {
+            luaL_error(ms.L, "too many captures");
+        }
+
+        ms.capture[level].init = s;
+        ms.capture[level].len = what;
+        ms.level = level + 1;
+        
+        byte* res;
+        if ((res = match(ref ms, s, p)) == null) /* match failed? */
+        {
+            ms.level--; /* undo capture */
+        }
+
+        return res;
+    }
+
+    private static byte* end_capture(
+        ref MatchState ms,
+        byte* s,
+        byte* p)
+    {
+        int l = capture_to_close(ref ms);
+        ms.capture[l].len = s - ms.capture[l].init; /* close capture */
+
+        byte* res;
+        if ((res = match(ref ms, s, p)) == null) /* match failed? */
+        {
+            ms.capture[l].len = CAP_UNFINISHED; /* undo capture */
+        }
+
+        return res;
+    }
+
+    private static byte* match_capture(ref MatchState ms, byte* s, int l)
+    {
+        l = check_capture(ref ms, l);
+        long len = ms.capture[l].len;
+        if (ms.src_end - s >= len &&
+            memcmp(ms.capture[l].init, s, len) == 0)
+        {
+            return s + len;
+        }
+
+        return null;
+    }
+
+    private static byte* match(ref MatchState ms, byte* s, byte* p)
+    {
+        if (ms.matchdepth-- == 0)
+        {
+            luaL_error(ms.L, "pattern too complex");
+        }
+
+        init: /* using goto to optimise tail recursion */
+        if (p != ms.p_end)
+        {
+            /* end of pattern? */
+            switch (*p)
+            {
+                case (byte)'(':
+                    {
+                        /* start capture */
+                        if (*(p + 1) == ')')  /* position capture? */
+                        {
+                            s = start_capture(ref ms, s, p + 2, CAP_POSITION);
+                        }
+                        else
+                        {
+                            s = start_capture(ref ms, s, p + 1, CAP_UNFINISHED);
+                        }
+
+                        break;
+                    }
+
+                case (byte)')':
+                    /* end capture */
+                    s = end_capture(ref ms, s, p + 1);
+                    break;
+
+                case (byte)'$':
+                    if (p + 1 != ms.p_end)  /* is the '$' the last char in pattern? */
+                    {
+                        goto dflt;  /* no; go to default */
+                    }
+
+                    s = s == ms.src_end ? s : null;  /* check end of string */
+                    break;
+
+                case (byte)L_ESC:
+                    /* escaped sequences not in the format class[*+?-]? */
+                    switch (*(p + 1))
+                    {
+                        case (byte)'b':
+                            /* balanced string? */
+                            s = matchbalance(ref ms, s, p + 2);
+                            if (s != null)
+                            {
+                                p += 4;
+                                goto init; /* return match(ms, s, p + 4); */
+                            } /* else fail (s == NULL) */
+
+                            break;
+
+                        case (byte)'f':
+                            {
+                                /* frontier? */
+                                p += 2;
+                                if (*p != '[')
+                                {
+                                    luaL_error(ms.L, "missing '[' after '%%f' in pattern");
+                                }
+
+                                byte* ep = classend(ref ms, p); /* points to what is next */
+                                byte previous = s == ms.src_init ? (byte)0 : *(s - 1);
+                                if (!matchbracketclass((char)previous, p, ep - 1) &&
+                                    matchbracketclass((char)*s, p, ep - 1))
+                                {
+                                    p = ep;
+                                    goto init; /* return match(ms, s, ep); */
+                                }
+
+                                s = null; /* match failed */
+                                break;
+                            }
+
+                        case (byte)'0':
+                        case (byte)'1':
+                        case (byte)'2':
+                        case (byte)'3':
+                        case (byte)'4':
+                        case (byte)'5':
+                        case (byte)'6':
+                        case (byte)'7':
+                        case (byte)'8':
+                        case (byte)'9':
+                            /* capture results (%0-%9)? */
+                            s = match_capture(ref ms, s, *(p + 1));
+                            if (s != null)
+                            {
+                                p += 2;
+                                goto init; /* return match(ms, s, p + 2) */
+                            }
+
+                            break;
+
+                        default:
+                            goto dflt;
+                    }
+
+                    break;
+
+                default:
+                    dflt:
+                {
+                    /* pattern class plus optional suffix */
+                    byte* ep = classend(ref ms, p); /* points to optional suffix */
+                    /* does not match at least once? */
+                    if (!singlematch(ref ms, s, p, ep))
+                    {
+                        if (*ep == '*' || *ep == '?' || *ep == '-')
+                        {
+                            /* accept empty? */
+                            p = ep + 1;
+                            goto init; /* return match(ms, s, ep + 1); */
+                        }
+
+                        /* '+' or no suffix */
+                        s = null; /* fail */
+                    }
+                    else
+                    {
+                        /* matched once */
+                        switch (*ep)
+                        {
+                            /* handle optional suffix */
+                            case (byte)'?':
+                                {
+                                    /* optional */
+                                    byte* res;
+                                    if ((res = match(ref ms, s + 1, ep + 1)) != null)
+                                    {
+                                        s = res;
+                                    }
+                                    else
+                                    {
+                                        p = ep + 1;
+                                        goto init; /* else return match(ms, s, ep + 1); */
+                                    }
+
+                                    break;
+                                }
+
+                            case (byte)'+': /* 1 or more repetitions */
+                                s++;  /* 1 match already done */
+                                goto case (byte)'*';
+
+                            case (byte)'*': /* 0 or more repetitions */
+                                s = max_expand(ref ms, s, p, ep);
+                                break;
+
+                            case (byte)'-': /* 0 or more repetitions (minimum) */
+                                s = min_expand(ref ms, s, p, ep);
+                                break;
+
+                            default: /* no suffix */
+                                s++;
+                                p = ep;
+                                goto init; /* return match(ms, s + 1, ep); */
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        ms.matchdepth++;
+        return s;
+    }
+
+    private static ReadOnlySpan<byte> lmemfind(ReadOnlySpan<byte> s1, ReadOnlySpan<byte> s2)
+    {
+        int x = s1.IndexOf(s2);
+        if (x >= 0)
+        {
+            return s1[x..];
+        }
+
+        return default;
+    }
+
+    /*
+    ** get information about the i-th capture. If there are no captures
+    ** and 'i==0', return information about the whole match, which
+    ** is the range 's'..'e'. If the capture is a string, return
+    ** its length and put its address in '*cap'. If it is an integer
+    ** (a position), push it on the stack and return CAP_POSITION.
+    */
+    private static long get_onecapture(
+        ref MatchState ms,
+        int i,
+        byte* s,
+        byte* e,
+        byte** cap)
+    {
+        if (i >= ms.level)
+        {
+            if (i != 0)
+            {
+                luaL_error(ms.L, "invalid capture index %%%d", i + 1);
+            }
+
+            *cap = s;
+            return e - s;
+        }
+
+        long capl = ms.capture[i].len;
+        *cap = ms.capture[i].init;
+        if (capl == CAP_UNFINISHED)
+        {
+            luaL_error(ms.L, "unfinished capture");
+        }
+        else if (capl == CAP_POSITION)
+        {
+            lua_pushinteger(
+                ms.L,
+                ms.capture[i].init - ms.src_init + 1);
+        }
+
+        return capl;
+    }
+
+    /*
+     ** Push the i-th capture on the stack.
+     */
+    private static void push_onecapture(
+        ref MatchState ms,
+        int i,
+        byte* s,
+        byte* e)
+    {
+        byte* cap;
+        long l = get_onecapture(ref ms, i, s, e, &cap);
+        if (l != CAP_POSITION)
+        {
+            lua_pushlstring(ms.L, new ReadOnlySpan<byte>(cap, (int)l));
+        }
+        /* else position was already pushed */
+    }
+
+    private static int push_captures(ref MatchState ms, byte* s, byte* e)
+    {
+        int nlevels = ms.level == 0 && s != null ? 1 : ms.level;
+        luaL_checkstack(ms.L, nlevels, "too many captures");
+        for (int i = 0; i < nlevels; i++)
+        {
+            push_onecapture(ref ms, i, s, e);
+        }
+
+        return nlevels; /* number of strings pushed */
+    }
+
+    /* check whether pattern has no special characters */
+    private static bool nospecials(ReadOnlySpan<byte> p)
+    {
+        return !p.ContainsAny(specialsSearch);
+    }
+
+    private static void prepstate(
+        ref MatchState ms,
+        lua_State* L,
+        byte* s,
+        int ls,
+        byte* p,
+        int lp)
+    {
+        ms.L = L;
+        ms.matchdepth = MAXCCALLS;
+        ms.src_init = s;
+        ms.src_end = s + ls;
+        ms.p_end = p + lp;
+    }
+
+    private static void reprepstate(ref MatchState ms)
+    {
+        ms.level = 0;
+        Debug.Assert(ms.matchdepth == MAXCCALLS);
+    }
 
     private static int str_find_aux(lua_State* L, bool find)
     {
-        string s = luaL_checknetstring(L, 1);
-        string p = luaL_checknetstring(L, 2);
-        long init = posrelatI(luaL_optinteger(L, 3, 1), s.Length) - 1;
-//   if (init > ls) {  /* start after string's end? */
-//     luaL_pushfail(L);  /* cannot find anything */
-//     return 1;
-//   }
-//   /* explicit request or no special characters? */
-//   if (find && (lua_toboolean(L, 4) || nospecials(p, lp))) {
-//     /* do a plain search */
-//     const char *s2 = lmemfind(s + init, ls - init, p, lp);
-//     if (s2) {
-//       lua_pushinteger(L, ct_diff2S(s2 - s) + 1);
-//       lua_pushinteger(L, cast_st2S(ct_diff2sz(s2 - s) + lp));
-//       return 2;
-//     }
-//   }
-//   else {
-//     MatchState ms;
-//     const char *s1 = s + init;
-//     int anchor = (*p == '^');
-//     if (anchor) {
-//       p++; lp--;  /* skip anchor character */
-//     }
-//     prepstate(&ms, L, s, ls, p, lp);
-//     do {
-//       const char *res;
-//       reprepstate(&ms);
-//       if ((res=match(&ms, s1, p)) != null) {
-//         if (find) {
-//           lua_pushinteger(L, ct_diff2S(s1 - s) + 1);  /* start */
-//           lua_pushinteger(L, ct_diff2S(res - s));   /* end */
-//           return push_captures(&ms, null, 0) + 2;
-//         }
-//         else
-//           return push_captures(&ms, s1, res);
-//       }
-//     } while (s1++ < ms.src_end && !anchor);
-//   }
-//   luaL_pushfail(L);  /* not found */
-//   return 1;
-        throw new NotImplementedException();
+        byte* s = luaL_checklstring(L, 1, out int ls);
+        byte* p = luaL_checklstring(L, 2, out int lp);
+        int sLength = ls;
+        int pLength = lp;
+        ReadOnlySpan<byte> sSpan = new(s, sLength);
+        ReadOnlySpan<byte> pSpan = new(p, pLength);
+        int init = checked((int)(posrelatI(luaL_optinteger(L, 3, 1), sLength) - 1));
+        if (init > sLength)
+        {
+            /* start after string's end? */
+            luaL_pushfail(L); /* cannot find anything */
+            return 1;
+        }
+
+        /* explicit request or no special characters? */
+        if (find && (lua_toboolean(L, 4) || nospecials(pSpan)))
+        {
+            if (pSpan.IsEmpty)
+            {
+                lua_pushinteger(L, init + 1);
+                lua_pushinteger(L, init);
+                return 2;
+            }
+            
+            /* do a plain search */
+            ReadOnlySpan<byte> s2 = lmemfind(sSpan[init..], pSpan);
+            if (!s2.IsEmpty)
+            {
+                lua_pushinteger(L, sLength - s2.Length + 1);
+                lua_pushinteger(L, sLength - s2.Length + pLength);
+                return 2;
+            }
+        }
+        else
+        {
+            MatchState ms = new();
+            byte* s1p = s + init;
+            bool anchor = *p == '^';
+            if (anchor)
+            {
+                p++; /* skip anchor character */
+                pLength--;
+            }
+
+            prepstate(ref ms, L, s, sLength, p, pLength);
+            do
+            {
+                reprepstate(ref ms);
+
+                byte* res;
+                if ((res = match(ref ms, s1p, p)) != null)
+                {
+                    if (find)
+                    {
+                        lua_pushinteger(L, s1p - s + 1); /* start */
+                        lua_pushinteger(L, res - s); /* end */
+                        return push_captures(ref ms, null, null) + 2;
+                    }
+
+                    return push_captures(ref ms, s1p, res);
+                }
+            } while (s1p++ < ms.src_end && !anchor);
+        }
+
+        luaL_pushfail(L); /* not found */
+        return 1;
     }
 
     private static int str_find(lua_State* L)
@@ -851,131 +1132,164 @@ public static unsafe partial class Lua
         return str_find_aux(L, false);
     }
 
-// /* state for 'gmatch' */
-// typedef struct GMatchState {
-//   const char *src;  /* current position */
-//   const char *p;  /* pattern */
-//   const char *lastmatch;  /* end of last match */
-//   MatchState ms;  /* match state */
-// } GMatchState;
+    /* state for 'gmatch' */
+    private struct GMatchState
+    {
+        public byte* src; /* current position */
+        public byte* p; /* pattern */
+        public byte* lastmatch; /* end of last match */
+        public MatchState ms; /* match state */
+    }
 
     private static int gmatch_aux(lua_State* L)
     {
-//   GMatchState *gm = (GMatchState *)lua_touserdata(L, lua_upvalueindex(3));
-//   const char *src;
-//   gm->ms.L = L;
-//   for (src = gm->src; src <= gm->ms.src_end; src++) {
-//     const char *e;
-//     reprepstate(&gm->ms);
-//     if ((e = match(&gm->ms, src, gm->p)) != null && e != gm->lastmatch) {
-//       gm->src = gm->lastmatch = e;
-//       return push_captures(&gm->ms, src, e);
-//     }
-//   }
-//   return 0;  /* not found */
-        throw new NotImplementedException();
+        GMatchState* gm = (GMatchState*)lua_touserdata(L, lua_upvalueindex(3));
+        gm->ms.L = L;
+        for (byte* src = gm->src; src <= gm->ms.src_end; src++)
+        {
+            reprepstate(ref gm->ms);
+            byte* e;
+            if ((e = match(ref gm->ms, src, gm->p)) != null && e != gm->lastmatch)
+            {
+                gm->src = gm->lastmatch = e;
+                return push_captures(ref gm->ms, src, e);
+            }
+        }
+
+        return 0; /* not found */
     }
 
     private static int gmatch(lua_State* L)
     {
-//   size_t ls, lp;
-//   const char *s = luaL_checklstring(L, 1, &ls);
-//   const char *p = luaL_checklstring(L, 2, &lp);
-//   size_t init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
-//   GMatchState *gm;
-//   lua_settop(L, 2);  /* keep strings on closure to avoid being collected */
-//   gm = (GMatchState *)lua_newuserdatauv(L, sizeof(GMatchState), 0);
-//   if (init > ls)  /* start after string's end? */
-//     init = ls + 1;  /* avoid overflows in 's + init' */
-//   prepstate(&gm->ms, L, s, ls, p, lp);
-//   gm->src = s + init; gm->p = p; gm->lastmatch = null;
-//   lua_pushcclosure(L, gmatch_aux, 3);
-//   return 1;
-        throw new NotImplementedException();
+        byte* s = luaL_checklstring(L, 1, out int ls);
+        byte* p = luaL_checklstring(L, 2, out int lp);
+        long init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
+        lua_settop(L, 2); /* keep strings on closure to avoid being collected */
+        GMatchState* gm = (GMatchState*)lua_newuserdatauv(L, sizeof(GMatchState), 0);
+        if (init > ls) /* start after string's end? */
+        {
+            init = ls + 1; /* avoid overflows in 's + init' */
+        }
+
+        prepstate(ref gm->ms, L, s, ls, p, lp);
+        gm->src = s + init;
+        gm->p = p;
+        gm->lastmatch = null;
+        lua_pushcclosure(L, &gmatch_aux, 3);
+        return 1;
     }
 
-// static void add_s (MatchState *ms, luaL_Buffer *b, const char *s,
-//                                                    const char *e) {
-//   size_t l;
-//   lua_State *L = ms->L;
-//   const char *news = lua_tolstring(L, 3, &l);
-//   const char *p;
-//   while ((p = (char *)memchr(news, L_ESC, l)) != null) {
-//     luaL_addlstring(b, news, ct_diff2sz(p - news));
-//     p++;  /* skip ESC */
-//     if (*p == L_ESC)  /* '%%' */
-//       luaL_addchar(b, *p);
-//     else if (*p == '0')  /* '%0' */
-//         luaL_addlstring(b, s, ct_diff2sz(e - s));
-//     else if (isdigit(cast_uchar(*p))) {  /* '%n' */
-//       const char *cap;
-//       ptrdiff_t resl = get_onecapture(ms, *p - '1', s, e, &cap);
-//       if (resl == CAP_POSITION)
-//         luaL_addvalue(b);  /* add position to accumulated result */
-//       else
-//         luaL_addlstring(b, cap, cast_sizet(resl));
-//     }
-//     else
-//       luaL_error(L, "invalid use of '%c' in replacement string", L_ESC);
-//     l -= ct_diff2sz(p + 1 - news);
-//     news = p + 1;
-//   }
-//   luaL_addlstring(b, news, l);
-// }
-//
-//
-// /*
-// ** Add the replacement value to the string buffer 'b'.
-// ** Return true if the original string was changed. (Function calls and
-// ** table indexing resulting in nil or false do not change the subject.)
-// */
-// static int add_value (MatchState *ms, luaL_Buffer *b, const char *s,
-//                                       const char *e, int tr) {
-//   lua_State *L = ms->L;
-//   switch (tr) {
-//     case LUA_TFUNCTION: {  /* call the function */
-//       int n;
-//       lua_pushvalue(L, 3);  /* push the function */
-//       n = push_captures(ms, s, e);  /* all captures as arguments */
-//       lua_call(L, n, 1);  /* call it */
-//       break;
-//     }
-//     case LUA_TTABLE: {  /* index the table */
-//       push_onecapture(ms, 0, s, e);  /* first capture is the index */
-//       lua_gettable(L, 3);
-//       break;
-//     }
-//     default: {  /* LUA_TNUMBER or LUA_TSTRING */
-//       add_s(ms, b, s, e);  /* add value to the buffer */
-//       return 1;  /* something changed */
-//     }
-//   }
-//   if (!lua_toboolean(L, -1)) {  /* nil or false? */
-//     lua_pop(L, 1);  /* remove value */
-//     luaL_addlstring(b, s, ct_diff2sz(e - s));  /* keep original text */
-//     return 0;  /* no changes */
-//   }
-//   else if (l_unlikely(!lua_isstring(L, -1)))
-//     return luaL_error(L, "invalid replacement value (a %s)",
-//                          luaL_typename(L, -1));
-//   else {
-//     luaL_addvalue(b);  /* add result to accumulator */
-//     return 1;  /* something changed */
-//   }
-// }
+    private static void add_s(
+        ref MatchState ms,
+        luaL_Buffer* b,
+        byte* s,
+        byte* e)
+    {
+        lua_State* L = ms.L;
+        byte* news = lua_tolstring(L, 3, out int l);
+        byte* p;
+        while ((p = memchr(news, (byte)L_ESC, l)) != null)
+        {
+            luaL_addlstring(b, new ReadOnlySpan<byte>(news, (int)(p - news)));
+            p++; /* skip ESC */
+            if (*p == L_ESC) /* '%%' */
+            {
+                luaL_addchar(b, *p);
+            }
+            else if (*p == '0') /* '%0' */
+            {
+                luaL_addlstring(b, new ReadOnlySpan<byte>(s, (int)(e - s)));
+            }
+            else if (char.IsAsciiDigit((char)*p))
+            {
+                /* '%n' */
+                byte* cap;
+                long resl = get_onecapture(ref ms, *p - '1', s, e, &cap);
+                if (resl == CAP_POSITION)
+                {
+                    luaL_addvalue(b); /* add position to accumulated result */
+                }
+                else
+                {
+                    luaL_addlstring(b, new ReadOnlySpan<byte>(cap, (int)resl));
+                }
+            }
+            else
+            {
+                luaL_error(L, "invalid use of '%c' in replacement string", L_ESC);
+            }
+
+            l -= (int)(p + 1 - news);
+            news = p + 1;
+        }
+
+        luaL_addlstring(b, new ReadOnlySpan<byte>(news, (int)l));
+    }
+
+    /*
+     ** Add the replacement value to the string buffer 'b'.
+     ** Return true if the original string was changed. (Function calls and
+     ** table indexing resulting in nil or false do not change the subject.)
+     */
+    private static bool add_value(
+        ref MatchState ms,
+        luaL_Buffer* b,
+        byte* s,
+        byte* e,
+        int tr)
+    {
+        lua_State* L = ms.L;
+        switch (tr)
+        {
+            case LUA_TFUNCTION:
+                {
+                    /* call the function */
+                    lua_pushvalue(L, 3); /* push the function */
+                    int n = push_captures(ref ms, s, e); /* all captures as arguments */
+                    lua_call(L, n, 1); /* call it */
+                    break;
+                }
+
+            case LUA_TTABLE:
+                /* index the table */
+                push_onecapture(ref ms, 0, s, e); /* first capture is the index */
+                lua_gettable(L, 3);
+                break;
+
+            default:
+                /* LUA_TNUMBER or LUA_TSTRING */
+                add_s(ref ms, b, s, e); /* add value to the buffer */
+                return true; /* something changed */
+        }
+
+        if (!lua_toboolean(L, -1))
+        {
+            /* nil or false? */
+            lua_pop(L, 1); /* remove value */
+            luaL_addlstring(b, new Span<byte>(s, (int)(e - s))); /* keep original text */
+            return false; /* no changes */
+        }
+
+        if (!lua_isstring(L, -1))
+        {
+            return luaL_error(L, "invalid replacement value (a %s)", luaL_typename(L, -1)) != 0;
+        }
+
+        luaL_addvalue(b); /* add result to accumulator */
+        return true; /* something changed */
+    }
 
     private static int str_gsub(lua_State* L)
     {
-        string src = luaL_checknetstring(L, 1); /* subject */
-        string p = luaL_checknetstring(L, 2); /* pattern */
-        string? lastmatch = null; /* end of last match */
-        int tr = lua_type(L, 3); /* replacement type */
+        ReadOnlySpan<byte> srcspan = luaL_checklstring(L, 1);  /* subject */
+        ReadOnlySpan<byte> pspan = luaL_checklstring(L, 2);  /* pattern */
+        byte* lastmatch = null;  /* end of last match */
+        int tr = lua_type(L, 3);  /* replacement type */
         /* max replacements */
-        long max_s = luaL_optinteger(L, 4, (long)src.Length + 1);
-        bool anchor = p[0] == '^';
-//   long n = 0;  /* replacement count */
-//   int changed = 0;  /* change flag */
-//   MatchState ms;
+        long max_s = luaL_optinteger(L, 4, srcspan.Length + 1);
+        bool anchor = !pspan.IsEmpty && pspan[0] == '^';
+        long n = 0;  /* replacement count */
+        bool changed = false;  /* change flag */
         luaL_argexpected(
             L,
             tr is LUA_TNUMBER or LUA_TSTRING or LUA_TFUNCTION or LUA_TTABLE,
@@ -983,35 +1297,64 @@ public static unsafe partial class Lua
             "string/function/table");
         luaL_Buffer b;
         luaL_buffinit(L, &b);
-//   if (anchor) {
-//     p++; lp--;  /* skip anchor character */
-//   }
-//   prepstate(&ms, L, src, srcl, p, lp);
-//   while (n < max_s) {
-//     const char *e;
-//     reprepstate(&ms);  /* (re)prepare state for new match */
-//     if ((e = match(&ms, src, p)) != null && e != lastmatch) {  /* match? */
-//       n++;
-//       changed = add_value(&ms, &b, src, e, tr) | changed;
-//       src = lastmatch = e;
-//     }
-//     else if (src < ms.src_end)  /* otherwise, skip one character */
-//       luaL_addchar(&b, *src++);
-//     else break;  /* end of subject */
-//     if (anchor) break;
-//   }
-//   if (!changed)  /* no changes? */
-//     lua_pushvalue(L, 1);  /* return original string */
-//   else {  /* something changed */
-//     luaL_addlstring(&b, src, ct_diff2sz(ms.src_end - src));
-//     luaL_pushresult(&b);  /* create and return new string */
-//   }
-//   lua_pushinteger(L, n);  /* number of substitutions */
-//   return 2;
-        throw new NotImplementedException();
-    }
+        if (anchor)
+        {
+            pspan = pspan[1..]; /* skip anchor character */
+        }
 
-    /* }====================================================== */
+        fixed (byte* srcp = srcspan)
+        {
+            byte empty = 0;
+            byte* src = srcp == null ? &empty : srcp;
+            
+            fixed (byte* pp = pspan)
+            {
+                byte* p = pp == null ? &empty : pp;
+                
+                MatchState ms = new();
+                prepstate(ref ms, L, src, srcspan.Length, p, pspan.Length);
+                while (n < max_s)
+                {
+                    reprepstate(ref ms); /* (re)prepare state for new match */
+                    byte* e;
+                    if ((e = match(ref ms, src, p)) != null && e != lastmatch)
+                    {
+                        /* match? */
+                        n++;
+                        changed = add_value(ref ms, &b, src, e, tr) || changed;
+                        src = lastmatch = e;
+                    }
+                    else if (src < ms.src_end) /* otherwise, skip one character */
+                    {
+                        luaL_addchar(&b, *src++);
+                    }
+                    else
+                    {
+                        break; /* end of subject */
+                    }
+
+                    if (anchor)
+                    {
+                        break;
+                    }
+                }
+
+                if (!changed)  /* no changes? */
+                {
+                    lua_pushvalue(L, 1);  /* return original string */
+                }
+                else
+                {
+                    /* something changed */
+                    luaL_addlstring(&b, new ReadOnlySpan<byte>(src, (int)(ms.src_end - src)));
+                    luaL_pushresult(&b);  /* create and return new string */
+                }
+
+                lua_pushinteger(L, n);  /* number of substitutions */
+                return 2;
+            }
+        }
+    }
 
     /*
      ** {======================================================
@@ -1019,219 +1362,221 @@ public static unsafe partial class Lua
      ** =======================================================
      */
 
-// #if !defined(lua_number2strx)	/* { */
-//
-// /*
-// ** Hexadecimal floating-point formatter
-// */
-//
-// #define SIZELENMOD	(sizeof(LUA_NUMBER_FRMLEN)/sizeof(char))
-//
-//
-// /*
-// ** Number of bits that goes into the first digit. It can be any value
-// ** between 1 and 4; the following definition tries to align the number
-// ** to nibble boundaries by making what is left after that first digit a
-// ** multiple of 4.
-// */
-// #define L_NBFD		((l_floatatt(MANT_DIG) - 1)%4 + 1)
-//
-//
-// /*
-// ** Add integer part of 'x' to buffer and return new 'x'
-// */
-// static double adddigit (char *buff, unsigned n, double x) {
-//   double dd = (floor)(x);  /* get integer part from 'x' */
-//   int d = (int)dd;
-//   buff[n] = cast_char(d < 10 ? d + '0' : d - 10 + 'a');  /* add to buffer */
-//   return x - dd;  /* return what is left */
-// }
-//
-//
-// static int num2straux (char *buff, unsigned sz, double x) {
-//   /* if 'inf' or 'NaN', format it like '%g' */
-//   if (x != x || x == (double)HUGE_VAL || x == -(double)HUGE_VAL)
-//     return l_sprintf(buff, sz, LUA_NUMBER_FMT, (LUAI_UACNUMBER)x);
-//   else if (x == 0) {  /* can be -0... */
-//     /* create "0" or "-0" followed by exponent */
-//     return l_sprintf(buff, sz, LUA_NUMBER_FMT "x0p+0", (LUAI_UACNUMBER)x);
-//   }
-//   else {
-//     int e;
-//     double m = (frexp)(x, &e);  /* 'x' fraction and exponent */
-//     unsigned n = 0;  /* character count */
-//     if (m < 0) {  /* is number negative? */
-//       buff[n++] = '-';  /* add sign */
-//       m = -m;  /* make it positive */
-//     }
-//     buff[n++] = '0'; buff[n++] = 'x';  /* add "0x" */
-//     m = adddigit(buff, n++, m * (1 << L_NBFD));  /* add first digit */
-//     e -= L_NBFD;  /* this digit goes before the radix point */
-//     if (m > 0) {  /* more digits? */
-//       buff[n++] = lua_getlocaledecpoint();  /* add radix point */
-//       do {  /* add as many digits as needed */
-//         m = adddigit(buff, n++, m * 16);
-//       } while (m > 0);
-//     }
-//     n += cast_uint(l_sprintf(buff + n, sz - n, "p%+d", e));  /* add exponent */
-//     Debug.Assert(n < sz);
-//     return cast_int(n);
-//   }
-// }
-//
-//
-// static int lua_number2strx (lua_State *L, char *buff, unsigned sz,
-//                             const char *fmt, double x) {
-//   int n = num2straux(buff, sz, x);
-//   if (fmt[SIZELENMOD] == 'A') {
-//     int i;
-//     for (i = 0; i < n; i++)
-//       buff[i] = cast_char(toupper(cast_uchar(buff[i])));
-//   }
-//   else if (l_unlikely(fmt[SIZELENMOD] != 'a'))
-//     return luaL_error(L, "modifiers for format '%%a'/'%%A' not implemented");
-//   return n;
-// }
-//
-// #endif				/* } */
-//
-//
-// /*
-// ** Maximum size for items formatted with '%f'. This size is produced
-// ** by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
-// ** and '\0') + number of decimal digits to represent maxfloat (which
-// ** is maximum exponent + 1). (99+3+1, adding some extra, 110)
-// */
-// #define MAX_ITEMF	(110 + l_floatatt(MAX_10_EXP))
+    private const int HEX_FLOAT_PRECISION = (DBL_MANT_DIG - 1 + 3) / 4;
+    private const int DBL_MAX_10_EXP = 308;
 
     /*
-    ** All formats except '%f' do not need that large limit.  The other
-    ** float formats use exponents, so that they fit in the 99 limit for
-    ** significant digits; 's' for large strings and 'q' add items directly
-    ** to the buffer; all integer formats also fit in the 99 limit.  The
-    ** worst case are floats: they may need 99 significant digits, plus
-    ** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
-    */
+     ** Maximum size for items formatted with '%f'. This size is produced
+     ** by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
+     ** and '\0') + number of decimal digits to represent maxfloat (which
+     ** is maximum exponent + 1). (99+3+1, adding some extra, 110)
+     */
+    private const int MAX_ITEMF = 110 + DBL_MAX_10_EXP;
+
+    /*
+     ** All formats except '%f' do not need that large limit.  The other
+     ** float formats use exponents, so that they fit in the 99 limit for
+     ** significant digits; 's' for large strings and 'q' add items directly
+     ** to the buffer; all integer formats also fit in the 99 limit.  The
+     ** worst case are floats: they may need 99 significant digits, plus
+     ** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
+     */
     private const int MAX_ITEM = 120;
 
     /* valid flags for a, A, e, E, f, F, g, and G conversions */
-    private const string L_FMTFLAGSF = "-+#0 ";
+    private static ReadOnlySpan<byte> L_FMTFLAGSF => "-+#0 "u8;
 
     /* valid flags for o, x, and X conversions */
-    private const string L_FMTFLAGSX = "-#0";
+    private static ReadOnlySpan<byte> L_FMTFLAGSX => "-#0"u8;
 
     /* valid flags for d and i conversions */
-    private const string L_FMTFLAGSI = "-+0 ";
+    private static ReadOnlySpan<byte> L_FMTFLAGSI => "-+0 "u8;
 
     /* valid flags for u conversions */
-    private const string L_FMTFLAGSU = "-0";
+    private static ReadOnlySpan<byte> L_FMTFLAGSU => "-0"u8;
 
     /* valid flags for c, p, and s conversions */
-    private const string L_FMTFLAGSC = "-";
+    private static ReadOnlySpan<byte> L_FMTFLAGSC => "-"u8;
 
     /*
-    ** Maximum size of each format specification (such as "%-099.99d"):
-    ** Initial '%', flags (up to 5), width (2), period, precision (2),
-    ** length modifier (8), conversion specifier, and final '\0', plus some
-    ** extra.
-    */
+     ** Maximum size of each format specification (such as "%-099.99d"):
+     ** Initial '%', flags (up to 5), width (2), period, precision (2),
+     ** length modifier (8), conversion specifier, and final '\0', plus some
+     ** extra.
+     */
     private const int MAX_FORMAT = 32;
 
-// static void addquoted (luaL_Buffer *b, const char *s, size_t len) {
-//   luaL_addchar(b, '"');
-//   while (len--) {
-//     if (*s == '"' || *s == '\\' || *s == '\n') {
-//       luaL_addchar(b, '\\');
-//       luaL_addchar(b, *s);
-//     }
-//     else if (iscntrl(cast_uchar(*s))) {
-//       char buff[10];
-//       if (!isdigit(cast_uchar(*(s+1))))
-//         l_sprintf(buff, sizeof(buff), "\\%d", (int)cast_uchar(*s));
-//       else
-//         l_sprintf(buff, sizeof(buff), "\\%03d", (int)cast_uchar(*s));
-//       luaL_addstring(b, buff);
-//     }
-//     else
-//       luaL_addchar(b, *s);
-//     s++;
-//   }
-//   luaL_addchar(b, '"');
-// }
-//
-//
-// /*
-// ** Serialize a floating-point number in such a way that it can be
-// ** scanned back by Lua. Use hexadecimal format for "common" numbers
-// ** (to preserve precision); inf, -inf, and NaN are handled separately.
-// ** (NaN cannot be expressed as a numeral, so we write '(0/0)' for it.)
-// */
-// static int quotefloat (lua_State *L, char *buff, double n) {
-//   const char *s;  /* for the fixed representations */
-//   if (n == (double)HUGE_VAL)  /* inf? */
-//     s = "1e9999";
-//   else if (n == -(double)HUGE_VAL)  /* -inf? */
-//     s = "-1e9999";
-//   else if (n != n)  /* NaN? */
-//     s = "(0/0)";
-//   else {  /* format number as hexadecimal */
-//     int  nb = lua_number2strx(L, buff, MAX_ITEM,
-//                                  "%" LUA_NUMBER_FRMLEN "a", n);
-//     /* ensures that 'buff' string uses a dot as the radix character */
-//     if (memchr(buff, '.', cast_uint(nb)) == null) {  /* no dot? */
-//       char point = lua_getlocaledecpoint();  /* try locale point */
-//       char *ppoint = (char *)memchr(buff, point, cast_uint(nb));
-//       if (ppoint) *ppoint = '.';  /* change it to a dot */
-//     }
-//     return nb;
-//   }
-//   /* for the fixed representations */
-//   return l_sprintf(buff, MAX_ITEM, "%s", s);
-// }
-//
-//
-// static void addliteral (lua_State *L, luaL_Buffer *b, int arg) {
-//   switch (lua_type(L, arg)) {
-//     case LUA_TSTRING: {
-//       size_t len;
-//       const char *s = lua_tolstring(L, arg, &len);
-//       addquoted(b, s, len);
-//       break;
-//     }
-//     case LUA_TNUMBER: {
-//       char *buff = luaL_prepbuffsize(b, MAX_ITEM);
-//       int nb;
-//       if (!lua_isinteger(L, arg))  /* float? */
-//         nb = quotefloat(L, buff, lua_tonumber(L, arg));
-//       else {  /* integers */
-//         long n = lua_tointeger(L, arg);
-//         const char *format = (n == LUA_MININTEGER)  /* corner case? */
-//                            ? "0x%" LUA_INTEGER_FRMLEN "x"  /* use hex */
-//                            : LUA_INTEGER_FMT;  /* else use default format */
-//         nb = l_sprintf(buff, MAX_ITEM, format, (LUAI_UACINT)n);
-//       }
-//       luaL_addsize(b, cast_uint(nb));
-//       break;
-//     }
-//     case LUA_TNIL: case LUA_TBOOLEAN: {
-//       luaL_tolstring(L, arg, null);
-//       luaL_addvalue(b);
-//       break;
-//     }
-//     default: {
-//       luaL_argerror(L, arg, "value has no literal form");
-//     }
-//   }
-// }
-
-    private static ReadOnlySpan<char> get2digits(ReadOnlySpan<char> s)
+    private static void addquoted(luaL_Buffer* b, ReadOnlySpan<byte> s)
     {
-        if (char.IsAsciiDigit(s[0]))
+        Span<byte> buff = stackalloc byte[10];
+        
+        luaL_addchar(b, '"');
+        while (!s.IsEmpty)
+        {
+            if (s[0] == '"' || s[0] == '\\' || s[0] == '\n')
+            {
+                luaL_addchar(b, '\\');
+                luaL_addchar(b, s[0]);
+            }
+            else if (char.IsControl((char)s[0]))
+            {
+                luaL_addchar(b, '\\');
+                buff.Clear();
+
+                if (s.Length == 1 || !char.IsAsciiDigit((char)s[1]))
+                {
+                    int size = FormatInt(
+                        s[0],
+                        new FormatFlags(),
+                        buff,
+                        10);
+                    luaL_addstring(b, buff[..size]);
+                }
+                else
+                {
+                    int size = FormatInt(
+                        s[0],
+                        new FormatFlags
+                        {
+                            LeftPadZero = true,
+                            Width = 3,
+                        },
+                        buff,
+                        10);
+                    luaL_addstring(b, buff[..size]);
+                }
+            }
+            else
+            {
+                luaL_addchar(b, s[0]);
+            }
+
+            s = s[1..];
+        }
+
+        luaL_addchar(b, '"');
+    }
+
+    /*
+    ** Serialize a floating-point number in such a way that it can be
+    ** scanned back by Lua. Use hexadecimal format for "common" numbers
+    ** (to preserve precision); inf, -inf, and NaN are handled separately.
+    ** (NaN cannot be expressed as a numeral, so we write '(0/0)' for it.)
+    */
+    private static int quotefloat(lua_State* L, Span<byte> output, double n)
+    {
+        ReadOnlySpan<byte> s; /* for the fixed representations */
+        if (double.IsPositiveInfinity(n))
+        {
+            s = "1e9999"u8;
+        }
+        else if (double.IsNegativeInfinity(n))
+        {
+            s = "-1e9999"u8;
+        }
+        else if (double.IsNaN(n))
+        {
+            s = "(0/0)"u8;
+        }
+        else
+        {
+            /* format number as hexadecimal */
+            return FormatFloat(n, new FormatFlags(), output, FloatFormatType.Hexadecimal, false);
+        }
+
+        /* for the fixed representations */
+        s.CopyTo(output);
+        return s.Length;
+    }
+
+    private static void addliteral(lua_State* L, luaL_Buffer* b, int arg)
+    {
+        switch (lua_type(L, arg))
+        {
+            case LUA_TSTRING:
+                {
+                    byte* s = lua_tolstring(L, arg, out int len);
+                    addquoted(b, new Span<byte>(s, len));
+                    break;
+                }
+
+            case LUA_TNUMBER:
+                {
+                    byte* buff = luaL_prepbuffsize(b, MAX_ITEM);
+                    int nb;
+                    if (!lua_isinteger(L, arg)) /* float? */
+                    {
+                        nb = quotefloat(L, new Span<byte>(buff, MAX_ITEM), lua_tonumber(L, arg));
+                    }
+                    else
+                    {
+                        /* integers */
+                        long n = lua_tointeger(L, arg);
+                        if (n == long.MinValue)
+                        {
+                            /* corner case? */
+                            /* use hex */
+                            nb = FormatInt(
+                                n,
+                                new FormatFlags
+                                {
+                                    AlternateForm = true,
+                                },
+                                new Span<byte>(buff, MAX_ITEM),
+                                16,
+                                true);
+                        }
+                        else
+                        {
+                            nb = FormatInt(n, new FormatFlags(), new Span<byte>(buff, MAX_ITEM), 10);
+                        }
+                    }
+
+                    luaL_addsize(b, (uint)nb);
+                    break;
+                }
+
+            case LUA_TNIL:
+            case LUA_TBOOLEAN:
+                luaL_tolstring(L, arg, out _);
+                luaL_addvalue(b);
+                break;
+            
+            default:
+                luaL_argerror(L, arg, "value has no literal form");
+                break;
+        }
+    }
+
+    private static ReadOnlySpan<byte> get2digits(ReadOnlySpan<byte> s)
+    {
+        if (char.IsAsciiDigit((char)s[0]))
         {
             s = s[1..];
-            if (char.IsAsciiDigit(s[0]))
+            if (char.IsAsciiDigit((char)s[0]))
             {
                 s = s[1..]; /* (2 digits at most) */
+            }
+        }
+
+        return s;
+    }
+
+    private static ReadOnlySpan<byte> get2digits(ReadOnlySpan<byte> s, out ReadOnlySpan<byte> digits)
+    {
+        ReadOnlySpan<byte> ss = s;
+        digits = default;
+        if (char.IsAsciiDigit((char)s[0]))
+        {
+            s = s[1..];
+            if (char.IsAsciiDigit((char)s[0]))
+            {
+                s = s[1..]; /* (2 digits at most) */
+                digits = ss[..2];
+            }
+            else
+            {
+                digits = ss[..1];
             }
         }
 
@@ -1244,9 +1589,9 @@ public static unsafe partial class Lua
      ** be a valid conversion specifier. 'flags' are the accepted flags;
      ** 'precision' signals whether to accept a precision.
      */
-    private static void checkformat(lua_State* L, ReadOnlySpan<char> form, ReadOnlySpan<char> flags, bool precision)
+    private static void checkformat(lua_State* L, ReadOnlySpan<byte> form, ReadOnlySpan<byte> flags, bool precision)
     {
-        ReadOnlySpan<char> spec = form[1..]; /* skip '%' */
+        ReadOnlySpan<byte> spec = form[1..]; /* skip '%' */
         spec = spec[strspn(spec, flags)..]; /* skip flags */
         if (spec[0] != '0')
         {
@@ -1259,9 +1604,9 @@ public static unsafe partial class Lua
             }
         }
 
-        if (!char.IsAsciiLetter(spec[0])) /* did not go to the end? */
+        if (!char.IsAsciiLetter((char)spec[0])) /* did not go to the end? */
         {
-            luaL_error(L, "invalid conversion specification: '%s'", new string(form));
+            luaL_error(L, "invalid conversion specification: '%s'", Encoding.UTF8.GetString(form));
         }
     }
 
@@ -1269,43 +1614,32 @@ public static unsafe partial class Lua
      ** Get a conversion specification and copy it to 'form'.
      ** Return the address of its last character.
      */
-    private static ReadOnlySpan<char> getformat(lua_State* L, ReadOnlySpan<char> strfrmt, Span<char> form)
+    private static ReadOnlySpan<byte> getformat(lua_State* L, ReadOnlySpan<byte> strfrmt, Span<byte> form)
     {
+        form.Clear();
+
         /* spans flags, width, and precision ('0' is included as a flag) */
-        int len = strspn(strfrmt, L_FMTFLAGSF + "123456789.");
+        int len = strspn(strfrmt, "-+#0 123456789."u8);
         len++; /* adds following character (should be the specifier) */
         /* still needs space for '%', '\0', plus a length modifier */
         if (len >= MAX_FORMAT - 10)
         {
             luaL_error(L, "invalid format (too long)");
         }
-        
-        form[0] = '%';
-        strfrmt[..len].CopyTo(form.Slice(1, len));
-        form[len + 1] = '\0';
-        return strfrmt[(len - 1)..];
-    }
 
-    /*
-    ** add length modifier into formats
-    */
-    // private static void addlenmod(Span<char> form, string lenmod)
-    // {
-    //     size_t l = strlen(form);
-    //     size_t lm = strlen(lenmod);
-    //     char spec = form[l - 1];
-    //     strcpy(form + l - 1, lenmod);
-    //     form[l + lm - 1] = spec;
-    //     form[l + lm] = '\0';
-    // }
+        form[0] = (byte)'%';
+        strfrmt[..len].CopyTo(form.Slice(1, len));
+        form[len + 1] = 0;
+        return strfrmt[len..];
+    }
 
     private static int str_format(lua_State* L)
     {
-        Span<char> form = stackalloc char[MAX_FORMAT]; /* to store the format ('%...') */
+        Span<byte> form = stackalloc byte[MAX_FORMAT]; /* to store the format ('%...') */
 
         int top = lua_gettop(L);
         int arg = 1;
-        ReadOnlySpan<char> strfrmt = luaL_checknetstring(L, arg);
+        ReadOnlySpan<byte> strfrmt = luaL_checkstring(L, arg);
         luaL_Buffer b;
         luaL_buffinit(L, &b);
         while (!strfrmt.IsEmpty)
@@ -1317,153 +1651,1002 @@ public static unsafe partial class Lua
             }
             else if (strfrmt[1] == L_ESC)
             {
-                luaL_addchar(&b, strfrmt[2]); /* %% */
-                strfrmt = strfrmt[3..];
+                luaL_addchar(&b, strfrmt[1]); /* %% */
+                strfrmt = strfrmt[2..];
             }
             else
             {
                 strfrmt = strfrmt[1..];
                 /* format item */
-                int maxitem = MAX_ITEM; /* maximum length for the result */
-                byte* buff = luaL_prepbuffsize(&b, maxitem); /* to put result */
+                byte* buff = luaL_prepbuffsize(&b, MAX_ITEMF); /* to put result */
                 int nb = 0; /* number of bytes in result */
                 if (++arg > top)
                 {
                     return luaL_argerror(L, arg, "no value");
                 }
 
-                string? flags = null;
-
                 strfrmt = getformat(L, strfrmt, form);
-                char c = strfrmt[0];
-                strfrmt = strfrmt[1..];
-                Debug.Assert(c != 0);
-                switch (c)
+                FormatFlags format = ParseFormatFlags(L, form);
+                switch (format.Type)
                 {
-                    case 'c':
+                    case (byte)'c':
                         {
+                            int c = (int)luaL_checkinteger(L, arg);
                             checkformat(L, form, L_FMTFLAGSC, false);
-//           nb = l_sprintf(buff, maxitem, form, (int)luaL_checkinteger(L, arg));
-//           break;
-                        }
-                        throw new NotImplementedException();
-                    case 'd':
-                    case 'i':
-                        flags = L_FMTFLAGSI;
-                        goto case '\0'; // intcase
 
-                    case 'u':
-                        flags = L_FMTFLAGSU;
-                        goto case '\0'; // intcase
+                            Span<byte> span = new(buff, MAX_ITEMF);
+                            nb = 1;
+                            if (format.Width.HasValue)
+                            {
+                                int width = format.Width.Value;
+                                nb = width;
+                                span[..width].Fill((byte)' ');
+                                if (format.LeftJustified)
+                                {
+                                    span[0] = (byte)c;
+                                }
+                                else
+                                {
+                                    span[width - 1] = (byte)c;
+                                }
+                            }
+                            else
+                            {
+                                span[0] = (byte)c;
+                            }
 
-                    case 'o':
-                    case 'x':
-                    case 'X':
-                        flags = L_FMTFLAGSX;
-                        goto case '\0'; // intcase
-
-                    case '\0': // intcase
-                        long n = luaL_checkinteger(L, arg);
-                        checkformat(L, form, flags, true);
-                        // addlenmod(form, LUA_INTEGER_FRMLEN);
-                        
-                        //TODO:
-                        if (new string(form[..form.IndexOf('\0')]) != "%d")
-                        {
-                            throw new NotImplementedException();
+                            break;
                         }
 
-                        Span<byte> output = new(buff, maxitem);
-                        nb = Encoding.UTF8.GetBytes(n.ToString(CultureInfo.InvariantCulture), output);
+                    case (byte)'d':
+                    case (byte)'i':
+                        checkformat(L, form, L_FMTFLAGSI, true);
+                        nb = FormatInt(luaL_checkinteger(L, arg), format, new Span<byte>(buff, MAX_ITEMF), 10);
                         break;
 
-                    case '\uffff':
-                        throw new NotImplementedException();
+                    case (byte)'u':
+                        checkformat(L, form, L_FMTFLAGSU, true);
+                        nb = FormatInt(luaL_checkinteger(L, arg), format, new Span<byte>(buff, MAX_ITEMF), 10, true);
+                        break;
 
-                    case 'a':
-                    case 'A':
+                    case (byte)'o':
+                        checkformat(L, form, L_FMTFLAGSX, true);
+                        nb = FormatInt(luaL_checkinteger(L, arg), format, new Span<byte>(buff, MAX_ITEMF), 8, true);
+                        break;
+
+                    case (byte)'x':
+                        checkformat(L, form, L_FMTFLAGSX, true);
+                        nb = FormatInt(luaL_checkinteger(L, arg), format, new Span<byte>(buff, MAX_ITEMF), 16, true);
+                        break;
+
+                    case (byte)'X':
+                        checkformat(L, form, L_FMTFLAGSX, true);
+                        nb = FormatInt(
+                            luaL_checkinteger(L, arg),
+                            format,
+                            new Span<byte>(buff, MAX_ITEMF),
+                            16,
+                            true,
+                            true);
+                        break;
+
+                    case (byte)'a':
+                    case (byte)'A':
                         checkformat(L, form, L_FMTFLAGSF, true);
-//           addlenmod(form, LUA_NUMBER_FRMLEN);
-//           nb = lua_number2strx(L, buff, maxitem, form,
-//                                   luaL_checknumber(L, arg));
-//           break;
-                        throw new NotImplementedException();
+                        nb = FormatFloat(
+                            luaL_checknumber(L, arg),
+                            format,
+                            new Span<byte>(buff, MAX_ITEMF),
+                            FloatFormatType.Hexadecimal,
+                            format.Type == 'A');
+                        break;
 
-                    case 'f':
-//           maxitem = MAX_ITEMF;  /* extra space for '%f' */
-//           buff = luaL_prepbuffsize(&b, maxitem);
-//           /* FALLTHROUGH */
-                        throw new NotImplementedException();
+                    case (byte)'f':
+                        checkformat(L, form, L_FMTFLAGSF, true);
+                        nb = FormatFloat(
+                            luaL_checknumber(L, arg),
+                            format,
+                            new Span<byte>(buff, MAX_ITEMF),
+                            FloatFormatType.Standard,
+                            false);
+                        break;
 
-                    case 'e':
-                    case 'E':
-                    case 'g':
-                    case 'G':
+                    case (byte)'e':
+                    case (byte)'E':
+                        checkformat(L, form, L_FMTFLAGSF, true);
+                        nb = FormatFloat(
+                            luaL_checknumber(L, arg),
+                            format,
+                            new Span<byte>(buff, MAX_ITEMF),
+                            FloatFormatType.Scientific,
+                            format.Type == 'E');
+                        break;
+
+                    case (byte)'g':
+                    case (byte)'G':
+                        checkformat(L, form, L_FMTFLAGSF, true);
+                        nb = FormatFloat(
+                            luaL_checknumber(L, arg),
+                            format,
+                            new Span<byte>(buff, MAX_ITEMF),
+                            FloatFormatType.Shortest,
+                            format.Type == 'G');
+                        break;
+
+                    case (byte)'p':
                         {
-//           double n = luaL_checknumber(L, arg);
-//           checkformat(L, form, L_FMTFLAGSF, 1);
-//           addlenmod(form, LUA_NUMBER_FRMLEN);
-//           nb = l_sprintf(buff, maxitem, form, (LUAI_UACNUMBER)n);
-//           break;
-                        }
-                        throw new NotImplementedException();
+                            checkformat(L, form, L_FMTFLAGSC, false);
+                            void* p = lua_topointer(L, arg);
+                            if (p == null)
+                            {
+                                /* avoid calling 'printf' with argument null */
+                                nb = FormatString(
+                                    "(null)"u8,
+                                    format,
+                                    new Span<byte>(buff, MAX_ITEMF)); /* format it as a string */
+                            }
+                            else
+                            {
+                                nb = FormatInt(
+                                    (long)p,
+                                    format with
+                                    {
+                                        Precision = sizeof(nint) * 2,
+                                        AlternateForm = true,
+                                    },
+                                    new Span<byte>(buff, MAX_ITEMF),
+                                    16,
+                                    true);
+                            }
 
-                    case 'p':
-                        {
-//           const void *p = lua_topointer(L, arg);
-//           checkformat(L, form, L_FMTFLAGSC, 0);
-//           if (p == null) {  /* avoid calling 'printf' with argument null */
-//             p = "(null)";  /* result */
-//             form[strlen(form) - 1] = 's';  /* format it as a string */
-//           }
-//           nb = l_sprintf(buff, maxitem, form, p);
-//           break;
+                            break;
                         }
-                        throw new NotImplementedException();
 
-                    case 'q':
+                    case (byte)'q':
+                        if (form[2] != '\0') /* modifiers? */
                         {
-//           if (form[2] != '\0')  /* modifiers? */
-//             return luaL_error(L, "specifier '%%q' cannot have modifiers");
-//           addliteral(L, &b, arg);
-//           break;
+                            return luaL_error(L, "specifier '%%q' cannot have modifiers");
                         }
-                        throw new NotImplementedException();
 
-                    case 's':
+                        addliteral(L, &b, arg);
+                        break;
+
+                    case (byte)'s':
                         {
-//           size_t l;
-//           const char *s = luaL_tolstring(L, arg, &l);
-//           if (form[2] == '\0')  /* no modifiers? */
-//             luaL_addvalue(&b);  /* keep entire string */
-//           else {
-//             luaL_argcheck(L, l == strlen(s), arg, "string contains zeros");
-//             checkformat(L, form, L_FMTFLAGSC, 1);
-//             if (strchr(form, '.') == null && l >= 100) {
-//               /* no precision and string is too long to be formatted */
-//               luaL_addvalue(&b);  /* keep entire string */
-//             }
-//             else {  /* format the string into 'buff' */
-//               nb = l_sprintf(buff, maxitem, form, s);
-//               lua_pop(L, 1);  /* remove result from 'luaL_tolstring' */
-//             }
-//           }
-//           break;
+                            byte* s = luaL_tolstring(L, arg, out int l);
+                            if (form[2] == '\0') /* no modifiers? */
+                            {
+                                luaL_addvalue(&b); /* keep entire string */
+                            }
+                            else
+                            {
+                                luaL_argcheck(L, l == strlen(s), arg, "string contains zeros");
+                                checkformat(L, form, L_FMTFLAGSC, true);
+                                if (format.Precision == null && l >= 100)
+                                {
+                                    /* no precision and string is too long to be formatted */
+                                    luaL_addvalue(&b); /* keep entire string */
+                                }
+                                else
+                                {
+                                    /* format the string into 'buff' */
+                                    nb = FormatString(
+                                        new ReadOnlySpan<byte>(s, l),
+                                        format,
+                                        new Span<byte>(buff, MAX_ITEMF));
+                                    lua_pop(L, 1); /* remove result from 'luaL_tolstring' */
+                                }
+                            }
+
+                            break;
                         }
-                        throw new NotImplementedException();
 
                     default:
                         /* also treat cases 'pnLlh' */
-                        return luaL_error(L, "invalid conversion '%s' to 'format'", new string(form));
+                        return luaL_error(L, "invalid conversion '%s' to 'format'", Encoding.UTF8.GetString(form));
                 }
 
-                Debug.Assert((uint)nb < maxitem);
+                Debug.Assert((uint)nb < MAX_ITEMF);
                 luaL_addsize(&b, (uint)nb);
             }
         }
 
         luaL_pushresult(&b);
         return 1;
+    }
+
+    private static int FormatInt(
+        long value,
+        FormatFlags format,
+        Span<byte> output,
+        uint @base,
+        bool isUnsigned = false,
+        bool isUpperCase = false)
+    {
+        bool isZero = value == 0;
+
+        if (format.LeftJustified || format.Precision.HasValue)
+        {
+            format.LeftPadZero = false;
+        }
+
+        Span<byte> buffer = stackalloc byte[100];
+        int i = 0;
+
+        // Extract the negative sign if needed. If unsigned (or long.MinValue), handle the first digit manually.
+        bool isNegative = false;
+        if (value < 0)
+        {
+            isNegative = !isUnsigned;
+            if (isUnsigned || value == long.MinValue)
+            {
+                int c = (int)(unchecked((ulong)value) % @base);
+                value = (long)(unchecked((ulong)value) / @base);
+                AddDigit(buffer, c, ref i);
+            }
+            else
+            {
+                value = -value;
+            }
+        }
+
+        // Output the remaining digits
+        if (isZero)
+        {
+            if (format.Precision != 0)
+            {
+                AddDigit(buffer, 0, ref i);
+            }
+        }
+        else
+        {
+            while (value > 0)
+            {
+                int c = (int)(value % @base);
+                value /= @base;
+                AddDigit(buffer, c, ref i);
+            }
+        }
+
+        if (format.Precision.HasValue)
+        {
+            int precision = format.Precision.Value;
+            while (i < precision)
+            {
+                buffer[^++i] = (byte)'0';
+            }
+        }
+
+        // Output the sign (or preceeding character)
+        byte sign = 0;
+        if (isNegative)
+        {
+            sign = (byte)'-';
+        }
+        else if (format.ForcePreceedPlus)
+        {
+            sign = (byte)'+';
+        }
+        else if (format.ForcePreceedSpace)
+        {
+            sign = (byte)' ';
+        }
+
+        if (format is { Width: not null, LeftPadZero: true })
+        {
+            int width = format.Width.Value;
+            if (sign != 0)
+            {
+                width -= 1;
+            }
+
+            if (format.AlternateForm && @base == 8 && !isZero)
+            {
+                width -= 1;
+            }
+
+            if (format.AlternateForm && @base is 2 or 16 && !isZero)
+            {
+                width -= 2;
+            }
+
+            while (i < width)
+            {
+                buffer[^++i] = (byte)'0';
+            }
+        }
+
+        // Output the prefix
+        if (format.AlternateForm && @base != 10 && !isZero)
+        {
+            switch (@base)
+            {
+                case 2:
+                    buffer[^++i] = (byte)(isUpperCase ? 'B' : 'b');
+                    break;
+                
+                case 16:
+                    buffer[^++i] = (byte)(isUpperCase ? 'X' : 'x');
+                    break;
+            }
+
+            buffer[^++i] = (byte)'0';
+        }
+
+        if (sign != 0)
+        {
+            buffer[^++i] = sign;
+        }
+        
+        return FinishFormatFloat(buffer, i, output, format);
+
+        void AddDigit(Span<byte> buffer, int c, ref int i)
+        {
+            if (c >= 10)
+            {
+                if (c >= 36)
+                {
+                    throw new NotImplementedException();
+                }
+
+                c -= 10;
+                buffer[^++i] = (byte)((isUpperCase ? 'A' : 'a') + c);
+            }
+            else
+            {
+                buffer[^++i] = (byte)('0' + c);
+            }
+        }
+    }
+
+    private enum FloatFormatType
+    {
+        Standard,
+        Shortest,
+        Scientific,
+        Hexadecimal,
+    }
+
+    private static int FormatFloat(
+        double value,
+        in FormatFlags format,
+        Span<byte> output,
+        FloatFormatType type,
+        bool isUppercase)
+    {
+        if (!double.IsFinite(value))
+        {
+            if (double.IsPositiveInfinity(value))
+            {
+                return FormatString(isUppercase ? "INF"u8 : "inf"u8, format, output);
+            }
+
+            if (double.IsNegativeInfinity(value))
+            {
+                return FormatString(isUppercase ? "-INF"u8 : "-inf"u8, format, output);
+            }
+
+            return FormatString(isUppercase ? "NAN"u8 : "nan"u8, format, output);
+        }
+        
+        return type switch
+        {
+            FloatFormatType.Standard => FormatStandardFloat(value, format, output, false),
+            FloatFormatType.Shortest => FormatShortestFloat(value, format, output, isUppercase),
+            FloatFormatType.Scientific => FormatScientificFloat(value, format, output, isUppercase),
+            FloatFormatType.Hexadecimal => FormatHexadecimalFloat(value, format, output, isUppercase),
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null),
+        };
+    }
+
+    private static int FormatStandardFloat(double value, in FormatFlags format, Span<byte> output, bool trimTrailingZero)
+    {
+        int precision = format.Precision ?? 6;
+
+        bool isNegative = BitConverter.DoubleToInt64Bits(value) < 0;
+        DecomposeAbsDouble(value, out BigInteger numerator, out BigInteger denominator);
+
+        BigInteger scale = Pow10(precision);
+        BigInteger rounded = RoundQuotientNearestEven(numerator * scale, denominator);
+        BigInteger integer = BigInteger.DivRem(rounded, scale, out BigInteger fraction);
+
+        Span<byte> buffer = stackalloc byte[512];
+        int i = 0;
+
+        if (precision > 0)
+        {
+            int startI = i;
+            AppendNumber(buffer, ref i, fraction, precision, trimTrailingZero);
+            if (!trimTrailingZero || i != startI)
+            {
+                buffer[^++i] = (byte)'.';
+            }
+        }
+        else if (format.AlternateForm)
+        {
+            buffer[^++i] = (byte)'.';
+        }
+
+        AppendNumber(buffer, ref i, integer);
+
+        // Output the sign (or preceeding character)
+        byte sign = 0;
+        if (isNegative)
+        {
+            sign = (byte)'-';
+        }
+        else if (format.ForcePreceedPlus)
+        {
+            sign = (byte)'+';
+        }
+        else if (format.ForcePreceedSpace)
+        {
+            sign = (byte)' ';
+        }
+
+        if (format is { Width: not null, LeftPadZero: true })
+        {
+            int width = format.Width.Value;
+            if (sign != 0)
+            {
+                width -= 1;
+            }
+
+            while (i < width)
+            {
+                buffer[^++i] = (byte)'0';
+            }
+        }
+
+        if (sign != 0)
+        {
+            buffer[^++i] = sign;
+        }
+        
+        return FinishFormatFloat(buffer, i, output, format);
+    }
+
+    private static int FormatShortestFloat(double value, in FormatFlags format, Span<byte> output, bool isUppercase)
+    {
+        int precision = format.Precision ?? 6;
+        
+        int p = precision == 0 ? 1 : precision;
+        int exponent = value == 0.0
+            ? 0
+            : GetDecimalExponent(value);
+
+        bool useExponential = exponent < -4 || exponent >= p;
+        return useExponential
+            ? FormatScientificFloat(
+                value,
+                format with
+                {
+                    Precision = p - 1,
+                },
+                output,
+                isUppercase)
+            : FormatStandardFloat(
+                value,
+                format with
+                {
+                    Precision = p - (exponent + 1),
+                },
+                output,
+                !format.AlternateForm);
+    }
+
+    private static int FormatScientificFloat(double value, in FormatFlags format, Span<byte> output, bool isUppercase)
+    {
+        int precision = format.Precision ?? 6;
+        
+        bool isNegative = BitConverter.DoubleToInt64Bits(value) < 0;
+        GetScientificDigits(value, precision, out BigInteger significand, out int exponent);
+
+        BigInteger scale = Pow10(precision);
+        BigInteger integer = BigInteger.DivRem(significand, scale, out BigInteger fraction);
+
+        Span<byte> buffer = stackalloc byte[200];
+        int i = 0;
+        
+        AppendNumber(buffer, ref i, BigInteger.Abs(exponent));
+        if (Math.Abs(exponent) < 10)
+        {
+            buffer[^++i] = (byte)'0';
+        }
+        buffer[^++i] = exponent < 0 ? (byte)'-' : (byte)'+';
+        buffer[^++i] = isUppercase ? (byte)'E' : (byte)'e';
+
+        if (precision > 0)
+        {
+            AppendNumber(buffer, ref i, fraction, precision);
+            buffer[^++i] = (byte)'.';
+        }
+        else if (format.AlternateForm)
+        {
+            buffer[^++i] = (byte)'.';
+        }
+
+        AppendNumber(buffer, ref i, integer);
+
+        // Output the sign (or preceeding character)
+        byte sign = 0;
+        if (isNegative)
+        {
+            sign = (byte)'-';
+        }
+        else if (format.ForcePreceedPlus)
+        {
+            sign = (byte)'+';
+        }
+        else if (format.ForcePreceedSpace)
+        {
+            sign = (byte)' ';
+        }
+
+        if (format is { Width: not null, LeftPadZero: true })
+        {
+            int width = format.Width.Value;
+            if (sign != 0)
+            {
+                width -= 1;
+            }
+
+            while (i < width)
+            {
+                buffer[^++i] = (byte)'0';
+            }
+        }
+
+        if (sign != 0)
+        {
+            buffer[^++i] = sign;
+        }
+
+        return FinishFormatFloat(buffer, i, output, format);
+    }
+
+    private static int FormatHexadecimalFloat(double value, in FormatFlags format, Span<byte> output, bool isUppercase)
+    {
+        int precision = format.Precision ?? HEX_FLOAT_PRECISION;
+
+        bool isNegative = BitConverter.DoubleToInt64Bits(value) < 0;
+        
+        ulong bits = (ulong)BitConverter.DoubleToInt64Bits(value) & 0x7FFF_FFFF_FFFF_FFFFUL;
+        int rawExponent = (int)((bits >> 52) & 0x7FFUL);
+        ulong fractionBits = bits & 0x000F_FFFF_FFFF_FFFFUL;
+        
+        BigInteger significand;
+        int exponent;
+
+        if (rawExponent == 0)
+        {
+            exponent = fractionBits == 0 ? 0 : -1022;
+            significand = fractionBits;
+        }
+        else
+        {
+            exponent = rawExponent - 1023;
+            significand = (BigInteger.One << 52) | fractionBits;
+        }
+        
+        BigInteger scaled;
+        if (precision < HEX_FLOAT_PRECISION)
+        {
+            BigInteger divisor = BigInteger.One << (4 * (HEX_FLOAT_PRECISION - precision));
+            scaled = RoundQuotientNearestEven(significand, divisor);
+        }
+        else
+        {
+            scaled = significand << (4 * (precision - HEX_FLOAT_PRECISION));
+        }
+        
+        BigInteger integer = precision == 0 ? scaled : scaled >> (4 * precision);
+        BigInteger fraction = precision == 0
+            ? BigInteger.Zero
+            : scaled & ((BigInteger.One << (4 * precision)) - 1);
+        int fractionDigits = precision;
+        
+        if (!format.Precision.HasValue)
+        {
+            while (fractionDigits > 0 && (fraction & 0xF) == 0)
+            {
+                fraction >>= 4;
+                fractionDigits--;
+            }
+        }
+
+        Span<byte> buffer = stackalloc byte[200];
+        int i = 0;
+        
+        AppendNumber(buffer, ref i, BigInteger.Abs(exponent));
+        buffer[^++i] = exponent < 0 ? (byte)'-' : (byte)'+';
+        buffer[^++i] = isUppercase ? (byte)'P' : (byte)'p';
+
+        if (fractionDigits > 0)
+        {
+            AppendHexNumber(buffer, ref i, fraction, isUppercase, fractionDigits);
+            buffer[^++i] = (byte)'.';
+        }
+        else if (format.AlternateForm)
+        {
+            buffer[^++i] = (byte)'.';
+        }
+        
+        AppendHexNumber(buffer, ref i, integer, isUppercase);
+
+        // Output the sign (or preceeding character)
+        byte sign = 0;
+        if (isNegative)
+        {
+            sign = (byte)'-';
+        }
+        else if (format.ForcePreceedPlus)
+        {
+            sign = (byte)'+';
+        }
+        else if (format.ForcePreceedSpace)
+        {
+            sign = (byte)' ';
+        }
+
+        if (format is { Width: not null, LeftPadZero: true })
+        {
+            int width = format.Width.Value - 2;
+            if (sign != 0)
+            {
+                width -= 1;
+            }
+
+            while (i < width)
+            {
+                buffer[^++i] = (byte)'0';
+            }
+        }
+
+        buffer[^++i] = isUppercase ? (byte)'X' : (byte)'x';
+        buffer[^++i] = (byte)'0';
+
+        if (sign != 0)
+        {
+            buffer[^++i] = sign;
+        }
+
+        return FinishFormatFloat(buffer, i, output, format);
+    }
+
+    private static int FinishFormatFloat(Span<byte> buffer, int i, Span<byte> output, in FormatFlags format)
+    {
+        if (format is { Width: not null, LeftJustified: false, LeftPadZero: false })
+        {
+            while (i < format.Width)
+            {
+                buffer[^++i] = (byte)' ';
+            }
+        }
+        
+        Span<byte> usedSpan = buffer[^i..];
+        usedSpan.CopyTo(output);
+        int usedLength = usedSpan.Length;
+
+        if (format is { Width: not null, LeftJustified: true })
+        {
+            int toCopy = format.Width.Value - usedLength;
+            if (toCopy > 0)
+            {
+                for (int j = 0; j < toCopy; j++)
+                {
+                    output[usedLength + j] = (byte)' ';
+                }
+
+                usedLength += toCopy;
+            }
+        }
+
+        return usedLength;
+    }
+
+    private static void DecomposeAbsDouble(double value, out BigInteger numerator, out BigInteger denominator)
+    {
+        ulong bits = (ulong)BitConverter.DoubleToInt64Bits(value) & 0x7FFF_FFFF_FFFF_FFFFUL;
+        int rawExponent = (int)((bits >> 52) & 0x7FFUL);
+        ulong fraction = bits & 0x000F_FFFF_FFFF_FFFFUL;
+
+        if (rawExponent == 0)
+        {
+            numerator = fraction;
+            denominator = BigInteger.One << 1074;
+            return;
+        }
+
+        numerator = (1UL << 52) | fraction;
+        int binaryExponent = rawExponent - 1075;
+        if (binaryExponent >= 0)
+        {
+            numerator <<= binaryExponent;
+            denominator = BigInteger.One;
+        }
+        else
+        {
+            denominator = BigInteger.One << -binaryExponent;
+        }
+    }
+
+    private static BigInteger Pow10(int exponent)
+    {
+        return BigInteger.Pow(10, exponent);
+    }
+
+    private static BigInteger RoundQuotientNearestEven(BigInteger numerator, BigInteger denominator)
+    {
+        BigInteger quotient = BigInteger.DivRem(numerator, denominator, out BigInteger remainder);
+        int cmp = (remainder * 2).CompareTo(denominator);
+        if (cmp > 0 || (cmp == 0 && !quotient.IsEven))
+        {
+            quotient++;
+        }
+
+        return quotient;
+    }
+
+    private static int GetDecimalExponent(double value)
+    {
+        DecomposeAbsDouble(value, out BigInteger numerator, out BigInteger denominator);
+        if (numerator.IsZero)
+        {
+            return 0;
+        }
+
+        int exponent = (int)Math.Floor(Math.Log10(Math.Abs(value)));
+        while (CompareToPowerOf10(numerator, denominator, exponent + 1) >= 0)
+        {
+            exponent++;
+        }
+
+        while (CompareToPowerOf10(numerator, denominator, exponent) < 0)
+        {
+            exponent--;
+        }
+
+        return exponent;
+    }
+
+    private static int CompareToPowerOf10(BigInteger numerator, BigInteger denominator, int exponent)
+    {
+        return exponent >= 0
+            ? numerator.CompareTo(denominator * Pow10(exponent))
+            : (numerator * Pow10(-exponent)).CompareTo(denominator);
+    }
+
+    private static void GetScientificDigits(double value, int precision, out BigInteger significand, out int exponent)
+    {
+        DecomposeAbsDouble(value, out BigInteger numerator, out BigInteger denominator);
+        if (numerator.IsZero)
+        {
+            significand = BigInteger.Zero;
+            exponent = 0;
+            return;
+        }
+
+        exponent = GetDecimalExponent(value);
+        int totalDigits = precision + 1;
+        int scalePower = totalDigits - 1 - exponent;
+        significand = scalePower >= 0
+            ? RoundQuotientNearestEven(numerator * Pow10(scalePower), denominator)
+            : RoundQuotientNearestEven(numerator, denominator * Pow10(-scalePower));
+
+        BigInteger limit = Pow10(totalDigits);
+        if (significand >= limit)
+        {
+            significand /= 10;
+            exponent++;
+        }
+    }
+
+    private static void AppendNumber(
+        Span<byte> buffer,
+        ref int i,
+        BigInteger integer,
+        int? precision = null,
+        bool trimTrailingZero = false)
+    {
+        if (precision.HasValue)
+        {
+            int digitsToWrite = precision.Value;
+            if (trimTrailingZero)
+            {
+                while (digitsToWrite > 0 && integer > 0 && integer % 10 == 0)
+                {
+                    integer /= 10;
+                    digitsToWrite--;
+                }
+
+                if (integer.IsZero)
+                {
+                    return;
+                }
+            }
+
+            for (int j = 0; j < digitsToWrite; j++)
+            {
+                int c = (int)(integer % 10);
+                integer /= 10;
+                buffer[^++i] = (byte)('0' + c);
+            }
+
+            return;
+        }
+
+        if (integer.IsZero)
+        {
+            buffer[^++i] = (byte)'0';
+            return;
+        }
+
+        while (integer > 0)
+        {
+            int c = (int)(integer % 10);
+            integer /= 10;
+            buffer[^++i] = (byte)('0' + c);
+        }
+    }
+
+    private static void AppendHexNumber(
+        Span<byte> buffer,
+        ref int i,
+        BigInteger integer,
+        bool isUppercase,
+        int? precision = null)
+    {
+        if (precision.HasValue)
+        {
+            int digitsToWrite = precision.Value;
+
+            for (int j = 0; j < digitsToWrite; j++)
+            {
+                int c = (int)(integer & 0x0F);
+                integer >>= 4;
+                buffer[^++i] = c >= 10
+                    ? isUppercase ? (byte)('A' + c - 10) : (byte)('a' + c - 10)
+                    : (byte)('0' + c);
+            }
+
+            return;
+        }
+
+        if (integer.IsZero)
+        {
+            buffer[^++i] = (byte)'0';
+            return;
+        }
+
+        while (integer > 0)
+        {
+            int c = (int)(integer & 0x0F);
+            integer >>= 4;
+            buffer[^++i] = c >= 10
+                ? isUppercase ? (byte)('A' + c - 10) : (byte)('a' + c - 10)
+                : (byte)('0' + c);
+        }
+    }
+
+    private static int FormatString(ReadOnlySpan<byte> input, in FormatFlags format, Span<byte> output)
+    {
+        if (format.Precision.HasValue && format.Precision < input.Length)
+        {
+            input = input[..format.Precision.Value];
+        }
+
+        int toCopy = Math.Max((format.Width ?? 0) - input.Length, 0);
+        if (toCopy > 0)
+        {
+            if (format.LeftJustified)
+            {
+                input.CopyTo(output);
+                output.Slice(input.Length, toCopy).Fill((byte)' ');
+            }
+            else
+            {
+                output[..toCopy].Fill((byte)' ');
+                input.CopyTo(output[toCopy..]);
+            }
+        }
+        else
+        {
+            input.CopyTo(output);
+        }
+
+        return input.Length + toCopy;
+    }
+
+    private static FormatFlags ParseFormatFlags(lua_State* L, ReadOnlySpan<byte> form)
+    {
+        form = form.TrimEnd((byte)0);
+
+        ReadOnlySpan<byte> originalForm = form;
+        Debug.Assert(form.Length >= 2);
+        Debug.Assert(form[0] == '%');
+
+        form = form[1..];
+
+        FormatFlags format = new();
+
+        while (true)
+        {
+            if (form[0] == '-')
+            {
+                format.LeftJustified = true;
+            }
+            else if (form[0] == '+')
+            {
+                format.ForcePreceedPlus = true;
+            }
+            else if (form[0] == ' ')
+            {
+                format.ForcePreceedSpace = true;
+            }
+            else if (form[0] == '#')
+            {
+                format.AlternateForm = true;
+            }
+            else if (form[0] == '0')
+            {
+                format.LeftPadZero = true;
+            }
+            else
+            {
+                break;
+            }
+
+            form = form[1..];
+            if (form.IsEmpty)
+            {
+                luaL_error(L, "invalid conversion specification: '%s'", Encoding.UTF8.GetString(originalForm));
+            }
+        }
+
+        form = get2digits(form, out ReadOnlySpan<byte> width);
+        if (!width.IsEmpty)
+        {
+            format.Width = int.Parse(width, CultureInfo.InvariantCulture);
+        }
+
+        if (form.IsEmpty)
+        {
+            luaL_error(L, "invalid conversion specification: '%s'", Encoding.UTF8.GetString(originalForm));
+        }
+
+        if (form[0] == '.')
+        {
+            form = get2digits(form[1..], out ReadOnlySpan<byte> precision);
+            if (precision.IsEmpty)
+            {
+                format.Precision = 0;
+            }
+            else
+            {
+                format.Precision = int.Parse(precision, CultureInfo.InvariantCulture);
+            }
+        }
+
+        if (form.Length != 1)
+        {
+            luaL_error(L, "invalid conversion specification: '%s'", Encoding.UTF8.GetString(originalForm));
+        }
+
+        format.Type = form[0];
+        return format;
+    }
+
+    private struct FormatFlags
+    {
+        public bool LeftJustified;
+        public bool ForcePreceedPlus;
+        public bool ForcePreceedSpace;
+        public bool AlternateForm;
+        public bool LeftPadZero;
+        public int? Width;
+        public int? Precision;
+        public byte Type;
     }
 
     /*
@@ -1486,10 +2669,10 @@ public static unsafe partial class Lua
 
 // /* size of a long */
 // #define SZINT	((int)sizeof(long))
-    
+
     /*
-    ** information to pack/unpack stuff
-    */
+     ** information to pack/unpack stuff
+     */
     private struct Header
     {
         public lua_State* L;
@@ -1516,9 +2699,9 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Read an integer numeral from string 'fmt' or return 'df' if
-    ** there is no numeral
-    */
+     ** Read an integer numeral from string 'fmt' or return 'df' if
+     ** there is no numeral
+     */
     private static long getnum(ref ReadOnlySpan<char> fmt, long df)
     {
         if (fmt.IsEmpty || !char.IsAsciiDigit(fmt[0])) /* no number? */
@@ -1531,7 +2714,7 @@ public static unsafe partial class Lua
         {
             a = a * 10 + (uint)(fmt[0] - '0');
             fmt = fmt[1..];
-        } while (!fmt.IsEmpty && char.IsAsciiDigit(fmt[0]));
+        } while (!fmt.IsEmpty && char.IsAsciiDigit(fmt[0]) && a <= (long.MaxValue - 9) / 10);
 
         return a;
     }
@@ -1540,10 +2723,10 @@ public static unsafe partial class Lua
      ** Read an integer numeral and raises an error if it is larger
      ** than the maximum size of integers.
      */
-    private static uint getnumlimit(Header* h, ref ReadOnlySpan<char> fmt, long df)
+    private static uint getnumlimit(Header* h, ref ReadOnlySpan<char> fmt, int df)
     {
         long sz = getnum(ref fmt, df);
-        if ((sz - 1u) >= MAXINTSIZE)
+        if ((uint)sz - 1u >= MAXINTSIZE)
         {
             return (uint)luaL_error(h->L, "integral size (%d) out of limits [1,%d]", sz, MAXINTSIZE);
         }
@@ -1561,13 +2744,24 @@ public static unsafe partial class Lua
         h->maxalign = 1;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AlignProbe<T>
+        where T : unmanaged
+    {
+        public byte Padding;
+        public T Value;
+    }
+
+    private static readonly int nativeAlignment =
+        Math.Max(
+            Marshal.OffsetOf<AlignProbe<double>>(nameof(AlignProbe<>.Value)).ToInt32(),
+            Marshal.OffsetOf<AlignProbe<nint>>(nameof(AlignProbe<>.Value)).ToInt32());
+
     /*
-    ** Read and classify next option. 'size' is filled with option's size.
-    */
+     ** Read and classify next option. 'size' is filled with option's size.
+     */
     private static KOption getoption(Header* h, ref ReadOnlySpan<char> fmt, out long size)
     {
-//   /* dummy structure to get native alignment requirements */
-//   struct cD { char c; union { LUAI_MAXALIGN; } u; };
         char opt = fmt[0];
         fmt = fmt[1..];
         size = 0; /* default */
@@ -1576,72 +2770,101 @@ public static unsafe partial class Lua
             case 'b':
                 size = sizeof(byte);
                 return KOption.Int;
+            
             case 'B':
                 size = sizeof(byte);
                 return KOption.UInt;
+            
             case 'h':
                 size = sizeof(short);
                 return KOption.Int;
+            
             case 'H':
                 size = sizeof(short);
                 return KOption.UInt;
+            
             case 'l':
                 size = sizeof(long);
                 return KOption.Int;
+            
             case 'L':
                 size = sizeof(long);
                 return KOption.UInt;
+            
             case 'j':
                 size = sizeof(long);
                 return KOption.Int;
+            
             case 'J':
                 size = sizeof(long);
                 return KOption.UInt;
+            
             case 'T':
                 size = sizeof(long);
                 return KOption.UInt;
+            
             case 'f':
                 size = sizeof(float);
                 return KOption.Float;
+            
             case 'n':
                 size = sizeof(double);
                 return KOption.Number;
+            
             case 'd':
                 size = sizeof(double);
                 return KOption.Double;
+            
             case 'i':
                 size = getnumlimit(h, ref fmt, sizeof(int));
                 return KOption.Int;
+            
             case 'I':
                 size = getnumlimit(h, ref fmt, sizeof(int));
                 return KOption.UInt;
+            
             case 's':
                 size = getnumlimit(h, ref fmt, sizeof(long));
                 return KOption.String;
+            
             case 'c':
-//       *size = getnum_aux(L, L1, ref pc)(fmt, cast_sizet(-1));
-//       if (l_unlikely(*size == cast_sizet(-1)))
-//         luaL_error(h->L, "missing size for format option 'c'");
-//       return Kchar;
-                throw new NotImplementedException();
-                throw new NotImplementedException();
+                size = getnum(ref fmt, -1);
+                if (size == -1)
+                {
+                    luaL_error(h->L, "missing size for format option 'c'");
+                }
 
-            case 'z': return KOption.ZeroString;
+                return KOption.Char;
+
+            case 'z':
+                return KOption.ZeroString;
+            
             case 'x':
                 size = 1;
                 return KOption.Padding;
-            case 'X': return KOption.PaddAlign;
-            case ' ': break;
-            case '<': h->islittle = true; break;
-            case '>': h->islittle = false; break;
-            case '=': h->islittle = BitConverter.IsLittleEndian; break;
+            
+            case 'X':
+                return KOption.PaddAlign;
+            
+            case ' ':
+                break;
+            
+            case '<':
+                h->islittle = true;
+                break;
+            
+            case '>':
+                h->islittle = false;
+                break;
+            
+            case '=':
+                h->islittle = BitConverter.IsLittleEndian;
+                break;
+            
             case '!':
-                {
-       // size_t maxalign = offsetof(struct cD, u);
-//       h->maxalign = getnumlimit(h, fmt, maxalign);
-//       break;
-                }
-                throw new NotImplementedException();
+                h->maxalign = getnumlimit(h, ref fmt, nativeAlignment);
+                break;
+
             default:
                 luaL_error(h->L, "invalid format option '%c'", opt);
                 break;
@@ -1676,9 +2899,10 @@ public static unsafe partial class Lua
         if (opt == KOption.PaddAlign)
         {
             /* 'X' gets alignment from following option */
-//     if (**fmt == '\0' || getoption(h, fmt, &align) == Kchar || align == 0)
-//       luaL_argerror(h->L, 1, "invalid next option for option 'X'");
-            throw new NotImplementedException();
+            if (fmt.IsEmpty || getoption(h, ref fmt, out align) == KOption.Char || align == 0)
+            {
+                luaL_argerror(h->L, 1, "invalid next option for option 'X'");
+            }
         }
 
         if (align <= 1 || opt == KOption.Char) /* need no alignment? */
@@ -1701,8 +2925,8 @@ public static unsafe partial class Lua
             else
             {
                 /* 'szmoda' = totalsize % align */
-                uint szmoda = (uint)(totalsize & (align - 1));
-                ntoalign = (uint)((align - szmoda) & (align - 1));
+                uint szmoda = (uint)(totalsize & align - 1);
+                ntoalign = (uint)(align - szmoda & align - 1);
             }
         }
 
@@ -1710,11 +2934,11 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Pack integer 'n' with 'size' bytes and 'islittle' endianness.
-    ** The final 'if' handles the case when 'size' is larger than
-    ** the size of a Lua integer, correcting the extra sign-extension
-    ** bytes if necessary (by default they would be zeros).
-    */
+     ** Pack integer 'n' with 'size' bytes and 'islittle' endianness.
+     ** The final 'if' handles the case when 'size' is larger than
+     ** the size of a Lua integer, correcting the extra sign-extension
+     ** bytes if necessary (by default they would be zeros).
+     */
     private static void packint(
         luaL_Buffer* b,
         ulong n,
@@ -1730,10 +2954,10 @@ public static unsafe partial class Lua
             buff[islittle ? i : size - 1 - i] = (byte)(n & MC);
         }
 
-        if (neg && size > long.MaxValue)
+        if (neg && size > sizeof(long))
         {
             /* negative number need sign extension? */
-            for (long i = long.MaxValue; i < size; i++) /* correct extra bytes */
+            for (long i = sizeof(long); i < size; i++) /* correct extra bytes */
             {
                 buff[islittle ? i : size - 1 - i] = MC;
             }
@@ -1743,9 +2967,10 @@ public static unsafe partial class Lua
     }
 
     /*
-    ** Copy 'size' bytes from 'src' to 'dest', correcting endianness if
-    ** given 'islittle' is different from native endianness.
-    */
+     ** Copy 'size' bytes from 'src' to 'dest', correcting endianness if
+     ** given 'islittle' is different from native endianness.
+     */
+    [Obsolete]
     private static void copywithendian(byte* dest, byte* src, int size, bool islittle)
     {
         if (islittle == BitConverter.IsLittleEndian)
@@ -1758,6 +2983,25 @@ public static unsafe partial class Lua
             while (size-- != 0)
             {
                 *dest-- = *src++;
+            }
+        }
+    }
+
+    /*
+     ** Copy 'size' bytes from 'src' to 'dest', correcting endianness if
+     ** given 'islittle' is different from native endianness.
+     */
+    private static void copywithendian(Span<byte> dest, ReadOnlySpan<byte> src, int size, bool islittle)
+    {
+        if (islittle == BitConverter.IsLittleEndian)
+        {
+            src[..size].CopyTo(dest[..size]);
+        }
+        else
+        {
+            for (int i = 0; i < size; i++)
+            {
+                dest[^i] = src[i];
             }
         }
     }
@@ -1794,10 +3038,10 @@ public static unsafe partial class Lua
                     {
                         /* signed integers */
                         long n = luaL_checkinteger(L, arg);
-                        if (size < long.MaxValue)
+                        if (size < sizeof(long))
                         {
                             /* need overflow check? */
-                            long lim = (long)1 << (int)((size * 8) - 1);
+                            long lim = (long)1 << (int)(size * 8 - 1);
                             luaL_argcheck(L, -lim <= n && n < lim, arg, "integer overflow");
                         }
 
@@ -1808,42 +3052,33 @@ public static unsafe partial class Lua
                 case KOption.UInt:
                     {
                         /* unsigned integers */
-//         long n = luaL_checkinteger(L, arg);
-//         if (size < SZINT)  /* need overflow check? */
-//           luaL_argcheck(L, (lua_Unsigned)n < ((lua_Unsigned)1 << (size * NB)),
-//                            arg, "unsigned overflow");
-//         packint(&b, (lua_Unsigned)n, h.islittle, cast_uint(size), 0);
-//         break;
-                    }
-                    throw new NotImplementedException();
+                        long n = luaL_checkinteger(L, arg);
+                        if (size < sizeof(long)) /* need overflow check? */
+                        {
+                            luaL_argcheck(
+                                L,
+                                (ulong)n < (1UL << (int)(size * NB)),
+                                arg,
+                                "unsigned overflow");
+                        }
 
-                case KOption.Float:
-                    {
-                        /* C float */
-//         float f = (float)luaL_checknumber(L, arg);  /* get argument */
-//         char *buff = luaL_prepbuffsize(&b, sizeof(f));
-//         /* move 'f' to final result, correcting endianness if needed */
-//         copywithendian(buff, (char *)&f, sizeof(f), h.islittle);
-//         luaL_addsize(&b, size);
-//         break;
+                        packint(&b, (ulong)n, h.islittle, (uint)size, false);
+                        break;
                     }
-                    throw new NotImplementedException();
 
-                case KOption.Number:
+                case KOption.Float: // C float
                     {
-                        /* Lua float */
-//         double f = luaL_checknumber(L, arg);  /* get argument */
-//         char *buff = luaL_prepbuffsize(&b, sizeof(f));
-//         /* move 'f' to final result, correcting endianness if needed */
-//         copywithendian(buff, (char *)&f, sizeof(f), h.islittle);
-//         luaL_addsize(&b, size);
-//         break;
+                        float f = (float)luaL_checknumber(L, arg); /* get argument */
+                        byte* buff = luaL_prepbuffsize(&b, sizeof(float));
+                        /* move 'f' to final result, correcting endianness if needed */
+                        copywithendian(buff, (byte*)&f, sizeof(float), h.islittle);
+                        luaL_addsize(&b, size);
+                        break;
                     }
-                    throw new NotImplementedException();
 
-                case KOption.Double:
+                case KOption.Number: // Lua float
+                case KOption.Double: // C double
                     {
-                        /* C double */
                         double f = luaL_checknumber(L, arg); /* get argument */
                         byte* buff = luaL_prepbuffsize(&b, sizeof(double));
                         /* move 'f' to final result, correcting endianness if needed */
@@ -1855,53 +3090,52 @@ public static unsafe partial class Lua
                 case KOption.Char:
                     {
                         /* fixed-size string */
-//         size_t len;
-//         const char *s = luaL_checklstring(L, arg, &len);
-//         luaL_argcheck(L, len <= size, arg, "string longer than given size");
-//         luaL_addlstring(&b, s, len);  /* add string */
-//         if (len < size) {  /* does it need padding? */
-//           size_t psize = size - len;  /* pad size */
-//           char *buff = luaL_prepbuffsize(&b, psize);
-//           memset(buff, LUAL_PACKPADBYTE, psize);
-//           luaL_addsize(&b, psize);
-//         }
-//         break;
+                        ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
+                        luaL_argcheck(L, s.Length <= size, arg, "string longer than given size");
+                        luaL_addlstring(&b, s); /* add string */
+                        if (s.Length < size)
+                        {
+                            /* does it need padding? */
+                            long psize = size - s.Length;  /* pad size */
+                            byte* buff = luaL_prepbuffsize(&b, psize);
+                            new Span<byte>(buff, checked((int)psize)).Fill(LUAL_PACKPADBYTE);
+                            luaL_addsize(&b, psize);
+                        }
+
+                        break;
                     }
-                    throw new NotImplementedException();
 
                 case KOption.String:
                     {
                         /* strings with length count */
-//         size_t len;
-//         const char *s = luaL_checklstring(L, arg, &len);
-//         luaL_argcheck(L, size >= sizeof(lua_Unsigned) ||
-//                          len < ((lua_Unsigned)1 << (size * NB)),
-//                          arg, "string length does not fit in given size");
-//         /* pack length */
-//         packint(&b, (lua_Unsigned)len, h.islittle, cast_uint(size), 0);
-//         luaL_addlstring(&b, s, len);
-//         totalsize += len;
-//         break;
+                        ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
+                        luaL_argcheck(
+                            L,
+                            size >= sizeof(ulong) || s.Length < ((long)1 << (int)(size * NB)),
+                            arg,
+                            "string length does not fit in given size");
+                        /* pack length */
+                        packint(&b, (ulong)s.Length, h.islittle, (uint)size, false);
+                        luaL_addlstring(&b, s);
+                        totalsize += s.Length;
+                        break;
                     }
-                    throw new NotImplementedException();
 
                 case KOption.ZeroString:
                     {
                         /* zero-terminated string */
-//         size_t len;
-//         const char *s = luaL_checklstring(L, arg, &len);
-//         luaL_argcheck(L, strlen(s) == len, arg, "string contains zeros");
-//         luaL_addlstring(&b, s, len);
-//         luaL_addchar(&b, '\0');  /* add zero at the end */
-//         totalsize += len + 1;
-//         break;
+                        ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
+                        luaL_argcheck(L, !s.Contains((byte)0), arg, "string contains zeros");
+                        luaL_addlstring(&b, s);
+                        luaL_addchar(&b, '\0'); /* add zero at the end */
+                        totalsize += s.Length + 1;
+                        break;
                     }
-                    throw new NotImplementedException();
 
                 case KOption.Padding:
                     luaL_addchar(&b, LUAL_PACKPADBYTE);
                     goto case KOption.PaddAlign;
-                    
+
                 case KOption.PaddAlign:
                 case KOption.Nop:
                     arg--; /* undo increment */
@@ -1941,117 +3175,157 @@ public static unsafe partial class Lua
         return 1;
     }
 
-// /*
-// ** Unpack an integer with 'size' bytes and 'islittle' endianness.
-// ** If size is smaller than the size of a Lua integer and integer
-// ** is signed, must do sign extension (propagating the sign to the
-// ** higher bits); if size is larger than the size of a Lua integer,
-// ** it must check the unread bytes to see whether they do not cause an
-// ** overflow.
-// */
-// static long unpackint (lua_State *L, const char *str,
-//                               int islittle, int size, int issigned) {
-//   lua_Unsigned res = 0;
-//   int i;
-//   int limit = (size  <= SZINT) ? size : SZINT;
-//   for (i = limit - 1; i >= 0; i--) {
-//     res <<= NB;
-//     res |= (lua_Unsigned)(unsigned char)str[islittle ? i : size - 1 - i];
-//   }
-//   if (size < SZINT) {  /* real size smaller than long? */
-//     if (issigned) {  /* needs sign extension? */
-//       lua_Unsigned mask = (lua_Unsigned)1 << (size*NB - 1);
-//       res = ((res ^ mask) - mask);  /* do sign extension */
-//     }
-//   }
-//   else if (size > SZINT) {  /* must check unread bytes */
-//     int mask = (!issigned || (long)res >= 0) ? 0 : MC;
-//     for (i = limit; i < size; i++) {
-//       if (l_unlikely((unsigned char)str[islittle ? i : size - 1 - i] != mask))
-//         luaL_error(L, "%d-byte integer does not fit into Lua Integer", size);
-//     }
-//   }
-//   return (long)res;
-// }
+    /*
+    ** Unpack an integer with 'size' bytes and 'islittle' endianness.
+    ** If size is smaller than the size of a Lua integer and integer
+    ** is signed, must do sign extension (propagating the sign to the
+    ** higher bits); if size is larger than the size of a Lua integer,
+    ** it must check the unread bytes to see whether they do not cause an
+    ** overflow.
+    */
+    private static long unpackint(
+        lua_State* L,
+        ReadOnlySpan<byte> str,
+        bool islittle,
+        int size,
+        bool issigned)
+    {
+        ulong res = 0;
+        int limit = size <= sizeof(long) ? size : sizeof(long);
+        for (int i = limit - 1; i >= 0; i--)
+        {
+            res <<= NB;
+            res |= str[islittle ? i : size - 1 - i];
+        }
+
+        if (size < sizeof(long))
+        {
+            /* real size smaller than long? */
+            if (issigned)
+            {
+                /* needs sign extension? */
+                ulong mask = 1UL << size * NB - 1;
+                res = (res ^ mask) - mask; /* do sign extension */
+            }
+        }
+        else if (size > sizeof(long))
+        {
+            /* must check unread bytes */
+            int mask = (!issigned || (long)res >= 0) ? 0 : MC;
+            for (int i = limit; i < size; i++)
+            {
+                if (str[islittle ? i : size - 1 - i] != mask)
+                {
+                    luaL_error(L, "%d-byte integer does not fit into Lua Integer", size);
+                }
+            }
+        }
+
+        return (long)res;
+    }
 
     private static int str_unpack(lua_State* L)
     {
-//   Header h;
-//   const char *fmt = luaL_checkstring(L, 1);
-//   size_t ld;
-//   const char *data = luaL_checklstring(L, 2, &ld);
-//   size_t pos = posrelatI(luaL_optinteger(L, 3, 1), ld) - 1;
-//   int n = 0;  /* number of results */
-//   luaL_argcheck(L, pos <= ld, 3, "initial position out of string");
-//   initheader(L, &h);
-//   while (*fmt != '\0') {
-//     unsigned ntoalign;
-//     size_t size;
-//     KOption opt = getdetails(&h, pos, &fmt, &size, &ntoalign);
-//     luaL_argcheck(L, ntoalign + size <= ld - pos, 2,
-//                     "data string too short");
-//     pos += ntoalign;  /* skip alignment */
-//     /* stack space for item + next position */
-//     luaL_checkstack(L, 2, "too many results");
-//     n++;
-//     switch (opt) {
-//       case Kint:
-//       case Kuint: {
-//         long res = unpackint(L, data + pos, h.islittle,
-//                                        cast_int(size), (opt == Kint));
-//         lua_pushinteger(L, res);
-//         break;
-//       }
-//       case Kfloat: {
-//         float f;
-//         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
-//         lua_pushnumber(L, (double)f);
-//         break;
-//       }
-//       case Knumber: {
-//         double f;
-//         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
-//         lua_pushnumber(L, f);
-//         break;
-//       }
-//       case Kdouble: {
-//         double f;
-//         copywithendian((char *)&f, data + pos, sizeof(f), h.islittle);
-//         lua_pushnumber(L, (double)f);
-//         break;
-//       }
-//       case Kchar: {
-//         lua_pushlstring(L, data + pos, size);
-//         break;
-//       }
-//       case Kstring: {
-//         lua_Unsigned len = (lua_Unsigned)unpackint(L, data + pos,
-//                                           h.islittle, cast_int(size), 0);
-//         luaL_argcheck(L, len <= ld - pos - size, 2, "data string too short");
-//         lua_pushlstring(L, data + pos + size, cast_sizet(len));
-//         pos += cast_sizet(len);  /* skip string */
-//         break;
-//       }
-//       case Kzstr: {
-//         size_t len = strlen(data + pos);
-//         luaL_argcheck(L, pos + len < ld, 2,
-//                          "unfinished string for format 'z'");
-//         lua_pushlstring(L, data + pos, len);
-//         pos += len + 1;  /* skip string plus final '\0' */
-//         break;
-//       }
-//       case Kpaddalign: case Kpadding: case Knop:
-//         n--;  /* undo increment */
-//         break;
-//     }
-//     pos += size;
-//   }
-//   lua_pushinteger(L, cast_st2S(pos) + 1);  /* next position */
-//   return n + 1;
-        throw new NotImplementedException();
-    }
+        ReadOnlySpan<char> fmt = luaL_checknetstring(L, 1).AsSpan();
+        ReadOnlySpan<byte> data = luaL_checkstring(L, 2);
+        int pos = (int)(posrelatI(luaL_optinteger(L, 3, 1), data.Length) - 1);
+        luaL_argcheck(L, pos <= data.Length, 3, "initial position out of string");
 
-    /* }====================================================== */
+        int n = 0; /* number of results */
+        Header h;
+        initheader(L, &h);
+        while (!fmt.IsEmpty)
+        {
+            KOption opt = getdetails(&h, pos, ref fmt, out long size, out uint ntoalign);
+            luaL_argcheck(
+                L,
+                ntoalign + size <= data.Length - pos,
+                2,
+                "data string too short");
+            pos += (int)ntoalign; /* skip alignment */
+            /* stack space for item + next position */
+            luaL_checkstack(L, 2, "too many results");
+            n++;
+            switch (opt)
+            {
+                case KOption.Int:
+                case KOption.UInt:
+                    {
+                        long res = unpackint(
+                            L,
+                            data[pos..],
+                            h.islittle,
+                            (int)size,
+                            opt == KOption.Int);
+                        lua_pushinteger(L, res);
+                        break;
+                    }
+
+                case KOption.Float:
+                    {
+                        float f;
+                        fixed (byte* ptr = data[pos..])
+                        {
+                            copywithendian((byte*)&f, ptr, sizeof(float), h.islittle);
+                        }
+
+                        lua_pushnumber(L, f);
+                        break;
+                    }
+
+                case KOption.Number:
+                case KOption.Double:
+                    {
+                        double f;
+                        fixed (byte* src = data[pos..])
+                        {
+                            copywithendian((byte*)&f, src, sizeof(double), h.islittle);
+                        }
+                        lua_pushnumber(L, f);
+                        break;
+                    }
+
+                case KOption.Char:
+                    lua_pushlstring(L, data.Slice(pos, (int)size));
+                    break;
+
+                case KOption.String:
+                    {
+                        ulong len = (ulong)unpackint(L, data[pos..], h.islittle, (int)size, false);
+                        luaL_argcheck(L, (long)len <= data.Length - pos - size, 2, "data string too short");
+                        lua_pushlstring(L, data.Slice(checked((int)(pos + size)), checked((int)len)));
+                        pos += (int)len; /* skip string */
+                        break;
+                    }
+
+                case KOption.ZeroString:
+                    {
+                        ReadOnlySpan<byte> tmp = data[pos..];
+                        int len = tmp.IndexOf((byte)0);
+                        if (len <= 0)
+                        {
+                            len = tmp.Length;
+                        }
+
+                        luaL_argcheck(L, pos + len < data.Length, 2, "unfinished string for format 'z'");
+                        lua_pushlstring(L, data.Slice(pos, len));
+                        pos += len + 1; /* skip string plus final '\0' */
+                        break;
+                    }
+
+                case KOption.PaddAlign:
+                case KOption.Padding:
+                case KOption.Nop:
+                    n--; /* undo increment */
+                    break;
+            }
+
+            pos += (int)size;
+        }
+
+        lua_pushinteger(L, pos + 1); /* next position */
+        return n + 1;
+    }
 
     private static readonly luaL_Reg[] strlib =
     [
@@ -2091,7 +3365,7 @@ public static unsafe partial class Lua
     /*
      ** Open string library
      */
-    public static partial int luaopen_string(lua_State* L)
+    public static int luaopen_string(lua_State* L)
     {
         luaL_newlib(L, strlib);
         createmetatable(L);

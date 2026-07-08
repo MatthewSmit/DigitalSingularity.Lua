@@ -2,7 +2,7 @@
 
 namespace DigitalSingularity.Lua;
 
-using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 public static unsafe partial class Lua
@@ -171,7 +171,6 @@ public static unsafe partial class Lua
         // - A sequence of digits, optionally containing a decimal-point character (.), optionally followed by an exponent part (an e or E character followed by an optional sign and a sequence of digits).
         // - A 0x or 0X prefix, then a sequence of hexadecimal digits (as in isxdigit) optionally containing a period which separates the whole and fractional number parts. Optionally followed by a power of 2 exponent (a p or P character followed by an optional sign and a sequence of hexadecimal digits).
 
-        double val = 0.0;
         bool hasDigits = false;
         int expAdj = 0;
         int exp = 0;
@@ -192,7 +191,7 @@ public static unsafe partial class Lua
                     // Only accumulate if shifting won't drop the top 4 bits of the 64-bit ulong
                     if (mantissa <= 0x0FFFFFFFFFFFFFFF)
                     {
-                        mantissa = (mantissa << 4) | (uint)h;
+                        mantissa = mantissa << 4 | (uint)h;
                     }
                     else
                     {
@@ -220,7 +219,7 @@ public static unsafe partial class Lua
                         foundNonZero = true;
                         if (mantissa <= 0x0FFFFFFFFFFFFFFF)
                         {
-                            mantissa = (mantissa << 4) | (uint)h;
+                            mantissa = mantissa << 4 | (uint)h;
                             expAdj -= 4; // Shifted into mantissa, decrease place value
                         }
                         else
@@ -303,7 +302,7 @@ public static unsafe partial class Lua
                 mantissa |= 1;
             }
 
-            val = mantissa;
+            double val = mantissa;
             exp = Math.Clamp(exp, -2000, 2000);
             if (exp < -1000)
             {
@@ -319,78 +318,70 @@ public static unsafe partial class Lua
             val *= Math.Pow(2.0, exp);
             return isNegative ? -val : val;
         }
-
-        while (char.IsAsciiDigit((char)*p))
+        else
         {
-            val = val * 10.0 + (*p - '0');
-            p++;
-            hasDigits = true;
-        }
-
-        if (*p == '.')
-        {
-            p++;
             while (char.IsAsciiDigit((char)*p))
             {
-                val = val * 10.0 + (*p - '0');
-                expAdj--;
                 p++;
                 hasDigits = true;
             }
-        }
 
-        // If no digits parsed, return 0 and set endptr to original string
-        if (!hasDigits)
-        {
+            if (*p == '.')
+            {
+                p++;
+                while (char.IsAsciiDigit((char)*p))
+                {
+                    p++;
+                    hasDigits = true;
+                }
+            }
+
+            // If no digits parsed, return 0 and set endptr to original string
+            if (!hasDigits)
+            {
+                if (endptr != null)
+                {
+                    *endptr = str;
+                }
+
+                return 0.0;
+            }
+
+            if (*p == 'e' || *p == 'E')
+            {
+                byte* eStart = p;
+                p++;
+                if (*p == '+' || *p == '-')
+                {
+                    p++;
+                }
+
+                bool hasExpDigits = false;
+                while (char.IsAsciiDigit((char)*p))
+                {
+                    p++;
+                    hasExpDigits = true;
+                }
+
+                if (!hasExpDigits)
+                {
+                    p = eStart; // Rollback to before 'e'
+                }
+            }
+
             if (endptr != null)
             {
-                *endptr = str;
+                *endptr = p;
             }
 
-            return 0.0;
+            ReadOnlySpan<byte> number = new(start, checked((int)(p - start)));
+            if (!double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double val))
+            {
+                val = 0.0;
+            }
+
+            return isNegative ? -val : val;
         }
-
-        if (*p == 'e' || *p == 'E')
-        {
-            byte* eStart = p;
-            p++;
-            bool expNeg = false;
-            if (*p == '+')
-            {
-                p++;
-            }
-            else if (*p == '-')
-            {
-                expNeg = true;
-                p++;
-            }
-
-            bool hasExpDigits = false;
-            while (char.IsAsciiDigit((char)*p))
-            {
-                exp = exp * 10 + (*p - '0');
-                p++;
-                hasExpDigits = true;
-            }
-
-            if (!hasExpDigits)
-            {
-                p = eStart; // Rollback to before 'e'
-            }
-            else if (expNeg)
-            {
-                exp = -exp;
-            }
-        }
-
-        exp += expAdj;
-        if (endptr != null)
-        {
-            *endptr = p;
-        }
-
-        val *= Math.Pow(10.0, exp);
-        return isNegative ? -val : val;
 
         static bool MatchString(byte* p, string target)
         {
@@ -419,8 +410,7 @@ public static unsafe partial class Lua
 
     internal static void memcpy(void* dest, void* src, long n)
     {
-        Debug.Assert(n <= uint.MaxValue);
-        Unsafe.CopyBlock(dest, src, (uint)n);
+        Unsafe.CopyBlock(dest, src, checked((uint)n));
     }
 
     private static int memcmp(void* ptr1, void* ptr2, long count)
@@ -429,6 +419,24 @@ public static unsafe partial class Lua
         ReadOnlySpan<byte> view2 = new(ptr2, checked((int)count));
 
         return view1.SequenceCompareTo(view2);
+    }
+    
+    private static byte* memchr(byte* ptr, byte value, int count)
+    {
+        if (ptr == null || count <= 0)
+        {
+            return null;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (ptr[i] == value)
+            {
+                return ptr + i;
+            }
+        }
+
+        return null;
     }
 
     private static ReadOnlySpan<byte> strchr(ReadOnlySpan<byte> s, char c)
@@ -468,12 +476,27 @@ public static unsafe partial class Lua
         return ReadOnlySpan<char>.Empty;
     }
 
-    private static int strspn(ReadOnlySpan<char> dest, ReadOnlySpan<char> src)
+    private static int strspn(byte* dest, ReadOnlySpan<byte> src)
+    {
+        int i = 0;
+        while (dest[i] != 0)
+        {
+            if (!src.Contains(dest[i]))
+            {
+                break;
+            }
+
+            i++;
+        }
+        return i;
+    }
+
+    private static int strspn<T>(ReadOnlySpan<T> dest, ReadOnlySpan<T> src)
     {
         int result = dest.IndexOfAnyExcept(src);
         if (result < 0)
         {
-            result = dest.Length;
+            result = 0;
         }
 
         return result;
@@ -490,13 +513,13 @@ public static unsafe partial class Lua
     */
     private static bool lua_numbertointeger(double n, out long p)
     {
-        if (n < long.MinValue)
+        if (!(n >= long.MinValue))
         {
             p = 0;
             return false;
         }
-        
-        if (n >= -(double)long.MinValue)
+
+        if (!(n < -(double)long.MinValue))
         {
             p = 0;
             return false;

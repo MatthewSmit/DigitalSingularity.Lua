@@ -55,6 +55,7 @@ end
 
 local function checkout (s)
   local t = getoutput()
+  t = t:gsub("\r\n", "\n") 
   if s ~= t then print(string.format("'%s' - '%s'\n", s, t)) end
   assert(s == t)
   return t

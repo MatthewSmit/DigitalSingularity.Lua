@@ -15,7 +15,7 @@ public unsafe class PrivateTests
 
     private static string StackString(lua_State* L, int idx)
     {
-        byte* value = lua_tolstring(L, idx, out long _);
+        byte* value = lua_tolstring(L, idx, out _);
         return value == null ? "" : new string((sbyte*)value);
     }
 
@@ -94,17 +94,17 @@ public unsafe class PrivateTests
         public int index;
     }
 
-    private static byte* ChunkReader(lua_State* L, void* ud, long* size)
+    private static byte* ChunkReader(lua_State* L, void* ud, out long size)
     {
         ReaderState state = GCHandle<ReaderState>.FromIntPtr((IntPtr)ud).Target;
         if (state.index >= state.chunks.Count)
         {
-            *size = 0;
+            size = 0;
             return null;
         }
 
         byte* chunk = (byte*)state.chunks[state.index++];
-        *size = strlen(chunk);
+        size = strlen(chunk);
         return chunk;
     }
 
@@ -263,10 +263,10 @@ public unsafe class PrivateTests
         public List<(string msg, bool tocont)> messages = [];
     }
 
-    private static void WarningHandler(void* ud, string msg, bool tocont)
+    private static void WarningHandler(void* ud, ReadOnlySpan<char> msg, bool tocont)
     {
         WarningCapture warningCapture = GCHandle<WarningCapture>.FromIntPtr((nint)ud).Target;
-        warningCapture.messages.Add((msg, tocont));
+        warningCapture.messages.Add((msg.ToString(), tocont));
     }
 
     private static int ReturnBoolean(lua_State* L)
@@ -383,15 +383,15 @@ public unsafe class PrivateTests
     {
         TValue value;
 
-        Assert.That(luaO_str2num("42"u8.ToPointer(), &value), Is.Not.Zero);
+        Assert.That(luaO_str2num("42"u8, &value), Is.Not.Zero);
         Assert.That(ttisinteger(&value), Is.True);
         Assert.That(ivalue(&value), Is.EqualTo(42));
         
-        Assert.That(luaO_str2num("3.5"u8.ToPointer(), &value), Is.Not.Zero);
+        Assert.That(luaO_str2num("3.5"u8, &value), Is.Not.Zero);
         Assert.That(ttisfloat(&value), Is.True);
         Assert.That(fltvalue(&value), Is.EqualTo(3.5));
         
-        Assert.That(luaO_str2num("not-a-number"u8.ToPointer(), &value), Is.Zero);
+        Assert.That(luaO_str2num("not-a-number"u8, &value), Is.Zero);
     }
 
     [Test]

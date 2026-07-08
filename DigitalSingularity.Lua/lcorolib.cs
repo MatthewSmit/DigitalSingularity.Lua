@@ -184,33 +184,39 @@ public static unsafe partial class Lua
     private static int luaB_close(lua_State* L)
     {
         lua_State* co = getoptco(L);
-//   int status = auxstatus(L, co);
-//   switch (status) {
-//     case COS_DEAD: case COS_YIELD: {
-//       status = lua_closethread(co, L);
-//       if (status == LUA_OK) {
-//         lua_pushboolean(L, 1);
-//         return 1;
-//       }
-//       else {
-//         lua_pushboolean(L, 0);
-//         lua_xmove(co, L, 1);  /* move error message */
-//         return 2;
-//       }
-//     }
-//     case COS_NORM:
-//       return luaL_error(L, "cannot close a %s coroutine", statname[status]);
-//     case COS_RUN:
-//       lua_geti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD);  /* get main */
-//       if (lua_tothread(L, -1) == co)
-//         return luaL_error(L, "cannot close main thread");
-//       lua_closethread(co, L);  /* close itself */
-//       /* previous call does not return *//* FALLTHROUGH */
-//     default:
-//       Debug.Assert(0);
-//       return 0;
-//   }
-        throw new NotImplementedException();
+        int status = auxstatus(L, co);
+        switch (status)
+        {
+            case COS_DEAD:
+            case COS_YIELD:
+                status = lua_closethread(co, L);
+                if (status == LUA_OK)
+                {
+                    lua_pushboolean(L, true);
+                    return 1;
+                }
+
+                lua_pushboolean(L, false);
+                lua_xmove(co, L, 1); /* move error message */
+                return 2;
+
+            case COS_NORM:
+                return luaL_error(L, "cannot close a %s coroutine", statname[status]);
+
+            case COS_RUN:
+                lua_geti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD); /* get main */
+                if (lua_tothread(L, -1) == co)
+                {
+                    return luaL_error(L, "cannot close main thread");
+                }
+
+                lua_closethread(co, L); /* close itself */
+                /* previous call does not return */
+                throw new InvalidOperationException();
+
+            default:
+                throw new InvalidOperationException();
+        }
     }
 
     private static readonly luaL_Reg[] co_funcs =
@@ -225,7 +231,7 @@ public static unsafe partial class Lua
         new("close", &luaB_close),
     ];
 
-    public static partial int luaopen_coroutine(lua_State* L)
+    public static int luaopen_coroutine(lua_State* L)
     {
         luaL_newlib(L, co_funcs);
         return 1;

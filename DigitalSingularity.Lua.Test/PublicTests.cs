@@ -64,7 +64,14 @@ public unsafe class PublicTests
             }
         }
 
-        return NativeMemory.Realloc(ptr, (nuint)nsize);
+        try
+        {
+            return NativeMemory.Realloc(ptr, (nuint)nsize);
+        }
+        catch (OutOfMemoryException)
+        {
+            return null;
+        }
     }
 
     private static int ProtectedCall(lua_State* L, delegate*<lua_State*, int> fn, int nresults = LUA_MULTRET)
@@ -75,8 +82,7 @@ public unsafe class PublicTests
 
     private static string StackString(lua_State* L, int idx)
     {
-        byte* value = lua_tolstring(L, idx, out long _);
-        return value == null ? "" : new string((sbyte*)value);
+        return lua_tonetstring(L, idx) ?? "";
     }
 
     private static int ReturnZero(lua_State* L)
@@ -117,17 +123,17 @@ public unsafe class PublicTests
         public bool done;
     }
 
-    private static byte* StringReader(lua_State* L, void* ud, long* size)
+    private static byte* StringReader(lua_State* L, void* ud, out long size)
     {
         ReaderState* state = (ReaderState*)ud;
         if (state->done)
         {
-            *size = 0;
+            size = 0;
             return null;
         }
 
         state->done = true;
-        *size = state->size;
+        size = state->size;
         return state->data;
     }
 
@@ -196,7 +202,7 @@ public unsafe class PublicTests
     private static void PushClosable(
         lua_State* L,
         int* counter,
-        delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int> closef)
+        delegate* managed<lua_State*, int> closef)
     {
         lua_newuserdatauv(L, 1, 0);
         lua_newtable(L);
@@ -242,10 +248,10 @@ public unsafe class PublicTests
         return 0;
     }
 
-    private static int YieldKContinuation(lua_State* L, int status, void* ctx)
+    private static int YieldKContinuation(lua_State* L, int status, nint ctx)
     {
         lua_pushinteger(L, status);
-        lua_pushinteger(L, (long)ctx);
+        lua_pushinteger(L, ctx);
         return 2;
     }
 
@@ -1074,12 +1080,10 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushlstring(state, "a\0b");
-        byte* text = lua_tolstring(state, 1, out long len);
+        byte* text = lua_tolstring(state, 1, out int len);
 
-        {
-            Assert.That(text, Is.Not.Null);
-            Assert.That(len, Is.EqualTo(3u));
-        }
+        Assert.That(text, Is.Not.Null);
+        Assert.That(len, Is.EqualTo(3u));
 
         lua_newtable(state);
         Assert.That(lua_tolstring(state, 2, out len), Is.Null);
@@ -1179,12 +1183,10 @@ public unsafe class PublicTests
         lua_pushinteger(state, 10);
         lua_pushinteger(state, 20);
 
-        {
-            Assert.That(lua_compare(state, 1, 1, LUA_OPEQ), Is.True);
-            Assert.That(lua_compare(state, 1, 2, LUA_OPLT), Is.True);
-            Assert.That(lua_compare(state, 1, 2, LUA_OPLE), Is.True);
-            Assert.That(lua_compare(state, 1, 19, LUA_OPEQ), Is.False);
-        }
+        Assert.That(lua_compare(state, 1, 1, LUA_OPEQ), Is.True);
+        Assert.That(lua_compare(state, 1, 2, LUA_OPLT), Is.True);
+        Assert.That(lua_compare(state, 1, 2, LUA_OPLE), Is.True);
+        Assert.That(lua_compare(state, 1, 19, LUA_OPEQ), Is.False);
     }
 
     [Test]
@@ -1216,7 +1218,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushlstring(state, "a\0b");
-        byte* actual = lua_tolstring(state, -1, out long len);
+        byte* actual = lua_tolstring(state, -1, out int len);
         Assert.That(actual, Is.Not.Null);
 
         {
@@ -1238,7 +1240,7 @@ public unsafe class PublicTests
             text.Length,
             null,
             null);
-        Assert.That(lua_tostringp(state, -1), Is.EqualTo(text.ToPointer()));
+        Assert.That(lua_tostring(state, -1), Is.EqualTo(text.ToPointer()));
     }
 
     [Test]
@@ -1785,11 +1787,11 @@ public unsafe class PublicTests
         Assert.That(warnings.calls, Is.EqualTo(2));
         Assert.That(warnings.message, Is.EqualTo("ab|"));
 
-        static void warnf(void* ud, string msg, bool tocont)
+        static void warnf(void* ud, ReadOnlySpan<char> msg, bool tocont)
         {
             WarningState state = GCHandle<WarningState>.FromIntPtr((nint)ud).Target;
             ++state.calls;
-            state.message += msg;
+            state.message += msg.ToString();
             if (!tocont)
             {
                 state.message += "|";
@@ -1809,7 +1811,7 @@ public unsafe class PublicTests
         lua_warning(state, "ignored", false);
         Assert.That(calls, Is.EqualTo(1));
 
-        static void warnf(void* ud, string msg, bool tocont)
+        static void warnf(void* ud, ReadOnlySpan<char> msg, bool tocont)
         {
             ++*(int*)(ud);
         }
@@ -1868,7 +1870,7 @@ public unsafe class PublicTests
         lua_pushliteral(state, " ");
         lua_pushliteral(state, "lua");
         lua_concat(state, 3);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("hello lua"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("hello lua"));
         lua_settop(state, 0);
         Assert.That(ProtectedCall(state, &ConcatFailure, 0), Is.EqualTo(LUA_ERRRUN));
     }
@@ -2319,7 +2321,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushliteral(state, "literal");
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("literal"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("literal"));
     }
 
     [Test]
@@ -2335,7 +2337,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 123);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("123"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("123"));
     }
 
     [Test]
@@ -2456,11 +2458,8 @@ public unsafe class PublicTests
         lua_pushliteral(state, "named");
         lua_setfield(state, -2, "__name");
         lua_setmetatable(state, -2);
-
-        {
-            Assert.That(luaL_getmetafield(state, 1, "__name"), Is.EqualTo(LUA_TSTRING));
-            Assert.That(lua_tostring(state, -1), Is.EqualTo("named"));
-        }
+        Assert.That(luaL_getmetafield(state, 1, "__name"), Is.EqualTo(LUA_TSTRING));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("named"));
         lua_settop(state, 0);
         lua_newtable(state);
         Assert.That(luaL_getmetafield(state, 1, "__name"), Is.EqualTo(LUA_TNIL));
@@ -2477,7 +2476,7 @@ public unsafe class PublicTests
         lua_setmetatable(state, -2);
 
         Assert.That(luaL_callmeta(state, 1, "__tostring"));
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("metavalue"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("metavalue"));
         lua_settop(state, 0);
         lua_newtable(state);
         Assert.That(luaL_callmeta(state, 1, "__tostring"), Is.False);
@@ -2488,11 +2487,11 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 42);
-        byte* value = luaL_tolstring(state, 1, out long _);
+        byte* value = luaL_tolstring(state, 1, out _);
         Assert.That(value, Is.Not.Null);
         Assert.That(new string((sbyte*)value), Is.EqualTo("42"));
         lua_newtable(state);
-        value = luaL_tolstring(state, -1, out long _);
+        value = luaL_tolstring(state, -1, out _);
         Assert.That(value, Is.Not.Null);
         Assert.That(new string((sbyte*)value), Contains.Substring("table"));
     }
@@ -2686,33 +2685,28 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         
-        Assert.That(luaL_fileresult(state, true, null), Is.EqualTo(1));
+        Assert.That(luaL_fileresult(state, true, null, null), Is.EqualTo(1));
         Assert.That(lua_toboolean(state, -1));
         lua_pop(state, 1);
-        // errno = ENOENT;
-        //
-        // Assert.That(luaL_fileresult(state, 0, "missing.file"), Is.EqualTo(3));
-        // Assert.That(lua_isnoneornil(state, -3));
-        // Assert.That(lua_isstring(state, -2));
-        // Assert.That(lua_tointeger(state, -1), Is.EqualTo(ENOENT));
-        throw new NotImplementedException();
+
+        Assert.That(
+            luaL_fileresult(state, false, "missing.file", new FileNotFoundException(null, "missing.file")),
+            Is.EqualTo(3));
+        Assert.That(lua_isnoneornil(state, -3));
+        Assert.That(lua_isstring(state, -2));
     }
 
     [Test]
     public void Function_luaL_execresult()
     {
         using LuaState state = new();
-        // errno = 0;
-        //
-        // Assert.That(luaL_execresult(state, 0), Is.EqualTo(3));
-        // Assert.That(lua_toboolean(state, -3));
-        // Assert.That(lua_tostring(state, -2), Is.EqualTo("exit"));
-        // lua_settop(state, 0);
-        // errno = 0;
-        //
-        // Assert.That(luaL_execresult(state, 1), Is.EqualTo(3));
-        // Assert.That(lua_isnoneornil(state, -3));
-        throw new NotImplementedException();
+        Assert.That(luaL_execresult(state, 0), Is.EqualTo(3));
+        Assert.That(lua_toboolean(state, -3));
+        Assert.That(lua_tonetstring(state, -2), Is.EqualTo("exit"));
+        lua_settop(state, 0);
+        
+        Assert.That(luaL_execresult(state, 1), Is.EqualTo(3));
+        Assert.That(lua_isnoneornil(state, -3));
     }
 
     [Test]
@@ -2733,7 +2727,7 @@ public unsafe class PublicTests
         int @ref = luaL_ref(state, LUA_REGISTRYINDEX);
         Assert.That(@ref, Is.GreaterThan(0));
         lua_rawgeti(state, LUA_REGISTRYINDEX, @ref);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("referenced"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("referenced"));
         lua_pop(state, 1);
         lua_pushnil(state);
         Assert.That(luaL_ref(state, LUA_REGISTRYINDEX), Is.EqualTo(LUA_REFNIL));
@@ -2750,7 +2744,7 @@ public unsafe class PublicTests
         int reused_ref = luaL_ref(state, LUA_REGISTRYINDEX);
         Assert.That(reused_ref, Is.EqualTo(@ref));
         lua_rawgeti(state, LUA_REGISTRYINDEX, reused_ref);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("new reference"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("new reference"));
         luaL_unref(state, LUA_REGISTRYINDEX, LUA_NOREF);
         luaL_unref(state, LUA_REGISTRYINDEX, LUA_REFNIL);
     }
@@ -2821,7 +2815,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addgsub(&buffer, "a-b-a", "-", "+");
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("a+b+a"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("a+b+a"));
     }
 
     [Test]
@@ -2831,7 +2825,7 @@ public unsafe class PublicTests
         string result = luaL_gsub(state, "one two one", "one", "1");
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.EqualTo("1 two 1"));
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("1 two 1"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("1 two 1"));
     }
 
     [Test]
@@ -2891,7 +2885,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addstring(&buffer, "buffer");
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("buffer"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("buffer"));
     }
 
     [Test]
@@ -2905,7 +2899,7 @@ public unsafe class PublicTests
         memcpy(space, "abc"u8.ToPointer(), 3);
         luaL_addsize(&buffer, 3);
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("abc"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("abc"));
     }
 
     [Test]
@@ -2928,7 +2922,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addstring(&buffer, "abc");
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("abc"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("abc"));
     }
 
     [Test]
@@ -2941,7 +2935,7 @@ public unsafe class PublicTests
         lua_pushliteral(state, "b");
         luaL_addvalue(&buffer);
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("ab"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("ab"));
     }
 
     [Test]
@@ -2952,7 +2946,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addstring(&buffer, "done");
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("done"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("done"));
     }
 
     [Test]
@@ -2963,7 +2957,7 @@ public unsafe class PublicTests
         byte* space = luaL_buffinitsize(state, &buffer, 4);
         memcpy(space, "data"u8.ToPointer(), 4);
         luaL_pushresultsize(&buffer, 4);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("data"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("data"));
     }
 
     [Test]
@@ -2975,7 +2969,7 @@ public unsafe class PublicTests
         Assert.That(space, Is.Not.Null);
         memcpy(space, "xyz"u8.ToPointer(), 3);
         luaL_pushresultsize(&buffer, 3);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("xyz"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("xyz"));
     }
 
     [Test]
@@ -3147,7 +3141,7 @@ public unsafe class PublicTests
         luaL_buffinit(state, &buffer);
         luaL_addchar(&buffer, 'x');
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("x"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("x"));
     }
 
     [Test]
@@ -3160,7 +3154,7 @@ public unsafe class PublicTests
         memcpy(space, "xy"u8.ToPointer(), 2);
         luaL_addsize(&buffer, 2);
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("xy"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("xy"));
     }
 
     [Test]
@@ -3172,7 +3166,7 @@ public unsafe class PublicTests
         luaL_addstring(&buffer, "abcd");
         luaL_buffsub(&buffer, 2);
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("ab"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("ab"));
     }
 
     [Test]
@@ -3186,7 +3180,7 @@ public unsafe class PublicTests
         memcpy(space, "pq"u8.ToPointer(), 2);
         luaL_addsize(&buffer, 2);
         luaL_pushresult(&buffer);
-        Assert.That(lua_tostring(state, -1), Is.EqualTo("pq"));
+        Assert.That(lua_tonetstring(state, -1), Is.EqualTo("pq"));
     }
 
     [Test]

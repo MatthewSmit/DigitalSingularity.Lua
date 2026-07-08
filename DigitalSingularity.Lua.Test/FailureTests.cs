@@ -8,7 +8,7 @@ public unsafe class FailureTests
 {
     private void ResetAllocatorControls()
     {
-        l_memcontrol->failnext = 0;
+        l_memcontrol->failnext = false;
         l_memcontrol->countlimit = -1;
     }
 
@@ -69,7 +69,7 @@ public unsafe class FailureTests
     public void TearDown()
     {
         this.ResetAllocatorControls();
-     lua_settop(this.state, 0);
+        lua_settop(this.state, 0);
     }
 
     private lua_State* L()
@@ -216,12 +216,12 @@ public unsafe class FailureTests
         int status = lua_resume(thread, this.L(), 0, &nresults);
         Assert.That(status, Is.EqualTo(LUA_YIELD));
         Assert.That(nresults, Is.EqualTo(1));
-        Assert.That(lua_tostring(thread, -1), Is.EqualTo("paused"));
+        Assert.That(lua_tonetstring(thread, -1), Is.EqualTo("paused"));
         lua_pop(thread, 1);
 
         status = lua_resume(thread, this.L(), 0, &nresults);
         Assert.That(status, Is.EqualTo(LUA_OK));
         Assert.That(nresults, Is.EqualTo(1));
-        Assert.That(lua_tostring(thread, -1), Is.EqualTo("finished"));
+        Assert.That(lua_tonetstring(thread, -1), Is.EqualTo("finished"));
     }
 }

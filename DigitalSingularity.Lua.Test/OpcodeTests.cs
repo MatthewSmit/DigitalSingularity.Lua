@@ -137,7 +137,7 @@ public unsafe class OpcodeTests
         Assert.That(this.HasOpcode(proto, OpCode.OP_LOADKX), Is.True, () => this.DumpOpcodes(proto));
         Assert.That(this.HasOpcode(proto, OpCode.OP_EXTRAARG), Is.True, () => this.DumpOpcodes(proto));
         Assert.That(lua_pcall(this.state, 0, 1, 0), Is.EqualTo(LUA_OK), () => StackString(this.state, -1));
-        Assert.That(lua_tostring(this.state, -1), Is.EqualTo(expected));
+        Assert.That(lua_tonetstring(this.state, -1), Is.EqualTo(expected));
         lua_settop(this.state, 0);
     }
 

@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using static Lua;
 
 public static unsafe class Program
@@ -74,51 +75,58 @@ public static unsafe class Program
 
     private static void print_usage(string badoption)
     {
-//   lua_writestringerror("%s: ", progname);
-//   if (badoption[1] == 'e' || badoption[1] == 'l')
-//     lua_writestringerror("'%s' needs argument\n", badoption);
-//   else
-//     lua_writestringerror("unrecognized option '%s'\n", badoption);
-//   lua_writestringerror(
-//   "usage: %s [options] [script [args]]\n"
-//   "Available options are:\n"
-//   "  -e stat   execute string 'stat'\n"
-//   "  -i        enter interactive mode after executing 'script'\n"
-//   "  -l mod    require library 'mod' into global 'mod'\n"
-//   "  -l g=mod  require library 'mod' into global 'g'\n"
-//   "  -v        show version information\n"
-//   "  -E        ignore environment variables\n"
-//   "  -W        turn warnings on\n"
-//   "  --        stop handling options\n"
-//   "  -         stop handling options and execute stdin\n"
-//   ,
-//   progname);
-        throw new NotImplementedException();
+        Console.Error.Write("{0}: ", progname);
+        if (badoption[1] == 'e' || badoption[1] == 'l')
+        {
+            Console.Error.WriteLine("'{0}' needs argument", badoption);
+        }
+        else
+        {
+            Console.Error.WriteLine("unrecognized option '{0}'", badoption);
+        }
+
+        Console.Error.WriteLine(
+            """
+            usage: {0} [options] [script [args]]
+            Available options are:
+              -e stat   execute string 'stat'
+              -i        enter interactive mode after executing 'script'
+              -l mod    require library 'mod' into global 'mod'
+              -l g=mod  require library 'mod' into global 'g'
+              -v        show version information
+              -E        ignore environment variables
+              -W        turn warnings on
+              --        stop handling options
+              -         stop handling options and execute stdin
+            """,
+            progname);
     }
 
-// /*
-// ** Prints an error message, adding the program name in front of it
-// ** (if present)
-// */
-// static void l_message (const char *pname, const char *msg) {
-//   if (pname) lua_writestringerror("%s: ", pname);
-//   lua_writestringerror("%s\n", msg);
-// }
+    /*
+    ** Prints an error message, adding the program name in front of it
+    ** (if present)
+    */
+    private static void l_message(string? pname, string msg)
+    {
+        if (!string.IsNullOrEmpty(pname))
+        {
+            Console.Error.Write("{0}: ", pname);
+        }
+        
+        Console.Error.WriteLine(msg);
+    }
 
     /*
-    ** Check whether 'status' is not OK and, if so, prints the error
-    ** message on the top of the stack.
-    */
+     ** Check whether 'status' is not OK and, if so, prints the error
+     ** message on the top of the stack.
+     */
     private static int report(lua_State* L, int status)
     {
         if (status != LUA_OK)
         {
-            // const char *msg = lua_tostring(L, -1);
-            // if (msg == null)
-            //   msg = "(error message not a string)";
-            // l_message(progname, msg);
-            // lua_pop(L, 1);  /* remove message */
-            throw new NotImplementedException();
+            string msg = lua_tonetstring(L, -1) ?? "(error message not a string)";
+            l_message(progname, msg);
+            lua_pop(L, 1);  /* remove message */
         }
 
         return status;
@@ -129,7 +137,7 @@ public static unsafe class Program
     */
     private static int msghandler(lua_State* L)
     {
-        string? msg = lua_tostring(L, 1);
+        string? msg = lua_tonetstring(L, 1);
         if (msg == null)
         {
             /* is error object not a string? */
@@ -196,29 +204,33 @@ public static unsafe class Program
         lua_setglobal(L, "arg");
     }
 
-// static int dochunk (lua_State *L, int status) {
-//   if (status == LUA_OK) status = docall(L, 0, 0);
-//   return report(L, status);
-// }
+    private static int dochunk(lua_State* L, int status)
+    {
+        if (status == LUA_OK)
+        {
+            status = docall(L, 0, 0);
+        }
+
+        return report(L, status);
+    }
 
     private static int dofile(lua_State* L, string? name)
     {
-//   return dochunk(L, luaL_loadfile(L, name));
-        throw new NotImplementedException();
+        return dochunk(L, luaL_loadfile(L, name));
     }
 
     private static int dostring(lua_State* L, string s, string name)
     {
-        // return dochunk(L, luaL_loadbuffer(L, s, strlen(s), name));
-        throw new NotImplementedException();
+        return dochunk(L, luaL_loadbuffer(L, Encoding.UTF8.GetBytes(s), name));
     }
 
-// /*
-// ** Receives 'globname[=modname]' and runs 'globname = require(modname)'.
-// ** If there is no explicit modname and globname contains a '-', cut
-// ** the suffix after '-' (the "version") to make the global name.
-// */
-// static int dolibrary (lua_State *L, char *globname) {
+    /*
+    ** Receives 'globname[=modname]' and runs 'globname = require(modname)'.
+    ** If there is no explicit modname and globname contains a '-', cut
+    ** the suffix after '-' (the "version") to make the global name.
+    */
+    private static int dolibrary(lua_State* L, string globname)
+    {
 //   int status;
 //   char *suffix = null;
 //   char *modname = strchr(globname, '=');
@@ -239,23 +251,30 @@ public static unsafe class Program
 //     lua_setglobal(L, globname);  /* globname = require(modname) */
 //   }
 //   return report(L, status);
-// }
-//
-//
-// /*
-// ** Push on the stack the contents of table 'arg' from 1 to #arg
-// */
-// static int pushargs (lua_State *L) {
-//   int i, n;
-//   if (lua_getglobal(L, "arg") != LUA_TTABLE)
-//     luaL_error(L, "'arg' is not a table");
-//   n = (int)luaL_len(L, -1);
-//   luaL_checkstack(L, n + 3, "too many arguments to script");
-//   for (i = 1; i <= n; i++)
-//     lua_rawgeti(L, -i, i);
-//   lua_remove(L, -i);  /* remove table from the stack */
-//   return n;
-// }
+        throw new NotImplementedException();
+    }
+
+    /*
+     ** Push on the stack the contents of table 'arg' from 1 to #arg
+     */
+    private static int pushargs(lua_State* L)
+    {
+        if (lua_getglobal(L, "arg") != LUA_TTABLE)
+        {
+            luaL_error(L, "'arg' is not a table");
+        }
+
+        int n = (int)luaL_len(L, -1);
+        luaL_checkstack(L, n + 3, "too many arguments to script");
+        int i;
+        for (i = 1; i <= n; i++)
+        {
+            lua_rawgeti(L, -i, i);
+        }
+
+        lua_remove(L, -i); /* remove table from the stack */
+        return n;
+    }
 
     private static int handle_script(lua_State* L, ReadOnlySpan<string> argv, string s)
     {
@@ -268,9 +287,8 @@ public static unsafe class Program
         int status = luaL_loadfile(L, fname);
         if (status == LUA_OK)
         {
-//     int n = pushargs(L);  /* push arguments to script */
-//     status = docall(L, n, LUA_MULTRET);v
-            throw new NotImplementedException();
+            int n = pushargs(L); /* push arguments to script */
+            status = docall(L, n, LUA_MULTRET);
         }
 
         return report(L, status);
@@ -319,7 +337,7 @@ public static unsafe class Program
                 return args; /* stop handling options */
             }
 
-            switch (argv[i][1])
+            switch (argv[i].Length == 1 ? '\0' : argv[i][1])
             {
                 /* else check option */
                 case '-': /* '--' */
@@ -351,24 +369,29 @@ public static unsafe class Program
                     throw new NotImplementedException();
 
                 case 'v':
-//         if (argv[i][2] != '\0')  /* extra characters? */
-//           return has_error;  /* invalid option */
-//         args |= has_v;
-//         break;
-                    throw new NotImplementedException();
+                    if (argv[i].Length != 2) /* extra characters? */
+                    {
+                        return has_error; /* invalid option */
+                    }
+
+                    args |= has_v;
+                    break;
 
                 case 'e':
-//         args |= has_e;  /* FALLTHROUGH */
-                    throw new NotImplementedException();
+                    args |= has_e;
+                    goto case 'l';
 
                 case 'l': /* both options need an argument */
-//         if (argv[i][2] == '\0') {  /* no concatenated argument? */
-//           i++;  /* try next 'argv' */
-//           if (argv[i] == null || argv[i][0] == '-')
-//             return has_error;  /* no next argument or it is another option */
-//         }
-//         break;
-                    throw new NotImplementedException();
+                    if (argv[i].Length == 2) /* no concatenated argument? */
+                    {
+                        i++; /* try next 'argv' */
+                        if (i >= argv.Length || argv[i].StartsWith('-'))
+                        {
+                            return has_error; /* no next argument or it is another option */
+                        }
+                    }
+
+                    break;
 
                 default: /* invalid option */
                     return has_error;
@@ -390,24 +413,28 @@ public static unsafe class Program
         for (int i = 1; i < n; i++)
         {
             int option = argv[i][1];
-            Debug.Assert(argv[i][0] == '-');  /* already checked */
-//     switch (option) {
-//       case 'e':  case 'l': {
-//         int status;
-//         char *extra = argv[i] + 2;  /* both options need an argument */
-//         if (*extra == '\0') extra = argv[++i];
-//         Debug.Assert(extra != null);
-//         status = (option == 'e')
-//                  ? dostring(L, extra, "=(command line)")
-//                  : dolibrary(L, extra);
-//         if (status != LUA_OK) return 0;
-//         break;
-//       }
-//       case 'W':
-//         lua_warning(L, "@on", 0);  /* warnings on */
-//         break;
-//     }
-            throw new NotImplementedException();
+            Debug.Assert(argv[i][0] == '-'); /* already checked */
+            switch (option)
+            {
+                case 'e':
+                case 'l':
+                    {
+                        string extra = argv[i].Length == 2 ? argv[++i] : argv[i][2..];
+                        int status = option == 'e'
+                            ? dostring(L, extra, "=(command line)")
+                            : dolibrary(L, extra);
+                        if (status != LUA_OK)
+                        {
+                            return false;
+                        }
+                        
+                        break;
+                    }
+
+                case 'W':
+                    lua_warning(L, "@on", false); /* warnings on */
+                    break;
+            }
         }
 
         return true;
@@ -750,7 +777,7 @@ public static unsafe class Program
         string[] argv = GCHandle<string[]>.FromIntPtr((nint)lua_touserdata(L, 2)).Target;
         int script;
         int args = collectargs(argv, &script);
-        int optlim = (script > 0) ? script : argc; /* first argv not an option */
+        int optlim = script > 0 ? script : argc; /* first argv not an option */
         luaL_checkversion(L, LUA_VERSION_NUM, LUAL_NUMSIZES); /* check that interpreter has correct version */
         if (args == has_error)
         {

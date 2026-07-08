@@ -30,15 +30,14 @@ public static unsafe partial class Lua
     private static void dumpVector<T>(ref DumpState D, T* v, int n)
         where T : unmanaged
     {
-        dumpBlock(ref D, v, (n) * sizeof(T));
+        dumpBlock(ref D, v, n * sizeof(T));
     }
 
-    private static void dumpLiteral(ref DumpState D, string s)
+    private static void dumpLiteral(ref DumpState D, ReadOnlySpan<byte> s)
     {
-        byte[] data = Encoding.UTF8.GetBytes(s);
-        fixed (byte* ptr = data)
+        fixed (byte* ptr = s)
         {
-            dumpBlock(ref D, ptr, data.Length);
+            dumpBlock(ref D, ptr, s.Length);
         }
     }
 
@@ -107,7 +106,7 @@ public static unsafe partial class Lua
         buff[DIBS - 1] = (byte)(x & 0x7f);  /* fill least-significant byte */
         while ((x >>= 7) != 0)  /* fill other bytes in reverse order */
         {
-            buff[DIBS - (++n)] = (byte)((x & 0x7f) | 0x80);
+            buff[DIBS - ++n] = (byte)(x & 0x7f | 0x80);
         }
 
         dumpVector(ref D, buff + DIBS - n, n);
@@ -173,12 +172,12 @@ public static unsafe partial class Lua
             {
                 /* must write and save the string */
                 TValue key, value; /* to save the string in the hash */
-                byte* s = getlstr(ts, out long size);
+                byte* s = getlstr(ts, out int size);
                 dumpSize(ref D, size + 1);
-                dumpVector(ref D, s, (int)(size + 1)); /* include ending '\0' */
+                dumpVector(ref D, s, size + 1); /* include ending '\0' */
                 D.nstr++; /* one more saved string */
                 setsvalue(D.L, &key, ts); /* the string is the key */
-                setivalue(&value, (long)(D.nstr)); /* its index is the value */
+                setivalue(&value, (long)D.nstr); /* its index is the value */
                 luaH_set(D.L, D.h, &key, &value); /* h[ts] = nstr */
                 /* integer value does not need barrier */
             }
@@ -307,7 +306,7 @@ public static unsafe partial class Lua
         dumpByte(ref D, LUAC_FORMAT);
         dumpLiteral(ref D, LUAC_DATA);
         dumpNumInfo(ref D, LUAC_INT);
-        dumpNumInfo<uint>(ref D, LUAC_INST);
+        dumpNumInfo(ref D, LUAC_INST);
         dumpNumInfo<long>(ref D, LUAC_INT);
         dumpNumInfo(ref D, LUAC_NUM);
     }
@@ -315,7 +314,7 @@ public static unsafe partial class Lua
     /*
      ** dump Lua function as precompiled chunk
      */
-    private static partial int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, bool strip)
+    private static int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, bool strip)
     {
         DumpState D = new()
         {

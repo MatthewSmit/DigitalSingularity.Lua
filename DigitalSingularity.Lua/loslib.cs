@@ -1,6 +1,7 @@
 namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
+using System.Globalization;
 
 public static unsafe partial class Lua
 {
@@ -61,105 +62,85 @@ public static unsafe partial class Lua
 // #endif				/* } */
 //
 // #endif				/* } */
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Configuration for 'tmpnam':
-// ** By default, Lua uses tmpnam except when POSIX is available, where
-// ** it uses mkstemp.
-// ** ===================================================================
-// */
-// #if !defined(lua_tmpnam)	/* { */
-//
-// #if defined(LUA_USE_POSIX)	/* { */
-//
-// #include <unistd.h>
-//
-// #define LUA_TMPNAMBUFSIZE	32
-//
-// #if !defined(LUA_TMPNAMTEMPLATE)
-// #define LUA_TMPNAMTEMPLATE	"/tmp/lua_XXXXXX"
-// #endif
-//
-// #define lua_tmpnam(b,e) { \
-//         strcpy(b, LUA_TMPNAMTEMPLATE); \
-//         e = mkstemp(b); \
-//         if (e != -1) close(e); \
-//         e = (e == -1); }
-//
-// #else				/* }{ */
-//
-// /* ISO C definitions */
-// #define LUA_TMPNAMBUFSIZE	L_tmpnam
-// #define lua_tmpnam(b,e)		{ e = (tmpnam(b) == null); }
-//
-// #endif				/* } */
-//
-// #endif				/* } */
-// /* }================================================================== */
-//
-//
-// #if !defined(l_system)
-// #if defined(LUA_USE_IOS)
-// /* Despite claiming to be ISO C, iOS does not implement 'system'. */
-// #define l_system(cmd) ((cmd) == null ? 0 : -1)
-// #else
-// #define l_system(cmd)	system(cmd)  /* default definition */
-// #endif
-// #endif
 
     private static int os_execute(lua_State* L)
     {
-        string cmd = luaL_optnetstring(L, 1, null);
-//   int stat;
-//   errno = 0;
-//   stat = l_system(cmd);
-//   if (cmd != null)
-//     return luaL_execresult(L, stat);
-//   else {
-//     lua_pushboolean(L, stat);  /* true if there is a shell */
-//     return 1;
-//   }
-        throw new NotImplementedException();
+        string? cmd = luaL_optnetstring(L, 1, null);
+        if (string.IsNullOrEmpty(cmd))
+        {
+            lua_pushboolean(L, true); /* true if there is a shell */
+            return 1;
+        }
+
+        bool isWindows = OperatingSystem.IsWindows();
+
+        Process? process = null;
+        try
+        {
+            process = Process.Start(
+                new ProcessStartInfo
+                {
+                    FileName = isWindows ? "cmd.exe" : "/bin/sh",
+                    Arguments = isWindows ? $"/c {cmd}" : $"-c \"{cmd}\"",
+                    
+                    UseShellExecute = true,
+                });
+            
+            process!.WaitForExit();
+            
+            return luaL_execresult(L, process.ExitCode);
+        }
+        catch (Exception e)
+        {
+            return luaL_execresult(L, process?.ExitCode ?? -1, e);
+        }
     }
 
     private static int os_remove(lua_State* L)
     {
-//   const char *filename = luaL_checkstring(L, 1);
-//   errno = 0;
-//   return luaL_fileresult(L, remove(filename) == 0, filename);
-        throw new NotImplementedException();
+        string filename = luaL_checknetstring(L, 1);
+        try
+        {
+            File.Delete(filename);
+        }
+        catch (Exception e)
+        {
+            return luaL_fileresult(L, false, filename, e);
+        }
+
+        return luaL_fileresult(L, true, filename, null);
     }
 
     private static int os_rename(lua_State* L)
     {
-//   const char *fromname = luaL_checkstring(L, 1);
-//   const char *toname = luaL_checkstring(L, 2);
-//   errno = 0;
-//   return luaL_fileresult(L, rename(fromname, toname) == 0, null);
-        throw new NotImplementedException();
+        string fromname = luaL_checknetstring(L, 1);
+        string toname = luaL_checknetstring(L, 2);
+
+        try
+        {
+            File.Move(fromname, toname);
+        }
+        catch (Exception e)
+        {
+            return luaL_fileresult(L, false, null, e);
+        }
+        
+        return luaL_fileresult(L, true, null, null);
     }
 
     private static int os_tmpname(lua_State* L)
     {
-//   char buff[LUA_TMPNAMBUFSIZE];
-//   int err;
-//   lua_tmpnam(buff, err);
-//   if (l_unlikely(err))
-//     return luaL_error(L, "unable to generate a unique filename");
-//   lua_pushstring(L, buff);
-//   return 1;
-        throw new NotImplementedException();
+        string buff = Path.GetTempFileName();
+        lua_pushstring(L, buff);
+        return 1;
     }
 
     private static int os_getenv(lua_State* L)
     {
-//   lua_pushstring(L, getenv(luaL_checkstring(L, 1)));  /* if null push nil */
-//   return 1;
-        throw new NotImplementedException();
+        string variableName = luaL_checknetstring(L, 1);
+        string? value = Environment.GetEnvironmentVariable(variableName);
+        lua_pushstring(L, value); /* if null push nil */
+        return 1;
     }
 
     private static int os_clock(lua_State* L)
@@ -376,15 +357,43 @@ public static unsafe partial class Lua
     
     private static int os_setlocale(lua_State* L)
     {
-        string l = luaL_optnetstring(L, 1, null);
+        string? l = luaL_optnetstring(L, 1, null);
         int op = luaL_checkoption(L, 2, "all", catnames);
-        // if (l != "C" || op != 0)
+
+        if (l is null or "C")
+        {
+            lua_pushstring(L, "C"u8);
+            return 1;
+        }
+
+        // TODO: We disable culture support for now.
+        lua_pushnil(L);
+        return 1;
+
+        // if (l == "")
+        // {
+        //     l = savedCulture!.Name;
+        // }
+        //
+        // CultureInfo culture;
+        // try
+        // {
+        //     culture = CultureInfo.GetCultureInfo(l);
+        // }
+        // catch (CultureNotFoundException)
+        // {
+        //     lua_pushnil(L);
+        //     return 1;
+        // }
+        //
+        // if (op != 0)
         // {
         //     throw new NotImplementedException();
         // }
-//   lua_pushstring(L, setlocale(cat[op], l));
-//   return 1;
-        throw new NotImplementedException();
+        //
+        // CultureInfo.CurrentCulture = culture;
+        // lua_pushstring(L, l);
+        // return 1;
     }
 
     private static int os_exit(lua_State* L)
@@ -418,7 +427,7 @@ public static unsafe partial class Lua
 
     /* }====================================================== */
 
-    public static partial int luaopen_os(lua_State* L)
+    public static int luaopen_os(lua_State* L)
     {
         luaL_newlib(L, syslib);
         return 1;

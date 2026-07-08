@@ -22,10 +22,16 @@ public static unsafe partial class Lua
         new(LUA_UTF8LIBNAME, &luaopen_utf8),
     ];
 
+    /* open all libraries */
+    public static void luaL_openlibs(lua_State* L)
+    {
+        luaL_openselectedlibs(L, ~0, 0);
+    }
+
     /*
      ** require and preload selected standard libraries
      */
-    public static partial void luaL_openselectedlibs(lua_State* L, int load, int preload)
+    public static void luaL_openselectedlibs(lua_State* L, int load, int preload)
     {
         int mask;
         Span<luaL_Reg> lib;

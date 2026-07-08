@@ -1,5 +1,7 @@
 namespace DigitalSingularity.Lua;
 
+using System.Diagnostics;
+
 public static unsafe partial class Lua
 {
     /*
@@ -10,15 +12,22 @@ public static unsafe partial class Lua
 
     private static int math_abs(lua_State* L)
     {
-//   if (lua_isinteger(L, 1)) {
-//     long n = lua_tointeger(L, 1);
-//     if (n < 0) n = (long)(0u - (lua_Unsigned)n);
-//     lua_pushinteger(L, n);
-//   }
-//   else
-//     lua_pushnumber(L, (fabs)(luaL_checknumber(L, 1)));
-//   return 1;
-        throw new NotImplementedException();
+        if (lua_isinteger(L, 1))
+        {
+            long n = lua_tointeger(L, 1);
+            if (n < 0)
+            {
+                n = unchecked((long)(0u - (ulong)n));
+            }
+
+            lua_pushinteger(L, n);
+        }
+        else
+        {
+            lua_pushnumber(L, Math.Abs(luaL_checknumber(L, 1)));
+        }
+
+        return 1;
     }
 
     private static int math_sin(lua_State* L)
@@ -61,16 +70,18 @@ public static unsafe partial class Lua
 
     private static int math_toint(lua_State* L)
     {
-//   int valid;
-//   long n = lua_tointegerx(L, 1, &valid);
-//   if (l_likely(valid))
-//     lua_pushinteger(L, n);
-//   else {
-//     luaL_checkany(L, 1);
-//     luaL_pushfail(L);  /* value is not convertible to integer */
-//   }
-//   return 1;
-        throw new NotImplementedException();
+        long n = lua_tointegerx(L, 1, out bool valid);
+        if (valid)
+        {
+            lua_pushinteger(L, n);
+        }
+        else
+        {
+            luaL_checkany(L, 1);
+            luaL_pushfail(L); /* value is not convertible to integer */
+        }
+
+        return 1;
     }
 
     private static void pushnumint(lua_State* L, double d)
@@ -117,43 +128,51 @@ public static unsafe partial class Lua
 
     private static int math_fmod(lua_State* L)
     {
-//   if (lua_isinteger(L, 1) && lua_isinteger(L, 2)) {
-//     long d = lua_tointeger(L, 2);
-//     if ((lua_Unsigned)d + 1u <= 1u) {  /* special cases: -1 or 0 */
-//       luaL_argcheck(L, d != 0, 2, "zero");
-//       lua_pushinteger(L, 0);  /* avoid overflow with 0x80000... / -1 */
-//     }
-//     else
-//       lua_pushinteger(L, lua_tointeger(L, 1) % d);
-//   }
-//   else
-//     lua_pushnumber(L, (fmod)(luaL_checknumber(L, 1),
-//                                      luaL_checknumber(L, 2)));
-//   return 1;
-        throw new NotImplementedException();
+        if (lua_isinteger(L, 1) && lua_isinteger(L, 2))
+        {
+            long d = lua_tointeger(L, 2);
+            if ((ulong)d + 1u <= 1u)
+            {
+                /* special cases: -1 or 0 */
+                luaL_argcheck(L, d != 0, 2, "zero");
+                lua_pushinteger(L, 0); /* avoid overflow with 0x80000... / -1 */
+            }
+            else
+            {
+                lua_pushinteger(L, lua_tointeger(L, 1) % d);
+            }
+        }
+        else
+        {
+            lua_pushnumber(L, luaL_checknumber(L, 1) % luaL_checknumber(L, 2));
+        }
+
+        return 1;
     }
 
-/*
- ** next function does not use 'modf', avoiding problems with 'double*'
- ** (which is not compatible with 'float*') when double is not
- ** 'double'.
- */
+    /*
+    ** next function does not use 'modf', avoiding problems with 'double*'
+    ** (which is not compatible with 'float*') when double is not
+    ** 'double'.
+    */
     private static int math_modf(lua_State* L)
     {
-//   if (lua_isinteger(L ,1)) {
-//     lua_settop(L, 1);  /* number is its own integer part */
-//     lua_pushnumber(L, 0);  /* no fractional part */
-//   }
-//   else {
-//     double n = luaL_checknumber(L, 1);
-//     /* integer part (rounds toward zero) */
-//     double ip = (n < 0) ? (ceil)(n) : (floor)(n);
-//     pushnumint(L, ip);
-//     /* fractional part (test needed for inf/-inf) */
-//     lua_pushnumber(L, (n == ip) ? (0.0) : (n - ip));
-//   }
-//   return 2;
-        throw new NotImplementedException();
+        if (lua_isinteger(L, 1))
+        {
+            lua_settop(L, 1); /* number is its own integer part */
+            lua_pushnumber(L, 0); /* no fractional part */
+        }
+        else
+        {
+            double n = luaL_checknumber(L, 1);
+            /* integer part (rounds toward zero) */
+            double ip = n < 0 ? Math.Ceiling(n) : Math.Floor(n);
+            pushnumint(L, ip);
+            /* fractional part (test needed for inf/-inf) */
+            lua_pushnumber(L, n == ip ? 0.0 : n - ip);
+        }
+
+        return 2;
     }
 
     private static int math_sqrt(lua_State* L)
@@ -164,11 +183,10 @@ public static unsafe partial class Lua
 
     private static int math_ult(lua_State* L)
     {
-//   long a = luaL_checkinteger(L, 1);
-//   long b = luaL_checkinteger(L, 2);
-//   lua_pushboolean(L, (lua_Unsigned)a < (lua_Unsigned)b);
-//   return 1;
-        throw new NotImplementedException();
+        long a = luaL_checkinteger(L, 1);
+        long b = luaL_checkinteger(L, 2);
+        lua_pushboolean(L, (ulong)a < (ulong)b);
+        return 1;
     }
 
     private static int math_log(lua_State* L)
@@ -196,79 +214,110 @@ public static unsafe partial class Lua
 
     private static int math_exp(lua_State* L)
     {
-//   lua_pushnumber(L, (exp)(luaL_checknumber(L, 1)));
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Math.Exp(luaL_checknumber(L, 1)));
+        return 1;
     }
 
     private static int math_deg(lua_State* L)
     {
-//   lua_pushnumber(L, luaL_checknumber(L, 1) * ((180.0) / PI));
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, luaL_checknumber(L, 1) * (180.0 / Math.PI));
+        return 1;
     }
 
     private static int math_rad(lua_State* L)
     {
-//   lua_pushnumber(L, luaL_checknumber(L, 1) * (PI / (180.0)));
-//   return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, luaL_checknumber(L, 1) * (Math.PI / 180.0));
+        return 1;
     }
 
     private static int math_frexp(lua_State* L)
     {
-//   double x = luaL_checknumber(L, 1);
-//   int ep;
-//   lua_pushnumber(L, (frexp)(x, &ep));
-//   lua_pushinteger(L, ep);
-//   return 2;
-        throw new NotImplementedException();
+        double x = luaL_checknumber(L, 1);
+        lua_pushnumber(L, frexp(x, out int ep));
+        lua_pushinteger(L, ep);
+        return 2;
     }
 
     private static int math_ldexp(lua_State* L)
     {
-//   double x = luaL_checknumber(L, 1);
-//   int ep = (int)luaL_checkinteger(L, 2);
-//   lua_pushnumber(L, (ldexp)(x, ep));
-//   return 1;
-        throw new NotImplementedException();
+        double x = luaL_checknumber(L, 1);
+        int ep = (int)luaL_checkinteger(L, 2);
+        lua_pushnumber(L, Math.ScaleB(x, ep));
+        return 1;
+    }
+
+    private static double frexp(double x, out int exponent)
+    {
+        long bits = BitConverter.DoubleToInt64Bits(x);
+        int biasedExponent = (int)((bits >> 52) & 0x7FF);
+
+        if (biasedExponent == 0)
+        {
+            if ((bits & 0x000F_FFFF_FFFF_FFFFL) == 0)
+            {
+                exponent = 0;
+                return x;
+            }
+
+            double mantissa = frexp(Math.ScaleB(x, 64), out exponent);
+            exponent -= 64;
+            return mantissa;
+        }
+
+        if (biasedExponent == 0x7FF)
+        {
+            exponent = 0;
+            return x;
+        }
+
+        exponent = biasedExponent - 1022;
+        bits = (bits & unchecked((long)0x8000_0000_0000_0000UL))
+               | (0x3FEL << 52)
+               | (bits & 0x000F_FFFF_FFFF_FFFFL);
+        return BitConverter.Int64BitsToDouble(bits);
     }
 
     private static int math_min(lua_State* L)
     {
-//   int n = lua_gettop(L);  /* number of arguments */
-//   int imin = 1;  /* index of current minimum value */
-//   int i;
-//   luaL_argcheck(L, n >= 1, 1, "value expected");
-//   for (i = 2; i <= n; i++) {
-//     if (lua_compare(L, i, imin, LUA_OPLT))
-//       imin = i;
-//   }
-//   lua_pushvalue(L, imin);
-//   return 1;
-        throw new NotImplementedException();
+        int n = lua_gettop(L); /* number of arguments */
+        int imin = 1; /* index of current minimum value */
+        int i;
+        luaL_argcheck(L, n >= 1, 1, "value expected");
+        for (i = 2; i <= n; i++)
+        {
+            if (lua_compare(L, i, imin, LUA_OPLT))
+            {
+                imin = i;
+            }
+        }
+
+        lua_pushvalue(L, imin);
+        return 1;
     }
 
     private static int math_max(lua_State* L)
     {
-//   int n = lua_gettop(L);  /* number of arguments */
-//   int imax = 1;  /* index of current maximum value */
-//   int i;
-//   luaL_argcheck(L, n >= 1, 1, "value expected");
-//   for (i = 2; i <= n; i++) {
-//     if (lua_compare(L, imax, i, LUA_OPLT))
-//       imax = i;
-//   }
-//   lua_pushvalue(L, imax);
-//   return 1;
-        throw new NotImplementedException();
+        int n = lua_gettop(L); /* number of arguments */
+        int imax = 1; /* index of current maximum value */
+        int i;
+        luaL_argcheck(L, n >= 1, 1, "value expected");
+        for (i = 2; i <= n; i++)
+        {
+            if (lua_compare(L, imax, i, LUA_OPLT))
+            {
+                imax = i;
+            }
+        }
+
+        lua_pushvalue(L, imax);
+        return 1;
     }
 
     private static int math_type(lua_State* L)
     {
         if (lua_type(L, 1) == LUA_TNUMBER)
         {
-            lua_pushstring(L, (lua_isinteger(L, 1)) ? "integer" : "float");
+            lua_pushstring(L, lua_isinteger(L, 1) ? "integer" : "float");
         }
         else
         {
@@ -293,14 +342,8 @@ public static unsafe partial class Lua
      ** shift there is 31 bits.
      */
 
-// /* number of binary digits in the mantissa of a float */
-// #define FIGS	l_floatatt(MANT_DIG)
-
-// #if FIGS > 64
-// /* there are only 64 random bits; use them all */
-// #undef FIGS
-// #define FIGS	64
-// #endif
+    /* number of binary digits in the mantissa of a float */
+    private const int FIGS = DBL_MANT_DIG;
 
     /*
      ** Standard implementation, using 64-bit integers.
@@ -312,7 +355,7 @@ public static unsafe partial class Lua
     /* rotate left 'x' by 'n' bits */
     private static ulong rotl(ulong x, int n)
     {
-        return (x << n) | (x >> (64 - n));
+        return x << n | x >> 64 - n;
     }
 
     private static ulong nextrand(ulong* state)
@@ -324,42 +367,40 @@ public static unsafe partial class Lua
         ulong res = rotl(state1 * 5, 7) * 9;
         state[0] = state0 ^ state3;
         state[1] = state1 ^ state2;
-        state[2] = state2 ^ (state1 << 17);
+        state[2] = state2 ^ state1 << 17;
         state[3] = rotl(state3, 45);
         return res;
     }
 
-// /*
-// ** Convert bits from a random integer into a float in the
-// ** interval [0,1), getting the higher FIG bits from the
-// ** random unsigned integer and converting that to a float.
-// ** Some old Microsoft compilers cannot cast an unsigned long
-// ** to a floating-point number, so we use a signed long as an
-// ** intermediary. When double is float or double, the shift ensures
-// ** that 'sx' is non negative; in that case, a good compiler will remove
-// ** the correction.
-// */
-//
-// /* must throw out the extra (64 - FIGS) bits */
-// #define shift64_FIG	(64 - FIGS)
-//
-// /* 2^(-FIGS) == 2^-1 / 2^(FIGS-1) */
-// #define scaleFIG	((0.5) / ((Rand64)1 << (FIGS - 1)))
-//
-// static double I2d (Rand64 x) {
-//   SRand64 sx = (SRand64)(trim64(x) >> shift64_FIG);
-//   double res = (double)(sx) * scaleFIG;
-//   if (sx < 0)
-//     res += (1.0);  /* correct the two's complement if negative */
-//   Debug.Assert(0 <= res && res < 1);
-//   return res;
-// }
-//
-// /* convert a 'Rand64' to a 'lua_Unsigned' */
-// #define I2UInt(x)	((lua_Unsigned)trim64(x))
-//
-// /* convert a 'lua_Unsigned' to a 'Rand64' */
-// #define Int2I(x)	((Rand64)(x))
+    /*
+    ** Convert bits from a random integer into a float in the
+    ** interval [0,1), getting the higher FIG bits from the
+    ** random unsigned integer and converting that to a float.
+    ** Some old Microsoft compilers cannot cast an unsigned long
+    ** to a floating-point number, so we use a signed long as an
+    ** intermediary. When double is float or double, the shift ensures
+    ** that 'sx' is non negative; in that case, a good compiler will remove
+    ** the correction.
+    */
+
+    /* must throw out the extra (64 - FIGS) bits */
+    private const int shift64_FIG = 64 - FIGS;
+
+    /* 2^(-FIGS) == 2^-1 / 2^(FIGS-1) */
+    private const double scaleFIG = 0.5 / (1UL << FIGS - 1);
+
+    private static double I2d(ulong x)
+    {
+        long sx = (long)(x >> shift64_FIG);
+        double res = sx * scaleFIG;
+        if (sx < 0)
+        {
+            res += 1.0; /* correct the two's complement if negative */
+        }
+
+        Debug.Assert(0 <= res && res < 1);
+        return res;
+    }
 
     /*
      ** A state uses four 'Rand64' values.
@@ -369,62 +410,76 @@ public static unsafe partial class Lua
         public fixed ulong s[4];
     }
 
-// /*
-// ** Project the random integer 'ran' into the interval [0, n].
-// ** Because 'ran' has 2^B possible values, the projection can only be
-// ** uniform when the size of the interval is a power of 2 (exact
-// ** division). So, to get a uniform projection into [0, n], we
-// ** first compute 'lim', the smallest Mersenne number not smaller than
-// ** 'n'. We then project 'ran' into the interval [0, lim].  If the result
-// ** is inside [0, n], we are done. Otherwise, we try with another 'ran',
-// ** until we have a result inside the interval.
-// */
-// static lua_Unsigned project (lua_Unsigned ran, lua_Unsigned n,
-//                              RanState *state) {
-//   lua_Unsigned lim = n;  /* to compute the Mersenne number */
-//   int sh;  /* how much to spread bits to the right in 'lim' */
-//   /* spread '1' bits in 'lim' until it becomes a Mersenne number */
-//   for (sh = 1; (lim & (lim + 1)) != 0; sh *= 2)
-//     lim |= (lim >> sh);  /* spread '1's to the right */
-//   while ((ran &= lim) > n)  /* project 'ran' into [0..lim] and test */
-//     ran = I2UInt(nextrand(state->s));  /* not inside [0..n]? try again */
-//   return ran;
-// }
+    /*
+    ** Project the random integer 'ran' into the interval [0, n].
+    ** Because 'ran' has 2^B possible values, the projection can only be
+    ** uniform when the size of the interval is a power of 2 (exact
+    ** division). So, to get a uniform projection into [0, n], we
+    ** first compute 'lim', the smallest Mersenne number not smaller than
+    ** 'n'. We then project 'ran' into the interval [0, lim].  If the result
+    ** is inside [0, n], we are done. Otherwise, we try with another 'ran',
+    ** until we have a result inside the interval.
+    */
+    private static ulong project(ulong ran, ulong n, RanState* state)
+    {
+        ulong lim = n; /* to compute the Mersenne number */
+        /* spread '1' bits in 'lim' until it becomes a Mersenne number */
+        for (int sh = 1; (lim & lim + 1) != 0; sh *= 2)
+        {
+            lim |= lim >> sh; /* spread '1's to the right */
+        }
+
+        while ((ran &= lim) > n) /* project 'ran' into [0..lim] and test */
+        {
+            ran = nextrand(state->s); /* not inside [0..n]? try again */
+        }
+
+        return ran;
+    }
 
     private static int math_random(lua_State* L)
     {
-//   long low, up;
-//   lua_Unsigned p;
-//   RanState *state = (RanState *)lua_touserdata(L, lua_upvalueindex(1));
-//   Rand64 rv = nextrand(state->s);  /* next pseudo-random value */
-//   switch (lua_gettop(L)) {  /* check number of arguments */
-//     case 0: {  /* no arguments */
-//       lua_pushnumber(L, I2d(rv));  /* float between 0 and 1 */
-//       return 1;
-//     }
-//     case 1: {  /* only upper limit */
-//       low = 1;
-//       up = luaL_checkinteger(L, 1);
-//       if (up == 0) {  /* single 0 as argument? */
-//         lua_pushinteger(L, l_castU2S(I2UInt(rv)));  /* full random integer */
-//         return 1;
-//       }
-//       break;
-//     }
-//     case 2: {  /* lower and upper limits */
-//       low = luaL_checkinteger(L, 1);
-//       up = luaL_checkinteger(L, 2);
-//       break;
-//     }
-//     default: return luaL_error(L, "wrong number of arguments");
-//   }
-//   /* random integer in the interval [low, up] */
-//   luaL_argcheck(L, low <= up, 1, "interval is empty");
-//   /* project random integer into the interval [0, up - low] */
-//   p = project(I2UInt(rv), l_castS2U(up) - l_castS2U(low), state);
-//   lua_pushinteger(L, l_castU2S(p + l_castS2U(low)));
-//   return 1;
-        throw new NotImplementedException();
+        long low;
+        long up;
+        RanState* state = (RanState*)lua_touserdata(L, lua_upvalueindex(1));
+        ulong rv = nextrand(state->s); /* next pseudo-random value */
+        switch (lua_gettop(L))
+        {
+            /* check number of arguments */
+            case 0:
+                /* no arguments */
+                lua_pushnumber(L, I2d(rv));  /* float between 0 and 1 */
+                return 1;
+
+            case 1:
+                /* only upper limit */
+                low = 1;
+                up = luaL_checkinteger(L, 1);
+                if (up == 0)
+                {
+                    /* single 0 as argument? */
+                    lua_pushinteger(L, (long)rv); /* full random integer */
+                    return 1;
+                }
+
+                break;
+
+            case 2:
+                /* lower and upper limits */
+                low = luaL_checkinteger(L, 1);
+                up = luaL_checkinteger(L, 2);
+                break;
+
+            default:
+                return luaL_error(L, "wrong number of arguments");
+        }
+
+        /* random integer in the interval [low, up] */
+        luaL_argcheck(L, low <= up, 1, "interval is empty");
+        /* project random integer into the interval [0, up - low] */
+        var p = project(rv, (ulong)up - (ulong)low, state);
+        lua_pushinteger(L, (long)(p + (ulong)low));
+        return 1;
     }
 
     private static void setseed(
@@ -575,7 +630,7 @@ public static unsafe partial class Lua
     /*
      ** Open math library
      */
-    public static partial int luaopen_math(lua_State* L)
+    public static int luaopen_math(lua_State* L)
     {
         luaL_newlib(L, mathlib);
         lua_pushnumber(L, Math.PI);

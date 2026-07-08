@@ -1,10 +1,10 @@
 ﻿global using unsafe lua_Alloc = delegate* managed<void*, void*, long, long, void*>;
 global using unsafe lua_Hook = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, ref DigitalSingularity.Lua.Lua.lua_Debug, void>;
-global using unsafe lua_WarnFunction = delegate* managed<void*, string, bool, void>;
+global using unsafe lua_WarnFunction = delegate* managed<void*, System.ReadOnlySpan<char>, bool, void>;
 global using unsafe lua_CFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int>;
-global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, void*, int>;
+global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, nint, int>;
 global using unsafe StkId = DigitalSingularity.Lua.Lua.StackValue*;
-global using unsafe lua_Reader = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, long*, byte*>;
+global using unsafe lua_Reader = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, out long, byte*>;
 global using unsafe lua_Writer = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, long, void*, int>;
 
 namespace DigitalSingularity.Lua;
@@ -25,7 +25,7 @@ public static unsafe partial class Lua
     public const int LUA_VERSION_RELEASE_NUM = LUA_VERSION_NUM * 100 + LUA_VERSION_RELEASE_N;
 
     /* mark for precompiled code ('<esc>Lua') */
-    public const string LUA_SIGNATURE = "\e" + "Lua";
+    public static ReadOnlySpan<byte> LUA_SIGNATURE => "\eLua"u8;
 
     /* option for multiple returns in 'lua_pcall' and 'lua_call' */
     public const int LUA_MULTRET = -1;
@@ -110,139 +110,24 @@ public static unsafe partial class Lua
     public const int LUA_OPUNM = 12;
     public const int LUA_OPBNOT = 13;
 
-    public static partial void lua_arith(lua_State* L, int op);
-
     public const int LUA_OPEQ = 0;
     public const int LUA_OPLT = 1;
     public const int LUA_OPLE = 2;
-
-    public static partial bool lua_rawequal(lua_State* L, int index1, int index2);
-
-    public static partial bool lua_compare(lua_State* L, int idx1, int idx2, int op);
-
-    /*
-    ** push functions (C -> stack)
-    */
-    public static partial void lua_pushnil(lua_State* L);
     
-    public static partial void lua_pushnumber(lua_State* L, double n);
-
-    public static partial void lua_pushinteger(lua_State* L, long n);
-    
-    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<byte> s);
-    public static partial void lua_pushlstring(lua_State* L, ReadOnlySpan<char> s);
-
-    public static partial void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud);
-    
-    public static partial string lua_pushfstring(lua_State* L, string fmt, params object[] args);
-
-    public static partial void lua_pushcclosure(lua_State* L, lua_CFunction fn, int n);
-
-    public static partial void lua_pushboolean(lua_State* L, bool b);
-
-    public static partial void lua_pushlightuserdata(lua_State* L, void* p);
-
-    public static partial bool lua_pushthread(lua_State* L);
-
-    /*
-    ** get functions (Lua -> stack)
-    */
-    public static partial int lua_getglobal(lua_State* L, string name);
-
-    public static partial int lua_gettable(lua_State* L, int idx);
-
-    public static partial int lua_getfield(lua_State* L, int idx, string k);
-
-    public static partial int lua_geti(lua_State* L, int idx, long n);
-
-    public static partial int lua_rawget(lua_State* L, int idx);
-
-    public static partial int lua_rawgeti(lua_State* L, int idx, long n);
-
-    public static partial int lua_rawgetp(lua_State* L, int idx, void* p);
-
-    public static partial void lua_createtable(lua_State* L, int narr, int nrec);
-
-    public static partial void* lua_newuserdatauv(lua_State* L, long sz, int nuvalue);
-
-    public static partial bool lua_getmetatable(lua_State* L, int objindex);
-
-    public static partial int lua_getiuservalue(lua_State* L, int idx, int n);
-
-    /*
-    ** set functions (stack -> Lua)
-    */
-    public static partial void lua_setglobal(lua_State* L, string name);
-
-    public static partial void lua_settable(lua_State* L, int idx);
-
-    public static partial void lua_setfield(lua_State* L, int idx, string k);
-
-    public static partial void lua_seti(lua_State* L, int idx, long n);
-
-    public static partial void lua_rawset(lua_State* L, int idx);
-
-    public static partial void lua_rawseti(lua_State* L, int idx, long n);
-
-    public static partial void lua_rawsetp(lua_State* L, int idx, void* p);
-
-    public static partial bool lua_setmetatable(lua_State* L, int objindex);
-
-    public static partial bool lua_setiuservalue(lua_State* L, int idx, int n);
-
-    /*
-    ** 'load' and 'call' functions (load and run Lua code)
-    */
-    public static partial void lua_callk(
-        lua_State* L,
-        int nargs,
-        int nresults,
-        nuint ctx,
-        lua_KFunction k);
     public static void lua_call(lua_State* L, int n, int r)
     {
         lua_callk(L, n, r, 0, null);
     }
-
-    public static partial int lua_pcallk(
-        lua_State* L,
-        int nargs,
-        int nresults,
-        int errfunc,
-        nint ctx,
-        lua_KFunction k);
     
     public static int lua_pcall(lua_State* L, int n, int r, int f)
     {
         return lua_pcallk(L, n, r, f, 0, null);
     }
 
-    public static partial int lua_load(lua_State* L, lua_Reader reader, void* dt, string? chunkname, string? mode);
-
-    public static partial int lua_dump(lua_State* L, lua_Writer writer, void* data, bool strip);
-
-    /*
-    ** coroutine functions
-    */
-    public static partial int lua_yieldk(lua_State* L, int nresults, nint ctx, lua_KFunction k);
-
-    public static partial int lua_resume(lua_State* L, lua_State* from, int narg, int* nres);
-
-    public static partial int lua_status(lua_State* L);
-
-    public static partial bool lua_isyieldable(lua_State* L);
-
     public static int lua_yield(lua_State* L, int n)
     {
         return lua_yieldk(L, n, 0, null);
     }
-
-    /*
-     ** Warning-related functions
-     */
-    public static partial void lua_setwarnf(lua_State* L, lua_WarnFunction f, void* ud);
-
-    public static partial void lua_warning(lua_State* L, string msg, bool tocont);
 
     /*
     ** garbage-collection options
@@ -274,8 +159,6 @@ public static unsafe partial class Lua
 
     /* number of parameters */
     private const byte LUA_GCPN = 6;
-
-    public static partial int lua_gc(lua_State* L, int what, params object[] args);
 
     public const int LUA_N2SBUFFSZ = 64;
 
@@ -371,21 +254,9 @@ public static unsafe partial class Lua
         lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
     }
 
-    public static byte* lua_tostringp(lua_State* L, int i)
+    public static byte* lua_tostring(lua_State* L, int i)
     {
         return lua_tolstring(L, i, out _);
-    }
-
-    public static string? lua_tostring(lua_State* L, int i)
-    {
-        byte* tmp = lua_tolstring(L, i, out long size);
-        if (tmp == null)
-        {
-            return null;
-        }
-        
-        ReadOnlySpan<byte> span = new(tmp, checked((int)size));
-        return Encoding.UTF8.GetString(span);
     }
 
     public static void lua_insert(lua_State* L, int idx)
@@ -455,32 +326,6 @@ public static unsafe partial class Lua
     public const int LUA_MASKRET = 1 << LUA_HOOKRET;
     public const int LUA_MASKLINE = 1 << LUA_HOOKLINE;
     public const int LUA_MASKCOUNT = 1 << LUA_HOOKCOUNT;
-
-    public static partial bool lua_getstack(lua_State* L, int level, ref lua_Debug ar);
-
-    public static partial bool lua_getinfo(lua_State* L, string what, ref lua_Debug ar);
-
-    public static partial string? lua_getlocal(lua_State* L, int n);
-    
-    public static partial string? lua_getlocal(lua_State* L, ref lua_Debug ar, int n);
-
-    public static partial string? lua_setlocal(lua_State* L, ref lua_Debug ar, int n);
-
-    public static partial string? lua_getupvalue(lua_State* L, int funcindex, int n);
-
-    public static partial string? lua_setupvalue(lua_State* L, int funcindex, int n);
-
-    public static partial void* lua_upvalueid(lua_State* L, int fidx, int n);
-    
-    public static partial void lua_upvaluejoin(lua_State* L, int fidx1, int n1, int fidx2, int n2);
-
-    public static partial void lua_sethook(lua_State* L, lua_Hook func, byte mask, int count);
-
-    public static partial lua_Hook lua_gethook(lua_State* L);
-
-    public static partial byte lua_gethookmask(lua_State* L);
-
-    public static partial int lua_gethookcount(lua_State* L);
 
     public struct lua_Debug
     {

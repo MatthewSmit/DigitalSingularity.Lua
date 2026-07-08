@@ -2,10 +2,10 @@
 
 using System.Diagnostics;
 
-public static unsafe partial class Lua
+public static partial class Lua
 {
     /*
-    ** $Id: lopcodes.h $
+    ** $Id: lopcodes.c $
     ** Opcodes for Lua virtual machine
     ** See Copyright Notice in lua.h
     */
@@ -628,30 +628,65 @@ public static unsafe partial class Lua
     
     private static bool testAMode(OpMode m)
     {
-        return (luaP_opmodes[(int)m] & (1 << 3)) != 0;
+        return (luaP_opmodes[(int)m] & 1 << 3) != 0;
     }
 
     private static bool testTMode(OpMode m)
     {
-        return (luaP_opmodes[(int)m] & (1 << 4)) != 0;
+        return (luaP_opmodes[(int)m] & 1 << 4) != 0;
     }
 
     private static bool testITMode(OpCode m)
     {
-        return (luaP_opmodes[(int)m] & (1 << 5)) != 0;
+        return (luaP_opmodes[(int)m] & 1 << 5) != 0;
     }
 
     private static bool testOTMode(OpCode m)
     {
-        return (luaP_opmodes[(int)m] & (1 << 6)) != 0;
+        return (luaP_opmodes[(int)m] & 1 << 6) != 0;
     }
 
     private static bool testMMMode(OpMode m)
     {
-        return (luaP_opmodes[(int)m] & (1 << 7)) != 0;
+        return (luaP_opmodes[(int)m] & 1 << 7) != 0;
+    }
+    
+    private static byte opmode(bool mm, bool ot, bool it, bool t, bool a, OpMode m)
+    {
+        return (byte)((mm ? 1 : 0) << 7 |
+                      (ot ? 1 : 0) << 6 |
+                      (it ? 1 : 0) << 5 |
+                      (t ? 1 : 0) << 4 |
+                      (a ? 1 : 0) << 3 |
+                      (int)m);
     }
 
-    internal static partial bool luaP_isOT(uint i);
+    /*
+    ** Check whether instruction sets top for next instruction, that is,
+    ** it results in multiple values.
+    */
+    internal static bool luaP_isOT(uint i)
+    {
+        OpCode op = GET_OPCODE(i);
 
-    internal static partial bool luaP_isIT(uint i);
+        return op switch
+        {
+            OpCode.OP_TAILCALL => true,
+            _ => testOTMode(op) && GETARG_C(i) == 0,
+        };
+    }
+
+    /*
+    ** Check whether instruction uses top from previous instruction, that is,
+    ** it accepts multiple results.
+    */
+    internal static bool luaP_isIT(uint i)
+    {
+        OpCode op = GET_OPCODE(i);
+        return op switch
+        {
+            OpCode.OP_SETLIST => testITMode(GET_OPCODE(i)) && GETARG_vB(i) == 0,
+            _ => testITMode(GET_OPCODE(i)) && GETARG_B(i) == 0,
+        };
+    }
 }

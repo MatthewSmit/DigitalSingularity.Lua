@@ -204,74 +204,6 @@ public static unsafe partial class Lua
     ** as in "mod-v1.2.so".
     */
     private const string LUA_IGMARK = "-";
-    
-    /* }================================================================== */
-
-// /*
-// ** {==================================================================
-// ** Marks for exported symbols in the C code
-// ** ===================================================================
-// */
-//
-// /*
-// @@ LUA_API is a mark for all core API functions.
-// @@ LUALIB_API is a mark for all auxiliary library functions.
-// @@ LUAMOD_API is a mark for all standard library opening functions.
-// ** CHANGE them if you need to define those functions in some special way.
-// ** For instance, if you want to create one Windows DLL with the core and
-// ** the libraries, you may want to use the following definition (define
-// ** LUA_BUILD_AS_DLL to get it).
-// */
-// #if defined(LUA_BUILD_AS_DLL)	/* { */
-//
-// #if defined(LUA_CORE) || defined(LUA_LIB)	/* { */
-// #define LUA_API __declspec(dllexport)
-// #else						/* }{ */
-// #define LUA_API __declspec(dllimport)
-// #endif						/* } */
-//
-// #else				/* }{ */
-//
-// #define LUA_API		extern
-//
-// #endif				/* } */
-//
-//
-// /*
-// ** More often than not the libs go together with the core.
-// */
-// #define LUALIB_API	LUA_API
-//
-// #if defined(__cplusplus)
-// /* Lua uses the "C name" when calling open functions */
-// #define LUAMOD_API	extern "C"
-// #else
-// #define LUAMOD_API	LUA_API
-// #endif
-//
-// /* }================================================================== */
-//
-//
-// /*
-// ** {==================================================================
-// ** Compatibility with previous versions
-// ** ===================================================================
-// */
-//
-// /*
-// @@ LUA_COMPAT_GLOBAL avoids 'global' being a reserved word
-// */
-// #define LUA_COMPAT_GLOBAL
-//
-//
-// /*
-// @@ LUA_COMPAT_MATHLIB controls the presence of several deprecated
-// ** functions in the mathematical library.
-// ** (These functions were already officially removed in 5.3;
-// ** nevertheless they are still available here.)
-// */
-// /* #define LUA_COMPAT_MATHLIB */
-
 
     /*
     @@ The following macros supply trivial compatibility for some
@@ -339,7 +271,7 @@ public static unsafe partial class Lua
 // #define l_floatatt(n)		(DBL_##n)
 //
 // #define LUAI_UACNUMBER	double
-//
+
 // #define LUA_NUMBER_FRMLEN	""
 // #define LUA_NUMBER_FMT		"%.15g"
 // #define LUA_NUMBER_FMT_N	"%.17g"
@@ -380,40 +312,6 @@ public static unsafe partial class Lua
 // #define LUA_MININTEGER		LLONG_MIN
 //
 // #define LUA_MAXUNSIGNED		ULLONG_MAX
-
-// /*
-// ** {==================================================================
-// ** Dependencies with C99 and other C details
-// ** ===================================================================
-// */
-//
-// /*
-// @@ l_sprintf is equivalent to 'snprintf' or 'sprintf' in C89.
-// ** (All uses in Lua have only one format item.)
-// */
-// #define l_sprintf(s,sz,f,i)	snprintf(s,sz,f,i)
-//
-//
-// /*
-// @@ lua_strx2number converts a hexadecimal numeral to a number.
-// ** In C99, 'strtod' does that conversion. Otherwise, you can
-// ** leave 'lua_strx2number' undefined and Lua will provide its own
-// ** implementation.
-// */
-// #if !defined(LUA_USE_C89)
-// #define lua_strx2number(s,p)		lua_str2number(s,p)
-// #endif
-
-// /*
-// @@ lua_number2strx converts a float to a hexadecimal numeral.
-// ** In C99, 'sprintf' (with format specifiers '%a'/'%A') does that.
-// ** Otherwise, you can leave 'lua_number2strx' undefined and Lua will
-// ** provide its own implementation.
-// */
-// #if !defined(LUA_USE_C89)
-// #define lua_number2strx(L,b,sz,f,n)  \
-// 	((void)L, l_sprintf(b,sz,f,(LUAI_UACNUMBER)(n)))
-// #endif
 
 // /*
 // @@ lua_getlocaledecpoint gets the locale "radix character" (decimal point).
@@ -476,17 +374,9 @@ public static unsafe partial class Lua
     ** buffer system.
     */
     private const int LUAL_BUFFERSIZE =
-#if LUA_DEBUG
+#if LUA_TEST
         23;
 #else
         16 * sizeof(long) * sizeof(double);
 #endif
-
-// /*
-// @@ LUAI_MAXALIGN defines fields that, when used in a union, ensure
-// ** maximum alignment for the other items in that union.
-// */
-// #define LUAI_MAXALIGN  double n; double u; void *s; long i; long l
-//
-// /* }================================================================== */
 }

@@ -223,12 +223,10 @@ public static unsafe partial class Lua
     */
     private static bool noenv(lua_State* L)
     {
-        //   int b;
-        //   lua_getfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
-        //   b = lua_toboolean(L, -1);
-        //   lua_pop(L, 1);  /* remove value */
-        //   return b;
-        throw new NotImplementedException();
+        lua_getfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
+        bool b = lua_toboolean(L, -1);
+        lua_pop(L, 1);  /* remove value */
+        return b;
     }
 
     /*
@@ -345,19 +343,22 @@ public static unsafe partial class Lua
 // /* error codes for 'lookforfunc' */
 // #define ERRLIB		1
 // #define ERRFUNC		2
-//
-// /*
-// ** Look for a C function named 'sym' in a dynamically loaded library
-// ** 'path'.
-// ** First, check whether the library is already loaded; if not, try
-// ** to load it.
-// ** Then, if 'sym' is '*', return true (as library has been loaded).
-// ** Otherwise, look for symbol 'sym' in the library and push a
-// ** C function with that symbol.
-// ** Return 0 with 'true' or a function in the stack; in case of
-// ** errors, return an error code with an error message in the stack.
-// */
-// static int lookforfunc (lua_State *L, const char *path, const char *sym) {
+
+    /*
+    ** Look for a C function named 'sym' in a dynamically loaded library
+    ** 'path'.
+    ** First, check whether the library is already loaded; if not, try
+    ** to load it.
+    ** Then, if 'sym' is '*', return true (as library has been loaded).
+    ** Otherwise, look for symbol 'sym' in the library and push a
+    ** C function with that symbol.
+    ** Return 0 with 'true' or a function in the stack; in case of
+    ** errors, return an error code with an error message in the stack.
+    */
+    private static int lookforfunc(lua_State* L, string path, string sym)
+    {
+        Console.WriteLine(path);
+        Console.WriteLine(sym);
 //   void *reg = checkclib(L, path);  /* check loaded C libraries */
 //   if (reg == null) {  /* must load library? */
 //     reg = lsys_load(L, path, *sym == '*');  /* global symbols if 'sym'=='*' */
@@ -375,29 +376,32 @@ public static unsafe partial class Lua
 //     lua_pushcfunction(L, f);  /* else create new function */
 //     return 0;  /* no errors */
 //   }
-// }
+        throw new NotImplementedException();
+    }
 
     private static int ll_loadlib(lua_State* L)
     {
-//   const char *path = luaL_checkstring(L, 1);
-//   const char *init = luaL_checkstring(L, 2);
-//   int stat = lookforfunc(L, path, init);
-//   if (l_likely(stat == 0))  /* no errors? */
-//     return 1;  /* return the loaded function */
-//   else {  /* error; error message is on stack top */
-//     luaL_pushfail(L);
-//     lua_insert(L, -2);
-//     lua_pushstring(L, (stat == ERRLIB) ?  LIB_FAIL : "init");
-//     return 3;  /* return fail, error message, and where */
-//   }
+        string path = luaL_checknetstring(L, 1);
+        string init = luaL_checknetstring(L, 2);
+        int stat = lookforfunc(L, path, init);
+        if (stat == 0) /* no errors? */
+        {
+            return 1; /* return the loaded function */
+        }
+
+        /* error; error message is on stack top */
+        luaL_pushfail(L);
+        lua_insert(L, -2);
+        // lua_pushstring(L, stat == ERRLIB ? LIB_FAIL : "init");
+        // return 3; /* return fail, error message, and where */
         throw new NotImplementedException();
     }
 
     /*
-    ** {======================================================
-    ** 'require' function
-    ** =======================================================
-    */
+     ** {======================================================
+     ** 'require' function
+     ** =======================================================
+     */
 
     private static bool readable(string filename)
     {
@@ -410,7 +414,7 @@ public static unsafe partial class Lua
 
             return true;
         }
-        catch (IOException)
+        catch (Exception)
         {
             return false;
         }
@@ -495,23 +499,27 @@ public static unsafe partial class Lua
         }
 
         luaL_pushresult(&buff); /* push path to create error message */
-        pusherrornotfound(L, lua_tostring(L, -1)); /* create error message */
+        pusherrornotfound(L, lua_tonetstring(L, -1).TrimEnd('\0')); /* create error message */
         return null; /* not found */
     }
 
     private static int ll_searchpath(lua_State* L)
     {
-//   const char *f = searchpath(L, luaL_checkstring(L, 1),
-//                                 luaL_checkstring(L, 2),
-//                                 luaL_optstring(L, 3, "."),
-//                                 luaL_optstring(L, 4, LUA_DIRSEP));
-//   if (f != null) return 1;
-//   else {  /* error message is on top of the stack */
-//     luaL_pushfail(L);
-//     lua_insert(L, -2);
-//     return 2;  /* return fail + error message */
-//   }
-        throw new NotImplementedException();
+        string? f = searchpath(
+            L,
+            luaL_checknetstring(L, 1),
+            luaL_checknetstring(L, 2),
+            luaL_optnetstring(L, 3, "."),
+            luaL_optnetstring(L, 4, LUA_DIRSEP));
+        if (f != null)
+        {
+            return 1;
+        }
+
+        /* error message is on top of the stack */
+        luaL_pushfail(L);
+        lua_insert(L, -2);
+        return 2; /* return fail + error message */
     }
 
 
@@ -522,7 +530,7 @@ public static unsafe partial class Lua
         string dirsep)
     {
         lua_getfield(L, lua_upvalueindex(1), pname);
-        string? path = lua_tostring(L, -1);
+        string? path = lua_tonetstring(L, -1);
         if (path == null)
         {
             luaL_error(L, "'package.%s' must be a string", pname);
@@ -531,19 +539,25 @@ public static unsafe partial class Lua
         return searchpath(L, name, path, ".", dirsep);
     }
 
-// static int checkload (lua_State *L, int stat, const char *filename) {
-//   if (l_likely(stat)) {  /* module loaded successfully? */
-//     lua_pushstring(L, filename);  /* will be 2nd argument to module */
-//     return 2;  /* return open function and file name */
-//   }
-//   else
-//     return luaL_error(L, "error loading module '%s' from file '%s':\n\t%s",
-//                           lua_tostring(L, 1), filename, lua_tostring(L, -1));
-// }
+    private static int checkload(lua_State* L, bool stat, string filename)
+    {
+        if (stat)
+        {
+            /* module loaded successfully? */
+            lua_pushstring(L, filename); /* will be 2nd argument to module */
+            return 2; /* return open function and file name */
+        }
+
+        return luaL_error(
+            L,
+            "error loading module '%s' from file '%s':\n\t%s",
+            lua_tonetstring(L, 1) ?? "",
+            filename,
+            lua_tonetstring(L, -1) ?? "");
+    }
 
     private static int searcher_Lua(lua_State* L)
     {
-//   const char *filename;
         string name = luaL_checknetstring(L, 1);
         string? filename = findfile(L, name, "path", LUA_LSUBSEP);
         if (filename == null)
@@ -551,19 +565,19 @@ public static unsafe partial class Lua
             return 1; /* module not found in this path */
         }
 
-        //   return checkload(L, (luaL_loadfile(L, filename) == LUA_OK), filename);
-        throw new NotImplementedException();
+        return checkload(L, luaL_loadfile(L, filename) == LUA_OK, filename);
     }
 
-// /*
-// ** Try to find a load function for module 'modname' at file 'filename'.
-// ** First, change '.' to '_' in 'modname'; then, if 'modname' has
-// ** the form X-Y (that is, it has an "ignore mark"), build a function
-// ** name "luaopen_X" and look for it. (For compatibility, if that
-// ** fails, it also tries "luaopen_Y".) If there is no ignore mark,
-// ** look for a function named "luaopen_modname".
-// */
-// static int loadfunc (lua_State *L, const char *filename, const char *modname) {
+    /*
+    ** Try to find a load function for module 'modname' at file 'filename'.
+    ** First, change '.' to '_' in 'modname'; then, if 'modname' has
+    ** the form X-Y (that is, it has an "ignore mark"), build a function
+    ** name "luaopen_X" and look for it. (For compatibility, if that
+    ** fails, it also tries "luaopen_Y".) If there is no ignore mark,
+    ** look for a function named "luaopen_modname".
+    */
+    private static int loadfunc(lua_State* L, string filename, string modname)
+    {
 //   const char *openfunc;
 //   const char *mark;
 //   modname = luaL_gsub(L, modname, ".", LUA_OFSEP);
@@ -578,25 +592,33 @@ public static unsafe partial class Lua
 //   }
 //   openfunc = lua_pushfstring(L, LUA_POF"%s", modname);
 //   return lookforfunc(L, filename, openfunc);
-// }
+        throw new NotImplementedException();
+    }
 
     private static int searcher_C(lua_State* L)
     {
-//   const char *name = luaL_checkstring(L, 1);
-//   const char *filename = findfile(L, name, "cpath", LUA_CSUBSEP);
-//   if (filename == null) return 1;  /* module not found in this path */
-//   return checkload(L, (loadfunc(L, filename, name) == 0), filename);
-        throw new NotImplementedException();
+        string name = luaL_checknetstring(L, 1);
+        string? filename = findfile(L, name, "cpath", LUA_CSUBSEP);
+        if (filename == null)
+        {
+            return 1; /* module not found in this path */
+        }
+
+        return checkload(L, loadfunc(L, filename, name) == 0, filename);
     }
 
     private static int searcher_Croot(lua_State* L)
     {
 //   const char *filename;
-//   const char *name = luaL_checkstring(L, 1);
-//   const char *p = strchr(name, '.');
+        ReadOnlySpan<byte> name = luaL_checkstring(L, 1);
+        ReadOnlySpan<byte> p = strchr(name, '.');
 //   int stat;
-//   if (p == null) return 0;  /* is root */
-//   lua_pushlstring(L, name, ct_diff2sz(p - name));
+        if (p.IsEmpty)
+        {
+            return 0; /* is root */
+        }
+
+        //   lua_pushlstring(L, name, ct_diff2sz(p - name));
 //   filename = findfile(L, lua_tostring(L, -1), "cpath", LUA_CSUBSEP);
 //   if (filename == null) return 1;  /* root not found */
 //   if ((stat = loadfunc(L, filename, name)) != 0) {
@@ -647,7 +669,7 @@ public static unsafe partial class Lua
                 lua_pop(L, 1); /* remove nil */
                 luaL_buffsub(&msg, 2); /* remove last prefix */
                 luaL_pushresult(&msg); /* create error message */
-                luaL_error(L, "module '%s' not found:%s", name, lua_tostring(L, -1));
+                luaL_error(L, "module '%s' not found:%s", name, lua_tonetstring(L, -1) ?? "");
             }
 
             lua_pushstring(L, name);
@@ -675,35 +697,42 @@ public static unsafe partial class Lua
     private static int ll_require(lua_State* L)
     {
         string name = luaL_checknetstring(L, 1);
-        lua_settop(L, 1);  /* LOADED table will be at index 2 */
+        lua_settop(L, 1); /* LOADED table will be at index 2 */
         lua_getfield(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
-        lua_getfield(L, 2, name);  /* LOADED[name] */
+        lua_getfield(L, 2, name); /* LOADED[name] */
         if (lua_toboolean(L, -1)) /* is it there? */
         {
             return 1; /* package is already loaded */
         }
 
         /* else must load package */
-        lua_pop(L, 1);  /* remove 'getfield' result */
+        lua_pop(L, 1); /* remove 'getfield' result */
         findloader(L, name);
-//   lua_rotate(L, -2, 1);  /* function <-> loader data */
-//   lua_pushvalue(L, 1);  /* name is 1st argument to module loader */
-//   lua_pushvalue(L, -3);  /* loader data is 2nd argument */
-//   /* stack: ...; loader data; loader function; mod. name; loader data */
-//   lua_call(L, 2, 1);  /* run loader to load module */
-//   /* stack: ...; loader data; result from loader */
-//   if (!lua_isnil(L, -1))  /* non-nil return? */
-//     lua_setfield(L, 2, name);  /* LOADED[name] = returned value */
-//   else
-//     lua_pop(L, 1);  /* pop nil */
-//   if (lua_getfield(L, 2, name) == LUA_TNIL) {   /* module set no value? */
-//     lua_pushboolean(L, 1);  /* use true as result */
-//     lua_copy(L, -1, -2);  /* replace loader result */
-//     lua_setfield(L, 2, name);  /* LOADED[name] = true */
-//   }
-//   lua_rotate(L, -2, 1);  /* loader data <-> module result  */
-//   return 2;  /* return module result and loader data */
-        throw new NotImplementedException();
+        lua_rotate(L, -2, 1); /* function <-> loader data */
+        lua_pushvalue(L, 1); /* name is 1st argument to module loader */
+        lua_pushvalue(L, -3); /* loader data is 2nd argument */
+        /* stack: ...; loader data; loader function; mod. name; loader data */
+        lua_call(L, 2, 1); /* run loader to load module */
+        /* stack: ...; loader data; result from loader */
+        if (!lua_isnil(L, -1)) /* non-nil return? */
+        {
+            lua_setfield(L, 2, name); /* LOADED[name] = returned value */
+        }
+        else
+        {
+            lua_pop(L, 1); /* pop nil */
+        }
+
+        if (lua_getfield(L, 2, name) == LUA_TNIL)
+        {
+            /* module set no value? */
+            lua_pushboolean(L, true); /* use true as result */
+            lua_copy(L, -1, -2); /* replace loader result */
+            lua_setfield(L, 2, name); /* LOADED[name] = true */
+        }
+
+        lua_rotate(L, -2, 1); /* loader data <-> module result  */
+        return 2; /* return module result and loader data */
     }
 
     private static readonly luaL_Reg[] pk_funcs =
@@ -746,7 +775,7 @@ public static unsafe partial class Lua
         lua_setfield(L, -2, "searchers"); /* put it in field 'searchers' */
     }
 
-    public static partial int luaopen_package(lua_State* L)
+    public static int luaopen_package(lua_State* L)
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, CLIBS); /* create CLIBS table */
         lua_pop(L, 1); /* will not use it now */

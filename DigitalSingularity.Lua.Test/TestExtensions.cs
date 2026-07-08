@@ -1,5 +1,6 @@
 ﻿namespace DigitalSingularity.Lua.Test;
 
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using NUnit.Framework.Constraints;
@@ -61,7 +62,7 @@ internal static class TestExtensions
         }
     }
 
-    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "ReportFailure")]
+    [UnsafeAccessor(UnsafeAccessorKind.StaticMethod, Name = "ReportFailure")]
     public static extern void ReportFailure(
         Assert ignored,
         ConstraintResult result,
@@ -95,7 +96,8 @@ internal static class TestExtensions
                 (nint)actual,
                 (void*)(nint)(GetExpected(equalConstraint) ?? (nint)0) == actual);
         }
-            
+        
+        Console.WriteLine(constraint.GetType().FullName);
         throw new NotImplementedException();
     }
 

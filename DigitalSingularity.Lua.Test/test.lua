@@ -1,1 +1,1 @@
-assert(os.setlocale"C")
+print(string.char(255) <= string.char(254))

@@ -1,5 +1,7 @@
 namespace DigitalSingularity.Lua;
 
+using System.Text;
+
 public static unsafe partial class Lua
 {
     /*
@@ -35,40 +37,65 @@ public static unsafe partial class Lua
  */
     private static int luaB_warn(lua_State* L)
     {
-//   int n = lua_gettop(L);  /* number of arguments */
-//   int i;
-//   luaL_checkstring(L, 1);  /* at least one argument */
-//   for (i = 2; i <= n; i++)
-//     luaL_checkstring(L, i);  /* make sure all arguments are strings */
-//   for (i = 1; i < n; i++)  /* compose warning */
-//     lua_warning(L, lua_tostring(L, i), 1);
-//   lua_warning(L, lua_tostring(L, n), 0);  /* close warning */
-//   return 0;
-        throw new NotImplementedException();
+        int n = lua_gettop(L); /* number of arguments */
+        luaL_checkstring(L, 1); /* at least one argument */
+        for (int i = 2; i <= n; i++)
+        {
+            luaL_checkstring(L, i); /* make sure all arguments are strings */
+        }
+
+        for (int i = 1; i < n; i++) /* compose warning */
+        {
+            lua_warning(L, lua_tonetstring(L, i), false);
+        }
+
+        lua_warning(L, lua_tonetstring(L, n), false); /* close warning */
+        return 0;
     }
 
-// #define SPACECHARS	" \f\n\r\t\v"
-//
-// static const char *b_str2int (const char *s, unsigned base, long *pn) {
-//   lua_Unsigned n = 0;
-//   int neg = 0;
-//   s += strspn(s, SPACECHARS);  /* skip initial spaces */
-//   if (*s == '-') { s++; neg = 1; }  /* handle sign */
-//   else if (*s == '+') s++;
-//   if (!isalnum(cast_uchar(*s)))  /* no digit? */
-//     return null;
-//   do {
-//     unsigned digit = cast_uint(isdigit(cast_uchar(*s))
-//                                ? *s - '0'
-//                                : (toupper(cast_uchar(*s)) - 'A') + 10);
-//     if (digit >= base) return null;  /* invalid numeral */
-//     n = n * base + digit;
-//     s++;
-//   } while (isalnum(cast_uchar(*s)));
-//   s += strspn(s, SPACECHARS);  /* skip trailing spaces */
-//   *pn = (long)((neg) ? (0u - n) : n);
-//   return s;
-// }
+    private static ReadOnlySpan<byte> SPACECHARS => " \f\n\r\t\v"u8;
+
+    private static byte* b_str2int(byte* s, uint @base, out long pn)
+    {
+        bool neg = false;
+        s += strspn(s, SPACECHARS); /* skip initial spaces */
+        if (*s == '-')
+        {
+            /* handle sign */
+            s++;
+            neg = true;
+        }
+        else if (*s == '+')
+        {
+            s++;
+        }
+
+        if (!char.IsAsciiLetterOrDigit((char)*s)) /* no digit? */
+        {
+            pn = 0;
+            return null;
+        }
+
+        ulong n = 0;
+        do
+        {
+            uint digit = (uint)(char.IsAsciiDigit((char)*s)
+                ? *s - '0'
+                : char.ToUpperInvariant((char)*s) - 'A' + 10);
+            if (digit >= @base)
+            {
+                pn = 0;
+                return null; /* invalid numeral */
+            }
+
+            n = n * @base + digit;
+            s++;
+        } while (char.IsAsciiLetterOrDigit((char)*s));
+
+        s += strspn(s, SPACECHARS); /* skip trailing spaces */
+        pn = (long)(neg ? 0u - n : n);
+        return s;
+    }
 
     private static int luaB_tonumber(lua_State* L)
     {
@@ -93,18 +120,16 @@ public static unsafe partial class Lua
         }
         else
         {
-//     size_t l;
-//     const char *s;
-//     long n = 0;  /* to avoid warnings */
-//     long base = luaL_checkinteger(L, 2);
-//     luaL_checktype(L, 1, LUA_TSTRING);  /* no numbers as strings */
-//     s = lua_tolstring(L, 1, &l);
-//     luaL_argcheck(L, 2 <= base && base <= 36, 2, "base out of range");
-//     if (b_str2int(s, cast_uint(base), &n) == s + l) {
-//       lua_pushinteger(L, n);
-//       return 1;
-//     }  /* else not a number */
-            throw new NotImplementedException();
+            long n = 0; /* to avoid warnings */
+            long @base = luaL_checkinteger(L, 2);
+            luaL_checktype(L, 1, LUA_TSTRING); /* no numbers as strings */
+            byte* s = lua_tolstring(L, 1, out int l);
+            luaL_argcheck(L, @base is >= 2 and <= 36, 2, "base out of range");
+            if (b_str2int(s, (uint)@base, out n) == s + l)
+            {
+                lua_pushinteger(L, n);
+                return 1;
+            } /* else not a number */
         }
         /* else not a number */
 
@@ -156,11 +181,10 @@ public static unsafe partial class Lua
 
     private static int luaB_rawequal(lua_State* L)
     {
-//   luaL_checkany(L, 1);
-//   luaL_checkany(L, 2);
-//   lua_pushboolean(L, lua_rawequal(L, 1, 2));
-//   return 1;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        luaL_checkany(L, 2);
+        lua_pushboolean(L, lua_rawequal(L, 1, 2));
+        return 1;
     }
 
     private static int luaB_rawlen(lua_State* L)
@@ -212,18 +236,30 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    private static string[] opts =
+    private static readonly string[] opts =
     [
         "stop", "restart", "collect",
         "count", "step", "isrunning", "generational", "incremental",
         "param",
     ];
 
-    private static byte[] optsnum =
+    private static readonly byte[] optsnum =
     [
         LUA_GCSTOP, LUA_GCRESTART, LUA_GCCOLLECT,
         LUA_GCCOUNT, LUA_GCSTEP, LUA_GCISRUNNING, LUA_GCGEN, LUA_GCINC,
         LUA_GCPARAM,
+    ];
+
+    private static readonly string[] @params =
+    [
+        "minormul", "majorminor", "minormajor",
+        "pause", "stepmul", "stepsize",
+    ];
+
+    private static readonly byte[] pnum =
+    [
+        LUA_GCPMINORMUL, LUA_GCPMAJORMINOR, LUA_GCPMINORMAJOR,
+        LUA_GCPPAUSE, LUA_GCPSTEPMUL, LUA_GCPSTEPSIZE,
     ];
 
     private static int luaB_collectgarbage(lua_State* L)
@@ -240,7 +276,7 @@ public static unsafe partial class Lua
                         break;
                     }
 
-                    lua_pushnumber(L, k + ((double)b / 1024));
+                    lua_pushnumber(L, k + (double)b / 1024);
                     return 1;
                 }
 
@@ -270,24 +306,15 @@ public static unsafe partial class Lua
                 }
 
             case LUA_GCGEN:
-                return pushmode(L, lua_gc(L, o));
-
             case LUA_GCINC:
                 return pushmode(L, lua_gc(L, o));
 
             case LUA_GCPARAM:
                 {
-//       static const char *const params[] = {
-//         "minormul", "majorminor", "minormajor",
-//         "pause", "stepmul", "stepsize", null};
-//       static const char pnum[] = {
-//         LUA_GCPMINORMUL, LUA_GCPMAJORMINOR, LUA_GCPMINORMAJOR,
-//         LUA_GCPPAUSE, LUA_GCPSTEPMUL, LUA_GCPSTEPSIZE};
-//       int p = pnum[luaL_checkoption(L, 2, null, params)];
-//       long value = luaL_optinteger(L, 3, -1);
-//       lua_pushinteger(L, lua_gc(L, o, p, (int)value));
-//       return 1;
-                    throw new NotImplementedException();
+                    int p = pnum[luaL_checkoption(L, 2, null, @params)];
+                    long value = luaL_optinteger(L, 3, -1);
+                    lua_pushinteger(L, lua_gc(L, o, p, (int)value));
+                    return 1;
                 }
 
             default:
@@ -328,7 +355,7 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    private static int pairscont(lua_State* L, int status, void* k)
+    private static int pairscont(lua_State* L, int status, nint k)
     {
         return 4; /* __pairs did all the work, just return its results */
     }
@@ -379,111 +406,136 @@ public static unsafe partial class Lua
 
     private static int load_aux(lua_State* L, int status, int envidx)
     {
-//   if (l_likely(status == LUA_OK)) {
-//     if (envidx != 0) {  /* 'env' parameter? */
-//       lua_pushvalue(L, envidx);  /* environment for loaded function */
-//       if (!lua_setupvalue(L, -2, 1))  /* set it as 1st upvalue */
-//         lua_pop(L, 1);  /* remove 'env' if not used by previous call */
-//     }
-//     return 1;
-//   }
-//   else {  /* error (message is on top of the stack) */
-//     luaL_pushfail(L);
-//     lua_insert(L, -2);  /* put before error message */
-//     return 2;  /* return fail plus error message */
-//   }
-        throw new NotImplementedException();
+        if (status == LUA_OK)
+        {
+            if (envidx != 0)
+            {
+                /* 'env' parameter? */
+                lua_pushvalue(L, envidx); /* environment for loaded function */
+                if (lua_setupvalue(L, -2, 1) == null) /* set it as 1st upvalue */
+                {
+                    lua_pop(L, 1); /* remove 'env' if not used by previous call */
+                }
+            }
+
+            return 1;
+        }
+
+        /* error (message is on top of the stack) */
+        luaL_pushfail(L);
+        lua_insert(L, -2); /* put before error message */
+        return 2; /* return fail plus error message */
     }
 
-// static const char *getMode (lua_State *L, int idx) {
-//   const char *mode = luaL_optstring(L, idx, "bt");
-//   if (strchr(mode, 'B') != null)  /* Lua code cannot use fixed buffers */
-//     luaL_argerror(L, idx, "invalid mode");
-//   return mode;
-// }
+    private static string getMode(lua_State* L, int idx)
+    {
+        string mode = luaL_optnetstring(L, idx, "bt");
+        if (mode.Contains('B'))
+        {
+            /* Lua code cannot use fixed buffers */
+            luaL_argerror(L, idx, "invalid mode");
+        }
+
+        return mode;
+    }
 
     private static int luaB_loadfile(lua_State* L)
     {
-//   const char *fname = luaL_optstring(L, 1, null);
-//   const char *mode = getMode(L, 2);
-//   int env = (!lua_isnone(L, 3) ? 3 : 0);  /* 'env' index or 0 if no 'env' */
-//   int status = luaL_loadfilex(L, fname, mode);
-//   return load_aux(L, status, env);
-        throw new NotImplementedException();
+        string fname = luaL_optnetstring(L, 1, null);
+        string mode = getMode(L, 2);
+        int env = !lua_isnone(L, 3) ? 3 : 0; /* 'env' index or 0 if no 'env' */
+        int status = luaL_loadfilex(L, fname, mode);
+        return load_aux(L, status, env);
     }
 
-/*
- ** {======================================================
- ** Generic Read function
- ** =======================================================
- */
+    /*
+     ** {======================================================
+     ** Generic Read function
+     ** =======================================================
+     */
 
-// /*
-// ** reserved slot, above all arguments, to hold a copy of the returned
-// ** string to avoid it being collected while parsed. 'load' has four
-// ** optional arguments (chunk, source name, mode, and environment).
-// */
-// #define RESERVEDSLOT	5
-//
-//
-// /*
-// ** Reader for generic 'load' function: 'lua_load' uses the
-// ** stack for internal stuff, so the reader cannot change the
-// ** stack top. Instead, it keeps its resulting string in a
-// ** reserved slot inside the stack.
-// */
-// static const char *generic_reader (lua_State *L, void *ud, size_t *size) {
-//   (void)(ud);  /* not used */
-//   luaL_checkstack(L, 2, "too many nested functions");
-//   lua_pushvalue(L, 1);  /* get function */
-//   lua_call(L, 0, 1);  /* call it */
-//   if (lua_isnil(L, -1)) {
-//     lua_pop(L, 1);  /* pop result */
-//     *size = 0;
-//     return null;
-//   }
-//   else if (l_unlikely(!lua_isstring(L, -1)))
-//     luaL_error(L, "reader function must return a string");
-//   lua_replace(L, RESERVEDSLOT);  /* save string in reserved slot */
-//   return lua_tolstring(L, RESERVEDSLOT, size);
-// }
+    /*
+    ** reserved slot, above all arguments, to hold a copy of the returned
+    ** string to avoid it being collected while parsed. 'load' has four
+    ** optional arguments (chunk, source name, mode, and environment).
+    */
+    private const int RESERVEDSLOT = 5;
+
+    /*
+    ** Reader for generic 'load' function: 'lua_load' uses the
+    ** stack for internal stuff, so the reader cannot change the
+    ** stack top. Instead, it keeps its resulting string in a
+    ** reserved slot inside the stack.
+    */
+    private static byte* generic_reader(lua_State* L, void* ud, out long size)
+    {
+        luaL_checkstack(L, 2, "too many nested functions");
+        lua_pushvalue(L, 1); /* get function */
+        lua_call(L, 0, 1); /* call it */
+        if (lua_isnil(L, -1))
+        {
+            lua_pop(L, 1); /* pop result */
+            size = 0;
+            return null;
+        }
+
+        if (!lua_isstring(L, -1))
+        {
+            luaL_error(L, "reader function must return a string");
+        }
+
+        lua_replace(L, RESERVEDSLOT); /* save string in reserved slot */
+        byte* tmp = lua_tolstring(L, RESERVEDSLOT, out int tmpSize);
+        size = tmpSize;
+        return tmp;
+    }
 
     private static int luaB_load(lua_State* L)
     {
-//   int status;
-        byte* s = lua_tolstring(L, 1, out long l);
-        // var mode = getMode(L, 3);
-//   int env = (!lua_isnone(L, 4) ? 4 : 0);  /* 'env' index or 0 if no 'env' */
-//   if (s != null) {  /* loading a string? */
-//     const char *chunkname = luaL_optstring(L, 2, s);
-//     status = luaL_loadbufferx(L, s, l, chunkname, mode);
-//   }
-//   else {  /* loading from a reader function */
-//     const char *chunkname = luaL_optstring(L, 2, "=(load)");
-//     luaL_checktype(L, 1, LUA_TFUNCTION);
-//     lua_settop(L, RESERVEDSLOT);  /* create reserved slot */
-//     status = lua_load(L, generic_reader, null, chunkname, mode);
-//   }
-//   return load_aux(L, status, env);
-        throw new NotImplementedException();
+        byte* s = lua_tolstring(L, 1, out int length);
+        ReadOnlySpan<byte> ss = new(s, length);
+        string mode = getMode(L, 3);
+        int env = !lua_isnone(L, 4) ? 4 : 0;  /* 'env' index or 0 if no 'env' */
+
+        int status;
+        if (s != null)
+        {
+            /* loading a string? */
+            string? chunkname = luaL_optnetstring(L, 2, null);
+            if (chunkname == null)
+            {
+                chunkname = Encoding.UTF8.GetString(ss);
+            }
+            status = luaL_loadbufferx(L, ss, chunkname, mode);
+        }
+        else
+        {
+            /* loading from a reader function */
+            string chunkname = luaL_optnetstring(L, 2, "=(load)");
+            luaL_checktype(L, 1, LUA_TFUNCTION);
+            lua_settop(L, RESERVEDSLOT); /* create reserved slot */
+            status = lua_load(L, &generic_reader, null, chunkname, mode);
+        }
+
+        return load_aux(L, status, env);
     }
 
-/* }====================================================== */
-
-// static int dofilecont (lua_State *L, int d1, nint d2) {
-//   (void)d1;  (void)d2;  /* only to match 'lua_Kfunction' prototype */
-//   return lua_gettop(L) - 1;
-// }
+    private static int dofilecont(lua_State* L, int d1, nint d2)
+    {
+        return lua_gettop(L) - 1;
+    }
 
     private static int luaB_dofile(lua_State* L)
     {
-//   const char *fname = luaL_optstring(L, 1, null);
-//   lua_settop(L, 1);
-//   if (l_unlikely(luaL_loadfile(L, fname) != LUA_OK))
-//     return lua_error(L);
-//   lua_callk(L, 0, LUA_MULTRET, 0, dofilecont);
-//   return dofilecont(L, 0, 0);
-        throw new NotImplementedException();
+        string fname = luaL_optnetstring(L, 1, null);
+        lua_settop(L, 1);
+        if (luaL_loadfile(L, fname) != LUA_OK)
+        {
+            return lua_error(L);
+        }
+
+        lua_callk(L, 0, LUA_MULTRET, 0, &dofilecont);
+        return dofilecont(L, 0, 0);
     }
 
     private static int luaB_assert(lua_State* L)
@@ -504,7 +556,7 @@ public static unsafe partial class Lua
     private static int luaB_select(lua_State* L)
     {
         int n = lua_gettop(L);
-        if (lua_type(L, 1) == LUA_TSTRING && lua_tostring(L, 1).StartsWith('#'))
+        if (lua_type(L, 1) == LUA_TSTRING && lua_tonetstring(L, 1).StartsWith('#'))
         {
             lua_pushinteger(L, n - 1);
             return 1;
@@ -531,7 +583,7 @@ public static unsafe partial class Lua
      ** 'extra' values (where 'extra' is exactly the number of items to be
      ** ignored).
      */
-    private static int finishpcall(lua_State* L, int status, void* extra)
+    private static int finishpcall(lua_State* L, int status, nint extra)
     {
         if (status != LUA_OK && status != LUA_YIELD)
         {
@@ -550,7 +602,7 @@ public static unsafe partial class Lua
         lua_pushboolean(L, true); /* first result if no errors */
         lua_insert(L, 1); /* put it in place */
         int status = lua_pcallk(L, lua_gettop(L) - 2, LUA_MULTRET, 0, 0, &finishpcall);
-        return finishpcall(L, status, null);
+        return finishpcall(L, status, 0);
     }
 
 /*
@@ -560,15 +612,13 @@ public static unsafe partial class Lua
  */
     private static int luaB_xpcall(lua_State* L)
     {
-//   int status;
-//   int n = lua_gettop(L);
-//   luaL_checktype(L, 2, LUA_TFUNCTION);  /* check error function */
-//   lua_pushboolean(L, 1);  /* first result */
-//   lua_pushvalue(L, 1);  /* function */
-//   lua_rotate(L, 3, 2);  /* move them below function's arguments */
-//   status = lua_pcallk(L, n - 2, LUA_MULTRET, 2, 2, finishpcall);
-//   return finishpcall(L, status, 2);
-        throw new NotImplementedException();
+        int n = lua_gettop(L);
+        luaL_checktype(L, 2, LUA_TFUNCTION); /* check error function */
+        lua_pushboolean(L, true); /* first result */
+        lua_pushvalue(L, 1); /* function */
+        lua_rotate(L, 3, 2); /* move them below function's arguments */
+        int status = lua_pcallk(L, n - 2, LUA_MULTRET, 2, 2, &finishpcall);
+        return finishpcall(L, status, 2);
     }
 
     private static int luaB_tostring(lua_State* L)
@@ -608,7 +658,7 @@ public static unsafe partial class Lua
         new("_VERSION", null),
     ];
 
-    public static partial int luaopen_base(lua_State* L)
+    public static int luaopen_base(lua_State* L)
     {
         /* open lib into global table */
         lua_pushglobaltable(L);

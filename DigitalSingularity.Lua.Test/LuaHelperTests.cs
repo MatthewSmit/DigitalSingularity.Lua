@@ -41,6 +41,8 @@ public class LuaHelperTests
     [TestCase("0x100000000000008.00p0", 72057594037927936.000000)]
     [TestCase("0x10000000000000800p0", 18446744073709551616.000000)]
     [TestCase("0x10000000000000801p0", 18446744073709555712.000000)]
+    [TestCase("0x10000000000000801p0", 18446744073709555712.000000)]
+    [TestCase("2.2250738585072014e-308", 2.2250738585072014e-308)]
     public unsafe void TestStrtod(string source, double expected)
     {
         byte[] data = Encoding.UTF8.GetBytes(source);
@@ -48,8 +50,7 @@ public class LuaHelperTests
         {
             byte* endPtr = ptr;
             double result = Lua.strtod(ptr, &endPtr);
-            
-            
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(result, Is.EqualTo(expected));
                 Assert.That(*endPtr, Is.EqualTo(0));
