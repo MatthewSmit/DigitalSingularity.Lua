@@ -8,7 +8,9 @@ using System.Text;
 public static unsafe partial class Lua
 {
 #if LUA_TEST
-    /* memory-allocator control variables */
+    /// <summary>
+    /// memory-allocator control variables
+    /// </summary>
     internal struct Memcontrol
     {
         public bool failnext;
@@ -27,12 +29,14 @@ public static unsafe partial class Lua
         luai_tracegctest(L, f);
     }
 
-// /*
-// ** generic variable for debug tricks TODO
-// */
+//
+// generic variable for debug tricks TODO
+//
 // extern void *l_Trick;
 
-    /* test for lock/unlock */
+    /// <summary>
+    /// test for lock/unlock
+    /// </summary>
     private struct L_EXTRA
     {
         public int @lock;
@@ -67,46 +71,46 @@ public static unsafe partial class Lua
 
     private static void badexit(string fmt, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2)
     {
-//   fprintf(stderr, fmt, s1);
-//   if (s2)
-//     fprintf(stderr, "extra info: %s\n", s2);
-//   /* avoid assertion failures when exiting */
-//   l_memcontrol.numblocks = l_memcontrol.total = 0;
-//   exit(EXIT_FAILURE);
+// fprintf(stderr, fmt, s1);
+// if (s2)
+// fprintf(stderr, "extra info: %s\n", s2);
+// avoid assertion failures when exiting
+// l_memcontrol.numblocks = l_memcontrol.total = 0;
+// exit(EXIT_FAILURE);
         throw new NotImplementedException();
     }
 
     private static int tpanic(lua_State* L)
     {
-//   const char *msg = (lua_type(L, -1) == LUA_TSTRING)
-//                   ? lua_tostring(L, -1)
-//                   : "error object is not a string";
-//   return (badexit("PANIC: unprotected error in call to Lua API (%s)\n",
-//                    msg, null),
-//           0);  /* do not return to Lua */
+// const char *msg = (lua_type(L, -1) == LUA_TSTRING)
+// ? lua_tostring(L, -1)
+// : "error object is not a string";
+// return (badexit("PANIC: unprotected error in call to Lua API (%s)\n",
+// msg, null),
+// 0); // do not return to Lua
         throw new NotImplementedException();
     }
 
     private static string warnf_buff = "";
     private static bool warnf_onoff;
-    private static int warnf_mode; /* start in normal mode */
+    private static int warnf_mode; // start in normal mode
     private static bool warnf_lasttocont;
 
-    /*
-     ** Warning function for tests. First, it concatenates all parts of
-     ** a warning in buffer 'buff'. Then, it has three modes:
-     ** - 0.normal: messages starting with '#' are shown on standard output;
-     ** - other messages abort the tests (they represent real warning
-     ** conditions; the standard tests should not generate these conditions
-     ** unexpectedly);
-     ** - 1.allow: all messages are shown;
-     ** - 2.store: all warnings go to the global '_WARN';
-     */
+    /// <summary>
+    /// Warning function for tests. First, it concatenates all parts of
+    /// a warning in buffer 'buff'. Then, it has three modes:
+    /// - 0.normal: messages starting with '#' are shown on standard output;
+    /// - other messages abort the tests (they represent real warning
+    /// conditions; the standard tests should not generate these conditions
+    /// unexpectedly);
+    /// - 1.allow: all messages are shown;
+    /// - 2.store: all warnings go to the global '_WARN';
+    /// </summary>
     private static void warnf(void* ud, ReadOnlySpan<char> msg, bool tocont)
     {
         if (!warnf_lasttocont && !tocont && msg.StartsWith('@'))
         {
-            /* control message? */
+            // control message?
             if (warnf_buff.Length > 0)
             {
                 badexit("Control warning during warning: %s\naborting...\n", msg, warnf_buff);
@@ -147,19 +151,19 @@ public static unsafe partial class Lua
         warnf_lasttocont = tocont;
         // if (strlen(msg) >= warnf_buff.Length - strlen(warnf_buff))
         // {
-        //     badexit("warnf-buffer overflow (%s)\n", msg, warnf_buff);
+        // badexit("warnf-buffer overflow (%s)\n", msg, warnf_buff);
         // }
 
-        warnf_buff += new string(msg); /* add new message to current warning */
+        warnf_buff += new string(msg); // add new message to current warning
         if (!tocont)
         {
-            /* message finished? */
+            // message finished?
             lua_unlock(L);
             luaL_checkstack(L, 1, "warn stack space");
             lua_getglobal(L, "_WARN");
             if (!lua_toboolean(L, -1))
             {
-                lua_pop(L, 1); /* ok, no previous unexpected warning */
+                lua_pop(L, 1); // ok, no previous unexpected warning
             }
             else
             {
@@ -173,8 +177,8 @@ public static unsafe partial class Lua
             switch (warnf_mode)
             {
                 case 0:
-                    /* normal */
-                    if (warnf_buff[0] != '#' && warnf_onoff) /* unexpected warning? */
+                    // normal
+                    if (warnf_buff[0] != '#' && warnf_onoff) // unexpected warning?
                     {
                         badexit(
                             "Unexpected warning in test mode: %s\naborting...\n",
@@ -185,33 +189,31 @@ public static unsafe partial class Lua
                     goto case 1;
 
                 case 1:
-                    /* allow */
+                    // allow
                     if (warnf_onoff)
                     {
-                        Console.Error.WriteLine("Lua warning: {0}", warnf_buff); /* print warning */
+                        Console.Error.WriteLine("Lua warning: {0}", warnf_buff); // print warning
                     }
 
                     break;
 
                 case 2:
-                    /* store */
+                    // store
                     lua_unlock(L);
                     luaL_checkstack(L, 1, "warn stack space");
                     lua_pushstring(L, warnf_buff);
-                    lua_setglobal(L, "_WARN"); /* assign message to global '_WARN' */
+                    lua_setglobal(L, "_WARN"); // assign message to global '_WARN'
                     lua_lock(L);
                     break;
             }
 
-            warnf_buff = ""; /* prepare buffer for next warning */
+            warnf_buff = ""; // prepare buffer for next warning
         }
     }
 
-    /*
-     ** {======================================================================
-     ** Controlled version for realloc.
-     ** =======================================================================
-     */
+    // {======================================================================
+    // Controlled version for realloc.
+    // =======================================================================
 
     private const byte MARK = 0x55; // 01010101 (a nice pattern)
 
@@ -221,7 +223,9 @@ public static unsafe partial class Lua
         public int type;
     }
 
-    // full memory check
+    /// <summary>
+    /// full memory check
+    /// </summary>
     private const int MARKSIZE = 16; // size of marks after each block
 
     private static void fillmem(void* mem, long size)
@@ -234,15 +238,15 @@ public static unsafe partial class Lua
         if (block != null)
         {
             long size = block->size;
-            for (int i = 0; i < MARKSIZE; i++) /* check marks after block */
+            for (int i = 0; i < MARKSIZE; i++) // check marks after block
             {
                 Debug.Assert(*((byte*)(block + 1) + size + i) == MARK);
             }
 
             mc->objcount[block->type]--;
-            fillmem(block, sizeof(memHeader) + size + MARKSIZE); /* erase block */
-            NativeMemory.Free(block); /* actually free block */
-            mc->numblocks--; /* update counts */
+            fillmem(block, sizeof(memHeader) + size + MARKSIZE); // erase block
+            NativeMemory.Free(block); // actually free block
+            mc->numblocks--; // update counts
             mc->total -= size;
         }
     }
@@ -253,7 +257,7 @@ public static unsafe partial class Lua
         memHeader* block = (memHeader*)b;
         if (mc->memlimit == 0)
         {
-            // first time? 
+            // first time?
             string? limit = Environment.GetEnvironmentVariable("MEMLIMIT"); // initialise memory limit
             mc->memlimit = string.IsNullOrEmpty(limit)
                 ? long.MaxValue
@@ -268,7 +272,7 @@ public static unsafe partial class Lua
         }
         else
         {
-            block--; /* go to real header */
+            block--; // go to real header
             type = block->type;
             Debug.Assert(oldsize == block->size);
         }
@@ -287,10 +291,10 @@ public static unsafe partial class Lua
 
         if (mc->countlimit >= 0 && size != oldsize)
         {
-            /* count limit in use? */
+            // count limit in use?
             if (mc->countlimit == 0)
             {
-                return null; /* fake a memory allocation error */
+                return null; // fake a memory allocation error
             }
 
             mc->countlimit--;
@@ -320,8 +324,8 @@ public static unsafe partial class Lua
 
         if (block != null)
         {
-            memcpy(newblock + 1, block + 1, commonsize); /* copy old contents */
-            freeblock(mc, block); /* erase (and check) old copy */
+            memcpy(newblock + 1, block + 1, commonsize); // copy old contents
+            freeblock(mc, block); // erase (and check) old copy
         }
 
         // initialise new part of the block with something weird
@@ -345,24 +349,22 @@ public static unsafe partial class Lua
         return newblock + 1;
     }
 
-    /*
-    ** {=====================================================================
-    ** Functions to check memory consistency.
-    ** Most of these checks are done through asserts, so this code does
-    ** not make sense with asserts off. For this reason, it uses 'assert'
-    ** directly, instead of 'Debug.Assert'.
-    ** ======================================================================
-    */
+    // {=====================================================================
+    // Functions to check memory consistency.
+    // Most of these checks are done through asserts, so this code does
+    // not make sense with asserts off. For this reason, it uses 'assert'
+    // directly, instead of 'Debug.Assert'.
+    // ======================================================================
     
-    /*
-    ** Check GC invariants. For incremental mode, a black object cannot
-    ** point to a white one. For generational mode, really old objects
-    ** cannot point to young objects. Both old1 and touched2 objects
-    ** cannot point to new objects (but can point to survivals).
-    ** (Threads and open upvalues, despite being marked "really old",
-    ** continue to be visited in all collections, and therefore can point to
-    ** new objects. They, and only they, are old but gray.)
-    */
+    /// <summary>
+    /// Check GC invariants. For incremental mode, a black object cannot
+    /// point to a white one. For generational mode, really old objects
+    /// cannot point to young objects. Both old1 and touched2 objects
+    /// cannot point to new objects (but can point to survivals).
+    /// (Threads and open upvalues, despite being marked "really old",
+    /// continue to be visited in all collections, and therefore can point to
+    /// new objects. They, and only they, are old but gray.)
+    /// </summary>
     private static bool testobjref1(global_State* g, GCObject* f, GCObject* t)
     {
         if (isdead(g, t))
@@ -372,15 +374,15 @@ public static unsafe partial class Lua
 
         if (issweepphase(g))
         {
-            return true; /* no invariants */
+            return true; // no invariants
         }
 
         if (g->gckind != KGC_GENMINOR)
         {
-            return !(isblack(f) && iswhite(t)); /* basic incremental invariant */
+            return !(isblack(f) && iswhite(t)); // basic incremental invariant
         }
 
-        /* generational mode */
+        // generational mode
         if ((getage(f) == G_OLD && isblack(f)) && !isold(t))
         {
             return false;
@@ -396,63 +398,63 @@ public static unsafe partial class Lua
     }
 
 // static void printobj (global_State *g, GCObject *o) {
-//   printf("||%s(%p)-%c%c(%02X)||",
-//            ttypename(novariant(o->tt)), (void *)o,
-//            isdead(g,o) ? 'd' : isblack(o) ? 'b' : iswhite(o) ? 'w' : 'g',
-//            "ns01oTt"[getage(o)], o->marked);
-//   if (o->tt == LUA_VSHRSTR || o->tt == LUA_VLNGSTR)
-//     printf(" '%s'", getstr(gco2ts(o)));
+// printf("||%s(%p)-%c%c(%02X)||",
+// ttypename(novariant(o->tt)), (void *)o,
+// isdead(g,o) ? 'd' : isblack(o) ? 'b' : iswhite(o) ? 'w' : 'g',
+// "ns01oTt"[getage(o)], o->marked);
+// if (o->tt == LUA_VSHRSTR || o->tt == LUA_VLNGSTR)
+// printf(" '%s'", getstr(gco2ts(o)));
 // }
 
-    /*
-     ** Function to print an object GC-friendly
-     */
+    /// <summary>
+    /// Function to print an object GC-friendly
+    /// </summary>
     private static void lua_printobj(lua_State* L, GCObject* o)
     {
-//   printobj(G(L), o);
+// printobj(G(L), o);
         throw new NotImplementedException();
     }
 
-    /*
-     ** Function to print a value
-     */
+    /// <summary>
+    /// Function to print a value
+    /// </summary>
     private static void lua_printvalue(TValue* v)
     {
-//   switch (ttypetag(v)) {
-//     case LUA_VNUMINT: case LUA_VNUMFLT: {
-//       char buff[LUA_N2SBUFFSZ];
-//       unsigned len = luaO_tostringbuff(v, buff);
-//       buff[len] = '\0';
-//       printf("%s", buff);
-//       break;
-//     }
-//     case LUA_VSHRSTR:
-//       printf("'%s'", getstr(tsvalue(v))); break;
-//     case LUA_VLNGSTR:
-//       printf("'%.30s...'", getstr(tsvalue(v))); break;
-//     case LUA_VFALSE:
-//       printf("%s", "false"); break;
-//     case LUA_VTRUE:
-//       printf("%s", "true"); break;
-//     case LUA_VLIGHTUSERDATA:
-//       printf("light udata: %p", pvalue(v)); break;
-//     case LUA_VUSERDATA:
-//       printf("full udata: %p", uvalue(v)); break;
-//     case LUA_VNIL:
-//       printf("nil"); break;
-//     case LUA_VLCF:
-//       printf("light C function: %p", fvalue(v)); break;
-//     case LUA_VCCL:
-//       printf("C closure: %p", clCvalue(v)); break;
-//     case LUA_VLCL:
-//       printf("Lua function: %p", clLvalue(v)); break;
-//     case LUA_VTHREAD:
-//       printf("thread: %p", thvalue(v)); break;
-//     case LUA_VTABLE:
-//       printf("table: %p", hvalue(v)); break;
-//     default:
-//       Debug.Assert(0);
-//   }
+// switch (ttypetag(v)) {
+// case LUA_VNUMINT: case LUA_VNUMFLT: {
+// char buff[LUA_N2SBUFFSZ];
+// unsigned len = luaO_tostringbuff(v, buff);
+// buff[len] = '\0';
+// printf("%s", buff);
+// break;
+// }
+// case LUA_VSHRSTR:
+// printf("'%s'", getstr(tsvalue(v))); break;
+// case LUA_VLNGSTR:
+// printf("'%.30s...'", getstr(tsvalue(v))); break;
+// case LUA_VFALSE:
+// printf("%s", "false"); break;
+// case LUA_VTRUE:
+// printf("%s", "true"); break;
+// case LUA_VLIGHTUSERDATA:
+// printf("light udata: %p", pvalue(v)); break;
+// case LUA_VUSERDATA:
+// printf("full udata: %p", uvalue(v)); break;
+// case LUA_VNIL:
+// printf("nil"); break;
+// case LUA_VLCF:
+// printf("light C function: %p", fvalue(v)); break;
+// case LUA_VCCL:
+// printf("C closure: %p", clCvalue(v)); break;
+// case LUA_VLCL:
+// printf("Lua function: %p", clLvalue(v)); break;
+// case LUA_VTHREAD:
+// printf("thread: %p", thvalue(v)); break;
+// case LUA_VTABLE:
+// printf("table: %p", hvalue(v)); break;
+// default:
+// Debug.Assert(0);
+// }
         throw new NotImplementedException();
     }
 
@@ -461,11 +463,11 @@ public static unsafe partial class Lua
         bool r1 = testobjref1(g, f, t);
         if (!r1)
         {
-//     printf("%d(%02X) - ", g->gcstate, g->currentwhite);
-//     printobj(g, f);
-//     printf("  ->  ");
-//     printobj(g, t);
-//     printf("\n");
+// printf("%d(%02X) - ", g->gcstate, g->currentwhite);
+// printobj(g, f);
+// printf("  ->  ");
+// printobj(g, t);
+// printf("\n");
             throw new NotImplementedException();
         }
 
@@ -477,12 +479,12 @@ public static unsafe partial class Lua
         Debug.Assert(testobjref(g, f, t));
     }
 
-    /*
-     ** Version where 't' can be null. In that case, it should not apply the
-     ** macro 'obj2gco' over the object. ('t' may have several types, so this
-     ** definition must be a macro.)  Most checks need this version, because
-     ** the check may run while an object is still being created.
-     */
+    /// <summary>
+    /// Version where 't' can be null. In that case, it should not apply the
+    /// macro 'obj2gco' over the object. ('t' may have several types, so this
+    /// definition must be a macro.)  Most checks need this version, because
+    /// the check may run while an object is still being created.
+    /// </summary>
     private static void checkobjrefN(global_State* g, GCObject* f, GCObject* t)
     {
         if (t != null)
@@ -605,14 +607,14 @@ public static unsafe partial class Lua
         Debug.Assert(!isdead(g, (GCObject*)L1));
         if (L1->stack.p == null!)
         {
-            /* incomplete thread? */
+            // incomplete thread?
             Debug.Assert(L1->openupval == null && L1->ci == null);
             return;
         }
 
         for (UpVal* uv = L1->openupval; uv != null; uv = uv->u.open.next)
         {
-            Debug.Assert(upisopen(uv)); /* must be open */
+            Debug.Assert(upisopen(uv)); // must be open
         }
 
         Debug.Assert(L1->top.p <= L1->stack_last.p);
@@ -625,7 +627,7 @@ public static unsafe partial class Lua
 
         for (StkId o = L1->stack.p; o < L1->stack_last.p; o++)
         {
-            checkliveness(L1, s2v(o)); /* entire stack must have valid values */
+            checkliveness(L1, s2v(o)); // entire stack must have valid values
         }
     }
 
@@ -663,7 +665,7 @@ public static unsafe partial class Lua
             
             case LUA_VSHRSTR:
             case LUA_VLNGSTR:
-                Debug.Assert(!isgrey(o)); /* strings are never grey */
+                Debug.Assert(!isgrey(o)); // strings are never grey
                 break;
             
             default:
@@ -671,18 +673,18 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Check consistency of an object:
-     ** - Dead objects can only happen in the 'allgc' list during a sweep
-     ** phase (controlled by the caller through 'maybedead').
-     ** - During pause, all objects must be white.
-     ** - In generational mode:
-     **   * objects must be old enough for their lists ('listage').
-     **   * old objects cannot be white.
-     **   * old objects must be black, except for 'touched1', 'old0',
-     **     threads, and open upvalues.
-     **   * 'touched1' objects must be gray.
-     */
+    /// <summary>
+    /// Check consistency of an object:
+    /// - Dead objects can only happen in the 'allgc' list during a sweep
+    /// phase (controlled by the caller through 'maybedead').
+    /// - During pause, all objects must be white.
+    /// - In generational mode:
+    ///   * objects must be old enough for their lists ('listage').
+    ///   * old objects cannot be white.
+    ///   * old objects must be black, except for 'touched1', 'old0',
+    ///     threads, and open upvalues.
+    ///   * 'touched1' objects must be gray.
+    /// </summary>
     private static void checkobject(
         global_State* g,
         GCObject* o,
@@ -699,7 +701,7 @@ public static unsafe partial class Lua
             Debug.Assert(g->gcstate != GCSpause || iswhite(o));
             if (g->gckind == KGC_GENMINOR)
             {
-                /* generational mode? */
+                // generational mode?
                 Debug.Assert(getage(o) >= listage);
                 if (isold(o))
                 {
@@ -721,14 +723,14 @@ public static unsafe partial class Lua
 
     private static long checkgreylist(global_State* g, GCObject* o)
     {
-        int total = 0; /* count number of elements in the list */
+        int total = 0; // count number of elements in the list
         while (o != null)
         {
             Debug.Assert(isgrey(o) ^ (getage(o) == G_TOUCHED2));
             Debug.Assert(!testbit(o->marked, TESTBIT));
             if (keepinvariant(g))
             {
-                l_setbit(ref o->marked, TESTBIT); /* mark that object is in a grey list */
+                l_setbit(ref o->marked, TESTBIT); // mark that object is in a grey list
             }
 
             total++;
@@ -745,19 +747,19 @@ public static unsafe partial class Lua
                     break;
                 default:
                     Debug.Fail("other objects cannot be in a grey list");
-                    break; /* other objects cannot be in a grey list */
+                    break; // other objects cannot be in a grey list
             }
         }
 
         return total;
     }
 
-    /*
-     ** Check objects in grey lists.
-     */
+    /// <summary>
+    /// Check objects in grey lists.
+    /// </summary>
     private static long checkgreys(global_State* g)
     {
-        long total = 0; /* count number of elements in all lists */
+        long total = 0; // count number of elements in all lists
         if (!keepinvariant(g))
         {
             return total;
@@ -771,31 +773,31 @@ public static unsafe partial class Lua
         return total;
     }
 
-    /*
-    ** Check whether 'o' should be in a grey list. If so, increment
-    ** 'count' and check its TESTBIT. (It must have been previously set by
-    ** 'checkgraylist'.)
-    */
+    /// <summary>
+    /// Check whether 'o' should be in a grey list. If so, increment
+    /// 'count' and check its TESTBIT. (It must have been previously set by
+    /// 'checkgraylist'.)
+    /// </summary>
     private static void incifingrey(global_State* g, GCObject* o, ref long count)
     {
         if (!keepinvariant(g))
         {
-            return; /* grey lists not being kept in these phases */
+            return; // grey lists not being kept in these phases
         }
 
         if (o->tt == LUA_VUPVAL)
         {
-            /* only open upvalues can be grey */
+            // only open upvalues can be grey
             Debug.Assert(!isgrey(o) || upisopen(gco2upv(o)));
-            return; /* upvalues are never in grey lists */
+            return; // upvalues are never in grey lists
         }
 
-        /* these are the ones that must be in grey lists */
+        // these are the ones that must be in grey lists
         if (isgrey(o) || getage(o) == G_TOUCHED2)
         {
             count++;
             Debug.Assert(testbit(o->marked, TESTBIT));
-            resetbit(ref o->marked, TESTBIT); /* prepare for next cycle */
+            resetbit(ref o->marked, TESTBIT); // prepare for next cycle
         }
     }
 
@@ -808,7 +810,7 @@ public static unsafe partial class Lua
         GCObject* old,
         GCObject* reallyold)
     {
-        long total = 0; /* number of object that should be in grey lists */
+        long total = 0; // number of object that should be in grey lists
         for (GCObject* o = newl; o != survival; o = o->next)
         {
             checkobject(g, o, maybedead, G_NEW);
@@ -840,9 +842,9 @@ public static unsafe partial class Lua
         return total;
     }
 
-    /*
-     ** Function to traverse and check all memory used by Lua
-     */
+    /// <summary>
+    /// Function to traverse and check all memory used by Lua
+    /// </summary>
     private static int lua_checkmemory(lua_State* L)
     {
         global_State* g = G(L);
@@ -854,15 +856,15 @@ public static unsafe partial class Lua
 
         Debug.Assert(!isdead(g, gcvalue(&g->l_registry)));
         Debug.Assert(g->sweepgc == null || issweepphase(g));
-        long totalin = checkgreys(g); /* total of objects that are in grey lists */
+        long totalin = checkgreys(g); // total of objects that are in grey lists
 
-        /* check 'fixedgc' list */
+        // check 'fixedgc' list
         for (GCObject* o = g->fixedgc; o != null; o = o->next)
         {
             Debug.Assert(o->tt == LUA_VSHRSTR && isgrey(o) && getage(o) == G_OLD);
         }
 
-        /* check 'allgc' list */
+        // check 'allgc' list
         bool maybedead = GCSatomic < g->gcstate && g->gcstate <= GCSswpallgc;
         long totalshould = checklist(
             g,
@@ -871,9 +873,9 @@ public static unsafe partial class Lua
             g->allgc,
             g->survival,
             g->old1,
-            g->reallyold); /* total of objects that should be in grey lists */
+            g->reallyold); // total of objects that should be in grey lists
 
-        /* check 'finobj' list */
+        // check 'finobj' list
         totalshould += checklist(
             g,
             false,
@@ -883,7 +885,7 @@ public static unsafe partial class Lua
             g->finobjold1,
             g->finobjrold);
 
-        /* check 'tobefnz' list */
+        // check 'tobefnz' list
         for (GCObject* o = g->tobefnz; o != null; o = o->next)
         {
             checkobject(g, o, false, G_NEW);
@@ -900,11 +902,9 @@ public static unsafe partial class Lua
         return 0;
     }
 
-    /*
-     ** {======================================================
-     ** Disassembler
-     ** =======================================================
-     */
+    // {======================================================
+    // Disassembler
+    // =======================================================
 
     private static string buildop(Proto* p, int pc)
     {
@@ -956,18 +956,18 @@ public static unsafe partial class Lua
 
 // #if 0
 // void luaI_printcode (Proto *pt, int size) {
-//   int pc;
-//   for (pc=0; pc<size; pc++) {
-//     char buff[100];
-//     printf("%s\n", buildop(pt, pc, buff));
-//   }
-//   printf("-------\n");
+// int pc;
+// for (pc=0; pc<size; pc++) {
+// char buff[100];
+// printf("%s\n", buildop(pt, pc, buff));
+// }
+// printf("-------\n");
 // }
 //
 //
 // void luaI_printinst (Proto *pt, int pc) {
-//   char buff[100];
-//   printf("%s\n", buildop(pt, pc, buff));
+// char buff[100];
+// printf("%s\n", buildop(pt, pc, buff));
 // }
 // #endif
 
@@ -1031,75 +1031,75 @@ public static unsafe partial class Lua
 
     private static int listabslineinfo(lua_State* L)
     {
-//   Proto *p;
-//   int i;
-//   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-//                  1, "Lua function expected");
-//   p = getproto(obj_at(L, 1));
-//   luaL_argcheck(L, p->abslineinfo != null, 1, "function has no debug info");
-//   lua_createtable(L, 2 * p->sizeabslineinfo, 0);
-//   for (i=0; i < p->sizeabslineinfo; i++) {
-//     lua_pushinteger(L, p->abslineinfo[i].pc);
-//     lua_rawseti(L, -2, 2 * i + 1);
-//     lua_pushinteger(L, p->abslineinfo[i].line);
-//     lua_rawseti(L, -2, 2 * i + 2);
-//   }
-//   return 1;
+// Proto *p;
+// int i;
+// luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+// 1, "Lua function expected");
+// p = getproto(obj_at(L, 1));
+// luaL_argcheck(L, p->abslineinfo != null, 1, "function has no debug info");
+// lua_createtable(L, 2 * p->sizeabslineinfo, 0);
+// for (i=0; i < p->sizeabslineinfo; i++) {
+// lua_pushinteger(L, p->abslineinfo[i].pc);
+// lua_rawseti(L, -2, 2 * i + 1);
+// lua_pushinteger(L, p->abslineinfo[i].line);
+// lua_rawseti(L, -2, 2 * i + 2);
+// }
+// return 1;
         throw new NotImplementedException();
     }
 
     private static int listlocals(lua_State* L)
     {
-//   Proto *p;
-//   int pc = cast_int(luaL_checkinteger(L, 2)) - 1;
-//   int i = 0;
-//   const char *name;
-//   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-//                  1, "Lua function expected");
-//   p = getproto(obj_at(L, 1));
-//   while ((name = luaF_getlocalname(p, ++i, pc)) != null)
-//     lua_pushstring(L, name);
-//   return i-1;
+// Proto *p;
+// int pc = cast_int(luaL_checkinteger(L, 2)) - 1;
+// int i = 0;
+// const char *name;
+// luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+// 1, "Lua function expected");
+// p = getproto(obj_at(L, 1));
+// while ((name = luaF_getlocalname(p, ++i, pc)) != null)
+// lua_pushstring(L, name);
+// return i-1;
         throw new NotImplementedException();
     }
 
-    /*
-     ** Function to print the stack
-     */
+    /// <summary>
+    /// Function to print the stack
+    /// </summary>
     private static void lua_printstack(lua_State* L)
     {
-//   int i;
-//   int n = lua_gettop(L);
-//   printf("stack: >>\n");
-//   for (i = 1; i <= n; i++) {
-//     printf("%3d: ", i);
-//     lua_printvalue(s2v(L->ci->func.p + i));
-//     printf("\n");
-//   }
-//   printf("<<\n");
+// int i;
+// int n = lua_gettop(L);
+// printf("stack: >>\n");
+// for (i = 1; i <= n; i++) {
+// printf("%3d: ", i);
+// lua_printvalue(s2v(L->ci->func.p + i));
+// printf("\n");
+// }
+// printf("<<\n");
         throw new NotImplementedException();
     }
 
     private static int lua_printallstack(lua_State* L)
     {
-//   StkId p;
-//   int i = 1;
-//   CallInfo *ci = &L->base_ci;
-//   printf("stack: >>\n");
-//   for (p = L->stack.p; p < L->top.p; p++) {
-//     if (ci != null && p == ci->func.p) {
-//       printf("  ---\n");
-//       if (ci == L->ci)
-//         ci = null;  /* printed last frame */
-//       else
-//         ci = ci->next;
-//     }
-//     printf("%3d: ", i++);
-//     lua_printvalue(s2v(p));
-//     printf("\n");
-//   }
-//   printf("<<\n");
-//   return 0;
+// StkId p;
+// int i = 1;
+// CallInfo *ci = &L->base_ci;
+// printf("stack: >>\n");
+// for (p = L->stack.p; p < L->top.p; p++) {
+// if (ci != null && p == ci->func.p) {
+// printf("  ---\n");
+// if (ci == L->ci)
+// ci = null; // printed last frame
+// else
+// ci = ci->next;
+// }
+// printf("%3d: ", i++);
+// lua_printvalue(s2v(p));
+// printf("\n");
+// }
+// printf("<<\n");
+// return 0;
         throw new NotImplementedException();
     }
 
@@ -1107,23 +1107,23 @@ public static unsafe partial class Lua
     {
         lua_createtable(L, 0, 5);
         setnameval(L, "IS32INT", 1);
-        //   setnameval(L, "MAXARG_Ax", MAXARG_Ax);
-        //   setnameval(L, "MAXARG_Bx", MAXARG_Bx);
-        //   setnameval(L, "OFFSET_sBx", OFFSET_sBx);
-        //   setnameval(L, "NUM_OPCODES", NUM_OPCODES);
-        //   return 1;
+        // setnameval(L, "MAXARG_Ax", MAXARG_Ax);
+        // setnameval(L, "MAXARG_Bx", MAXARG_Bx);
+        // setnameval(L, "OFFSET_sBx", OFFSET_sBx);
+        // setnameval(L, "NUM_OPCODES", NUM_OPCODES);
+        // return 1;
         throw new NotImplementedException();
     }
 
     private static int get_sizes(lua_State* L)
     {
-//   lua_newtable(L);
-//   setnameval(L, "Lua state", sizeof(lua_State));
-//   setnameval(L, "global state", sizeof(global_State));
-//   setnameval(L, "TValue", sizeof(TValue));
-//   setnameval(L, "Node", sizeof(Node));
-//   setnameval(L, "stack Value", sizeof(StackValue));
-//   return 1;
+// lua_newtable(L);
+// setnameval(L, "Lua state", sizeof(lua_State));
+// setnameval(L, "global state", sizeof(global_State));
+// setnameval(L, "TValue", sizeof(TValue));
+// setnameval(L, "Node", sizeof(Node));
+// setnameval(L, "stack Value", sizeof(StackValue));
+// return 1;
         throw new NotImplementedException();
     }
 
@@ -1184,11 +1184,11 @@ public static unsafe partial class Lua
 
     private static int settrick(lua_State* L)
     {
-//   if (ttisnil(obj_at(L, 1)))
-//     l_Trick = null;
-//   else
-//     l_Trick = gcvalue(obj_at(L, 1));
-//   return 0;
+// if (ttisnil(obj_at(L, 1)))
+// l_Trick = null;
+// else
+// l_Trick = gcvalue(obj_at(L, 1));
+// return 0;
         throw new NotImplementedException();
     }
 
@@ -1238,17 +1238,17 @@ public static unsafe partial class Lua
 
     private static int gc_printobj(lua_State* L)
     {
-//   TValue *o;
-//   luaL_checkany(L, 1);
-//   o = obj_at(L, 1);
-//   if (!iscollectable(o))
-//     printf("no collectable\n");
-//   else {
-//     GCObject *obj = gcvalue(o);
-//     printobj(G(L), obj);
-//     printf("\n");
-//   }
-//   return 0;
+// TValue *o;
+// luaL_checkany(L, 1);
+// o = obj_at(L, 1);
+// if (!iscollectable(o))
+// printf("no collectable\n");
+// else {
+// GCObject *obj = gcvalue(o);
+// printobj(G(L), obj);
+// printf("\n");
+// }
+// return 0;
         throw new NotImplementedException();
     }
 
@@ -1282,11 +1282,11 @@ public static unsafe partial class Lua
         lua_lock(L);
         if (option < g->gcstate)
         {
-            /* must cross 'pause'? */
-            luaC_runtilstate(L, GCSpause, true); /* run until pause */
+            // must cross 'pause'?
+            luaC_runtilstate(L, GCSpause, true); // run until pause
         }
 
-        luaC_runtilstate(L, option, false);  /* do not skip propagation state */
+        luaC_runtilstate(L, option, false); // do not skip propagation state
         Debug.Assert(g->gcstate == option);
         lua_unlock(L);
         return 0;
@@ -1301,15 +1301,15 @@ public static unsafe partial class Lua
             return;
         }
 
-//     global_State *g = G(L);
-//     lua_unlock(L);
-//     g->gcstp = GCSTPGC;
-//     lua_checkstack(L, 10);
-//     lua_getfield(L, LUA_REGISTRYINDEX, "tracegc");
-//     lua_pushboolean(L, first);
-//     lua_call(L, 1, 0);
-//     g->gcstp = 0;
-//     lua_lock(L);
+// global_State *g = G(L);
+// lua_unlock(L);
+// g->gcstp = GCSTPGC;
+// lua_checkstack(L, 10);
+// lua_getfield(L, LUA_REGISTRYINDEX, "tracegc");
+// lua_pushboolean(L, first);
+// lua_call(L, 1, 0);
+// g->gcstp = 0;
+// lua_lock(L);
         throw new NotImplementedException();
     }
 
@@ -1330,22 +1330,22 @@ public static unsafe partial class Lua
 
     private static int hash_query(lua_State* L)
     {
-//   if (lua_isnone(L, 2)) {
-//     TString *ts;
-//     luaL_argcheck(L, lua_type(L, 1) == LUA_TSTRING, 1, "string expected");
-//     ts = tsvalue(obj_at(L, 1));
-//     if (ts->tt == LUA_VLNGSTR)
-//       luaS_hashlongstr(ts);  /* make sure long string has a hash */
-//     lua_pushinteger(L, cast_int(ts->hash));
-//   }
-//   else {
-//     TValue *o = obj_at(L, 1);
-//     Table *t;
-//     luaL_checktype(L, 2, LUA_TTABLE);
-//     t = hvalue(obj_at(L, 2));
-//     lua_pushinteger(L, cast_Integer(luaH_mainposition(t, o) - t->node));
-//   }
-//   return 1;
+// if (lua_isnone(L, 2)) {
+// TString *ts;
+// luaL_argcheck(L, lua_type(L, 1) == LUA_TSTRING, 1, "string expected");
+// ts = tsvalue(obj_at(L, 1));
+// if (ts->tt == LUA_VLNGSTR)
+// luaS_hashlongstr(ts); // make sure long string has a hash
+// lua_pushinteger(L, cast_int(ts->hash));
+// }
+// else {
+// TValue *o = obj_at(L, 1);
+// Table *t;
+// luaL_checktype(L, 2, LUA_TTABLE);
+// t = hvalue(obj_at(L, 2));
+// lua_pushinteger(L, cast_Integer(luaH_mainposition(t, o) - t->node));
+// }
+// return 1;
         throw new NotImplementedException();
     }
 
@@ -1419,16 +1419,16 @@ public static unsafe partial class Lua
 
     private static int gc_query(lua_State* L)
     {
-//   global_State *g = G(L);
-//   lua_pushstring(L, g->gckind == KGC_INC ? "inc"
-//                   : g->gckind == KGC_GENMAJOR ? "genmajor"
-//                   : "genminor");
-//   lua_pushstring(L, statenames[g->gcstate]);
-//   lua_pushinteger(L, cast_st2S(gettotalbytes(g)));
-//   lua_pushinteger(L, cast_st2S(g->GCdebt));
-//   lua_pushinteger(L, cast_st2S(g->GCmarked));
-//   lua_pushinteger(L, cast_st2S(g->GCmajorminor));
-//   return 6;
+// global_State *g = G(L);
+// lua_pushstring(L, g->gckind == KGC_INC ? "inc"
+// : g->gckind == KGC_GENMAJOR ? "genmajor"
+// : "genminor");
+// lua_pushstring(L, statenames[g->gcstate]);
+// lua_pushinteger(L, cast_st2S(gettotalbytes(g)));
+// lua_pushinteger(L, cast_st2S(g->GCdebt));
+// lua_pushinteger(L, cast_st2S(g->GCmarked));
+// lua_pushinteger(L, cast_st2S(g->GCmajorminor));
+// return 6;
         throw new NotImplementedException();
     }
 
@@ -1477,12 +1477,12 @@ public static unsafe partial class Lua
 
     private static int getreftable(lua_State* L)
     {
-        if (lua_istable(L, 2)) /* is there a table as second argument? */
+        if (lua_istable(L, 2)) // is there a table as second argument?
         {
-            return 2; /* use it as the table */
+            return 2; // use it as the table
         }
 
-        return LUA_REGISTRYINDEX; /* default is to use the register */
+        return LUA_REGISTRYINDEX; // default is to use the register
     }
 
     private static int tref(lua_State* L)
@@ -1492,7 +1492,7 @@ public static unsafe partial class Lua
         luaL_checkany(L, 1);
         lua_pushvalue(L, 1);
         lua_pushinteger(L, luaL_ref(L, t));
-        Debug.Assert(lua_gettop(L) == level + 1); /* +1 for result */
+        Debug.Assert(lua_gettop(L) == level + 1); // +1 for result
         return 1;
     }
 
@@ -1594,15 +1594,15 @@ public static unsafe partial class Lua
 
     private static int num2int(lua_State* L)
     {
-//   lua_pushinteger(L, lua_tointeger(L, 1));
-//   return 1;
+// lua_pushinteger(L, lua_tointeger(L, 1));
+// return 1;
         throw new NotImplementedException();
     }
 
     private static int makeseed(lua_State* L)
     {
-//   lua_pushinteger(L, cast_Integer(luaL_makeseed(L)));
-//   return 1;
+// lua_pushinteger(L, cast_Integer(luaL_makeseed(L)));
+// return 1;
         throw new NotImplementedException();
     }
 
@@ -1638,9 +1638,9 @@ public static unsafe partial class Lua
         luaL_openselectedlibs(L1, load, preload);
         luaL_requiref(L1, "T", &luaB_opentests, false);
         Debug.Assert(lua_type(L1, -1) == LUA_TTABLE);
-        /* 'requiref' should not reload module already loaded... */
-        luaL_requiref(L1, "T", null, true); /* seg. fault if it reloads */
-        /* ...but should return the same module */
+        // 'requiref' should not reload module already loaded...
+        luaL_requiref(L1, "T", null, true); // seg. fault if it reloads
+        // ...but should return the same module
         Debug.Assert(lua_compare(L1, -1, -2, LUA_OPEQ));
         return 0;
     }
@@ -1685,9 +1685,9 @@ public static unsafe partial class Lua
 
     private static int log2_aux(lua_State* L)
     {
-//   unsigned int x = (unsigned int)luaL_checkinteger(L, 1);
-//   lua_pushinteger(L, luaO_ceillog2(x));
-//   return 1;
+// unsigned int x = (unsigned int)luaL_checkinteger(L, 1);
+// lua_pushinteger(L, luaO_ceillog2(x));
+// return 1;
         throw new NotImplementedException();
     }
 
@@ -1697,16 +1697,16 @@ public static unsafe partial class Lua
         public lua_State* L;
     }
 
-    /*
-    ** does a long-jump back to "main program".
-    */
+    /// <summary>
+    /// does a long-jump back to "main program".
+    /// </summary>
     private static int panicback(lua_State* L)
     {
-        lua_checkstack(L, 1);  /* open space for 'Aux' struct */
-        lua_getfield(L, LUA_REGISTRYINDEX, "_jmpbuf");  /* get 'Aux' struct */
+        lua_checkstack(L, 1); // open space for 'Aux' struct
+        lua_getfield(L, LUA_REGISTRYINDEX, "_jmpbuf"); // get 'Aux' struct
         Aux b = GCHandle<Aux>.FromIntPtr((nint)lua_touserdata(L, -1)).Target;
-        lua_pop(L, 1);  /* remove 'Aux' struct */
-        runC(b.L, L, b.paniccode);  /* run optional panic code */
+        lua_pop(L, 1); // remove 'Aux' struct
+        runC(b.L, L, b.paniccode); // run optional panic code
         throw new lua_longjmp(null);
     }
 
@@ -1720,25 +1720,25 @@ public static unsafe partial class Lua
 
         b.paniccode = luaL_optnetstring(L, 2, "");
         b.L = L;
-        lua_State* L1 = lua_newstate(f, ud, 0); /* create new state */
+        lua_State* L1 = lua_newstate(f, ud, 0); // create new state
         if (L1 == null)
         {
-            /* error? */
+            // error?
             lua_pushstring(L, MEMERRMSG);
             return 1;
         }
 
-        lua_atpanic(L1, &panicback); /* set its panic function */
+        lua_atpanic(L1, &panicback); // set its panic function
         lua_pushlightuserdata(L1, bhandle.ToPointer());
-        lua_setfield(L1, LUA_REGISTRYINDEX, "_jmpbuf"); /* store 'Aux' struct */
+        lua_setfield(L1, LUA_REGISTRYINDEX, "_jmpbuf"); // store 'Aux' struct
         try
         {
-            runC(L, L1, code); /* run code unprotected */
+            runC(L, L1, code); // run code unprotected
             lua_pushliteral(L, "no errors");
         }
         catch (lua_longjmp)
         {
-            /* move error message to original state */
+            // move error message to original state
             lua_pushstring(L, lua_tonetstring(L1, -1));
         }
 
@@ -1753,40 +1753,38 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** Create a buffer with the content of a given string and then
-     ** create an external string using that buffer. Use the allocation
-     ** function from Lua to create and free the buffer.
-     */
+    /// <summary>
+    /// Create a buffer with the content of a given string and then
+    /// create an external string using that buffer. Use the allocation
+    /// function from Lua to create and free the buffer.
+    /// </summary>
     private static int externstr(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
-        lua_Alloc allocf = lua_getallocf(L, out void* ud); /* get allocation function */
-        /* create the buffer */
+        lua_Alloc allocf = lua_getallocf(L, out void* ud); // get allocation function
+        // create the buffer
         byte* buff = (byte*)allocf(ud, null, 0, s.Length + 1);
         if (buff == null)
         {
-            /* memory error? */
+            // memory error?
             lua_pushliteral(L, "not enough memory");
-            lua_error(L); /* raise a memory error */
+            lua_error(L); // raise a memory error
         }
 
-        /* copy string content to buffer, including ending 0 */
+        // copy string content to buffer, including ending 0
         Span<byte> buffSpan = new(buff, s.Length + 1);
         s.CopyTo(buffSpan);
 
         buff[s.Length] = 0;
-        /* create external string */
+        // create external string
         lua_pushexternalstring(L, buff, s.Length, allocf, ud);
         return 1;
     }
 
-    /*
-     ** {====================================================================
-     ** function to test the API with C. It interprets a kind of assembler
-     ** language with calls to the API, so the test can be driven by Lua code
-     ** =====================================================================
-     */
+    // {====================================================================
+    // function to test the API with C. It interprets a kind of assembler
+    // language with calls to the API, so the test can be driven by Lua code
+    // =====================================================================
 
     private static string delimits = " \t\n,;";
 
@@ -1800,10 +1798,10 @@ public static unsafe partial class Lua
             }
             else if (pc[0] == '#')
             {
-                /* comment? */
+                // comment?
                 while (!pc.IsEmpty && pc[0] != '\n')
                 {
-                    pc = pc[1..]; /* until end-of-line */
+                    pc = pc[1..]; // until end-of-line
                 }
             }
             else
@@ -1935,10 +1933,10 @@ public static unsafe partial class Lua
         "ERRSYNTAX", MEMERRMSG, "ERRERR",
     ];
 
-    /*
-     ** Avoid these stat codes from being collected, to avoid possible
-     ** memory error when pushing them.
-     */
+    /// <summary>
+    /// Avoid these stat codes from being collected, to avoid possible
+    /// memory error when pushing them.
+    /// </summary>
     private static void regcodes(lua_State* L)
     {
         for (int i = 0; i < statcodes.Length; i++)
@@ -1948,14 +1946,14 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** arithmetic operation encoding for 'arith' instruction
-    ** LUA_OPIDIV  -> \
-    ** LUA_OPSHL   -> <
-    ** LUA_OPSHR   -> >
-    ** LUA_OPUNM   -> _
-    ** LUA_OPBNOT  -> !
-    */
+    /// <summary>
+    /// arithmetic operation encoding for 'arith' instruction
+    /// LUA_OPIDIV  -&gt; \
+    /// LUA_OPSHL   -&gt; &lt;
+    /// LUA_OPSHR   -&gt; &gt;
+    /// LUA_OPUNM   -&gt; _
+    /// LUA_OPBNOT  -&gt; !
+    /// </summary>
     private const string ops = "+-*%^/\\&|~<>_!";
 
     private static int runC(lua_State* L, lua_State* L1, string? ppc)
@@ -2020,7 +2018,7 @@ public static unsafe partial class Lua
                         ReadOnlySpan<char> msg = getstring_aux(L, ref pc);
                         if (msg.IsEmpty || msg[0] == '\0')
                         {
-                            msg = null; /* to test 'luaL_checkstack' with no message */
+                            msg = null; // to test 'luaL_checkstack' with no message
                         }
 
                         luaL_checkstack(L1, sz, msg.ToString());
@@ -2036,7 +2034,7 @@ public static unsafe partial class Lua
 
                 case "compare":
                     {
-                        ReadOnlySpan<char> opt = getstring_aux(L, ref pc); /* EQ, LT, or LE */
+                        ReadOnlySpan<char> opt = getstring_aux(L, ref pc); // EQ, LT, or LE
                         int op = opt[0] == 'E' ? LUA_OPEQ
                             : opt[1] == 'T' ? LUA_OPLT : LUA_OPLE;
                         int a = getindex_aux(L, L1, ref pc);
@@ -2179,7 +2177,7 @@ public static unsafe partial class Lua
                     break;
 
                 case "resetthread":
-                    lua_pushinteger(L1, lua_resetthread(L1)); /* deprecated */
+                    lua_pushinteger(L1, lua_resetthread(L1)); // deprecated
                     break;
 
                 case "newuserdata":
@@ -2216,18 +2214,18 @@ public static unsafe partial class Lua
                     break;
 
                 case "printstack":
-//       int n = getnum_aux(L, L1, ref pc);
-//       if (n != 0) {
-//         lua_printvalue(s2v(L->ci->func.p + n));
-//         printf("\n");
-//       }
-//       else lua_printstack(L1);
+// int n = getnum_aux(L, L1, ref pc);
+// if (n != 0) {
+// lua_printvalue(s2v(L->ci->func.p + n));
+// printf("\n");
+// }
+// else lua_printstack(L1);
                     throw new NotImplementedException();
                     break;
 
                 case "print":
-//       const char *msg = getstring_aux(L, ref pc);
-//       printf("%s\n", msg);
+// const char *msg = getstring_aux(L, ref pc);
+// printf("%s\n", msg);
                     throw new NotImplementedException();
                     break;
 
@@ -2598,54 +2596,52 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-    ** {======================================================
-    ** tests for C hooks
-    ** =======================================================
-    */
+    // {======================================================
+    // tests for C hooks
+    // =======================================================
 
     private static readonly string[] events = ["call", "ret", "line", "count", "tailcall"];
 
-    /*
-    ** C hook that runs the C script stored in registry.C_HOOK[L]
-    */
+    /// <summary>
+    /// C hook that runs the C script stored in registry.C_HOOK[L]
+    /// </summary>
     private static void Chook(lua_State* L, ref lua_Debug ar)
     {
         lua_getfield(L, LUA_REGISTRYINDEX, "C_HOOK");
         lua_pushlightuserdata(L, L);
-        lua_gettable(L, -2); /* get C_HOOK[L] (script saved by sethookaux) */
-        string? scpt = lua_tonetstring(L, -1); /* not very religious (string will be popped) */
-        lua_pop(L, 2); /* remove C_HOOK and script */
-        lua_pushstring(L, events[ar.@event]); /* may be used by script */
-        lua_pushinteger(L, ar.currentline); /* may be used by script */
-        runC(L, L, scpt); /* run script from C_HOOK[L] */
+        lua_gettable(L, -2); // get C_HOOK[L] (script saved by sethookaux)
+        string? scpt = lua_tonetstring(L, -1); // not very religious (string will be popped)
+        lua_pop(L, 2); // remove C_HOOK and script
+        lua_pushstring(L, events[ar.@event]); // may be used by script
+        lua_pushinteger(L, ar.currentline); // may be used by script
+        runC(L, L, scpt); // run script from C_HOOK[L]
     }
 
-    /*
-     ** sets 'registry.C_HOOK[L] = scpt' and sets 'Chook' as a hook
-     */
+    /// <summary>
+    /// sets 'registry.C_HOOK[L] = scpt' and sets 'Chook' as a hook
+    /// </summary>
     private static void sethookaux(lua_State* L, byte mask, int count, string script)
     {
         if (string.IsNullOrEmpty(script))
         {
-            /* no script? */
-            lua_sethook(L, null, 0, 0); /* turn off hooks */
+            // no script?
+            lua_sethook(L, null, 0, 0); // turn off hooks
             return;
         }
 
-        lua_getfield(L, LUA_REGISTRYINDEX, "C_HOOK"); /* get C_HOOK table */
+        lua_getfield(L, LUA_REGISTRYINDEX, "C_HOOK"); // get C_HOOK table
         if (!lua_istable(L, -1))
         {
-            /* no hook table? */
-            lua_pop(L, 1); /* remove previous value */
-            lua_newtable(L); /* create new C_HOOK table */
+            // no hook table?
+            lua_pop(L, 1); // remove previous value
+            lua_newtable(L); // create new C_HOOK table
             lua_pushvalue(L, -1);
-            lua_setfield(L, LUA_REGISTRYINDEX, "C_HOOK"); /* register it */
+            lua_setfield(L, LUA_REGISTRYINDEX, "C_HOOK"); // register it
         }
 
         lua_pushlightuserdata(L, L);
         lua_pushstring(L, script);
-        lua_settable(L, -3); /* C_HOOK[L] = script */
+        lua_settable(L, -3); // C_HOOK[L] = script
         lua_sethook(L, &Chook, mask, count);
     }
 
@@ -2653,7 +2649,7 @@ public static unsafe partial class Lua
     {
         if (lua_isnoneornil(L, 1))
         {
-            lua_sethook(L, null, 0, 0); /* turn off hooks */
+            lua_sethook(L, null, 0, 0); // turn off hooks
         }
         else
         {
@@ -2697,7 +2693,7 @@ public static unsafe partial class Lua
         {
             lua_pushboolean(L, false);
             lua_insert(L, -2);
-            return 2; /* return false + error message */
+            return 2; // return false + error message
         }
 
         lua_pushboolean(L, true);
@@ -2712,12 +2708,12 @@ public static unsafe partial class Lua
 //
 // #else
 
-//   FILE *f = cast(luaL_Stream*, luaL_checkudata(L, 1, LUA_FILEHANDLE))->f;
-//   int fd = fileno(f);
-//   int flags = fcntl(fd, F_GETFL, 0);
-//   flags |= O_NONBLOCK;
-//   fcntl(fd, F_SETFL, flags);
-//   return 0;
+// FILE *f = cast(luaL_Stream*, luaL_checkudata(L, 1, LUA_FILEHANDLE))->f;
+// int fd = fileno(f);
+// int flags = fcntl(fd, F_GETFL, 0);
+// flags |= O_NONBLOCK;
+// fcntl(fd, F_SETFL, flags);
+// return 0;
         throw new NotImplementedException();
 // #endif
     }
@@ -2788,11 +2784,11 @@ public static unsafe partial class Lua
         lua_atpanic(L, &tpanic);
         lua_setwarnf(L, &warnf, L);
         lua_pushboolean(L, false);
-        lua_setglobal(L, "_WARN"); /* _WARN = false */
+        lua_setglobal(L, "_WARN"); // _WARN = false
         regcodes(L);
         AppDomain.CurrentDomain.ProcessExit += (_, _) => checkfinalmem();
         Debug.Assert(f == (lua_Alloc)(&debug_realloc) && ud == l_memcontrol);
-        lua_setallocf(L, f, ud); /* exercise this function */
+        lua_setallocf(L, f, ud); // exercise this function
         luaL_newlib(L, tests_funcs);
         return 1;
     }

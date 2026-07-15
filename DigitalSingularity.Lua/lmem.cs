@@ -5,11 +5,9 @@ using System.Diagnostics.CodeAnalysis;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: lmem.c $
-    ** Interface to Memory Manager
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lmem.c $
+    // Interface to Memory Manager
+    // See Copyright Notice in lua.h
 
     [DoesNotReturn]
     public static void luaM_error(lua_State* L)
@@ -17,21 +15,21 @@ public static unsafe partial class Lua
         luaD_throw(L, LUA_ERRMEM);
     }
 
-    /*
-     ** Computes the minimum between 'n' and 'MAX_SIZET/sizeof(t)', so that
-     ** the result is not larger than 'n' and cannot overflow a 'size_t'
-     ** when multiplied by the size of type 't'. (Assumes that 'n' is an
-     ** 'int' and that 'int' is not larger than 'size_t'.)
-     */
+    /// <summary>
+    /// Computes the minimum between 'n' and 'MAX_SIZET/sizeof(t)', so that
+    /// the result is not larger than 'n' and cannot overflow a 'size_t'
+    /// when multiplied by the size of type 't'. (Assumes that 'n' is an
+    /// 'int' and that 'int' is not larger than 'size_t'.)
+    /// </summary>
     private static long luaM_limitN<T>(long n)
         where T : unmanaged
     {
         return n <= long.MaxValue / sizeof(T) ? n : (int)(long.MaxValue / sizeof(T));
     }
 
-    /*
-    ** Arrays of chars do not need any test
-    */
+    /// <summary>
+    /// Arrays of chars do not need any test
+    /// </summary>
     private static byte* luaM_reallocvchar(lua_State* L, byte* b, long on, long n)
     {
         return (byte*)luaM_saferealloc_(L, b, on, n);
@@ -150,22 +148,20 @@ public static unsafe partial class Lua
         v = (T**)luaM_shrinkvector_(L, v, ref size, fs, sizeof(T*));
     }
     
-    /*
-    ** About the realloc function:
-    ** void *frealloc (void *ud, void *ptr, size_t osize, size_t nsize);
-    ** ('osize' is the old size, 'nsize' is the new size)
-    **
-    ** - frealloc(ud, p, x, 0) frees the block 'p' and returns null.
-    ** Particularly, frealloc(ud, null, 0, 0) does nothing,
-    ** which is equivalent to free(null) in ISO C.
-    **
-    ** - frealloc(ud, null, x, s) creates a new block of size 's'
-    ** (no matter 'x'). Returns null if it cannot create the new block.
-    **
-    ** - otherwise, frealloc(ud, b, x, y) reallocates the block 'b' from
-    ** size 'x' to size 'y'. Returns null if it cannot reallocate the
-    ** block to the new size.
-    */
+    // About the realloc function:
+    // void *frealloc (void *ud, void *ptr, size_t osize, size_t nsize);
+    // ('osize' is the old size, 'nsize' is the new size)
+    //
+    // - frealloc(ud, p, x, 0) frees the block 'p' and returns null.
+    // Particularly, frealloc(ud, null, 0, 0) does nothing,
+    // which is equivalent to free(null) in ISO C.
+    //
+    // - frealloc(ud, null, x, s) creates a new block of size 's'
+    // (no matter 'x'). Returns null if it cannot create the new block.
+    //
+    // - otherwise, frealloc(ud, b, x, y) reallocates the block 'b' from
+    // size 'x' to size 'y'. Returns null if it cannot reallocate the
+    // block to the new size.
 
     /// <summary>
     /// Macro to call the allocation function.
@@ -174,37 +170,37 @@ public static unsafe partial class Lua
     {
         if (ns > int.MaxValue)
         {
-            // TODO: Many functions don't work when above 2GB yet 
+            // TODO: Many functions don't work when above 2GB yet
             return null;
         }
 
         return g->frealloc(g->ud, block, os, ns);
     }
 
-    /*
-    ** When an allocation fails, it will try again after an emergency
-    ** collection, except when it cannot run a collection.  The GC should
-    ** not be called while the state is not fully built, as the collector
-    ** is not yet fully initialised. Also, it should not be called when
-    ** 'gcstopem' is true, because then the interpreter is in the middle of
-    ** a collection step.
-    */
+    /// <summary>
+    /// When an allocation fails, it will try again after an emergency
+    /// collection, except when it cannot run a collection.  The GC should
+    /// not be called while the state is not fully built, as the collector
+    /// is not yet fully initialised. Also, it should not be called when
+    /// 'gcstopem' is true, because then the interpreter is in the middle of
+    /// a collection step.
+    /// </summary>
     private static bool cantryagain(global_State* g)
     {
         return completestate(g) && !g->gcstopem;
     }
 
 #if EMERGENCYGCTESTS
-    // /*
-    // ** First allocation will fail except when freeing a block (frees never
-    // ** fail) and when it cannot try again; this fail will trigger 'tryagain'
-    // ** and a full GC cycle at every allocation.
-    // */
+    //
+    // First allocation will fail except when freeing a block (frees never
+    // fail) and when it cannot try again; this fail will trigger 'tryagain'
+    // and a full GC cycle at every allocation.
+    //
     // static void *firsttry (global_State *g, void *block, size_t os, size_t ns) {
-    //   if (ns > 0 && cantryagain(g))
-    //     return null;  /* fail */
-    //   else  /* normal allocation */
-    //     return callfrealloc(g, block, os, ns);
+    // if (ns > 0 && cantryagain(g))
+    // return null; // fail
+    // else // normal allocation
+    // return callfrealloc(g, block, os, ns);
     // }
 #else
     private static void* firsttry(global_State* g, void* block, long os, long ns)
@@ -213,17 +209,15 @@ public static unsafe partial class Lua
     }
 #endif
     
-    /*
-    ** {==================================================================
-    ** Functions to allocate/deallocate arrays for the Parser
-    ** ===================================================================
-    */
+    // {==================================================================
+    // Functions to allocate/deallocate arrays for the Parser
+    // ===================================================================
 
-    /*
-    ** Minimum size for arrays during parsing, to avoid overhead of
-    ** reallocating to size 1, then 2, and then 4. All these arrays
-    ** will be reallocated to exact sizes or erased when parsing ends.
-    */
+    /// <summary>
+    /// Minimum size for arrays during parsing, to avoid overhead of
+    /// reallocating to size 1, then 2, and then 4. All these arrays
+    /// will be reallocated to exact sizes or erased when parsing ends.
+    /// </summary>
     private const int MINSIZEARRAY = 4;
 
     internal static void* luaM_growaux_(
@@ -236,48 +230,48 @@ public static unsafe partial class Lua
         string what)
     {
         int size = psize;
-        if (nelems + 1 <= size) /* does one extra element still fit? */
+        if (nelems + 1 <= size) // does one extra element still fit?
         {
-            return block; /* nothing to be done */
+            return block; // nothing to be done
         }
 
         if (size >= limit / 2)
         {
-            /* cannot double it? */
-            if (size >= limit) /* cannot grow even a little? */
+            // cannot double it?
+            if (size >= limit) // cannot grow even a little?
             {
-//       luaG_runerror(L, "too many %s (limit is %d)", what, limit);
+// luaG_runerror(L, "too many %s (limit is %d)", what, limit);
                 throw new NotImplementedException();
             }
 
-            size = limit; /* still have at least one free place */
+            size = limit; // still have at least one free place
         }
         else
         {
             size *= 2;
             if (size < MINSIZEARRAY)
             {
-                size = MINSIZEARRAY; /* minimum size */
+                size = MINSIZEARRAY; // minimum size
             }
         }
 
         Debug.Assert(nelems + 1 <= size && size <= limit);
-        /* 'limit' ensures that multiplication will not overflow */
+        // 'limit' ensures that multiplication will not overflow
         void* newblock = luaM_saferealloc_(
             L,
             block,
             (long)psize * size_elem,
             (long)size * size_elem);
-        psize = size; /* update only when everything else is OK */
+        psize = size; // update only when everything else is OK
         return newblock;
     }
 
-    /*
-    ** In prototypes, the size of the array is also its number of
-    ** elements (to save memory). So, if it cannot shrink an array
-    ** to its number of elements, the only option is to raise an
-    ** error.
-    */
+    /// <summary>
+    /// In prototypes, the size of the array is also its number of
+    /// elements (to save memory). So, if it cannot shrink an array
+    /// to its number of elements, the only option is to raise an
+    /// error.
+    /// </summary>
     internal static void* luaM_shrinkvector_(lua_State* L, void* block, ref int size, int final_n, int size_elem)
     {
         long oldsize = (long)size * size_elem;
@@ -294,9 +288,9 @@ public static unsafe partial class Lua
         luaG_runerror(L, "memory allocation error: block too big");
     }
     
-    /*
-    ** Free memory
-    */
+    /// <summary>
+    /// Free memory
+    /// </summary>
     internal static void luaM_free_(lua_State* L, void* block, long osize)
     {
         global_State* g = G(L);
@@ -305,10 +299,10 @@ public static unsafe partial class Lua
         g->GCdebt += osize;
     }
 
-    /*
-     ** In case of allocation fail, this function will do an emergency
-     ** collection to free some memory and then try the allocation again.
-     */
+    /// <summary>
+    /// In case of allocation fail, this function will do an emergency
+    /// collection to free some memory and then try the allocation again.
+    /// </summary>
     private static void* tryagain(
         lua_State* L,
         void* block,
@@ -318,16 +312,16 @@ public static unsafe partial class Lua
         global_State* g = G(L);
         if (cantryagain(g))
         {
-            luaC_fullgc(L, true); /* try to free some memory... */
-            return callfrealloc(g, block, osize, nsize); /* try again */
+            luaC_fullgc(L, true); // try to free some memory...
+            return callfrealloc(g, block, osize, nsize); // try again
         }
 
-        return null; /* cannot run an emergency collection */
+        return null; // cannot run an emergency collection
     }
 
-    /*
-    ** Generic allocation routine.
-    */
+    /// <summary>
+    /// Generic allocation routine.
+    /// </summary>
     internal static void* luaM_realloc_(lua_State* L, void* block, long oldsize, long size)
     {
         global_State* g = G(L);
@@ -336,9 +330,9 @@ public static unsafe partial class Lua
         if (newblock == null && size > 0)
         {
             newblock = tryagain(L, block, oldsize, size);
-            if (newblock == null) /* still no memory? */
+            if (newblock == null) // still no memory?
             {
-                return null; /* do not update 'GCdebt' */
+                return null; // do not update 'GCdebt'
             }
         }
 
@@ -350,7 +344,7 @@ public static unsafe partial class Lua
     internal static void* luaM_saferealloc_(lua_State* L, void* block, long osize, long nsize)
     {
         void* newblock = luaM_realloc_(L, block, osize, nsize);
-        if (newblock == null && nsize > 0) /* allocation failed? */
+        if (newblock == null && nsize > 0) // allocation failed?
         {
             luaM_error(L);
         }
@@ -362,7 +356,7 @@ public static unsafe partial class Lua
     {
         if (size == 0)
         {
-            return null; /* that's all */
+            return null; // that's all
         }
 
         global_State* g = G(L);

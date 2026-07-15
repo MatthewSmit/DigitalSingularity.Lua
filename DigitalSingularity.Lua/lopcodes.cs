@@ -4,33 +4,33 @@ using System.Diagnostics;
 
 public static partial class Lua
 {
-    /*
-    ** $Id: lopcodes.c $
-    ** Opcodes for Lua virtual machine
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lopcodes.c $
+    // Opcodes for Lua virtual machine
+    // See Copyright Notice in lua.h
 
-    /*===========================================================================
-      We assume that instructions are unsigned 32-bit integers.
-      All instructions have an opcode in the first 7 bits.
-      Instructions can have the following formats:
+    // ===========================================================================
+    // We assume that instructions are unsigned 32-bit integers.
+    // All instructions have an opcode in the first 7 bits.
+    // Instructions can have the following formats:
+    //
+    // 3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
+    // 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+    // iABC          C(8)     |      B(8)     |k|     A(8)      |   Op(7)     |
+    // ivABC         vC(10)     |     vB(6)   |k|     A(8)      |   Op(7)     |
+    // iABx                Bx(17)               |     A(8)      |   Op(7)     |
+    // iAsBx              sBx (signed)(17)      |     A(8)      |   Op(7)     |
+    // iAx                           Ax(25)                     |   Op(7)     |
+    // isJ                           sJ (signed)(25)            |   Op(7)     |
+    //
+    // ('v' stands for "variant", 's' for "signed", 'x' for "extended".)
+    // A signed argument is represented in excess K: The represented value is
+    // the written unsigned value minus K, where K is half (rounded down) the
+    // maximum value for the corresponding unsigned argument.
+    // ===========================================================================
 
-            3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
-            1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
-    iABC          C(8)     |      B(8)     |k|     A(8)      |   Op(7)     |
-    ivABC         vC(10)     |     vB(6)   |k|     A(8)      |   Op(7)     |
-    iABx                Bx(17)               |     A(8)      |   Op(7)     |
-    iAsBx              sBx (signed)(17)      |     A(8)      |   Op(7)     |
-    iAx                           Ax(25)                     |   Op(7)     |
-    isJ                           sJ (signed)(25)            |   Op(7)     |
-
-      ('v' stands for "variant", 's' for "signed", 'x' for "extended".)
-      A signed argument is represented in excess K: The represented value is
-      the written unsigned value minus K, where K is half (rounded down) the
-      maximum value for the corresponding unsigned argument.
-    ===========================================================================*/
-
-    /* basic instruction formats */
+    /// <summary>
+    /// basic instruction formats
+    /// </summary>
     private enum OpMode
     {
         iABC,
@@ -41,9 +41,9 @@ public static partial class Lua
         isJ,
     }
 
-    /*
-    ** size and position of opcode arguments.
-    */
+    /// <summary>
+    /// size and position of opcode arguments.
+    /// </summary>
     private const int SIZE_C = 8;
     private const int SIZE_vC = 10;
     private const int SIZE_B = 8;
@@ -71,15 +71,13 @@ public static partial class Lua
     private const int POS_sJ = POS_A;
 
 
-    /*
-    ** limits for opcode arguments.
-    ** we use (signed) 'int' to manipulate most arguments,
-    ** so they must fit in ints.
-    */
+    // limits for opcode arguments.
+    // we use (signed) 'int' to manipulate most arguments,
+    // so they must fit in ints.
 
     internal const int MAXARG_Bx = (1 << SIZE_Bx) - 1;
 
-    private const int OFFSET_sBx = MAXARG_Bx >> 1;         /* 'sBx' is signed */
+    private const int OFFSET_sBx = MAXARG_Bx >> 1; // 'sBx' is signed
 
     private const int MAXARG_Ax = (1 << SIZE_Ax) - 1;
     
@@ -109,21 +107,23 @@ public static partial class Lua
         return i - OFFSET_sC;
     }
 
-    /* creates a mask with 'n' 1 bits at position 'p' */
+    /// <summary>
+    /// creates a mask with 'n' 1 bits at position 'p'
+    /// </summary>
     private static uint MASK1(int n, int p)
     {
         return ~(~0u << n) << p;
     }
 
-    /* creates a mask with 'n' 0 bits at position 'p' */
+    /// <summary>
+    /// creates a mask with 'n' 0 bits at position 'p'
+    /// </summary>
     private static uint MASK0(int n, int p)
     {
         return ~MASK1(n, p);
     }
 
-    /*
-    ** the following macros help to manipulate instructions
-    */
+    // the following macros help to manipulate instructions
 
     internal static OpCode GET_OPCODE(uint i)
     {
@@ -316,309 +316,303 @@ public static partial class Lua
         MAXARG_B;
 #endif
     
-    /*
-    ** Maximum size for the stack of a Lua function. It must fit in 8 bits.
-    ** The highest valid register is one less than this value.
-    */
+    /// <summary>
+    /// Maximum size for the stack of a Lua function. It must fit in 8 bits.
+    /// The highest valid register is one less than this value.
+    /// </summary>
     private const int MAX_FSTACK = MAXARG_A;
 
-    /*
-    ** Invalid register (one more than last valid register).
-    */
+    /// <summary>
+    /// Invalid register (one more than last valid register).
+    /// </summary>
     private const int NO_REG = MAX_FSTACK;
     
-    /*
-    ** R[x] - register
-    ** K[x] - constant (in constant table)
-    ** RK(x) == if k(i) then K[x] else R[x]
-    */
+    // R[x] - register
+    // K[x] - constant (in constant table)
+    // RK(x) == if k(i) then K[x] else R[x]
 
-    /*
-    ** Grep "ORDER OP" if you change this enum.
-    ** See "Notes" below for more information about some instructions.
-    */
+    // Grep "ORDER OP" if you change this enum.
+    // See "Notes" below for more information about some instructions.
 
     internal enum OpCode
     {
-        /*----------------------------------------------------------------------
-          name		args	description
-        ------------------------------------------------------------------------*/
-        OP_MOVE, /*	A B	R[A] := R[B]					*/
-        OP_LOADI, /*	A sBx	R[A] := sBx					*/
-        OP_LOADF, /*	A sBx	R[A] := (double)sBx				*/
-        OP_LOADK, /*	A Bx	R[A] := K[Bx]					*/
-        OP_LOADKX, /*	A	R[A] := K[extra arg]				*/
-        OP_LOADFALSE, /*	A	R[A] := false					*/
-        OP_LFALSESKIP, /*A	R[A] := false; pc++				*/
-        OP_LOADTRUE, /*	A	R[A] := true					*/
-        OP_LOADNIL, /*	A B	R[A], R[A+1], ..., R[A+B] := nil		*/
-        OP_GETUPVAL, /*	A B	R[A] := UpValue[B]				*/
-        OP_SETUPVAL, /*	A B	UpValue[B] := R[A]				*/
+        // ----------------------------------------------------------------------
+        // name		args	description
+        // ------------------------------------------------------------------------
+        Move, // A B	R[A] := R[B]
+        LoadI, // A sBx	R[A] := sBx
+        LoadF, // A sBx	R[A] := (double)sBx
+        LoadK, // A Bx	R[A] := K[Bx]
+        LoadKX, // A	R[A] := K[extra arg]
+        LoadFalse, // A	R[A] := false
+        LFalseSkip, // A	R[A] := false; pc++
+        LoadTrue, // A	R[A] := true
+        LoadNil, // A B	R[A], R[A+1], ..., R[A+B] := nil
+        GetUpVal, // A B	R[A] := UpValue[B]
+        SetUpVal, // A B	UpValue[B] := R[A]
 
-        OP_GETTABUP, /*	A B C	R[A] := UpValue[B][K[C]:shortstring]		*/
-        OP_GETTABLE, /*	A B C	R[A] := R[B][R[C]]				*/
-        OP_GETI, /*	A B C	R[A] := R[B][C]					*/
-        OP_GETFIELD, /*	A B C	R[A] := R[B][K[C]:shortstring]			*/
+        GetTabUp, // A B C	R[A] := UpValue[B][K[C]:shortstring]
+        GetTable, // A B C	R[A] := R[B][R[C]]
+        GetI, // A B C	R[A] := R[B][C]
+        GetField, // A B C	R[A] := R[B][K[C]:shortstring]
 
-        OP_SETTABUP, /*	A B C	UpValue[A][K[B]:shortstring] := RK(C)		*/
-        OP_SETTABLE, /*	A B C	R[A][R[B]] := RK(C)				*/
-        OP_SETI, /*	A B C	R[A][B] := RK(C)				*/
-        OP_SETFIELD, /*	A B C	R[A][K[B]:shortstring] := RK(C)			*/
+        SetTabUp, // A B C	UpValue[A][K[B]:shortstring] := RK(C)
+        SetTable, // A B C	R[A][R[B]] := RK(C)
+        SetI, // A B C	R[A][B] := RK(C)
+        SetField, // A B C	R[A][K[B]:shortstring] := RK(C)
 
-        OP_NEWTABLE, /*	A vB vC k	R[A] := {}				*/
+        NewTable, // A vB vC k	R[A] := {}
 
-        OP_SELF, /*	A B C	R[A+1] := R[B]; R[A] := R[B][K[C]:shortstring]	*/
+        Self, // A B C	R[A+1] := R[B]; R[A] := R[B][K[C]:shortstring]
 
-        OP_ADDI, /*	A B sC	R[A] := R[B] + sC				*/
+        AddI, // A B sC	R[A] := R[B] + sC
 
-        OP_ADDK, /*	A B C	R[A] := R[B] + K[C]:number			*/
-        OP_SUBK, /*	A B C	R[A] := R[B] - K[C]:number			*/
-        OP_MULK, /*	A B C	R[A] := R[B] * K[C]:number			*/
-        OP_MODK, /*	A B C	R[A] := R[B] % K[C]:number			*/
-        OP_POWK, /*	A B C	R[A] := R[B] ^ K[C]:number			*/
-        OP_DIVK, /*	A B C	R[A] := R[B] / K[C]:number			*/
-        OP_IDIVK, /*	A B C	R[A] := R[B] // K[C]:number			*/
+        AddK, // A B C	R[A] := R[B] + K[C]:number
+        SubK, // A B C	R[A] := R[B] - K[C]:number
+        MulK, // A B C	R[A] := R[B] * K[C]:number
+        ModK, // A B C	R[A] := R[B] % K[C]:number
+        PowK, // A B C	R[A] := R[B] ^ K[C]:number
+        DivK, // A B C	R[A] := R[B] / K[C]:number
+        IDivK, // A B C	R[A] := R[B] // K[C]:number
 
-        OP_BANDK, /*	A B C	R[A] := R[B] & K[C]:integer			*/
-        OP_BORK, /*	A B C	R[A] := R[B] | K[C]:integer			*/
-        OP_BXORK, /*	A B C	R[A] := R[B] ~ K[C]:integer			*/
+        BAndK, // A B C	R[A] := R[B] & K[C]:integer
+        BOrK, // A B C	R[A] := R[B] | K[C]:integer
+        BXorK, // A B C	R[A] := R[B] ~ K[C]:integer
 
-        OP_SHLI, /*	A B sC	R[A] := sC << R[B]				*/
-        OP_SHRI, /*	A B sC	R[A] := R[B] >> sC				*/
+        ShlI, // A B sC	R[A] := sC << R[B]
+        ShrI, // A B sC	R[A] := R[B] >> sC
 
-        OP_ADD, /*	A B C	R[A] := R[B] + R[C]				*/
-        OP_SUB, /*	A B C	R[A] := R[B] - R[C]				*/
-        OP_MUL, /*	A B C	R[A] := R[B] * R[C]				*/
-        OP_MOD, /*	A B C	R[A] := R[B] % R[C]				*/
-        OP_POW, /*	A B C	R[A] := R[B] ^ R[C]				*/
-        OP_DIV, /*	A B C	R[A] := R[B] / R[C]				*/
-        OP_IDIV, /*	A B C	R[A] := R[B] // R[C]				*/
+        Add, // A B C	R[A] := R[B] + R[C]
+        Sub, // A B C	R[A] := R[B] - R[C]
+        Mul, // A B C	R[A] := R[B] * R[C]
+        Mod, // A B C	R[A] := R[B] % R[C]
+        Pow, // A B C	R[A] := R[B] ^ R[C]
+        Div, // A B C	R[A] := R[B] / R[C]
+        IDiv, // A B C	R[A] := R[B] // R[C]
 
-        OP_BAND, /*	A B C	R[A] := R[B] & R[C]				*/
-        OP_BOR, /*	A B C	R[A] := R[B] | R[C]				*/
-        OP_BXOR, /*	A B C	R[A] := R[B] ~ R[C]				*/
-        OP_SHL, /*	A B C	R[A] := R[B] << R[C]				*/
-        OP_SHR, /*	A B C	R[A] := R[B] >> R[C]				*/
+        BAnd, // A B C	R[A] := R[B] & R[C]
+        BOr, // A B C	R[A] := R[B] | R[C]
+        BXor, // A B C	R[A] := R[B] ~ R[C]
+        Shl, // A B C	R[A] := R[B] << R[C]
+        Shr, // A B C	R[A] := R[B] >> R[C]
 
-        OP_MMBIN, /*	A B C	call C metamethod over R[A] and R[B]		*/
-        OP_MMBINI, /*	A sB C k	call C metamethod over R[A] and sB	*/
-        OP_MMBINK, /*	A B C k		call C metamethod over R[A] and K[B]	*/
+        MMBin, // A B C	call C metamethod over R[A] and R[B]
+        MMBinI, // A sB C k	call C metamethod over R[A] and sB
+        MMBinK, // A B C k		call C metamethod over R[A] and K[B]
 
-        OP_UNM, /*	A B	R[A] := -R[B]					*/
-        OP_BNOT, /*	A B	R[A] := ~R[B]					*/
-        OP_NOT, /*	A B	R[A] := not R[B]				*/
-        OP_LEN, /*	A B	R[A] := #R[B] (length operator)			*/
+        UNM, // A B	R[A] := -R[B]
+        BNot, // A B	R[A] := ~R[B]
+        Not, // A B	R[A] := not R[B]
+        Len, // A B	R[A] := #R[B] (length operator)
 
-        OP_CONCAT, /*	A B	R[A] := R[A].. ... ..R[A + B - 1]		*/
+        Concat, // A B	R[A] := R[A].. ... ..R[A + B - 1]
 
-        OP_CLOSE, /*	A	close all upvalues >= R[A]			*/
-        OP_TBC, /*	A	mark variable A "to be closed"			*/
-        OP_JMP, /*	sJ	pc += sJ					*/
-        OP_EQ, /*	A B k	if ((R[A] == R[B]) ~= k) then pc++		*/
-        OP_LT, /*	A B k	if ((R[A] <  R[B]) ~= k) then pc++		*/
-        OP_LE, /*	A B k	if ((R[A] <= R[B]) ~= k) then pc++		*/
+        Close, // A	close all upvalues >= R[A]
+        TBC, // A	mark variable A "to be closed"
+        Jmp, // sJ	pc += sJ
+        Eq, // A B k	if ((R[A] == R[B]) ~= k) then pc++
+        LT, // A B k	if ((R[A] <  R[B]) ~= k) then pc++
+        LE, // A B k	if ((R[A] <= R[B]) ~= k) then pc++
 
-        OP_EQK, /*	A B k	if ((R[A] == K[B]) ~= k) then pc++		*/
-        OP_EQI, /*	A sB k	if ((R[A] == sB) ~= k) then pc++		*/
-        OP_LTI, /*	A sB k	if ((R[A] < sB) ~= k) then pc++			*/
-        OP_LEI, /*	A sB k	if ((R[A] <= sB) ~= k) then pc++		*/
-        OP_GTI, /*	A sB k	if ((R[A] > sB) ~= k) then pc++			*/
-        OP_GEI, /*	A sB k	if ((R[A] >= sB) ~= k) then pc++		*/
+        EqK, // A B k	if ((R[A] == K[B]) ~= k) then pc++
+        EqI, // A sB k	if ((R[A] == sB) ~= k) then pc++
+        LTI, // A sB k	if ((R[A] < sB) ~= k) then pc++
+        LEI, // A sB k	if ((R[A] <= sB) ~= k) then pc++
+        GTI, // A sB k	if ((R[A] > sB) ~= k) then pc++
+        GEI, // A sB k	if ((R[A] >= sB) ~= k) then pc++
 
-        OP_TEST, /*	A k	if (not R[A] == k) then pc++			*/
-        OP_TESTSET, /*	A B k	if (not R[B] == k) then pc++ else R[A] := R[B]  */
+        Test, // A k	if (not R[A] == k) then pc++
+        TestSet, // A B k	if (not R[B] == k) then pc++ else R[A] := R[B]
 
-        OP_CALL, /*	A B C	R[A], ... ,R[A+C-2] := R[A](R[A+1], ... ,R[A+B-1]) */
-        OP_TAILCALL, /*	A B C k	return R[A](R[A+1], ... ,R[A+B-1])		*/
+        Call, // A B C	R[A], ... ,R[A+C-2] := R[A](R[A+1], ... ,R[A+B-1])
+        TailCall, // A B C k	return R[A](R[A+1], ... ,R[A+B-1])
 
-        OP_RETURN, /*	A B C k	return R[A], ... ,R[A+B-2]			*/
-        OP_RETURN0, /*		return						*/
-        OP_RETURN1, /*	A	return R[A]					*/
+        Return, // A B C k	return R[A], ... ,R[A+B-2]
+        Return0, // return
+        Return1, // A	return R[A]
 
-        OP_FORLOOP, /*	A Bx	update counters; if loop continues then pc-=Bx; */
-        OP_FORPREP, /*	A Bx	<check values and prepare counters>;
-                                if not to run then pc+=Bx+1;			*/
+        ForLoop, // A Bx	update counters; if loop continues then pc-=Bx;
+        ForPrep, // A Bx	<check values and prepare counters>;
+        // if not to run then pc+=Bx+1;
 
-        OP_TFORPREP, /*	A Bx	create upvalue for R[A + 3]; pc+=Bx		*/
-        OP_TFORCALL, /*	A C	R[A+4], ... ,R[A+3+C] := R[A](R[A+1], R[A+2]);	*/
-        OP_TFORLOOP, /*	A Bx	if R[A+2] ~= nil then { R[A]=R[A+2]; pc -= Bx }	*/
+        TForPrep, // A Bx	create upvalue for R[A + 3]; pc+=Bx
+        TForCall, // A C	R[A+4], ... ,R[A+3+C] := R[A](R[A+1], R[A+2]);
+        TForLoop, // A Bx	if R[A+2] ~= nil then { R[A]=R[A+2]; pc -= Bx }
 
-        OP_SETLIST, /*	A vB vC k	R[A][vC+i] := R[A+i], 1 <= i <= vB	*/
+        SetList, // A vB vC k	R[A][vC+i] := R[A+i], 1 <= i <= vB
 
-        OP_CLOSURE, /*	A Bx	R[A] := closure(KPROTO[Bx])			*/
+        Closure, // A Bx	R[A] := closure(KPROTO[Bx])
 
-        OP_VARARG, /*	A B C k	R[A], ..., R[A+C-2] = varargs  			*/
+        VarArg, // A B C k	R[A], ..., R[A+C-2] = varargs
 
-        OP_GETVARG, /* A B C	R[A] := R[B][R[C]], R[B] is vararg parameter    */
+        GetVArg, // A B C	R[A] := R[B][R[C]], R[B] is vararg parameter
 
-        OP_ERRNNIL, /*	A Bx	raise error if R[A] ~= nil (K[Bx - 1] is global name)*/
+        ErrNNil, // A Bx	raise error if R[A] ~= nil (K[Bx - 1] is global name)
 
-        OP_VARARGPREP, /* 	(adjust varargs)				*/
+        VarArgPrep, // (adjust varargs)
 
-        OP_EXTRAARG, /*	Ax	extra (larger) argument for previous opcode	*/
+        ExtraArg, // Ax	extra (larger) argument for previous opcode
     }
 
-    private const int NUM_OPCODES = (int)OpCode.OP_EXTRAARG + 1;
+    private const int NUM_OPCODES = (int)OpCode.ExtraArg + 1;
 
-    /*===========================================================================
-      Notes:
+    // ===========================================================================
+    // Notes:
+    //
+    // (*) Opcode OP_LFALSESKIP is used to convert a condition to a boolean
+    // value, in a code equivalent to (not cond ? false : true).  (It
+    // produces false and skips the next instruction producing true.)
+    //
+    // (*) Opcodes OP_MMBIN and variants follow each arithmetic and
+    // bitwise opcode. If the operation succeeds, it skips this next
+    // opcode. Otherwise, this opcode calls the corresponding metamethod.
+    //
+    // (*) Opcode OP_TESTSET is used in short-circuit expressions that need
+    // both to jump and to produce a value, such as (a = b or c).
+    //
+    // (*) In OP_CALL, if (B == 0) then B = top - A. If (C == 0), then
+    // 'top' is set to last_result+1, so next open instruction (OP_CALL,
+    // OP_RETURN*, OP_SETLIST) may use 'top'.
+    //
+    // (*) In OP_VARARG, if (C == 0) then use actual number of varargs and
+    // set top (like in OP_CALL with C == 0). 'k' means function has a
+    // vararg table, which is in R[B].
+    //
+    // (*) In OP_RETURN, if (B == 0) then return up to 'top'.
+    //
+    // (*) In OP_LOADKX and OP_NEWTABLE, the next instruction is always
+    // OP_EXTRAARG.
+    //
+    // (*) In OP_SETLIST, if (B == 0) then real B = 'top'; if k, then
+    // real C = EXTRAARG _ C (the bits of EXTRAARG concatenated with the
+    // bits of C).
+    //
+    // (*) In OP_NEWTABLE, vB is log2 of the hash size (which is always a
+    // power of 2) plus 1, or zero for size zero. If not k, the array size
+    // is vC. Otherwise, the array size is EXTRAARG _ vC.
+    //
+    // (*) In OP_ERRNNIL, (Bx == 0) means index of global name doesn't
+    // fit in Bx. (So, that name is not available for the error message.)
+    //
+    // (*) For comparisons, k specifies what condition the test should accept
+    // (true or false).
+    //
+    // (*) In OP_MMBINI/OP_MMBINK, k means the arguments were flipped
+    // (the constant is the first operand).
+    //
+    // (*) All comparison and test instructions assume that the instruction
+    // being skipped (pc++) is a jump.
+    //
+    // (*) In instructions OP_RETURN/OP_TAILCALL, 'k' specifies that the
+    // function builds upvalues, which may need to be closed. C > 0 means
+    // the function has hidden vararg arguments, so that its 'func' must be
+    // corrected before returning; in this case, (C - 1) is its number of
+    // fixed parameters.
+    //
+    // (*) In comparisons with an immediate operand, C signals whether the
+    // original operand was a float. (It must be corrected in case of
+    // metamethods.)
+    //
+    // ===========================================================================
 
-      (*) Opcode OP_LFALSESKIP is used to convert a condition to a boolean
-      value, in a code equivalent to (not cond ? false : true).  (It
-      produces false and skips the next instruction producing true.)
+    // masks for instruction properties. The format is:
+    // bits 0-2: op mode
+    // bit 3: instruction set register A
+    // bit 4: operator is a test (next instruction must be a jump)
+    // bit 5: instruction uses 'L->top' set by previous instruction (when B == 0)
+    // bit 6: instruction sets 'L->top' for next instruction (when C == 0)
+    // bit 7: instruction is an MM instruction (call a metamethod)
 
-      (*) Opcodes OP_MMBIN and variants follow each arithmetic and
-      bitwise opcode. If the operation succeeds, it skips this next
-      opcode. Otherwise, this opcode calls the corresponding metamethod.
-
-      (*) Opcode OP_TESTSET is used in short-circuit expressions that need
-      both to jump and to produce a value, such as (a = b or c).
-
-      (*) In OP_CALL, if (B == 0) then B = top - A. If (C == 0), then
-      'top' is set to last_result+1, so next open instruction (OP_CALL,
-      OP_RETURN*, OP_SETLIST) may use 'top'.
-
-      (*) In OP_VARARG, if (C == 0) then use actual number of varargs and
-      set top (like in OP_CALL with C == 0). 'k' means function has a
-      vararg table, which is in R[B].
-
-      (*) In OP_RETURN, if (B == 0) then return up to 'top'.
-
-      (*) In OP_LOADKX and OP_NEWTABLE, the next instruction is always
-      OP_EXTRAARG.
-
-      (*) In OP_SETLIST, if (B == 0) then real B = 'top'; if k, then
-      real C = EXTRAARG _ C (the bits of EXTRAARG concatenated with the
-      bits of C).
-
-      (*) In OP_NEWTABLE, vB is log2 of the hash size (which is always a
-      power of 2) plus 1, or zero for size zero. If not k, the array size
-      is vC. Otherwise, the array size is EXTRAARG _ vC.
-
-      (*) In OP_ERRNNIL, (Bx == 0) means index of global name doesn't
-      fit in Bx. (So, that name is not available for the error message.)
-
-      (*) For comparisons, k specifies what condition the test should accept
-      (true or false).
-
-      (*) In OP_MMBINI/OP_MMBINK, k means the arguments were flipped
-      (the constant is the first operand).
-
-      (*) All comparison and test instructions assume that the instruction
-      being skipped (pc++) is a jump.
-
-      (*) In instructions OP_RETURN/OP_TAILCALL, 'k' specifies that the
-      function builds upvalues, which may need to be closed. C > 0 means
-      the function has hidden vararg arguments, so that its 'func' must be
-      corrected before returning; in this case, (C - 1) is its number of
-      fixed parameters.
-
-      (*) In comparisons with an immediate operand, C signals whether the
-      original operand was a float. (It must be corrected in case of
-      metamethods.)
-
-    ===========================================================================*/
-
-    /*
-    ** masks for instruction properties. The format is:
-    ** bits 0-2: op mode
-    ** bit 3: instruction set register A
-    ** bit 4: operator is a test (next instruction must be a jump)
-    ** bit 5: instruction uses 'L->top' set by previous instruction (when B == 0)
-    ** bit 6: instruction sets 'L->top' for next instruction (when C == 0)
-    ** bit 7: instruction is an MM instruction (call a metamethod)
-    */
-
-    /* ORDER OP */
+    // ORDER OP
 
     private static readonly byte[] luaP_opmodes =
     [
-        /*     MM OT IT T  A  mode		   opcode  */
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_MOVE */,
-        opmode(false, false, false, false, true, OpMode.iAsBx) /* OP_LOADI */,
-        opmode(false, false, false, false, true, OpMode.iAsBx) /* OP_LOADF */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_LOADK */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_LOADKX */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_LOADFALSE */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_LFALSESKIP */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_LOADTRUE */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_LOADNIL */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETUPVAL */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_SETUPVAL */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETTABUP */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETTABLE */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETI */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETFIELD */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_SETTABUP */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_SETTABLE */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_SETI */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_SETFIELD */,
-        opmode(false, false, false, false, true, OpMode.ivABC) /* OP_NEWTABLE */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SELF */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_ADDI */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_ADDK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SUBK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_MULK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_MODK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_POWK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_DIVK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_IDIVK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BANDK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BORK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BXORK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SHLI */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SHRI */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_ADD */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SUB */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_MUL */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_MOD */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_POW */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_DIV */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_IDIV */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BAND */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BOR */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BXOR */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SHL */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_SHR */,
-        opmode(true, false, false, false, false, OpMode.iABC) /* OP_MMBIN */,
-        opmode(true, false, false, false, false, OpMode.iABC) /* OP_MMBINI */,
-        opmode(true, false, false, false, false, OpMode.iABC) /* OP_MMBINK */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_UNM */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_BNOT */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_NOT */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_LEN */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_CONCAT */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_CLOSE */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_TBC */,
-        opmode(false, false, false, false, false, OpMode.isJ) /* OP_JMP */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_EQ */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_LT */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_LE */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_EQK */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_EQI */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_LTI */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_LEI */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_GTI */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_GEI */,
-        opmode(false, false, false, true, false, OpMode.iABC) /* OP_TEST */,
-        opmode(false, false, false, true, true, OpMode.iABC) /* OP_TESTSET */,
-        opmode(false, true, true, false, true, OpMode.iABC) /* OP_CALL */,
-        opmode(false, true, true, false, true, OpMode.iABC) /* OP_TAILCALL */,
-        opmode(false, false, true, false, false, OpMode.iABC) /* OP_RETURN */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_RETURN0 */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_RETURN1 */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_FORLOOP */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_FORPREP */,
-        opmode(false, false, false, false, false, OpMode.iABx) /* OP_TFORPREP */,
-        opmode(false, false, false, false, false, OpMode.iABC) /* OP_TFORCALL */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_TFORLOOP */,
-        opmode(false, false, true, false, false, OpMode.ivABC) /* OP_SETLIST */,
-        opmode(false, false, false, false, true, OpMode.iABx) /* OP_CLOSURE */,
-        opmode(false, true, false, false, true, OpMode.iABC) /* OP_VARARG */,
-        opmode(false, false, false, false, true, OpMode.iABC) /* OP_GETVARG */,
-        opmode(false, false, false, false, false, OpMode.iABx) /* OP_ERRNNIL */,
-        opmode(false, false, true, false, true, OpMode.iABC) /* OP_VARARGPREP */,
-        opmode(false, false, false, false, false, OpMode.iAx), /* OP_EXTRAARG */
+        // MM OT IT T  A  mode		   opcode
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_MOVE
+        opmode(false, false, false, false, true, OpMode.iAsBx) , // OP_LOADI
+        opmode(false, false, false, false, true, OpMode.iAsBx) , // OP_LOADF
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_LOADK
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_LOADKX
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_LOADFALSE
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_LFALSESKIP
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_LOADTRUE
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_LOADNIL
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETUPVAL
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_SETUPVAL
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETTABUP
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETTABLE
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETI
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETFIELD
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_SETTABUP
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_SETTABLE
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_SETI
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_SETFIELD
+        opmode(false, false, false, false, true, OpMode.ivABC) , // OP_NEWTABLE
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SELF
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_ADDI
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_ADDK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SUBK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_MULK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_MODK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_POWK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_DIVK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_IDIVK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BANDK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BORK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BXORK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SHLI
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SHRI
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_ADD
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SUB
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_MUL
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_MOD
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_POW
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_DIV
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_IDIV
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BAND
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BOR
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BXOR
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SHL
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_SHR
+        opmode(true, false, false, false, false, OpMode.iABC) , // OP_MMBIN
+        opmode(true, false, false, false, false, OpMode.iABC) , // OP_MMBINI
+        opmode(true, false, false, false, false, OpMode.iABC) , // OP_MMBINK
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_UNM
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_BNOT
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_NOT
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_LEN
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_CONCAT
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_CLOSE
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_TBC
+        opmode(false, false, false, false, false, OpMode.isJ) , // OP_JMP
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_EQ
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_LT
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_LE
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_EQK
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_EQI
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_LTI
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_LEI
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_GTI
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_GEI
+        opmode(false, false, false, true, false, OpMode.iABC) , // OP_TEST
+        opmode(false, false, false, true, true, OpMode.iABC) , // OP_TESTSET
+        opmode(false, true, true, false, true, OpMode.iABC) , // OP_CALL
+        opmode(false, true, true, false, true, OpMode.iABC) , // OP_TAILCALL
+        opmode(false, false, true, false, false, OpMode.iABC) , // OP_RETURN
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_RETURN0
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_RETURN1
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_FORLOOP
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_FORPREP
+        opmode(false, false, false, false, false, OpMode.iABx) , // OP_TFORPREP
+        opmode(false, false, false, false, false, OpMode.iABC) , // OP_TFORCALL
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_TFORLOOP
+        opmode(false, false, true, false, false, OpMode.ivABC) , // OP_SETLIST
+        opmode(false, false, false, false, true, OpMode.iABx) , // OP_CLOSURE
+        opmode(false, true, false, false, true, OpMode.iABC) , // OP_VARARG
+        opmode(false, false, false, false, true, OpMode.iABC) , // OP_GETVARG
+        opmode(false, false, false, false, false, OpMode.iABx) , // OP_ERRNNIL
+        opmode(false, false, true, false, true, OpMode.iABC) , // OP_VARARGPREP
+        opmode(false, false, false, false, false, OpMode.iAx), // OP_EXTRAARG
     ];
 
     private static OpMode getOpMode(OpCode m)
@@ -661,31 +655,31 @@ public static partial class Lua
                       (int)m);
     }
 
-    /*
-    ** Check whether instruction sets top for next instruction, that is,
-    ** it results in multiple values.
-    */
+    /// <summary>
+    /// Check whether instruction sets top for next instruction, that is,
+    /// it results in multiple values.
+    /// </summary>
     internal static bool luaP_isOT(uint i)
     {
         OpCode op = GET_OPCODE(i);
 
         return op switch
         {
-            OpCode.OP_TAILCALL => true,
+            OpCode.TailCall => true,
             _ => testOTMode(op) && GETARG_C(i) == 0,
         };
     }
 
-    /*
-    ** Check whether instruction uses top from previous instruction, that is,
-    ** it accepts multiple results.
-    */
+    /// <summary>
+    /// Check whether instruction uses top from previous instruction, that is,
+    /// it accepts multiple results.
+    /// </summary>
     internal static bool luaP_isIT(uint i)
     {
         OpCode op = GET_OPCODE(i);
         return op switch
         {
-            OpCode.OP_SETLIST => testITMode(GET_OPCODE(i)) && GETARG_vB(i) == 0,
+            OpCode.SetList => testITMode(GET_OPCODE(i)) && GETARG_vB(i) == 0,
             _ => testITMode(GET_OPCODE(i)) && GETARG_B(i) == 0,
         };
     }

@@ -4,11 +4,9 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-    /*
-     ** $Id: lcorolib.c $
-     ** Coroutine Library
-     ** See Copyright Notice in lua.h
-     */
+    // $Id: lcorolib.c $
+    // Coroutine Library
+    // See Copyright Notice in lua.h
 
     private static lua_State* getco(lua_State* L)
     {
@@ -17,16 +15,16 @@ public static unsafe partial class Lua
         return co;
     }
 
-    /*
-     ** Resumes a coroutine. Returns the number of results for non-error
-     ** cases or -1 for errors.
-     */
+    /// <summary>
+    /// Resumes a coroutine. Returns the number of results for non-error
+    /// cases or -1 for errors.
+    /// </summary>
     private static int auxresume(lua_State* L, lua_State* co, int narg)
     {
         if (!lua_checkstack(co, narg))
         {
             lua_pushliteral(L, "too many arguments to resume");
-            return -1; /* error flag */
+            return -1; // error flag
         }
 
         lua_xmove(L, co, narg);
@@ -36,17 +34,17 @@ public static unsafe partial class Lua
         {
             if (!lua_checkstack(L, nres + 1))
             {
-                lua_pop(co, nres); /* remove results anyway */
+                lua_pop(co, nres); // remove results anyway
                 lua_pushliteral(L, "too many results to resume");
-                return -1; /* error flag */
+                return -1; // error flag
             }
 
-            lua_xmove(co, L, nres); /* move yielded values */
+            lua_xmove(co, L, nres); // move yielded values
             return nres;
         }
 
-        lua_xmove(co, L, 1); /* move error message */
-        return -1; /* error flag */
+        lua_xmove(co, L, 1); // move error message
+        return -1; // error flag
     }
 
     private static int luaB_coresume(lua_State* L)
@@ -57,12 +55,12 @@ public static unsafe partial class Lua
         {
             lua_pushboolean(L, false);
             lua_insert(L, -2);
-            return 2; /* return false + error message */
+            return 2; // return false + error message
         }
 
         lua_pushboolean(L, true);
         lua_insert(L, -(r + 1));
-        return r + 1; /* return true + 'resume' returns */
+        return r + 1; // return true + 'resume' returns
     }
 
     private static int luaB_auxwrap(lua_State* L)
@@ -71,26 +69,26 @@ public static unsafe partial class Lua
         int r = auxresume(L, co, lua_gettop(L));
         if (r < 0)
         {
-            /* error? */
+            // error?
             int stat = lua_status(co);
             if (stat != LUA_OK && stat != LUA_YIELD)
             {
-                /* error in the coroutine? */
-                stat = lua_closethread(co, L); /* close its tbc variables */
+                // error in the coroutine?
+                stat = lua_closethread(co, L); // close its tbc variables
                 Debug.Assert(stat != LUA_OK);
-                lua_xmove(co, L, 1); /* move error message to the caller */
+                lua_xmove(co, L, 1); // move error message to the caller
             }
 
-            if (stat != LUA_ERRMEM && /* not a memory error and ... */
+            if (stat != LUA_ERRMEM && // not a memory error and ...
                 lua_type(L, -1) == LUA_TSTRING)
             {
-                /* ... error object is a string? */
-                luaL_where(L, 1); /* add extra info, if available */
+                // ... error object is a string?
+                luaL_where(L, 1); // add extra info, if available
                 lua_insert(L, -2);
                 lua_concat(L, 2);
             }
 
-            return lua_error(L); /* propagate error */
+            return lua_error(L); // propagate error
         }
 
         return r;
@@ -100,8 +98,8 @@ public static unsafe partial class Lua
     {
         luaL_checktype(L, 1, LUA_TFUNCTION);
         lua_State* NL = lua_newthread(L);
-        lua_pushvalue(L, 1); /* move function to top */
-        lua_xmove(L, NL, 1); /* move function from L to NL */
+        lua_pushvalue(L, 1); // move function to top
+        lua_xmove(L, NL, 1); // move function from L to NL
         return 1;
     }
 
@@ -138,9 +136,9 @@ public static unsafe partial class Lua
 
             case LUA_OK:
                 lua_Debug ar = new();
-                if (lua_getstack(co, 0, ref ar))  /* does it have frames? */
+                if (lua_getstack(co, 0, ref ar)) // does it have frames?
                 {
-                    return COS_NORM;  /* it is running */
+                    return COS_NORM; // it is running
                 }
 
                 if (lua_gettop(co) == 0)
@@ -148,9 +146,9 @@ public static unsafe partial class Lua
                     return COS_DEAD;
                 }
 
-                return COS_YIELD;  /* initial state */
+                return COS_YIELD; // initial state
                 
-            default: /* some error occurred */
+            default: // some error occurred
                 return COS_DEAD;
         }
     }
@@ -197,21 +195,21 @@ public static unsafe partial class Lua
                 }
 
                 lua_pushboolean(L, false);
-                lua_xmove(co, L, 1); /* move error message */
+                lua_xmove(co, L, 1); // move error message
                 return 2;
 
             case COS_NORM:
                 return luaL_error(L, "cannot close a %s coroutine", statname[status]);
 
             case COS_RUN:
-                lua_geti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD); /* get main */
+                lua_geti(L, LUA_REGISTRYINDEX, LUA_RIDX_MAINTHREAD); // get main
                 if (lua_tothread(L, -1) == co)
                 {
                     return luaL_error(L, "cannot close main thread");
                 }
 
-                lua_closethread(co, L); /* close itself */
-                /* previous call does not return */
+                lua_closethread(co, L); // close itself
+                // previous call does not return
                 throw new InvalidOperationException();
 
             default:

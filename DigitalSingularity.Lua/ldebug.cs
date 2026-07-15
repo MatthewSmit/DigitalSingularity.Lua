@@ -10,7 +10,9 @@ public static unsafe partial class Lua
         return (int)(pc - p->code) - 1;
     }
 
-    /* Active Lua function (given call info) */
+    /// <summary>
+    /// Active Lua function (given call info)
+    /// </summary>
     private static LClosure* ci_func(CallInfo* ci)
     {
         return clLvalue(s2v(ci->func.p));
@@ -21,16 +23,16 @@ public static unsafe partial class Lua
         L->hookcount = L->basehookcount;
     }
 
-    /*
-     ** mark for entries in 'lineinfo' array that has absolute information in
-     ** 'abslineinfo' array
-     */
+    /// <summary>
+    /// mark for entries in 'lineinfo' array that has absolute information in
+    /// 'abslineinfo' array
+    /// </summary>
     private const int ABSLINEINFO = -0x80;
 
-    /*
-     ** MAXimum number of successive Instructions WiTHout ABSolute line
-     ** information. (A power of two allows fast divisions.)
-     */
+    /// <summary>
+    /// MAXimum number of successive Instructions WiTHout ABSolute line
+    /// information. (A power of two allows fast divisions.)
+    /// </summary>
     private const int MAXIWTHABS =
 #if LUA_TEST
         3;
@@ -52,49 +54,49 @@ public static unsafe partial class Lua
         return pcRel(ci->u.l.savedpc, ci_func(ci)->p);
     }
 
-    /*
-     ** Get a "base line" to find the line corresponding to an instruction.
-     ** Base lines are regularly placed at MAXIWTHABS intervals, so usually
-     ** an integer division gets the right place. When the source file has
-     ** large sequences of empty/comment lines, it may need extra entries,
-     ** so the original estimate needs a correction.
-     ** If the original estimate is -1, the initial 'if' ensures that the
-     ** 'while' will run at least once.
-     ** The assertion that the estimate is a lower bound for the correct base
-     ** is valid as long as the debug info has been generated with the same
-     ** value for MAXIWTHABS or smaller. (Previous releases use a little
-     ** smaller value.)
-     */
+    /// <summary>
+    /// Get a "base line" to find the line corresponding to an instruction.
+    /// Base lines are regularly placed at MAXIWTHABS intervals, so usually
+    /// an integer division gets the right place. When the source file has
+    /// large sequences of empty/comment lines, it may need extra entries,
+    /// so the original estimate needs a correction.
+    /// If the original estimate is -1, the initial 'if' ensures that the
+    /// 'while' will run at least once.
+    /// The assertion that the estimate is a lower bound for the correct base
+    /// is valid as long as the debug info has been generated with the same
+    /// value for MAXIWTHABS or smaller. (Previous releases use a little
+    /// smaller value.)
+    /// </summary>
     private static int getbaseline(Proto* f, int pc, out int basepc)
     {
         if (f->sizeabslineinfo == 0 || pc < f->abslineinfo[0].pc)
         {
-            basepc = -1; /* start from the beginning */
+            basepc = -1; // start from the beginning
             return f->linedefined;
         }
 
-        int i = pc / MAXIWTHABS - 1; /* get an estimate */
-        /* estimate must be a lower bound of the correct base */
+        int i = pc / MAXIWTHABS - 1; // get an estimate
+        // estimate must be a lower bound of the correct base
         Debug.Assert(
             i < 0 ||
             i < f->sizeabslineinfo && f->abslineinfo[i].pc <= pc);
         while (i + 1 < f->sizeabslineinfo && pc >= f->abslineinfo[i + 1].pc)
         {
-            i++; /* low estimate; adjust it */
+            i++; // low estimate; adjust it
         }
 
         basepc = f->abslineinfo[i].pc;
         return f->abslineinfo[i].line;
     }
 
-    /*
-     ** Get the line corresponding to instruction 'pc' in function 'f';
-     ** first gets a base line and from there does the increments until
-     ** the desired instruction.
-     */
+    /// <summary>
+    /// Get the line corresponding to instruction 'pc' in function 'f';
+    /// first gets a base line and from there does the increments until
+    /// the desired instruction.
+    /// </summary>
     internal static int luaG_getfuncline(Proto* f, int pc)
     {
-        if (f->lineinfo == null) /* no debug information? */
+        if (f->lineinfo == null) // no debug information?
         {
             return -1;
         }
@@ -102,9 +104,9 @@ public static unsafe partial class Lua
         int baseline = getbaseline(f, pc, out int basepc);
         while (basepc++ < pc)
         {
-            /* walk until given instruction */
+            // walk until given instruction
             Debug.Assert(f->lineinfo[basepc] != ABSLINEINFO);
-            baseline += f->lineinfo[basepc]; /* correct line */
+            baseline += f->lineinfo[basepc]; // correct line
         }
 
         return baseline;
@@ -115,17 +117,17 @@ public static unsafe partial class Lua
         return luaG_getfuncline(ci_func(ci)->p, currentpc(ci));
     }
 
-    /*
-     ** Set 'trap' for all active Lua frames.
-     ** This function can be called during a signal, under "reasonable"
-     ** assumptions. A new 'ci' is completely linked in the list before it
-     ** becomes part of the "active" list, and we assume that pointers are
-     ** atomic; see comment in next function.
-     ** (A compiler doing interprocedural optimizations could, theoretically,
-     ** reorder memory writes in such a way that the list could be
-     ** temporarily broken while inserting a new element. We simply assume it
-     ** has no good reasons to do that.)
-     */
+    /// <summary>
+    /// Set 'trap' for all active Lua frames.
+    /// This function can be called during a signal, under "reasonable"
+    /// assumptions. A new 'ci' is completely linked in the list before it
+    /// becomes part of the "active" list, and we assume that pointers are
+    /// atomic; see comment in next function.
+    /// (A compiler doing interprocedural optimizations could, theoretically,
+    /// reorder memory writes in such a way that the list could be
+    /// temporarily broken while inserting a new element. We simply assume it
+    /// has no good reasons to do that.)
+    /// </summary>
     private static void settraps(CallInfo* ci)
     {
         for (; ci != null; ci = ci->previous)
@@ -137,21 +139,21 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** This function can be called during a signal, under "reasonable"
-     ** assumptions.
-     ** Fields 'basehookcount' and 'hookcount' (set by 'resethookcount')
-     ** are for debug only, and it is no problem if they get arbitrary
-     ** values (causes at most one wrong hook call). 'hookmask' is an atomic
-     ** value. We assume that pointers are atomic too (e.g. gcc ensures that
-     ** for all platforms where it runs). Moreover, 'hook' is always checked
-     ** before being called (see 'luaD_hook').
-     */
+    /// <summary>
+    /// This function can be called during a signal, under "reasonable"
+    /// assumptions.
+    /// Fields 'basehookcount' and 'hookcount' (set by 'resethookcount')
+    /// are for debug only, and it is no problem if they get arbitrary
+    /// values (causes at most one wrong hook call). 'hookmask' is an atomic
+    /// value. We assume that pointers are atomic too (e.g. gcc ensures that
+    /// for all platforms where it runs). Moreover, 'hook' is always checked
+    /// before being called (see 'luaD_hook').
+    /// </summary>
     public static void lua_sethook(lua_State* L, lua_Hook func, byte mask, int count)
     {
         if (func == null || mask == 0)
         {
-            /* turn off hooks? */
+            // turn off hooks?
             mask = 0;
             func = null;
         }
@@ -162,7 +164,7 @@ public static unsafe partial class Lua
         L->hookmask = mask;
         if (mask != 0)
         {
-            settraps(L->ci); /* to trace inside 'luaV_execute' */
+            settraps(L->ci); // to trace inside 'luaV_execute'
         }
     }
 
@@ -185,7 +187,7 @@ public static unsafe partial class Lua
     {
         if (level < 0)
         {
-            return false; /* invalid (negative) level */
+            return false; // invalid (negative) level
         }
 
         lua_lock(L);
@@ -199,13 +201,13 @@ public static unsafe partial class Lua
         bool status;
         if (level == 0 && ci != &L->base_ci)
         {
-            /* level found? */
+            // level found?
             status = true;
             ar.i_ci = ci;
         }
         else
         {
-            status = false; /* no such level */
+            status = false; // no such level
         }
 
         lua_unlock(L);
@@ -231,13 +233,13 @@ public static unsafe partial class Lua
             int nextra = ci->u.l.nextraargs;
             if (n >= -nextra)
             {
-                /* 'n' is negative */
+                // 'n' is negative
                 *pos = ci->func.p - nextra - (n + 1);
-                return "(vararg)"; /* generic name for any vararg */
+                return "(vararg)"; // generic name for any vararg
             }
         }
 
-        return null; /* no such vararg */
+        return null; // no such vararg
     }
 
     internal static string? luaG_findlocal(lua_State* L, CallInfo* ci, int n, StkId* pos)
@@ -246,7 +248,7 @@ public static unsafe partial class Lua
         string? name = null;
         if (isLua(ci))
         {
-            if (n < 0) /* access to vararg values? */
+            if (n < 0) // access to vararg values?
             {
                 return findvararg(ci, n, pos);
             }
@@ -256,17 +258,17 @@ public static unsafe partial class Lua
 
         if (name == null)
         {
-            /* no 'standard' name? */
+            // no 'standard' name?
             StkId limit = ci == L->ci ? L->top.p : ci->next->func.p;
             if (limit - @base >= n && n > 0)
             {
-                /* is 'n' inside 'ci' stack? */
-                /* generic name for any valid slot */
+                // is 'n' inside 'ci' stack?
+                // generic name for any valid slot
                 name = isLua(ci) ? "(temporary)" : "(C temporary)";
             }
             else
             {
-                return null; /* no name */
+                return null; // no name
             }
         }
 
@@ -281,14 +283,14 @@ public static unsafe partial class Lua
     public static string? lua_getlocal(lua_State* L, int n)
     {
         lua_lock(L);
-        /* information about non-active function? */
+        // information about non-active function?
 
         string? name;
-        if (!isLfunction(s2v(L->top.p - 1))) /* not a Lua function? */
+        if (!isLfunction(s2v(L->top.p - 1))) // not a Lua function?
         {
             name = null;
         }
-        else /* consider live variables at function start (parameters) */
+        else // consider live variables at function start (parameters)
         {
             name = luaF_getlocalname(clLvalue(s2v(L->top.p - 1))->p, n, 0);
         }
@@ -300,8 +302,8 @@ public static unsafe partial class Lua
     public static string? lua_getlocal(lua_State* L, ref lua_Debug ar, int n)
     {
         lua_lock(L);
-        /* active function; get information through 'ar' */
-        StkId pos = null; /* to avoid warnings */
+        // active function; get information through 'ar'
+        StkId pos = null; // to avoid warnings
         string? name = luaG_findlocal(L, ar.i_ci, n, &pos);
         if (name != null)
         {
@@ -316,13 +318,13 @@ public static unsafe partial class Lua
     public static string? lua_setlocal(lua_State* L, ref lua_Debug ar, int n)
     {
         lua_lock(L);
-        StkId pos = null; /* to avoid warnings */
+        StkId pos = null; // to avoid warnings
         string? name = luaG_findlocal(L, ar.i_ci, n, &pos);
         if (name != null)
         {
             api_checkpop(L, 1);
             setobjs2s(L, pos!, L->top.p - 1);
-            L->top.p--; /* pop value */
+            L->top.p--; // pop value
         }
 
         lua_unlock(L);
@@ -371,33 +373,33 @@ public static unsafe partial class Lua
         {
             Proto* p = f->l.p;
             int currentline = p->linedefined;
-            Table* t = luaH_new(L); /* new table to store active lines */
-            sethvalue2s(L, L->top.p, t); /* push it on stack */
+            Table* t = luaH_new(L); // new table to store active lines
+            sethvalue2s(L, L->top.p, t); // push it on stack
             api_incr_top(L);
             if (p->lineinfo != null)
             {
-                /* proto with debug information? */
+                // proto with debug information?
                 TValue v;
-                setbtvalue(&v); /* boolean 'true' to be the value of all indices */
+                setbtvalue(&v); // boolean 'true' to be the value of all indices
 
                 int i;
-                if (!isvararg(p)) /* regular function? */
+                if (!isvararg(p)) // regular function?
                 {
-                    i = 0; /* consider all instructions */
+                    i = 0; // consider all instructions
                 }
                 else
                 {
-                    /* vararg function */
-                    Debug.Assert(GET_OPCODE(p->code[0]) == OpCode.OP_VARARGPREP);
+                    // vararg function
+                    Debug.Assert(GET_OPCODE(p->code[0]) == OpCode.VarArgPrep);
                     currentline = nextline(p, currentline, 0);
-                    i = 1; /* skip first instruction (OP_VARARGPREP) */
+                    i = 1; // skip first instruction (OP_VARARGPREP)
                 }
 
                 for (; i < p->sizelineinfo; i++)
                 {
-                    /* for each instruction */
-                    currentline = nextline(p, currentline, i); /* get its line */
-                    luaH_setint(L, t, currentline, &v); /* table[line] = true */
+                    // for each instruction
+                    currentline = nextline(p, currentline, i); // get its line
+                    luaH_setint(L, t, currentline, &v); // table[line] = true
                 }
             }
         }
@@ -405,14 +407,14 @@ public static unsafe partial class Lua
 
     private static string? getfuncname(lua_State* L, CallInfo* ci, out string? name)
     {
-        // calling function is a known function? 
+        // calling function is a known function?
         if (ci != null && (ci->callstatus & CIST_TAIL) == 0)
         {
             return funcnamefromcall(L, ci->previous, out name);
         }
 
         name = null;
-        return null; /* no way to find a name */
+        return null; // no way to find a name
     }
 
     private static bool auxgetinfo(
@@ -470,7 +472,7 @@ public static unsafe partial class Lua
                     ar.namewhat = getfuncname(L, ci, out ar.name);
                     if (ar.namewhat == null)
                     {
-                        ar.namewhat = ""; /* not found */
+                        ar.namewhat = ""; // not found
                         ar.name = null;
                     }
 
@@ -490,11 +492,11 @@ public static unsafe partial class Lua
                     break;
 
                 case 'L':
-                case 'f': /* handled by lua_getinfo */
+                case 'f': // handled by lua_getinfo
                     break;
 
                 default:
-                    status = false; /* invalid option */
+                    status = false; // invalid option
                     break;
             }
         }
@@ -515,8 +517,8 @@ public static unsafe partial class Lua
             ci = null;
             func = s2v(L->top.p - 1);
             Debug.Assert(ttisfunction(func), "function expected");
-            whatSpan = whatSpan[1..]; /* skip the '>' */
-            L->top.p--; /* pop function */
+            whatSpan = whatSpan[1..]; // skip the '>'
+            L->top.p--; // pop function
         }
         else
         {
@@ -542,32 +544,30 @@ public static unsafe partial class Lua
         return status;
     }
 
-    /*
-    ** {======================================================
-    ** Symbolic Execution
-    ** =======================================================
-    */
+    // {======================================================
+    // Symbolic Execution
+    // =======================================================
 
     private static int filterpc(int pc, int jmptarget)
     {
-        if (pc < jmptarget) /* is code conditional (inside a jump)? */
+        if (pc < jmptarget) // is code conditional (inside a jump)?
         {
-            return -1; /* cannot know who sets that register */
+            return -1; // cannot know who sets that register
         }
 
-        return pc; /* current position sets that register */
+        return pc; // current position sets that register
     }
 
-    /*
-     ** Try to find last instruction before 'lastpc' that modified register 'reg'.
-     */
+    /// <summary>
+    /// Try to find last instruction before 'lastpc' that modified register 'reg'.
+    /// </summary>
     private static int findsetreg(Proto* p, int lastpc, int reg)
     {
-        int setreg = -1; /* keep last instruction that changed 'reg' */
-        int jmptarget = 0; /* any code before this address is conditional */
+        int setreg = -1; // keep last instruction that changed 'reg'
+        int jmptarget = 0; // any code before this address is conditional
         if (testMMMode((OpMode)GET_OPCODE(p->code[lastpc])))
         {
-            lastpc--; /* previous instruction was not actually executed */
+            lastpc--; // previous instruction was not actually executed
         }
 
         for (int pc = 0; pc < lastpc; pc++)
@@ -575,43 +575,43 @@ public static unsafe partial class Lua
             uint i = p->code[pc];
             OpCode op = GET_OPCODE(i);
             int a = GETARG_A(i);
-            bool change; /* true if current instruction changed 'reg' */
+            bool change; // true if current instruction changed 'reg'
             switch (op)
             {
-                case OpCode.OP_LOADNIL:
+                case OpCode.LoadNil:
                     {
-                        /* set registers from 'a' to 'a+b' */
+                        // set registers from 'a' to 'a+b'
                         int b = GETARG_B(i);
                         change = a <= reg && reg <= a + b;
                         break;
                     }
 
-                case OpCode.OP_TFORCALL:
-                    /* affect all regs above its base */
+                case OpCode.TForCall:
+                    // affect all regs above its base
                     change = reg >= a + 2;
                     break;
 
-                case OpCode.OP_CALL:
-                case OpCode.OP_TAILCALL:
-                    /* affect all registers above base */
+                case OpCode.Call:
+                case OpCode.TailCall:
+                    // affect all registers above base
                     change = reg >= a;
                     break;
 
-                case OpCode.OP_JMP:
+                case OpCode.Jmp:
                     {
-                        /* doesn't change registers, but changes 'jmptarget' */
+                        // doesn't change registers, but changes 'jmptarget'
                         int b = GETARG_sJ(i);
                         int dest = pc + 1 + b;
-                        /* jump does not skip 'lastpc' and is larger than current one? */
+                        // jump does not skip 'lastpc' and is larger than current one?
                         if (dest <= lastpc && dest > jmptarget)
                         {
-                            jmptarget = dest; /* update 'jmptarget' */
+                            jmptarget = dest; // update 'jmptarget'
                         }
 
                         change = false;
                         break;
                     }
-                default: /* any instruction that sets A */
+                default: // any instruction that sets A
                     change = testAMode((OpMode)op) && reg == a;
                     break;
             }
@@ -625,9 +625,9 @@ public static unsafe partial class Lua
         return setreg;
     }
 
-    /*
-     ** Find a "name" for the constant 'c'.
-     */
+    /// <summary>
+    /// Find a "name" for the constant 'c'.
+    /// </summary>
     private static string? kname(Proto* p, int index, out string name)
     {
         TValue* kvalue = &p->k[index];
@@ -644,88 +644,88 @@ public static unsafe partial class Lua
     private static string? basicgetobjname(Proto* p, ref int pc, int reg, out string? name)
     {
         name = luaF_getlocalname(p, reg + 1, pc);
-        if (name != null) /* is a local? */
+        if (name != null) // is a local?
         {
             return strlocal;
         }
 
-        /* else try symbolic execution */
+        // else try symbolic execution
         pc = findsetreg(p, pc, reg);
         if (pc != -1)
         {
-            /* could find instruction? */
+            // could find instruction?
             uint i = p->code[pc];
             OpCode op = GET_OPCODE(i);
             switch (op)
             {
-                case OpCode.OP_MOVE:
+                case OpCode.Move:
                     {
-                        int b = GETARG_B(i); /* move from 'b' to 'a' */
+                        int b = GETARG_B(i); // move from 'b' to 'a'
                         if (b < GETARG_A(i))
                         {
-                            return basicgetobjname(p, ref pc, b, out name); /* get name for 'b' */
+                            return basicgetobjname(p, ref pc, b, out name); // get name for 'b'
                         }
 
                         break;
                     }
 
-                case OpCode.OP_GETUPVAL:
+                case OpCode.GetUpVal:
                     name = upvalname(p, GETARG_B(i));
                     return strupval;
 
-                case OpCode.OP_LOADK:
+                case OpCode.LoadK:
                     return kname(p, GETARG_Bx(i), out name);
                 
-                case OpCode.OP_LOADKX:
+                case OpCode.LoadKX:
                     return kname(p, GETARG_Ax(p->code[pc + 1]), out name);
             }
         }
 
-        return null; /* could not find reasonable name */
+        return null; // could not find reasonable name
     }
 
-    /*
-    ** Find a "name" for the register 'c'.
-    */
+    /// <summary>
+    /// Find a "name" for the register 'c'.
+    /// </summary>
     private static void rname(Proto* p, int pc, int c, out string? name)
     {
-        string? what = basicgetobjname(p, ref pc, c, out name); /* search for 'c' */
-        if (!(what != null && what.StartsWith('c'))) /* did not find a constant name? */
+        string? what = basicgetobjname(p, ref pc, c, out name); // search for 'c'
+        if (!(what != null && what.StartsWith('c'))) // did not find a constant name?
         {
             name = "?";
         }
     }
 
-    /*
-     ** Check whether table being indexed by instruction 'i' is the
-     ** environment '_ENV'
-     */
+    /// <summary>
+    /// Check whether table being indexed by instruction 'i' is the
+    /// environment '_ENV'
+    /// </summary>
     private static string isEnv(Proto* p, int pc, uint i, bool isup)
     {
-        int t = GETARG_B(i); /* table index */
-        string? name; /* name of indexed variable */
-        if (isup) /* is 't' an upvalue? */
+        int t = GETARG_B(i); // table index
+        string? name; // name of indexed variable
+        if (isup) // is 't' an upvalue?
         {
             name = upvalname(p, t);
         }
         else
         {
-            /* 't' is a register */
+            // 't' is a register
             string? what = basicgetobjname(p, ref pc, t, out name);
-            /* 'name' must be the name of a local variable (at the current
-               level or an upvalue) */
+            // 'name' must be the name of a local variable (at the current
+            // level or an upvalue)
             if (what != strlocal && what != strupval)
             {
-                name = null; /* cannot be the variable _ENV */
+                name = null; // cannot be the variable _ENV
             }
         }
 
         return string.Equals(name, LUA_ENV, StringComparison.Ordinal) ? "global" : "field";
     }
 
-    /*
-     ** Extend 'basicgetobjname' to handle table accesses
-     */
+    /// <summary>
+    /// Extend 'basicgetobjname' to handle table accesses
+    /// </summary>
     private static string? getobjname(Proto* p, int lastpc, int reg, out string? name)
     {
         string? kind = basicgetobjname(p, ref lastpc, reg, out name);
@@ -736,38 +736,38 @@ public static unsafe partial class Lua
 
         if (lastpc != -1)
         {
-            /* could find instruction? */
+            // could find instruction?
             uint i = p->code[lastpc];
             OpCode op = GET_OPCODE(i);
             switch (op)
             {
-                case OpCode.OP_GETTABUP:
+                case OpCode.GetTabUp:
                     {
-                        int k = (int)GETARG_C(i); /* key index */
+                        int k = (int)GETARG_C(i); // key index
                         kname(p, k, out name);
                         return isEnv(p, lastpc, i, true);
                     }
-                case OpCode.OP_GETTABLE:
+                case OpCode.GetTable:
                     {
-                        int k = (int)GETARG_C(i); /* key index */
+                        int k = (int)GETARG_C(i); // key index
                         rname(p, lastpc, k, out name);
                         return isEnv(p, lastpc, i, false);
                     }
 
-                case OpCode.OP_GETI:
+                case OpCode.GetI:
                     name = "integer index";
                     return "field";
 
-                case OpCode.OP_GETFIELD:
+                case OpCode.GetField:
                     {
-                        int k = (int)GETARG_C(i); /* key index */
+                        int k = (int)GETARG_C(i); // key index
                         kname(p, k, out name);
                         return isEnv(p, lastpc, i, false);
                     }
 
-                case OpCode.OP_SELF:
+                case OpCode.Self:
                     {
-                        int k = (int)GETARG_C(i); /* key index */
+                        int k = (int)GETARG_C(i); // key index
                         kname(p, k, out name);
                         return "method";
                     }
@@ -775,114 +775,114 @@ public static unsafe partial class Lua
             }
         }
 
-        return null; /* could not find reasonable name */
+        return null; // could not find reasonable name
     }
 
-    /*
-     ** Try to find a name for a function based on the code that called it.
-     ** (Only works when function was called by a Lua function.)
-     ** Returns what the name is (e.g., "for iterator", "method",
-     ** "metamethod") and sets '*name' to point to the name.
-     */
+    /// <summary>
+    /// Try to find a name for a function based on the code that called it.
+    /// (Only works when function was called by a Lua function.)
+    /// Returns what the name is (e.g., "for iterator", "method",
+    /// "metamethod") and sets '*name' to point to the name.
+    /// </summary>
     private static string? funcnamefromcode(lua_State* L, Proto* p, int pc, out string? name)
     {
-        TMS tm; /* (initial value avoids warnings) */
-        uint i = p->code[pc]; /* calling instruction */
+        TMS tm; // (initial value avoids warnings)
+        uint i = p->code[pc]; // calling instruction
         switch (GET_OPCODE(i))
         {
-            case OpCode.OP_CALL:
-            case OpCode.OP_TAILCALL:
-                return getobjname(p, pc, GETARG_A(i), out name); /* get function name */
+            case OpCode.Call:
+            case OpCode.TailCall:
+                return getobjname(p, pc, GETARG_A(i), out name); // get function name
 
-            case OpCode.OP_TFORCALL:
-                /* for iterator */
+            case OpCode.TForCall:
+                // for iterator
                 name = "for iterator";
                 return "for iterator";
 
-            /* other instructions can do calls through metamethods */
-            case OpCode.OP_SELF:
-            case OpCode.OP_GETTABUP:
-            case OpCode.OP_GETTABLE:
-            case OpCode.OP_GETI:
-            case OpCode.OP_GETFIELD:
+            // other instructions can do calls through metamethods
+            case OpCode.Self:
+            case OpCode.GetTabUp:
+            case OpCode.GetTable:
+            case OpCode.GetI:
+            case OpCode.GetField:
                 tm = TMS.INDEX;
                 break;
 
-            case OpCode.OP_SETTABUP:
-            case OpCode.OP_SETTABLE:
-            case OpCode.OP_SETI:
-            case OpCode.OP_SETFIELD:
+            case OpCode.SetTabUp:
+            case OpCode.SetTable:
+            case OpCode.SetI:
+            case OpCode.SetField:
                 tm = TMS.NEWINDEX;
                 break;
 
-            case OpCode.OP_MMBIN:
-            case OpCode.OP_MMBINI:
-            case OpCode.OP_MMBINK:
+            case OpCode.MMBin:
+            case OpCode.MMBinI:
+            case OpCode.MMBinK:
                 tm = (TMS)GETARG_C(i);
                 break;
 
-            case OpCode.OP_UNM:
+            case OpCode.UNM:
                 tm = TMS.UNM;
                 break;
 
-            case OpCode.OP_BNOT:
+            case OpCode.BNot:
                 tm = TMS.BNOT;
                 break;
 
-            case OpCode.OP_LEN:
+            case OpCode.Len:
                 tm = TMS.LEN;
                 break;
 
-            case OpCode.OP_CONCAT:
+            case OpCode.Concat:
                 tm = TMS.CONCAT;
                 break;
 
-            case OpCode.OP_EQ:
+            case OpCode.Eq:
                 tm = TMS.EQ;
                 break;
 
-            /* no cases for OP_EQI and OP_EQK, as they don't call metamethods */
-            case OpCode.OP_LT:
-            case OpCode.OP_LTI:
-            case OpCode.OP_GTI:
+            // no cases for OP_EQI and OP_EQK, as they don't call metamethods
+            case OpCode.LT:
+            case OpCode.LTI:
+            case OpCode.GTI:
                 tm = TMS.LT;
                 break;
 
-            case OpCode.OP_LE:
-            case OpCode.OP_LEI:
-            case OpCode.OP_GEI:
+            case OpCode.LE:
+            case OpCode.LEI:
+            case OpCode.GEI:
                 tm = TMS.LE;
                 break;
 
-            case OpCode.OP_CLOSE:
-            case OpCode.OP_RETURN:
+            case OpCode.Close:
+            case OpCode.Return:
                 tm = TMS.CLOSE;
                 break;
 
             default:
                 name = null;
-                return null; /* cannot find a reasonable name */
+                return null; // cannot find a reasonable name
         }
 
         name = getnetstr(G(L)->tmname[(int)tm])[2..];
         return "metamethod";
     }
 
-    /*
-     ** Try to find a name for a function based on how it was called.
-     */
+    /// <summary>
+    /// Try to find a name for a function based on how it was called.
+    /// </summary>
     private static string? funcnamefromcall(lua_State* L, CallInfo* ci, out string? name)
     {
         if ((ci->callstatus & CIST_HOOKED) != 0)
         {
-            // was it called inside a hook? 
+            // was it called inside a hook?
             name = "?";
             return "hook";
         }
 
         if ((ci->callstatus & CIST_FIN) != 0)
         {
-            // was it called as a finaliser? 
+            // was it called as a finaliser?
             name = "__gc";
             return "metamethod"; // report it as such
         }
@@ -896,12 +896,12 @@ public static unsafe partial class Lua
         return null;
     }
     
-    /*
-    ** Check whether pointer 'o' points to some value in the stack frame of
-    ** the current function and, if so, returns its index.  Because 'o' may
-    ** not point to a value in this stack, we cannot compare it with the
-    ** region boundaries (undefined behaviour in ISO C).
-    */
+    /// <summary>
+    /// Check whether pointer 'o' points to some value in the stack frame of
+    /// the current function and, if so, returns its index.  Because 'o' may
+    /// not point to a value in this stack, we cannot compare it with the
+    /// region boundaries (undefined behaviour in ISO C).
+    /// </summary>
     private static int instack(CallInfo* ci, TValue* o)
     {
         StkId @base = ci->func.p + 1;
@@ -913,14 +913,14 @@ public static unsafe partial class Lua
             }
         }
 
-        return -1; /* not found */
+        return -1; // not found
     }
 
-    /*
-     ** Checks whether value 'o' came from an upvalue. (That can only happen
-     ** with instructions OP_GETTABUP/OP_SETTABUP, which operate directly on
-     ** upvalues.)
-     */
+    /// <summary>
+    /// Checks whether value 'o' came from an upvalue. (That can only happen
+    /// with instructions OP_GETTABUP/OP_SETTABUP, which operate directly on
+    /// upvalues.)
+    /// </summary>
     private static string? getupvalname(CallInfo* ci, TValue* o, out string? name)
     {
         LClosure* c = ci_func(ci);
@@ -944,29 +944,29 @@ public static unsafe partial class Lua
     {
         if (kind == null)
         {
-            return ""; /* no information */
+            return ""; // no information
         }
 
         return luaO_pushfstring(L, " (%s '%s')", kind, name ?? "");
     }
 
-    /*
-     ** Build a string with a "description" for the value 'o', such as
-     ** "variable 'x'" or "upvalue 'y'".
-     */
+    /// <summary>
+    /// Build a string with a "description" for the value 'o', such as
+    /// "variable 'x'" or "upvalue 'y'".
+    /// </summary>
     private static string varinfo(lua_State* L, TValue* o)
     {
         CallInfo* ci = L->ci;
-        string? name = null; /* to avoid warnings */
+        string? name = null; // to avoid warnings
         string? kind = null;
         if (isLua(ci))
         {
-            kind = getupvalname(ci, o, out name); /* check whether 'o' is an upvalue */
+            kind = getupvalname(ci, o, out name); // check whether 'o' is an upvalue
             if (kind == null)
             {
-                /* not an upvalue? */
-                int reg = instack(ci, o); /* try a register */
-                if (reg >= 0) /* is 'o' a register? */
+                // not an upvalue?
+                int reg = instack(ci, o); // try a register
+                if (reg >= 0) // is 'o' a register?
                 {
                     kind = getobjname(ci_func(ci)->p, currentpc(ci), reg, out name);
                 }
@@ -976,9 +976,9 @@ public static unsafe partial class Lua
         return formatvarinfo(L, kind, name);
     }
 
-    /*
-     ** Raise a type error
-     */
+    /// <summary>
+    /// Raise a type error
+    /// </summary>
     [DoesNotReturn]
     private static void typeerror(
         lua_State* L,
@@ -990,21 +990,21 @@ public static unsafe partial class Lua
         luaG_runerror(L, "attempt to %s a %s value%s", op, t, extra);
     }
 
-    /*
-     ** Raise a type error with "standard" information about the faulty
-     ** object 'o' (using 'varinfo').
-     */
+    /// <summary>
+    /// Raise a type error with "standard" information about the faulty
+    /// object 'o' (using 'varinfo').
+    /// </summary>
     [DoesNotReturn]
     internal static void luaG_typeerror(lua_State* L, TValue* o, string op)
     {
         typeerror(L, o, op, varinfo(L, o));
     }
 
-    /*
-     ** Raise an error for calling a non-callable object. Try to find a name
-     ** for the object based on how it was called ('funcnamefromcall'); if it
-     ** cannot get a name there, try 'varinfo'.
-     */
+    /// <summary>
+    /// Raise an error for calling a non-callable object. Try to find a name
+    /// for the object based on how it was called ('funcnamefromcall'); if it
+    /// cannot get a name there, try 'varinfo'.
+    /// </summary>
     [DoesNotReturn]
     internal static void luaG_callerror(lua_State* L, TValue* o)
     {
@@ -1034,17 +1034,17 @@ public static unsafe partial class Lua
     [DoesNotReturn]
     internal static void luaG_opinterror(lua_State* L, TValue* p1, TValue* p2, string msg)
     {
-        if (!ttisnumber(p1)) /* first operand is wrong? */
+        if (!ttisnumber(p1)) // first operand is wrong?
         {
-            p2 = p1; /* now second is wrong */
+            p2 = p1; // now second is wrong
         }
 
         luaG_typeerror(L, p2, msg);
     }
 
-    /*
-     ** Error when both values are convertible to numbers, but not to integers
-     */
+    /// <summary>
+    /// Error when both values are convertible to numbers, but not to integers
+    /// </summary>
     [DoesNotReturn]
     internal static void luaG_tointerror(lua_State* L, TValue* p1, TValue* p2)
     {
@@ -1074,7 +1074,7 @@ public static unsafe partial class Lua
     [DoesNotReturn]
     private static void luaG_errnnil(lua_State* L, LClosure* cl, int k)
     {
-        string globalname = "?"; /* default name if k == 0 */
+        string globalname = "?"; // default name if k == 0
         if (k > 0)
         {
             kname(cl->p, k - 1, out globalname);
@@ -1083,10 +1083,12 @@ public static unsafe partial class Lua
         luaG_runerror(L, "global '%s' already defined", globalname);
     }
 
-    /* add src:line information to 'msg' */
+    /// <summary>
+    /// add src:line information to 'msg'
+    /// </summary>
     internal static string luaG_addinfo(lua_State* L, string msg, TString* src, int line)
     {
-        if (src == null) /* no debug information? */
+        if (src == null) // no debug information?
         {
             return luaO_pushfstring(L, "?:?: %s", msg);
         }
@@ -1101,19 +1103,19 @@ public static unsafe partial class Lua
     {
         if (L->errfunc != 0)
         {
-            // is there an error handling function? 
+            // is there an error handling function?
             StkId errfunc = restorestack(L, L->errfunc);
             Debug.Assert(ttisfunction(s2v(errfunc)));
-            setobjs2s(L, L->top.p, L->top.p - 1); /* move argument */
-            setobjs2s(L, L->top.p - 1, errfunc); /* push function */
-            L->top.p++; /* assume EXTRA_STACK */
-            luaD_callnoyield(L, L->top.p - 2, 1); /* call it */
+            setobjs2s(L, L->top.p, L->top.p - 1); // move argument
+            setobjs2s(L, L->top.p - 1, errfunc); // push function
+            L->top.p++; // assume EXTRA_STACK
+            luaD_callnoyield(L, L->top.p - 2, 1); // call it
         }
 
         if (ttisnil(s2v(L->top.p - 1)))
         {
-            // error object is nil? 
-            // change it to a proper message 
+            // error object is nil?
+            // change it to a proper message
             setsvalue2s(L, L->top.p - 1, luaS_newliteral(L, "<no error object>"));
         }
 
@@ -1124,103 +1126,103 @@ public static unsafe partial class Lua
     internal static void luaG_runerror(lua_State* L, string fmt, params object[] args)
     {
         CallInfo* ci = L->ci;
-        luaC_checkGC(L); /* error message uses memory */
+        luaC_checkGC(L); // error message uses memory
         pushvfstring(L, args, fmt, out string msg);
         if (isLua(ci))
         {
             // Lua function?
-            // add source:line information 
+            // add source:line information
             luaG_addinfo(L, msg, ci_func(ci)->p->source, getcurrentline(ci));
-            setobjs2s(L, L->top.p - 2, L->top.p - 1); /* remove 'msg' */
+            setobjs2s(L, L->top.p - 2, L->top.p - 1); // remove 'msg'
             L->top.p--;
         }
 
         luaG_errormsg(L);
     }
 
-    /*
-     ** Check whether new instruction 'newpc' is in a different line from
-     ** previous instruction 'oldpc'. More often than not, 'newpc' is only
-     ** one or a few instructions after 'oldpc' (it must be after, see
-     ** caller), so try to avoid calling 'luaG_getfuncline'. If they are
-     ** too far apart, there is a good chance of a ABSLINEINFO in the way,
-     ** so it goes directly to 'luaG_getfuncline'.
-     */
+    /// <summary>
+    /// Check whether new instruction 'newpc' is in a different line from
+    /// previous instruction 'oldpc'. More often than not, 'newpc' is only
+    /// one or a few instructions after 'oldpc' (it must be after, see
+    /// caller), so try to avoid calling 'luaG_getfuncline'. If they are
+    /// too far apart, there is a good chance of a ABSLINEINFO in the way,
+    /// so it goes directly to 'luaG_getfuncline'.
+    /// </summary>
     private static bool changedline(Proto* p, int oldpc, int newpc)
     {
-        if (p->lineinfo == null) /* no debug information? */
+        if (p->lineinfo == null) // no debug information?
         {
             return false;
         }
 
         if (newpc - oldpc < MAXIWTHABS / 2)
         {
-            /* not too far apart? */
-            int delta = 0; /* line difference */
+            // not too far apart?
+            int delta = 0; // line difference
             int pc = oldpc;
             for (;;)
             {
                 int lineinfo = p->lineinfo[++pc];
                 if (lineinfo == ABSLINEINFO)
                 {
-                    break; /* cannot compute delta; fall through */
+                    break; // cannot compute delta; fall through
                 }
 
                 delta += lineinfo;
                 if (pc == newpc)
                 {
-                    return delta != 0; /* delta computed successfully */
+                    return delta != 0; // delta computed successfully
                 }
             }
         }
 
-        /* either instructions are too far apart or there is an absolute line
-           info in the way; compute line difference explicitly */
+        // either instructions are too far apart or there is an absolute line
+        // info in the way; compute line difference explicitly
         return luaG_getfuncline(p, oldpc) != luaG_getfuncline(p, newpc);
     }
 
-    /*
-     ** Traces Lua calls. If code is running the first instruction of a function,
-     ** and function is not vararg, and it is not coming from an yield,
-     ** calls 'luaD_hookcall'. (Vararg functions will call 'luaD_hookcall'
-     ** after adjusting its variable arguments; otherwise, they could call
-     ** a line/count hook before the call hook. Functions coming from
-     ** an yield already called 'luaD_hookcall' before yielding.)
-     */
+    /// <summary>
+    /// Traces Lua calls. If code is running the first instruction of a function,
+    /// and function is not vararg, and it is not coming from an yield,
+    /// calls 'luaD_hookcall'. (Vararg functions will call 'luaD_hookcall'
+    /// after adjusting its variable arguments; otherwise, they could call
+    /// a line/count hook before the call hook. Functions coming from
+    /// an yield already called 'luaD_hookcall' before yielding.)
+    /// </summary>
     private static bool luaG_tracecall(lua_State* L)
     {
         CallInfo* ci = L->ci;
         Proto* p = ci_func(ci)->p;
-        ci->u.l.trap = 1; /* ensure hooks will be checked */
+        ci->u.l.trap = 1; // ensure hooks will be checked
         if (ci->u.l.savedpc == p->code)
         {
-            /* first instruction (not resuming)? */
+            // first instruction (not resuming)?
             if (isvararg(p))
             {
-                return false; /* hooks will start at VARARGPREP instruction */
+                return false; // hooks will start at VARARGPREP instruction
             }
 
-            if ((ci->callstatus & CIST_HOOKYIELD) == 0) /* not yielded? */
+            if ((ci->callstatus & CIST_HOOKYIELD) == 0) // not yielded?
             {
-                luaD_hookcall(L, ci); /* check 'call' hook */
+                luaD_hookcall(L, ci); // check 'call' hook
             }
         }
 
-        return true; /* keep 'trap' on */
+        return true; // keep 'trap' on
     }
 
-    /*
-     ** Traces the execution of a Lua function. Called before the execution
-     ** of each opcode, when debug is on. 'L->oldpc' stores the last
-     ** instruction traced, to detect line changes. When entering a new
-     ** function, 'npci' will be zero and will test as a new line whatever
-     ** the value of 'oldpc'.  Some exceptional conditions may return to
-     ** a function without setting 'oldpc'. In that case, 'oldpc' may be
-     ** invalid; if so, use zero as a valid value. (A wrong but valid 'oldpc'
-     ** at most causes an extra call to a line hook.)
-     ** This function is not "Protected" when called, so it should correct
-     ** 'L->top.p' before calling anything that can run the GC.
-     */
+    /// <summary>
+    /// Traces the execution of a Lua function. Called before the execution
+    /// of each opcode, when debug is on. 'L-&gt;oldpc' stores the last
+    /// instruction traced, to detect line changes. When entering a new
+    /// function, 'npci' will be zero and will test as a new line whatever
+    /// the value of 'oldpc'.  Some exceptional conditions may return to
+    /// a function without setting 'oldpc'. In that case, 'oldpc' may be
+    /// invalid; if so, use zero as a valid value. (A wrong but valid 'oldpc'
+    /// at most causes an extra call to a line hook.)
+    /// This function is not "Protected" when called, so it should correct
+    /// 'L-&gt;top.p' before calling anything that can run the GC.
+    /// </summary>
     private static bool luaG_traceexec(lua_State* L, uint* pc)
     {
         CallInfo* ci = L->ci;
@@ -1228,68 +1230,68 @@ public static unsafe partial class Lua
         Proto* p = ci_func(ci)->p;
         if ((mask & (LUA_MASKLINE | LUA_MASKCOUNT)) == 0)
         {
-            /* no hooks? */
-            ci->u.l.trap = 0; /* don't need to stop again */
-            return false; /* turn off 'trap' */
+            // no hooks?
+            ci->u.l.trap = 0; // don't need to stop again
+            return false; // turn off 'trap'
         }
 
-        pc++; /* reference is always next instruction */
-        ci->u.l.savedpc = pc; /* save 'pc' */
+        pc++; // reference is always next instruction
+        ci->u.l.savedpc = pc; // save 'pc'
         bool counthook = (mask & LUA_MASKCOUNT) != 0 && --L->hookcount == 0;
         if (counthook)
         {
-            resethookcount(L); /* reset count */
+            resethookcount(L); // reset count
         }
         else if ((mask & LUA_MASKLINE) == 0)
         {
-            return true; /* no line hook and count != 0; nothing to be done now */
+            return true; // no line hook and count != 0; nothing to be done now
         }
 
         if ((ci->callstatus & CIST_HOOKYIELD) != 0)
         {
-            /* hook yielded last time? */
-            ci->callstatus &= ~CIST_HOOKYIELD; /* erase mark */
-            return true; /* do not call hook again (VM yielded, so it did not move) */
+            // hook yielded last time?
+            ci->callstatus &= ~CIST_HOOKYIELD; // erase mark
+            return true; // do not call hook again (VM yielded, so it did not move)
         }
 
-        if (!luaP_isIT(*(ci->u.l.savedpc - 1))) /* top not being used? */
+        if (!luaP_isIT(*(ci->u.l.savedpc - 1))) // top not being used?
         {
-            L->top.p = ci->top.p; /* correct top */
+            L->top.p = ci->top.p; // correct top
         }
 
         if (counthook)
         {
-            luaD_hook(L, LUA_HOOKCOUNT, -1, 0, 0); /* call count hook */
+            luaD_hook(L, LUA_HOOKCOUNT, -1, 0, 0); // call count hook
         }
 
         if ((mask & LUA_MASKLINE) != 0)
         {
-            /* 'L->oldpc' may be invalid; use zero in this case */
+            // 'L->oldpc' may be invalid; use zero in this case
             int oldpc = L->oldpc < p->sizecode ? L->oldpc : 0;
             int npci = pcRel(pc, p);
-            if (npci <= oldpc || /* call hook when jump back (loop), */
+            if (npci <= oldpc || // call hook when jump back (loop),
                 changedline(p, oldpc, npci))
             {
-                /* or when enter new line */
+                // or when enter new line
                 int newline = luaG_getfuncline(p, npci);
-                luaD_hook(L, LUA_HOOKLINE, newline, 0, 0); /* call line hook */
+                luaD_hook(L, LUA_HOOKLINE, newline, 0, 0); // call line hook
             }
 
-            L->oldpc = npci; /* 'pc' of last call to line hook */
+            L->oldpc = npci; // 'pc' of last call to line hook
         }
 
         if (L->status == LUA_YIELD)
         {
-            /* did hook yield? */
+            // did hook yield?
             if (counthook)
             {
-                L->hookcount = 1; /* undo decrement to zero */
+                L->hookcount = 1; // undo decrement to zero
             }
 
-            ci->callstatus |= CIST_HOOKYIELD; /* mark that it yielded */
+            ci->callstatus |= CIST_HOOKYIELD; // mark that it yielded
             luaD_throw(L, LUA_YIELD);
         }
 
-        return true; /* keep 'trap' on */
+        return true; // keep 'trap' on
     }
 }

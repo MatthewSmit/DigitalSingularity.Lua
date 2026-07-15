@@ -7,25 +7,25 @@ using System.Text;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: lundump.c $
-    ** load precompiled Lua chunks
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lundump.c $
+    // load precompiled Lua chunks
+    // See Copyright Notice in lua.h
     
-    /* data to catch conversion errors */
+    /// <summary>
+    /// data to catch conversion errors
+    /// </summary>
     private static ReadOnlySpan<byte> LUAC_DATA => [0x19, 0x93, 0x0D, 0x0A, 0x1A, 0x0A];
 
     private const int LUAC_INT = -0x5678;
     private const uint LUAC_INST = 0x12345678;
     private const double LUAC_NUM = -370.5;
 
-    /*
-     ** Encode major-minor version in one byte, one nibble for each
-     */
+    /// <summary>
+    /// Encode major-minor version in one byte, one nibble for each
+    /// </summary>
     private const int LUAC_VERSION = LUA_VERSION_MAJOR_N * 16 + LUA_VERSION_MINOR_N;
 
-    private const int LUAC_FORMAT = 0; /* this is the official format */
+    private const int LUAC_FORMAT = 0; // this is the official format
     
     private static void luai_verifycode(lua_State* L, Proto* f)
     {
@@ -36,10 +36,10 @@ public static unsafe partial class Lua
         public lua_State* L;
         public Zio* Z;
         public string name;
-        public Table* h; /* list for string reuse */
-        public long offset; /* current position relative to beginning of dump */
-        public ulong nstr; /* number of strings in the list */
-        public bool @fixed; /* dump is fixed in memory */
+        public Table* h; // list for string reuse
+        public long offset; // current position relative to beginning of dump
+        public ulong nstr; // number of strings in the list
+        public bool @fixed; // dump is fixed in memory
     }
 
     [DoesNotReturn]
@@ -49,10 +49,10 @@ public static unsafe partial class Lua
         luaD_throw(S.L, LUA_ERRSYNTAX);
     }
 
-    /*
-    ** All high-level loads go through loadVector; you can change it to
-    ** adapt to the endianness of the input
-    */
+    /// <summary>
+    /// All high-level loads go through loadVector; you can change it to
+    /// adapt to the endianness of the input
+    /// </summary>
     private static void loadVector(ref LoadState S, ReadOnlySpan<byte> b)
     {
         loadBlock(ref S, b);
@@ -76,7 +76,7 @@ public static unsafe partial class Lua
         int padding = align - (int)(S.offset % align);
         if (padding < align)
         {
-            /* (padding == align) means no padding */
+            // (padding == align) means no padding
             long paddingContent;
             Span<byte> paddingSpan = new(&paddingContent, padding);
             loadBlock(ref S, paddingSpan);
@@ -161,7 +161,7 @@ public static unsafe partial class Lua
     private static long loadInteger(ref LoadState S)
     {
         ulong cx = loadVarint(ref S, ulong.MaxValue);
-        /* decode unsigned to signed */
+        // decode unsigned to signed
         if ((cx & 1) != 0)
         {
             return (long)~(cx >> 1);
@@ -170,12 +170,12 @@ public static unsafe partial class Lua
         return (long)(cx >> 1);
     }
 
-    /*
-     ** Load a nullable string into slot 'sl' from prototype 'p'. The
-     ** assignment to the slot and the barrier must be performed before any
-     ** possible GC activity, to anchor the string. (Both 'loadVector' and
-     ** 'luaH_setint' can call the GC.)
-     */
+    /// <summary>
+    /// Load a nullable string into slot 'sl' from prototype 'p'. The
+    /// assignment to the slot and the barrier must be performed before any
+    /// possible GC activity, to anchor the string. (Both 'loadVector' and
+    /// 'luaH_setint' can call the GC.)
+    /// </summary>
     private static void loadString(ref LoadState S, Proto* p, out TString* sl)
     {
         lua_State* L = S.L;
@@ -183,11 +183,11 @@ public static unsafe partial class Lua
         int size = loadInt(ref S);
         if (size == 0)
         {
-            /* previously saved string? */
-            ulong idx = loadVarint(ref S, ulong.MaxValue); /* get its index */
+            // previously saved string?
+            ulong idx = loadVarint(ref S, ulong.MaxValue); // get its index
             if (idx == 0)
             {
-                /* no string? */
+                // no string?
                 sl = null;
                 return;
             }
@@ -198,35 +198,35 @@ public static unsafe partial class Lua
                 error(ref S, "invalid string index");
             }
 
-            sl = ts = tsvalue(&stv); /* get its value */
+            sl = ts = tsvalue(&stv); // get its value
             luaC_objbarrier(L, (GCObject*)p, (GCObject*)ts);
-            return; /* do not save it again */
+            return; // do not save it again
         }
 
         if ((size -= 1) <= LUAI_MAXSHORTLEN)
         {
-            /* short string? */
+            // short string?
             Span<byte> buff = stackalloc byte[LUAI_MAXSHORTLEN + 1];
-            loadVector(ref S, buff[..(size + 1)]); /* load string into buffer */
-            sl = ts = luaS_newlstr(L, buff[..size]); /* create string */
+            loadVector(ref S, buff[..(size + 1)]); // load string into buffer
+            sl = ts = luaS_newlstr(L, buff[..size]); // create string
             luaC_objbarrier(L, (GCObject*)p, (GCObject*)ts);
         }
         else if (S.@fixed)
         {
-            /* for a fixed buffer, use a fixed string */
-            byte* s = getaddr<byte>(ref S, size + 1); /* get content address */
+            // for a fixed buffer, use a fixed string
+            byte* s = getaddr<byte>(ref S, size + 1); // get content address
             sl = ts = luaS_newextlstr(L, s, size, null, null);
             luaC_objbarrier(L, (GCObject*)p, (GCObject*)ts);
         }
         else
         {
-            /* create internal copy */
-            sl = ts = luaS_createlngstrobj(L, size); /* create string */
+            // create internal copy
+            sl = ts = luaS_createlngstrobj(L, size); // create string
             luaC_objbarrier(L, (GCObject*)p, (GCObject*)ts);
-            loadVector(ref S, new ReadOnlySpan<byte>(getlngstr(ts), size + 1)); /* load directly in final place */
+            loadVector(ref S, new ReadOnlySpan<byte>(getlngstr(ts), size + 1)); // load directly in final place
         }
 
-        /* add string to list of saved strings */
+        // add string to list of saved strings
         S.nstr++;
         TValue sv;
         setsvalue(L, &sv, ts);
@@ -290,13 +290,13 @@ public static unsafe partial class Lua
                 case LUA_VSHRSTR:
                 case LUA_VLNGSTR:
                     Debug.Assert(f->source == null);
-                    loadString(ref S, f, out f->source); /* use 'source' to anchor string */
+                    loadString(ref S, f, out f->source); // use 'source' to anchor string
                     if (f->source == null)
                     {
                         error(ref S, "bad format for constant string");
                     }
 
-                    setsvalue2n(S.L, o, f->source); /* save it in the right place */
+                    setsvalue2n(S.L, o, f->source); // save it in the right place
                     f->source = null;
                     break;
 
@@ -325,25 +325,25 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Load the upvalues for a function. The names must be filled first,
-     ** because the filling of the other fields can raise read errors and
-     ** the creation of the error message can call an emergency collection;
-     ** in that case all prototypes must be consistent for the GC.
-     */
+    /// <summary>
+    /// Load the upvalues for a function. The names must be filled first,
+    /// because the filling of the other fields can raise read errors and
+    /// the creation of the error message can call an emergency collection;
+    /// in that case all prototypes must be consistent for the GC.
+    /// </summary>
     private static void loadUpvalues(ref LoadState S, Proto* f)
     {
         int n = loadInt(ref S);
         f->upvalues = luaM_newvectorchecked<Upvaldesc>(S.L, n);
         f->sizeupvalues = n;
-        for (int i = 0; i < n; i++) /* make array valid for GC */
+        for (int i = 0; i < n; i++) // make array valid for GC
         {
             f->upvalues[i].name = null;
         }
 
         for (int i = 0; i < n; i++)
         {
-            /* following calls can raise errors */
+            // following calls can raise errors
             f->upvalues[i].instack = loadByte(ref S);
             f->upvalues[i].idx = loadByte(ref S);
             f->upvalues[i].kind = loadByte(ref S);
@@ -398,9 +398,9 @@ public static unsafe partial class Lua
         }
 
         n = loadInt(ref S);
-        if (n != 0) /* does it have debug information? */
+        if (n != 0) // does it have debug information?
         {
-            n = f->sizeupvalues; /* must be this many */
+            n = f->sizeupvalues; // must be this many
         }
 
         for (int i = 0; i < n; i++)
@@ -414,11 +414,11 @@ public static unsafe partial class Lua
         f->linedefined = loadInt(ref S);
         f->lastlinedefined = loadInt(ref S);
         f->numparams = loadByte(ref S);
-        /* get only the meaningful flags */
+        // get only the meaningful flags
         f->flag = (byte)(loadByte(ref S) & ~PF_FIXED);
         if (S.@fixed)
         {
-            f->flag |= PF_FIXED; /* signal that code is fixed */
+            f->flag |= PF_FIXED; // signal that code is fixed
         }
 
         f->maxstacksize = loadByte(ref S);
@@ -473,7 +473,7 @@ public static unsafe partial class Lua
 
     private static void checkHeader(ref LoadState S)
     {
-        /* skip 1st char (already read and checked) */
+        // skip 1st char (already read and checked)
         checkliteral(ref S, LUA_SIGNATURE[1..], "not a binary chunk");
         if (loadByte(ref S) != LUAC_VERSION)
         {
@@ -492,9 +492,9 @@ public static unsafe partial class Lua
         checknum(ref S, LUAC_NUM, "Lua number");
     }
 
-    /*
-     ** Load precompiled chunk.
-     */
+    /// <summary>
+    /// Load precompiled chunk.
+    /// </summary>
     private static LClosure* luaU_undump(lua_State* L, Zio* Z, string name, bool @fixed)
     {
         if (name.StartsWith('@') || name.StartsWith('='))
@@ -512,15 +512,15 @@ public static unsafe partial class Lua
             L = L,
             Z = Z,
             @fixed = @fixed,
-            offset = 1, /* fist byte was already read */
+            offset = 1, // fist byte was already read
         };
         checkHeader(ref S);
         LClosure* cl = luaF_newLclosure(L, loadByte(ref S));
         setclLvalue2s(L, L->top.p, cl);
         luaD_inctop(L);
-        S.h = luaH_new(L); /* create list of saved strings */
+        S.h = luaH_new(L); // create list of saved strings
         S.nstr = 0;
-        sethvalue2s(L, L->top.p, S.h); /* anchor it */
+        sethvalue2s(L, L->top.p, S.h); // anchor it
         luaD_inctop(L);
         cl->p = luaF_newproto(L);
         luaC_objbarrier(L, (GCObject*)cl, (GCObject*)cl->p);
@@ -531,7 +531,7 @@ public static unsafe partial class Lua
         }
 
         luai_verifycode(L, cl->p);
-        L->top.p--; /* pop table */
+        L->top.p--; // pop table
         return cl;
     }
 }

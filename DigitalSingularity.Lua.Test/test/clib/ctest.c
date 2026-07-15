@@ -3,7 +3,7 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-/* ------------------------------------------------------------------------ */
+// ------------------------------------------------------------------------
 
 #ifdef _MSC_VER
 typedef __int8 int8_t;
@@ -159,7 +159,7 @@ LUA_API double LJ_STDCALL stdcall_dd(double a, double b) { return a+b; }
 LUA_API float LJ_STDCALL stdcall_ff(float a, float b) { return a+b; }
 #endif
 
-/* ------------------------------------------------------------------------ */
+// ------------------------------------------------------------------------
 
 static int ct_call(lua_State *L)
 {
@@ -197,7 +197,7 @@ static int ct_pcall(lua_State *L)
   status = lua_pcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0);
   lua_pushboolean(L, (status == 0));
   lua_insert(L, 1);
-  return lua_gettop(L);  /* return status + all results */
+  return lua_gettop(L); // return status + all results
 }
 
 static int ct_xpcall(lua_State *L)
@@ -205,16 +205,16 @@ static int ct_xpcall(lua_State *L)
   int status;
   luaL_checkany(L, 2);
   lua_settop(L, 2);
-  lua_insert(L, 1);  /* put error function under function to be called */
+  lua_insert(L, 1); // put error function under function to be called
   status = lua_pcall(L, 0, LUA_MULTRET, 1);
   lua_pushboolean(L, (status == 0));
   lua_replace(L, 1);
-  return lua_gettop(L);  /* return status + all results */
+  return lua_gettop(L); // return status + all results
 }
 
-#define CO_RUN	0	/* running */
-#define CO_SUS	1	/* suspended */
-#define CO_NOR	2	/* 'normal' (it resumed another coroutine) */
+#define CO_RUN	0 // running
+#define CO_SUS	1 // suspended
+#define CO_NOR	2 // 'normal' (it resumed another coroutine)
 #define CO_DEAD	3
 
 static const char *const statnames[] =
@@ -227,14 +227,14 @@ static int costatus(lua_State *L, lua_State *co) {
       return CO_SUS;
     case 0: {
       lua_Debug ar;
-      if (lua_getstack(co, 0, &ar) > 0)  /* does it have frames? */
-	return CO_NOR;  /* it is running */
+      if (lua_getstack(co, 0, &ar) > 0) // does it have frames?
+	return CO_NOR; // it is running
       else if (lua_gettop(co) == 0)
 	  return CO_DEAD;
       else
-	return CO_SUS;  /* initial state */
+	return CO_SUS; // initial state
     }
-    default:  /* some error occured */
+    default: // some error occured
       return CO_DEAD;
   }
 }
@@ -245,7 +245,7 @@ static int auxresume(lua_State *L, lua_State *co, int narg) {
     luaL_error(L, "too many arguments to resume");
   if (status != CO_SUS) {
     lua_pushfstring(L, "cannot resume %s coroutine", statnames[status]);
-    return -1;  /* error flag */
+    return -1; // error flag
   }
   lua_xmove(L, co, narg);
   status = lua_resume(co, narg);
@@ -253,12 +253,12 @@ static int auxresume(lua_State *L, lua_State *co, int narg) {
     int nres = lua_gettop(co);
     if (!lua_checkstack(L, nres + 1))
       luaL_error(L, "too many results to resume");
-    lua_xmove(co, L, nres);  /* move yielded values */
+    lua_xmove(co, L, nres); // move yielded values
     return nres;
   }
   else {
-    lua_xmove(co, L, 1);  /* move error message */
-    return -1;  /* error flag */
+    lua_xmove(co, L, 1); // move error message
+    return -1; // error flag
   }
 }
 
@@ -270,12 +270,12 @@ static int ct_resume(lua_State *L) {
   if (r < 0) {
     lua_pushboolean(L, 0);
     lua_insert(L, -2);
-    return 2;  /* return false + error message */
+    return 2; // return false + error message
   }
   else {
     lua_pushboolean(L, 1);
     lua_insert(L, -(r + 1));
-    return r + 1;  /* return true + `resume' returns */
+    return r + 1; // return true + `resume' returns
   }
 }
 
@@ -283,12 +283,12 @@ static int ct_auxwrap(lua_State *L) {
   lua_State *co = lua_tothread(L, lua_upvalueindex(1));
   int r = auxresume(L, co, lua_gettop(L));
   if (r < 0) {
-    if (lua_isstring(L, -1)) {  /* error object is a string? */
-      luaL_where(L, 1);  /* add extra info */
+    if (lua_isstring(L, -1)) { // error object is a string?
+      luaL_where(L, 1); // add extra info
       lua_insert(L, -2);
       lua_concat(L, 2);
     }
-    lua_error(L);  /* propagate error */
+    lua_error(L); // propagate error
   }
   return r;
 }
@@ -297,8 +297,8 @@ static int ct_cocreate(lua_State *L) {
   lua_State *NL = lua_newthread(L);
   luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1), 1,
     "Lua function expected");
-  lua_pushvalue(L, 1);  /* move function to top */
-  lua_xmove(L, NL, 1);  /* move function from L to NL */
+  lua_pushvalue(L, 1); // move function to top
+  lua_xmove(L, NL, 1); // move function from L to NL
   return 1;
 }
 

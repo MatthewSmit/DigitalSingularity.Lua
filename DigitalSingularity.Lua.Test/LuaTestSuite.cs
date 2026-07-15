@@ -31,8 +31,8 @@ public unsafe class LuaTestSuite
         lua_rawseti(L, -2, 0);
         lua_setglobal(L, "arg"); 
         
-        lua_gc(L, LUA_GCRESTART); /* start GC... */
-        lua_gc(L, LUA_GCGEN); /* ...in generational mode */
+        lua_gc(L, LUA_GCRESTART); // start GC...
+        lua_gc(L, LUA_GCGEN); // ...in generational mode
         
         int status = luaL_loadfile(L, test);
         if (status == LUA_OK)
@@ -44,10 +44,10 @@ public unsafe class LuaTestSuite
         {
             string msg = lua_tonetstring(L, -1) ?? "(error message not a string)";
             Assert.Fail(msg);
-            lua_pop(L, 1);  /* remove message */
+            lua_pop(L, 1); // remove message
         }
 
-        lua_pushboolean(L, true); /* signal no errors */
+        lua_pushboolean(L, true); // signal no errors
         return 1;
     }
 
@@ -448,11 +448,11 @@ public unsafe class LuaTestSuite
         Environment.CurrentDirectory = file.DirectoryName ?? throw new InvalidOperationException();
         Console.WriteLine($"Running test: {Path.GetRelativePath(AppDomain.CurrentDomain.BaseDirectory, file.FullName)}");
         
-        lua_State* L = luaL_newstate(); /* create state */
+        lua_State* L = luaL_newstate(); // create state
         Assert.That(L, Is.Not.Null);
         
-        lua_gc(L, LUA_GCSTOP); /* stop GC while building state */
-        lua_pushcfunction(L, &pmain); /* to call 'pmain' in protected mode */
+        lua_gc(L, LUA_GCSTOP); // stop GC while building state
+        lua_pushcfunction(L, &pmain); // to call 'pmain' in protected mode
         lua_pushstring(L, file.Name);
 
         ExceptionDispatchInfo? capturedException = null;
@@ -462,7 +462,7 @@ public unsafe class LuaTestSuite
             {
                 try
                 {
-                    int status = lua_pcall(L, 1, 1, 0) /* do the call */;
+                    int status = lua_pcall(L, 1, 1, 0) ; // do the call
                     if (status != LUA_OK)
                     {
                         string msg = lua_tonetstring(L, -1) ?? "(error message not a string)";

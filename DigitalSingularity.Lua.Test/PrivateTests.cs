@@ -278,9 +278,9 @@ public unsafe class PrivateTests
     [Test]
     public void Function_luaP_isOT()
     {
-        uint tailcall = CREATE_ABCk(OpCode.OP_TAILCALL, 0, 1, 1, false);
-        uint open_call = CREATE_ABCk(OpCode.OP_CALL, 0, 1, 0, false);
-        uint fixed_call = CREATE_ABCk(OpCode.OP_CALL, 0, 1, 2, false);
+        uint tailcall = CREATE_ABCk(OpCode.TailCall, 0, 1, 1, false);
+        uint open_call = CREATE_ABCk(OpCode.Call, 0, 1, 0, false);
+        uint fixed_call = CREATE_ABCk(OpCode.Call, 0, 1, 2, false);
 
         Assert.That(luaP_isOT(tailcall));
         Assert.That(luaP_isOT(open_call));
@@ -290,9 +290,9 @@ public unsafe class PrivateTests
     [Test]
     public void Function_luaP_isIT()
     {
-        uint open_call = CREATE_ABCk(OpCode.OP_CALL, 0, 0, 1, false);
-        uint fixed_call = CREATE_ABCk(OpCode.OP_CALL, 0, 1, 1, false);
-        uint open_setlist = CREATE_ABCk(OpCode.OP_SETLIST, 0, 0, 1, false);
+        uint open_call = CREATE_ABCk(OpCode.Call, 0, 0, 1, false);
+        uint fixed_call = CREATE_ABCk(OpCode.Call, 0, 1, 1, false);
+        uint open_setlist = CREATE_ABCk(OpCode.SetList, 0, 0, 1, false);
 
         Assert.That(luaP_isIT(open_call));
         Assert.That(luaP_isIT(fixed_call), Is.False);

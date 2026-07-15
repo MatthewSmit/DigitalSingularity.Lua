@@ -2,7 +2,9 @@ namespace DigitalSingularity.Lua;
 
 public static partial class Lua
 {
-    /* version suffix for environment variable names */
+    /// <summary>
+    /// version suffix for environment variable names
+    /// </summary>
     public static readonly string LUA_VERSUFFIX = $"_{LUA_VERSION_MAJOR_N}_{LUA_VERSION_MINOR_N}";
 
     private const int LUA_GLIBK = 1;

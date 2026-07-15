@@ -24,17 +24,21 @@ public static unsafe partial class Lua
     public const int LUA_VERSION_NUM = LUA_VERSION_MAJOR_N * 100 + LUA_VERSION_MINOR_N;
     public const int LUA_VERSION_RELEASE_NUM = LUA_VERSION_NUM * 100 + LUA_VERSION_RELEASE_N;
 
-    /* mark for precompiled code ('<esc>Lua') */
+    /// <summary>
+    /// mark for precompiled code ('&lt;esc&gt;Lua')
+    /// </summary>
     public static ReadOnlySpan<byte> LUA_SIGNATURE => "\eLua"u8;
 
-    /* option for multiple returns in 'lua_pcall' and 'lua_call' */
+    /// <summary>
+    /// option for multiple returns in 'lua_pcall' and 'lua_call'
+    /// </summary>
     public const int LUA_MULTRET = -1;
 
-    /*
-    ** Pseudo-indices
-    ** (The stack size is limited to INT_MAX/2; we keep some free empty
-    ** space after that to help overflow detection.)
-    */
+    /// <summary>
+    /// Pseudo-indices
+    /// (The stack size is limited to INT_MAX/2; we keep some free empty
+    /// space after that to help overflow detection.)
+    /// </summary>
     public const int LUA_REGISTRYINDEX = -(int.MaxValue / 2 + 1000);
 
     public static int lua_upvalueindex(int i)
@@ -42,7 +46,9 @@ public static unsafe partial class Lua
         return LUA_REGISTRYINDEX - i;
     }
 
-    /* thread status */
+    /// <summary>
+    /// thread status
+    /// </summary>
     public const byte LUA_OK = 0;
     public const byte LUA_YIELD = 1;
     public const byte LUA_ERRRUN = 2;
@@ -50,9 +56,9 @@ public static unsafe partial class Lua
     public const byte LUA_ERRMEM = 4;
     public const byte LUA_ERRERR = 5;
 
-    /*
-    ** basic types
-    */
+    /// <summary>
+    /// basic types
+    /// </summary>
     public const int LUA_TNONE = -1;
 
     public const int LUA_TNIL = 0;
@@ -67,35 +73,37 @@ public static unsafe partial class Lua
 
     public const int LUA_NUMTYPES = 9;
 
-    /* minimum Lua stack available to a C function */
+    /// <summary>
+    /// minimum Lua stack available to a C function
+    /// </summary>
     public const int LUA_MINSTACK = 20;
 
-    /* predefined values in the registry */
-    /* index 1 is reserved for the reference mechanism */
+    /// <summary>
+    /// predefined values in the registry
+    /// index 1 is reserved for the reference mechanism
+    /// </summary>
     private static byte LUA_RIDX_GLOBALS = 2;
     private static byte LUA_RIDX_MAINTHREAD = 3;
     private static byte LUA_RIDX_LAST = 3;
 
-// /* type of numbers in Lua */ TODO
+// type of numbers in Lua TODO
 // typedef LUA_NUMBER double;
 //
 //
-// /* type for integer functions */
+// type for integer functions
 // typedef LUA_INTEGER long;
 //
-// /* unsigned integer type */
+// unsigned integer type
 // typedef LUA_UNSIGNED lua_Unsigned;
 
-// /*
-// ** Type for continuation functions TODO
-// */
+//
+// Type for continuation functions TODO
+//
 // typedef int (*lua_KFunction) (lua_State *L, int status, nint ctx);
 
-    /*
-    ** Comparison and arithmetic functions
-    */
+    // Comparison and arithmetic functions
 
-    public const int LUA_OPADD = 0;	/* ORDER TM, ORDER OP */
+    public const int LUA_OPADD = 0; // ORDER TM, ORDER OP
     public const int LUA_OPSUB = 1;
     public const int LUA_OPMUL = 2;
     public const int LUA_OPMOD = 3;
@@ -129,9 +137,7 @@ public static unsafe partial class Lua
         return lua_yieldk(L, n, 0, null);
     }
 
-    /*
-    ** garbage-collection options
-    */
+    // garbage-collection options
 
     public const byte LUA_GCSTOP = 0;
     public const byte LUA_GCRESTART = 1;
@@ -144,29 +150,31 @@ public static unsafe partial class Lua
     public const byte LUA_GCINC = 8;
     public const byte LUA_GCPARAM = 9;
 
-    /*
-    ** garbage-collection parameters
-    */
-    /* parameters for generational mode */
-    private const byte LUA_GCPMINORMUL = 0;  /* control minor collections */
-    private const byte LUA_GCPMAJORMINOR = 1;  /* control shift major->minor */
-    private const byte LUA_GCPMINORMAJOR = 2;  /* control shift minor->major */
+    /// <summary>
+    /// garbage-collection parameters
+    /// parameters for generational mode
+    /// </summary>
+    private const byte LUA_GCPMINORMUL = 0; // control minor collections
+    private const byte LUA_GCPMAJORMINOR = 1; // control shift major->minor
+    private const byte LUA_GCPMINORMAJOR = 2; // control shift minor->major
 
-    /* parameters for incremental mode */
-    private const byte LUA_GCPPAUSE = 3;  /* size of pause between successive GCs */
-    private const byte LUA_GCPSTEPMUL = 4;  /* GC "speed" */
-    private const byte LUA_GCPSTEPSIZE = 5;  /* GC granularity */
+    /// <summary>
+    /// parameters for incremental mode
+    /// </summary>
+    private const byte LUA_GCPPAUSE = 3; // size of pause between successive GCs
+    private const byte LUA_GCPSTEPMUL = 4; // GC "speed"
+    private const byte LUA_GCPSTEPSIZE = 5; // GC granularity
 
-    /* number of parameters */
+    /// <summary>
+    /// number of parameters
+    /// </summary>
     private const byte LUA_GCPN = 6;
 
     public const int LUA_N2SBUFFSZ = 64;
 
-    /*
-    ** {==============================================================
-    ** some useful macros
-    ** ===============================================================
-    */
+    // {==============================================================
+    // some useful macros
+    // ===============================================================
 
     public static void* lua_getextraspace(lua_State* L)
     {
@@ -276,11 +284,9 @@ public static unsafe partial class Lua
         lua_pop(L, 1);
     }
     
-    /*
-    ** {==============================================================
-    ** compatibility macros
-    ** ===============================================================
-    */
+    // {==============================================================
+    // compatibility macros
+    // ===============================================================
 
     public static void* lua_newuserdata(lua_State* L, long s)
     {
@@ -302,26 +308,24 @@ public static unsafe partial class Lua
         return lua_closethread(L, null);
     }
 
-    /* }============================================================== */
+    // }==============================================================
 
-    /*
-    ** {======================================================================
-    ** Debug API
-    ** =======================================================================
-    */
+    // {======================================================================
+    // Debug API
+    // =======================================================================
 
-    /*
-    ** Event codes
-    */
+    /// <summary>
+    /// Event codes
+    /// </summary>
     public const byte LUA_HOOKCALL = 0;
     public const byte LUA_HOOKRET = 1;
     public const byte LUA_HOOKLINE = 2;
     public const byte LUA_HOOKCOUNT = 3;
     public const byte LUA_HOOKTAILCALL = 4;
 
-    /*
-    ** Event masks
-    */
+    /// <summary>
+    /// Event masks
+    /// </summary>
     public const int LUA_MASKCALL = 1 << LUA_HOOKCALL;
     public const int LUA_MASKRET = 1 << LUA_HOOKRET;
     public const int LUA_MASKLINE = 1 << LUA_HOOKLINE;
@@ -330,24 +334,26 @@ public static unsafe partial class Lua
     public struct lua_Debug
     {
         public int @event;
-        public string? name; /* (n) */
-        public string? namewhat; /* (n) 'global', 'local', 'field', 'method' */
-        public string what; /* (S) 'Lua', 'C', 'main', 'tail' */
-        public string source; /* (S) */
-        public int currentline; /* (l) */
-        public int linedefined; /* (S) */
-        public int lastlinedefined; /* (S) */
-        public byte nups;	/* (u) number of upvalues */
-        public byte nparams; /* (u) number of parameters */
-        public bool isvararg;        /* (u) */
-        public byte extraargs;  /* (t) number of extra arguments */
-        public bool istailcall;	/* (t) */
-        public int ftransfer;   /* (r) index of first value transferred */
-        public int ntransfer;   /* (r) number of transferred values */
-        public string short_src; /* (S) */
+        public string? name; // (n)
+        public string? namewhat; // (n) 'global', 'local', 'field', 'method'
+        public string what; // (S) 'Lua', 'C', 'main', 'tail'
+        public string source; // (S)
+        public int currentline; // (l)
+        public int linedefined; // (S)
+        public int lastlinedefined; // (S)
+        public byte nups; // (u) number of upvalues
+        public byte nparams; // (u) number of parameters
+        public bool isvararg; // (u)
+        public byte extraargs; // (t) number of extra arguments
+        public bool istailcall; // (t)
+        public int ftransfer; // (r) index of first value transferred
+        public int ntransfer; // (r) number of transferred values
+        public string short_src; // (S)
 
-        /* private part */
-        internal CallInfo* i_ci; /* active function */
+        /// <summary>
+        /// private part
+        /// </summary>
+        internal CallInfo* i_ci; // active function
     }
 
     public static readonly string LUA_VERSION_MAJOR = LUA_VERSION_MAJOR_N.ToString(CultureInfo.InvariantCulture);
@@ -360,9 +366,9 @@ public static unsafe partial class Lua
     public static readonly string LUA_COPYRIGHT = LUA_RELEASE + "  Copyright (C) 1994-2025 Lua.org, PUC-Rio";
     public const string LUA_AUTHORS = "R. Ierusalimschy, L. H. de Figueiredo, W. Celes";
     
-    /*
-     ** RCS ident string
-     */
+    /// <summary>
+    /// RCS ident string
+    /// </summary>
     public static readonly ImmutableArray<string> lua_ident =
     [
         $"$LuaVersion: {LUA_COPYRIGHT} $",
@@ -370,26 +376,24 @@ public static unsafe partial class Lua
     ];
 
 
-    /******************************************************************************
-    * Copyright (C) 1994-2025 Lua.org, PUC-Rio.
-    *
-    * Permission is hereby granted, free of charge, to any person obtaining
-    * a copy of this software and associated documentation files (the
-    * "Software"), to deal in the Software without restriction, including
-    * without limitation the rights to use, copy, modify, merge, publish,
-    * distribute, sublicense, and/or sell copies of the Software, and to
-    * permit persons to whom the Software is furnished to do so, subject to
-    * the following conditions:
-    *
-    * The above copyright notice and this permission notice shall be
-    * included in all copies or substantial portions of the Software.
-    *
-    * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-    ******************************************************************************/
+    // Copyright (C) 1994-2025 Lua.org, PUC-Rio.
+    //
+    // Permission is hereby granted, free of charge, to any person obtaining
+    // a copy of this software and associated documentation files (the
+    // "Software"), to deal in the Software without restriction, including
+    // without limitation the rights to use, copy, modify, merge, publish,
+    // distribute, sublicense, and/or sell copies of the Software, and to
+    // permit persons to whom the Software is furnished to do so, subject to
+    // the following conditions:
+    //
+    // The above copyright notice and this permission notice shall be
+    // included in all copies or substantial portions of the Software.
+    //
+    // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    // IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    // CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 }

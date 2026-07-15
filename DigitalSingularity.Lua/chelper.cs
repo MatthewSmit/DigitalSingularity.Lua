@@ -502,15 +502,15 @@ public static unsafe partial class Lua
         return result;
     }
     
-    /*
-    ** lua_numbertointeger converts a float number with an integral value
-    ** to an integer, or returns 0 if the float is not within the range of
-    ** a long.  (The range comparisons are tricky because of
-    ** rounding. The tests here assume a two-complement representation,
-    ** where MININTEGER always has an exact representation as a float;
-    ** MAXINTEGER may not have one, and therefore its conversion to float
-    ** may have an ill-defined value.)
-    */
+    /// <summary>
+    /// lua_numbertointeger converts a float number with an integral value
+    /// to an integer, or returns 0 if the float is not within the range of
+    /// a long.  (The range comparisons are tricky because of
+    /// rounding. The tests here assume a two-complement representation,
+    /// where MININTEGER always has an exact representation as a float;
+    /// MAXINTEGER may not have one, and therefore its conversion to float
+    /// may have an ill-defined value.)
+    /// </summary>
     private static bool lua_numbertointeger(double n, out long p)
     {
         if (!(n >= long.MinValue))

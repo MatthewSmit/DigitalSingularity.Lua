@@ -1,4 +1,4 @@
-/* implementation for lib2-v2 */
+// implementation for lib2-v2
 
 #include <string.h>
 
@@ -32,9 +32,9 @@ static int newstr (lua_State *L) {
   lua_Alloc allocf = lua_getallocf(L, &ud);
   struct STR *blk = (struct STR*)allocf(ud, null, 0,
                                         len + 1 + sizeof(struct STR));
-  if (blk == null) {  /* allocation error? */
+  if (blk == null) { // allocation error?
     lua_pushliteral(L, "not enough memory");
-    lua_error(L);  /* raise a memory error */
+    lua_error(L); // raise a memory error
   }
   blk->ud = ud;  blk->allocf = allocf;
   memcpy(blk + 1, str, len + 1);
@@ -43,17 +43,15 @@ static int newstr (lua_State *L) {
 }
 
 
-/*
-** Create an external string and keep it in the registry, so that it
-** will test that the library code is still available (to deallocate
-** this string) when closing the state.
-*/
+// Create an external string and keep it in the registry, so that it
+// will test that the library code is still available (to deallocate
+// this string) when closing the state.
 static void initstr (lua_State *L) {
   lua_pushcfunction(L, newstr);
   lua_pushstring(L,
      "012345678901234567890123456789012345678901234567890123456789");
-  lua_call(L, 1, 1);  /* call newstr("0123...") */
-  luaL_ref(L, LUA_REGISTRYINDEX);  /* keep string in the registry */
+  lua_call(L, 1, 1); // call newstr("0123...")
+  luaL_ref(L, LUA_REGISTRYINDEX); // keep string in the registry
 }
 
 
@@ -66,8 +64,8 @@ static const struct luaL_Reg funcs[] = {
 
 LUAMOD_API int luaopen_lib2 (lua_State *L) {
   lua_settop(L, 2);
-  lua_setglobal(L, "y");  /* y gets 2nd parameter */
-  lua_setglobal(L, "x");  /* x gets 1st parameter */
+  lua_setglobal(L, "y"); // y gets 2nd parameter
+  lua_setglobal(L, "x"); // x gets 1st parameter
   initstr(L);
   luaL_newlib(L, funcs);
   return 1;

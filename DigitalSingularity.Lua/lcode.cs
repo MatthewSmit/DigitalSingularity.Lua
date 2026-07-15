@@ -7,44 +7,44 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: lcode.c $
-    ** Code generator for Lua
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lcode.c $
+    // Code generator for Lua
+    // See Copyright Notice in lua.h
 
-    /*
-     ** Marks the end of a patch list. It is an invalid value both as an absolute
-     ** address, and as a list link (would link an element to itself).
-     */
+    /// <summary>
+    /// Marks the end of a patch list. It is an invalid value both as an absolute
+    /// address, and as a list link (would link an element to itself).
+    /// </summary>
     private const int NO_JUMP = -1;
 
-    /*
-     ** grep "ORDER OPR" if you change these enums  (ORDER OP)
-     */
+    /// <summary>
+    /// grep "ORDER OPR" if you change these enums  (ORDER OP)
+    /// </summary>
     private enum BinOpr
     {
-        /* arithmetic operators */
+        // arithmetic operators
         OPR_ADD, OPR_SUB, OPR_MUL, OPR_MOD, OPR_POW,
         OPR_DIV, OPR_IDIV,
 
-        /* bitwise operators */
+        // bitwise operators
         OPR_BAND, OPR_BOR, OPR_BXOR,
         OPR_SHL, OPR_SHR,
 
-        /* string operator */
+        // string operator
         OPR_CONCAT,
 
-        /* comparison operators */
+        // comparison operators
         OPR_EQ, OPR_LT, OPR_LE,
         OPR_NE, OPR_GT, OPR_GE,
 
-        /* logical operators */
+        // logical operators
         OPR_AND, OPR_OR,
         OPR_NOBINOPR,
     }
 
-    /* true if operation is foldable (that is, it is arithmetic or bitwise) */
+    /// <summary>
+    /// true if operation is foldable (that is, it is arithmetic or bitwise)
+    /// </summary>
     private static bool foldbinop(BinOpr op)
     {
         return op <= BinOpr.OPR_SHR;
@@ -64,7 +64,9 @@ public static unsafe partial class Lua
         NOUNOPR,
     }
 
-    /* get (pointer to) instruction of given 'expdesc' */
+    /// <summary>
+    /// get (pointer to) instruction of given 'expdesc'
+    /// </summary>
     private static ref uint getinstruction(FuncState* fs, expdesc* e)
     {
         return ref fs->f->code[e->u.info];
@@ -80,31 +82,35 @@ public static unsafe partial class Lua
         luaK_patchlist(fs, luaK_jump(fs), t);
     }
     
-    /* (note that expressions VJMP also have jumps.) */
+    /// <summary>
+    /// (note that expressions VJMP also have jumps.)
+    /// </summary>
     private static bool hasjumps(expdesc* e)
     {
         return e->t != e->f;
     }
 
-    /* semantic error */
+    /// <summary>
+    /// semantic error
+    /// </summary>
     [DoesNotReturn]
     private static void luaK_semerror(LexState* ls, string fmt, params object[] args)
     {
         pushvfstring(ls->L, args, fmt, out string msg);
-        ls->t.token = 0; /* remove "near <token>" from final message */
-        ls->linenumber = ls->lastline; /* back to line of last used token */
+        ls->t.token = 0; // remove "near <token>" from final message
+        ls->linenumber = ls->lastline; // back to line of last used token
         luaX_syntaxerror(ls, msg);
     }
 
-    /*
-     ** If expression is a numeric constant, fills 'v' with its value
-     ** and returns 1. Otherwise, returns 0.
-     */
+    /// <summary>
+    /// If expression is a numeric constant, fills 'v' with its value
+    /// and returns 1. Otherwise, returns 0.
+    /// </summary>
     private static bool tonumeral(expdesc* e, TValue* v)
     {
         if (hasjumps(e))
         {
-            return false; /* not a numeral */
+            return false; // not a numeral
         }
 
         switch (e->k)
@@ -130,24 +136,24 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Get the constant value from a constant expression
-    */
+    /// <summary>
+    /// Get the constant value from a constant expression
+    /// </summary>
     private static TValue* const2val(FuncState* fs, expdesc* e)
     {
         Debug.Assert(e->k == expkind.VCONST);
         return &fs->ls->dyd->actvar.arr[e->u.info].k;
     }
 
-    /*
-     ** If expression is a constant, fills 'v' with its value
-     ** and returns 1. Otherwise, returns 0.
-     */
+    /// <summary>
+    /// If expression is a constant, fills 'v' with its value
+    /// and returns 1. Otherwise, returns 0.
+    /// </summary>
     private static bool luaK_exp2const(FuncState* fs, expdesc* e, TValue* v)
     {
         if (hasjumps(e))
         {
-            return false; /* not a constant */
+            return false; // not a constant
         }
 
         switch (e->k)
@@ -179,80 +185,80 @@ public static unsafe partial class Lua
 
     private static readonly uint* invalidinstruction = (uint*)NativeMemory.AllocZeroed(sizeof(uint));
 
-    /*
-    ** Return the previous instruction of the current code. If there
-    ** may be a jump target between the current instruction and the
-    ** previous one, return an invalid instruction (to avoid wrong
-    ** optimisations).
-    */
+    /// <summary>
+    /// Return the previous instruction of the current code. If there
+    /// may be a jump target between the current instruction and the
+    /// previous one, return an invalid instruction (to avoid wrong
+    /// optimisations).
+    /// </summary>
     private static uint* previousinstruction(FuncState* fs)
     {
         // static const Instruction invalidinstruction = ~(Instruction)0;
         if (fs->pc > fs->lasttarget)
         {
-            return &fs->f->code[fs->pc - 1]; /* previous instruction */
+            return &fs->f->code[fs->pc - 1]; // previous instruction
         }
 
         return invalidinstruction;
     }
 
-    /*
-     ** Create a OP_LOADNIL instruction, but try to optimise: if the previous
-     ** instruction is also OP_LOADNIL and ranges are compatible, adjust
-     ** range of previous instruction instead of emitting a new one. (For
-     ** instance, 'local a; local b' will generate a single opcode.)
-     */
+    /// <summary>
+    /// Create a OP_LOADNIL instruction, but try to optimise: if the previous
+    /// instruction is also OP_LOADNIL and ranges are compatible, adjust
+    /// range of previous instruction instead of emitting a new one. (For
+    /// instance, 'local a; local b' will generate a single opcode.)
+    /// </summary>
     private static void luaK_nil(FuncState* fs, int from, int n)
     {
-        int l = from + n - 1; /* last register to set nil */
+        int l = from + n - 1; // last register to set nil
         uint* previous = previousinstruction(fs);
-        if (GET_OPCODE(*previous) == OpCode.OP_LOADNIL)
+        if (GET_OPCODE(*previous) == OpCode.LoadNil)
         {
-            /* previous is LOADNIL? */
-            int pfrom = GETARG_A(*previous); /* get previous range */
+            // previous is LOADNIL?
+            int pfrom = GETARG_A(*previous); // get previous range
             int pl = pfrom + GETARG_B(*previous);
             if (pfrom <= from && from <= pl + 1 ||
                 from <= pfrom && pfrom <= l + 1)
             {
-                /* can connect both? */
+                // can connect both?
                 if (pfrom < from)
                 {
-                    from = pfrom; /* from = min(from, pfrom) */
+                    from = pfrom; // from = min(from, pfrom)
                 }
 
                 if (pl > l)
                 {
-                    l = pl; /* l = max(l, pl) */
+                    l = pl; // l = max(l, pl)
                 }
 
                 SETARG_A(ref *previous, from);
                 SETARG_B(ref *previous, l - from);
                 return;
-            } /* else go through */
+            } // else go through
         }
 
-        luaK_codeABC(fs, OpCode.OP_LOADNIL, from, n - 1, 0); /* else no optimisation */
+        luaK_codeABC(fs, OpCode.LoadNil, from, n - 1, 0); // else no optimisation
     }
 
-    /*
-     ** Gets the destination address of a jump instruction. Used to traverse
-     ** a list of jumps.
-     */
+    /// <summary>
+    /// Gets the destination address of a jump instruction. Used to traverse
+    /// a list of jumps.
+    /// </summary>
     private static int getjump(FuncState* fs, int pc)
     {
         int offset = GETARG_sJ(fs->f->code[pc]);
-        if (offset == NO_JUMP) /* point to itself represents end of list */
+        if (offset == NO_JUMP) // point to itself represents end of list
         {
-            return NO_JUMP; /* end of list */
+            return NO_JUMP; // end of list
         }
 
-        return pc + 1 + offset; /* turn offset into absolute position */
+        return pc + 1 + offset; // turn offset into absolute position
     }
 
-    /*
-     ** Fix jump instruction at position 'pc' to jump to 'dest'.
-     ** (Jump addresses are relative in Lua)
-     */
+    /// <summary>
+    /// Fix jump instruction at position 'pc' to jump to 'dest'.
+    /// (Jump addresses are relative in Lua)
+    /// </summary>
     private static void fixjump(FuncState* fs, int pc, int dest)
     {
         uint* jmp = &fs->f->code[pc];
@@ -263,86 +269,86 @@ public static unsafe partial class Lua
             luaX_syntaxerror(fs->ls, "control structure too long");
         }
 
-        Debug.Assert(GET_OPCODE(*jmp) == OpCode.OP_JMP);
+        Debug.Assert(GET_OPCODE(*jmp) == OpCode.Jmp);
         SETARG_sJ(ref *jmp, offset);
     }
 
-    /*
-     ** Concatenate jump-list 'l2' into jump-list 'l1'
-     */
+    /// <summary>
+    /// Concatenate jump-list 'l2' into jump-list 'l1'
+    /// </summary>
     private static void luaK_concat(FuncState* fs, int* l1, int l2)
     {
         if (l2 == NO_JUMP)
         {
-            return; /* nothing to concatenate? */
+            return; // nothing to concatenate?
         }
 
-        if (*l1 == NO_JUMP) /* no original list? */
+        if (*l1 == NO_JUMP) // no original list?
         {
-            *l1 = l2; /* 'l1' points to 'l2' */
+            *l1 = l2; // 'l1' points to 'l2'
             return;
         }
 
         int list = *l1;
         int next;
-        while ((next = getjump(fs, list)) != NO_JUMP) /* find last element */
+        while ((next = getjump(fs, list)) != NO_JUMP) // find last element
         {
             list = next;
         }
 
-        fixjump(fs, list, l2); /* last element links to 'l2' */
+        fixjump(fs, list, l2); // last element links to 'l2'
     }
 
-    /*
-     ** Create a jump instruction and return its position, so its destination
-     ** can be fixed later (with 'fixjump').
-     */
+    /// <summary>
+    /// Create a jump instruction and return its position, so its destination
+    /// can be fixed later (with 'fixjump').
+    /// </summary>
     private static int luaK_jump(FuncState* fs)
     {
-        return codesJ(fs, OpCode.OP_JMP, NO_JUMP, 0);
+        return codesJ(fs, OpCode.Jmp, NO_JUMP, 0);
     }
     
-    /*
-    ** Code a 'return' instruction
-    */
+    /// <summary>
+    /// Code a 'return' instruction
+    /// </summary>
     private static void luaK_ret(FuncState* fs, int first, int nret)
     {
         OpCode op = nret switch
         {
-            0 => OpCode.OP_RETURN0,
-            1 => OpCode.OP_RETURN1,
-            _ => OpCode.OP_RETURN,
+            0 => OpCode.Return0,
+            1 => OpCode.Return1,
+            _ => OpCode.Return,
         };
 
         luaY_checklimit(fs, nret + 1, MAXARG_B, "returns");
         luaK_codeABC(fs, op, first, nret + 1, 0);
     }
 
-    /*
-     ** Code a "conditional jump", that is, a test or comparison opcode
-     ** followed by a jump. Return jump position.
-     */
+    /// <summary>
+    /// Code a "conditional jump", that is, a test or comparison opcode
+    /// followed by a jump. Return jump position.
+    /// </summary>
     private static int condjump(FuncState* fs, OpCode op, int A, int B, int C, bool k)
     {
         luaK_codeABCk(fs, op, A, B, C, k);
         return luaK_jump(fs);
     }
 
-    /*
-     ** returns current 'pc' and marks it as a jump target (to avoid wrong
-     ** optimisations with consecutive instructions not in the same basic block).
-     */
+    /// <summary>
+    /// returns current 'pc' and marks it as a jump target (to avoid wrong
+    /// optimisations with consecutive instructions not in the same basic block).
+    /// </summary>
     private static int luaK_getlabel(FuncState* fs)
     {
         fs->lasttarget = fs->pc;
         return fs->pc;
     }
     
-    /*
-    ** Returns the position of the instruction "controlling" a given
-    ** jump (that is, its condition), or the jump itself if it is
-    ** unconditional.
-    */
+    /// <summary>
+    /// Returns the position of the instruction "controlling" a given
+    /// jump (that is, its condition), or the jump itself if it is
+    /// unconditional.
+    /// </summary>
     private static uint* getjumpcontrol(FuncState* fs, int pc)
     {
         uint* pi = &fs->f->code[pc];
@@ -354,19 +360,19 @@ public static unsafe partial class Lua
         return pi;
     }
 
-    /*
-     ** Patch destination register for a TESTSET instruction.
-     ** If instruction in position 'node' is not a TESTSET, return 0 ("fails").
-     ** Otherwise, if 'reg' is not 'NO_REG', set it as the destination
-     ** register. Otherwise, change instruction to a simple 'TEST' (produces
-     ** no register value)
-     */
+    /// <summary>
+    /// Patch destination register for a TESTSET instruction.
+    /// If instruction in position 'node' is not a TESTSET, return 0 ("fails").
+    /// Otherwise, if 'reg' is not 'NO_REG', set it as the destination
+    /// register. Otherwise, change instruction to a simple 'TEST' (produces
+    /// no register value)
+    /// </summary>
     private static bool patchtestreg(FuncState* fs, int node, int reg)
     {
         uint* i = getjumpcontrol(fs, node);
-        if (GET_OPCODE(*i) != OpCode.OP_TESTSET)
+        if (GET_OPCODE(*i) != OpCode.TestSet)
         {
-            return false; /* cannot patch other instructions */
+            return false; // cannot patch other instructions
         }
 
         if (reg != NO_REG && reg != GETARG_B(*i))
@@ -375,17 +381,17 @@ public static unsafe partial class Lua
         }
         else
         {
-            /* no register to put value or register already has the value;
-               change instruction to simple test */
-            *i = CREATE_ABCk(OpCode.OP_TEST, GETARG_B(*i), 0, 0, GETARG_k(*i));
+            // no register to put value or register already has the value;
+            // change instruction to simple test
+            *i = CREATE_ABCk(OpCode.Test, GETARG_B(*i), 0, 0, GETARG_k(*i));
         }
 
         return true;
     }
 
-    /*
-     ** Traverse a list of tests ensuring no one produces a value
-     */
+    /// <summary>
+    /// Traverse a list of tests ensuring no one produces a value
+    /// </summary>
     private static void removevalues(FuncState* fs, int list)
     {
         for (; list != NO_JUMP; list = getjump(fs, list))
@@ -394,11 +400,11 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Traverse a list of tests, patching their destination address and
-     ** registers: tests producing values jump to 'vtarget' (and put their
-     ** values in 'reg'), other tests jump to 'dtarget'.
-     */
+    /// <summary>
+    /// Traverse a list of tests, patching their destination address and
+    /// registers: tests producing values jump to 'vtarget' (and put their
+    /// values in 'reg'), other tests jump to 'dtarget'.
+    /// </summary>
     private static void patchlistaux(FuncState* fs, int list, int vtarget, int reg, int dtarget)
     {
         while (list != NO_JUMP)
@@ -407,17 +413,17 @@ public static unsafe partial class Lua
             fixjump(
                 fs,
                 list,
-                patchtestreg(fs, list, reg) ? vtarget : dtarget /* jump to default target */);
+                patchtestreg(fs, list, reg) ? vtarget : dtarget ); // jump to default target
 
             list = next;
         }
     }
 
-    /*
-     ** Path all jumps in 'list' to jump to 'target'.
-     ** (The assert means that we cannot fix a jump to a forward address
-     ** because we only know addresses once code is generated.)
-     */
+    /// <summary>
+    /// Path all jumps in 'list' to jump to 'target'.
+    /// (The assert means that we cannot fix a jump to a forward address
+    /// because we only know addresses once code is generated.)
+    /// </summary>
     private static void luaK_patchlist(FuncState* fs, int list, int target)
     {
         Debug.Assert(target <= fs->pc);
@@ -426,24 +432,26 @@ public static unsafe partial class Lua
 
     private static void luaK_patchtohere(FuncState* fs, int list)
     {
-        int hr = luaK_getlabel(fs); /* mark "here" as a jump target */
+        int hr = luaK_getlabel(fs); // mark "here" as a jump target
         luaK_patchlist(fs, list, hr);
     }
 
-    /* limit for difference between lines in relative line info. */
+    /// <summary>
+    /// limit for difference between lines in relative line info.
+    /// </summary>
     private static int LIMLINEDIFF = 0x80;
 
-    /*
-    ** Save line info for a new instruction. If difference from last line
-    ** does not fit in a byte, of after that many instructions, save a new
-    ** absolute line info; (in that case, the special value 'ABSLINEINFO'
-    ** in 'lineinfo' signals the existence of this absolute information.)
-    ** Otherwise, store the difference from last line in 'lineinfo'.
-    */
+    /// <summary>
+    /// Save line info for a new instruction. If difference from last line
+    /// does not fit in a byte, of after that many instructions, save a new
+    /// absolute line info; (in that case, the special value 'ABSLINEINFO'
+    /// in 'lineinfo' signals the existence of this absolute information.)
+    /// Otherwise, store the difference from last line in 'lineinfo'.
+    /// </summary>
     private static void savelineinfo(FuncState* fs, Proto* f, int line)
     {
         int linedif = line - fs->previousline;
-        int pc = fs->pc - 1; /* last instruction coded */
+        int pc = fs->pc - 1; // last instruction coded
         if (Math.Abs(linedif) >= LIMLINEDIFF || fs->iwthabs++ >= MAXIWTHABS)
         {
             luaM_growvector(
@@ -455,8 +463,8 @@ public static unsafe partial class Lua
                 "lines");
             f->abslineinfo[fs->nabslineinfo].pc = pc;
             f->abslineinfo[fs->nabslineinfo++].line = line;
-            linedif = ABSLINEINFO; /* signal that there is absolute information */
-            fs->iwthabs = 1; /* restart counter */
+            linedif = ABSLINEINFO; // signal that there is absolute information
+            fs->iwthabs = 1; // restart counter
         }
 
         luaM_growvector(
@@ -467,62 +475,62 @@ public static unsafe partial class Lua
             int.MaxValue,
             "opcodes");
         f->lineinfo[pc] = (sbyte)linedif;
-        fs->previousline = line; /* last line saved */
+        fs->previousline = line; // last line saved
     }
 
-    /*
-    ** Remove line information from the last instruction.
-    ** If line information for that instruction is absolute, set 'iwthabs'
-    ** above its max to force the new (replacing) instruction to have
-    ** absolute line info, too.
-    */
+    /// <summary>
+    /// Remove line information from the last instruction.
+    /// If line information for that instruction is absolute, set 'iwthabs'
+    /// above its max to force the new (replacing) instruction to have
+    /// absolute line info, too.
+    /// </summary>
     private static void removelastlineinfo(FuncState* fs)
     {
         Proto* f = fs->f;
-        int pc = fs->pc - 1; /* last instruction coded */
+        int pc = fs->pc - 1; // last instruction coded
         if (f->lineinfo[pc] != ABSLINEINFO)
         {
-            /* relative line info? */
-            fs->previousline -= f->lineinfo[pc]; /* correct last line saved */
-            fs->iwthabs--; /* undo previous increment */
+            // relative line info?
+            fs->previousline -= f->lineinfo[pc]; // correct last line saved
+            fs->iwthabs--; // undo previous increment
         }
         else
         {
-            /* absolute line information */
+            // absolute line information
             Debug.Assert(f->abslineinfo[fs->nabslineinfo - 1].pc == pc);
-            fs->nabslineinfo--; /* remove it */
-            fs->iwthabs = MAXIWTHABS + 1; /* force next line info to be absolute */
+            fs->nabslineinfo--; // remove it
+            fs->iwthabs = MAXIWTHABS + 1; // force next line info to be absolute
         }
     }
 
-    /*
-    ** Remove the last instruction created, correcting line information
-    ** accordingly.
-    */
+    /// <summary>
+    /// Remove the last instruction created, correcting line information
+    /// accordingly.
+    /// </summary>
     private static void removelastinstruction(FuncState* fs)
     {
         removelastlineinfo(fs);
         fs->pc--;
     }
 
-    /*
-     ** Emit instruction 'i', checking for array sizes and saving also its
-     ** line information. Return 'i' position.
-     */
+    /// <summary>
+    /// Emit instruction 'i', checking for array sizes and saving also its
+    /// line information. Return 'i' position.
+    /// </summary>
     private static int luaK_code(FuncState* fs, uint i)
     {
         Proto* f = fs->f;
-        /* put new instruction in code array */
+        // put new instruction in code array
         luaM_growvector(fs->ls->L, ref f->code, fs->pc, ref f->sizecode, int.MaxValue, "opcodes");
         f->code[fs->pc++] = i;
         savelineinfo(fs, f, fs->ls->lastline);
-        return fs->pc - 1; /* index of new instruction */
+        return fs->pc - 1; // index of new instruction
     }
 
-    /*
-     ** Format and emit an 'iABC' instruction. (Assertions check consistency
-     ** of parameters versus opcode.)
-     */
+    /// <summary>
+    /// Format and emit an 'iABC' instruction. (Assertions check consistency
+    /// of parameters versus opcode.)
+    /// </summary>
     private static int luaK_codeABCk(FuncState* fs, OpCode o, int A, int B, int C, bool k)
     {
         Debug.Assert(getOpMode(o) == OpMode.iABC);
@@ -537,9 +545,9 @@ public static unsafe partial class Lua
         return luaK_code(fs, CREATE_vABCk(o, A, B, C, k));
     }
 
-    /*
-    ** Format and emit an 'iABx' instruction.
-    */
+    /// <summary>
+    /// Format and emit an 'iABx' instruction.
+    /// </summary>
     private static int luaK_codeABx(FuncState* fs, OpCode o, int A, int Bx)
     {
         Debug.Assert(getOpMode(o) == OpMode.iABx);
@@ -547,9 +555,9 @@ public static unsafe partial class Lua
         return luaK_code(fs, CREATE_ABx(o, A, Bx));
     }
 
-    /*
-    ** Format and emit an 'iAsBx' instruction.
-    */
+    /// <summary>
+    /// Format and emit an 'iAsBx' instruction.
+    /// </summary>
     private static int codeAsBx(FuncState* fs, OpCode o, int A, int Bc)
     {
         int b = Bc + OFFSET_sBx;
@@ -558,9 +566,9 @@ public static unsafe partial class Lua
         return luaK_code(fs, CREATE_ABx(o, A, b));
     }
 
-    /*
-     ** Format and emit an 'isJ' instruction.
-     */
+    /// <summary>
+    /// Format and emit an 'isJ' instruction.
+    /// </summary>
     private static int codesJ(FuncState* fs, OpCode o, int sj, int k)
     {
         int j = sj + OFFSET_sJ;
@@ -569,36 +577,36 @@ public static unsafe partial class Lua
         return luaK_code(fs, CREATE_sJ(o, j, k));
     }
 
-    /*
-     ** Emit an "extra argument" instruction (format 'iAx')
-     */
+    /// <summary>
+    /// Emit an "extra argument" instruction (format 'iAx')
+    /// </summary>
     private static int codeextraarg(FuncState* fs, int A)
     {
         Debug.Assert(A <= MAXARG_Ax);
-        return luaK_code(fs, CREATE_Ax(OpCode.OP_EXTRAARG, A));
+        return luaK_code(fs, CREATE_Ax(OpCode.ExtraArg, A));
     }
 
-    /*
-     ** Emit a "load constant" instruction, using either 'OP_LOADK'
-     ** (if constant index 'k' fits in 18 bits) or an 'OP_LOADKX'
-     ** instruction with "extra argument".
-     */
+    /// <summary>
+    /// Emit a "load constant" instruction, using either 'OP_LOADK'
+    /// (if constant index 'k' fits in 18 bits) or an 'OP_LOADKX'
+    /// instruction with "extra argument".
+    /// </summary>
     private static int luaK_codek(FuncState* fs, int reg, int k)
     {
         if (k <= MAXARG_Bx)
         {
-            return luaK_codeABx(fs, OpCode.OP_LOADK, reg, k);
+            return luaK_codeABx(fs, OpCode.LoadK, reg, k);
         }
 
-        int p = luaK_codeABx(fs, OpCode.OP_LOADKX, reg, 0);
+        int p = luaK_codeABx(fs, OpCode.LoadKX, reg, 0);
         codeextraarg(fs, k);
         return p;
     }
 
-    /*
-     ** Check register-stack level, keeping track of its maximum size
-     ** in field 'maxstacksize'
-     */
+    /// <summary>
+    /// Check register-stack level, keeping track of its maximum size
+    /// in field 'maxstacksize'
+    /// </summary>
     private static void luaK_checkstack(FuncState* fs, int n)
     {
         int newstack = fs->freereg + n;
@@ -609,20 +617,20 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Reserve 'n' registers in register stack
-     */
+    /// <summary>
+    /// Reserve 'n' registers in register stack
+    /// </summary>
     private static void luaK_reserveregs(FuncState* fs, int n)
     {
         luaK_checkstack(fs, n);
         fs->freereg = (byte)(fs->freereg + n);
     }
 
-    /*
-    ** Free register 'reg', if it is neither a constant index nor
-    ** a local variable.
-    )
-    */
+    /// <summary>
+    /// Free register 'reg', if it is neither a constant index nor
+    /// a local variable.
+    /// )
+    /// </summary>
     private static void freereg(FuncState* fs, int reg)
     {
         if (reg >= luaY_nvarstack(fs))
@@ -632,9 +640,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Free two registers in proper order
-    */
+    /// <summary>
+    /// Free two registers in proper order
+    /// </summary>
     private static void freeregs(FuncState* fs, int r1, int r2)
     {
         if (r1 > r2)
@@ -649,9 +657,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Free register used by expression 'e' (if any)
-     */
+    /// <summary>
+    /// Free register used by expression 'e' (if any)
+    /// </summary>
     private static void freeexp(FuncState* fs, expdesc* e)
     {
         if (e->k == expkind.VNONRELOC)
@@ -660,10 +668,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Free registers used by expressions 'e1' and 'e2' (if any) in proper
-    ** order.
-    */
+    /// <summary>
+    /// Free registers used by expressions 'e1' and 'e2' (if any) in proper
+    /// order.
+    /// </summary>
     private static void freeexps(FuncState* fs, expdesc* e1, expdesc* e2)
     {
         int r1 = e1->k == expkind.VNONRELOC ? e1->u.info : -1;
@@ -671,9 +679,9 @@ public static unsafe partial class Lua
         freeregs(fs, r1, r2);
     }
 
-    /*
-     ** Add constant 'v' to prototype's list of constants (field 'k').
-     */
+    /// <summary>
+    /// Add constant 'v' to prototype's list of constants (field 'k').
+    /// </summary>
     private static int addk(FuncState* fs, Proto* f, TValue* v)
     {
         lua_State* L = fs->ls->L;
@@ -691,146 +699,146 @@ public static unsafe partial class Lua
         return k;
     }
 
-    /*
-     ** Use scanner's table to cache position of constants in constant list
-     ** and try to reuse constants. Because some values should not be used
-     ** as keys (nil cannot be a key, integer keys can collapse with float
-     ** keys), the caller must provide a useful 'key' for indexing the cache.
-     */
+    /// <summary>
+    /// Use scanner's table to cache position of constants in constant list
+    /// and try to reuse constants. Because some values should not be used
+    /// as keys (nil cannot be a key, integer keys can collapse with float
+    /// keys), the caller must provide a useful 'key' for indexing the cache.
+    /// </summary>
     private static int k2proto(FuncState* fs, TValue* key, TValue* v)
     {
         Proto* f = fs->f;
 
         TValue val;
-        byte tag = luaH_get(fs->kcache, key, &val); /* query scanner table */
+        byte tag = luaH_get(fs->kcache, key, &val); // query scanner table
         if (!tagisempty(tag))
         {
-            /* is there an index there? */
+            // is there an index there?
             int k = (int)ivalue(&val);
-            /* collisions can happen only for float keys */
+            // collisions can happen only for float keys
             Debug.Assert(ttisfloat(key) || luaV_rawequalobj(&f->k[k], v));
-            return k; /* reuse index */
+            return k; // reuse index
         }
         else
         {
-            /* constant not found; create a new entry */
+            // constant not found; create a new entry
             int k = addk(fs, f, v);
-            /* cache it for reuse; numerical value does not need GC barrier;
-               table is not a metatable, so it does not need to invalidate cache */
+            // cache it for reuse; numerical value does not need GC barrier;
+            // table is not a metatable, so it does not need to invalidate cache
             setivalue(&val, k);
             luaH_set(fs->ls->L, fs->kcache, key, &val);
             return k;
         }
     }
 
-    /*
-     ** Add a string to list of constants and return its index.
-     */
+    /// <summary>
+    /// Add a string to list of constants and return its index.
+    /// </summary>
     private static int stringK(FuncState* fs, TString* s)
     {
         TValue o;
         setsvalue(fs->ls->L, &o, s);
-        return k2proto(fs, &o, &o);  /* use string itself as key */
+        return k2proto(fs, &o, &o); // use string itself as key
     }
 
-    /*
-    ** Add an integer to list of constants and return its index.
-    */
+    /// <summary>
+    /// Add an integer to list of constants and return its index.
+    /// </summary>
     private static int luaK_intK(FuncState* fs, long n)
     {
         TValue o;
         setivalue(&o, n);
-        return k2proto(fs, &o, &o); /* use integer itself as key */
+        return k2proto(fs, &o, &o); // use integer itself as key
     }
 
-    /*
-     ** Add a float to list of constants and return its index. Floats
-     ** with integral values need a different key, to avoid collision
-     ** with actual integers. To that end, we add to the number its smaller
-     ** power-of-two fraction that is still significant in its scale.
-     ** (For doubles, the fraction would be 2^-52).
-     ** This method is not bulletproof: different numbers may generate the
-     ** same key (e.g. very large numbers will overflow to 'inf') and for
-     ** floats larger than 2^53 the result is still an integer. For those
-     ** cases, just generate a new entry. At worst, this only wastes an entry
-     ** with a duplicate.
-     */
+    /// <summary>
+    /// Add a float to list of constants and return its index. Floats
+    /// with integral values need a different key, to avoid collision
+    /// with actual integers. To that end, we add to the number its smaller
+    /// power-of-two fraction that is still significant in its scale.
+    /// (For doubles, the fraction would be 2^-52).
+    /// This method is not bulletproof: different numbers may generate the
+    /// same key (e.g. very large numbers will overflow to 'inf') and for
+    /// floats larger than 2^53 the result is still an integer. For those
+    /// cases, just generate a new entry. At worst, this only wastes an entry
+    /// with a duplicate.
+    /// </summary>
     private static int luaK_numberK(FuncState* fs, double r)
     {
         TValue o;
         TValue kv;
-        setfltvalue(&o, r); /* value as a TValue */
+        setfltvalue(&o, r); // value as a TValue
         if (r == 0)
         {
-            /* handle zero as a special case */
-            setpvalue(&kv, fs); /* use FuncState as index */
-            return k2proto(fs, &kv, &o); /* cannot collide */
+            // handle zero as a special case
+            setpvalue(&kv, fs); // use FuncState as index
+            return k2proto(fs, &kv, &o); // cannot collide
         }
 
         const int nbm = DBL_MANT_DIG;
         double q = Math.ScaleB(1.0, -nbm + 1);
-        double k = r * (1 + q); /* key */
-        setfltvalue(&kv, k); /* key as a TValue */
+        double k = r * (1 + q); // key
+        setfltvalue(&kv, k); // key as a TValue
         if (!luaV_flttointeger(k, out long ik, F2Imod.F2Ieq))
         {
-            /* not an integer value? */
-            int n = k2proto(fs, &kv, &o); /* use key */
-            if (luaV_rawequalobj(&fs->f->k[n], &o)) /* correct value? */
+            // not an integer value?
+            int n = k2proto(fs, &kv, &o); // use key
+            if (luaV_rawequalobj(&fs->f->k[n], &o)) // correct value?
             {
                 return n;
             }
         }
 
-        /* else, either key is still an integer or there was a collision;
-           anyway, do not try to reuse constant; instead, create a new one */
+        // else, either key is still an integer or there was a collision;
+        // anyway, do not try to reuse constant; instead, create a new one
         return addk(fs, fs->f, &o);
     }
 
-    /*
-     ** Add a false to list of constants and return its index.
-     */
+    /// <summary>
+    /// Add a false to list of constants and return its index.
+    /// </summary>
     private static int boolF(FuncState* fs)
     {
         TValue o;
         setbfvalue(&o);
-        return k2proto(fs, &o, &o); /* use boolean itself as key */
+        return k2proto(fs, &o, &o); // use boolean itself as key
     }
 
-    /*
-     ** Add a true to list of constants and return its index.
-     */
+    /// <summary>
+    /// Add a true to list of constants and return its index.
+    /// </summary>
     private static int boolT(FuncState* fs)
     {
         TValue o;
         setbtvalue(&o);
-        return k2proto(fs, &o, &o); /* use boolean itself as key */
+        return k2proto(fs, &o, &o); // use boolean itself as key
     }
 
-    /*
-     ** Add nil to list of constants and return its index.
-     */
+    /// <summary>
+    /// Add nil to list of constants and return its index.
+    /// </summary>
     private static int nilK(FuncState* fs)
     {
         TValue k, v;
         setnilvalue(&v);
-        /* cannot use nil as key; instead use table itself */
+        // cannot use nil as key; instead use table itself
         sethvalue(fs->ls->L, &k, fs->kcache);
         return k2proto(fs, &k, &v);
     }
 
-    /*
-     ** Check whether 'i' can be stored in an 'sC' operand. Equivalent to
-     ** (0 <= int2sC(i) && int2sC(i) <= MAXARG_C) but without risk of
-     ** overflows in the hidden addition inside 'int2sC'.
-     */
+    /// <summary>
+    /// Check whether 'i' can be stored in an 'sC' operand. Equivalent to
+    /// (0 &lt;= int2sC(i) &amp;&amp; int2sC(i) &lt;= MAXARG_C) but without risk of
+    /// overflows in the hidden addition inside 'int2sC'.
+    /// </summary>
     private static bool fitsC(long i)
     {
         return (ulong)i + OFFSET_sC <= MAXARG_C;
     }
 
-    /*
-     ** Check whether 'i' can be stored in an 'sBx' operand.
-     */
+    /// <summary>
+    /// Check whether 'i' can be stored in an 'sBx' operand.
+    /// </summary>
     private static bool fitsBx(long i)
     {
         return i is >= -OFFSET_sBx and <= MAXARG_Bx - OFFSET_sBx;
@@ -840,7 +848,7 @@ public static unsafe partial class Lua
     {
         if (fitsBx(n))
         {
-            codeAsBx(fs, OpCode.OP_LOADI, reg, (int)n);
+            codeAsBx(fs, OpCode.LoadI, reg, (int)n);
         }
         else
         {
@@ -852,7 +860,7 @@ public static unsafe partial class Lua
     {
         if (luaV_flttointeger(f, out long fi, F2Imod.F2Ieq) && fitsBx(fi))
         {
-            codeAsBx(fs, OpCode.OP_LOADF, reg, (int)fi);
+            codeAsBx(fs, OpCode.LoadF, reg, (int)fi);
         }
         else
         {
@@ -860,25 +868,25 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Get the value of 'var' in a register and generate an opcode to check
-     ** whether that register is nil. 'k' is the index of the variable name
-     ** in the list of constants. If its value cannot be encoded in Bx, a 0
-     ** will use '?' for the name.
-     */
+    /// <summary>
+    /// Get the value of 'var' in a register and generate an opcode to check
+    /// whether that register is nil. 'k' is the index of the variable name
+    /// in the list of constants. If its value cannot be encoded in Bx, a 0
+    /// will use '?' for the name.
+    /// </summary>
     private static void luaK_codecheckglobal(FuncState* fs, expdesc* var, int k, int line)
     {
         luaK_exp2anyreg(fs, var);
         luaK_fixline(fs, line);
         k = k >= MAXARG_Bx ? 0 : k + 1;
-        luaK_codeABx(fs, OpCode.OP_ERRNNIL, var->u.info, k);
+        luaK_codeABx(fs, OpCode.ErrNNil, var->u.info, k);
         luaK_fixline(fs, line);
         freeexp(fs, var);
     }
 
-    /*
-     ** Convert a constant in 'v' into an expression description 'e'
-     */
+   /// <summary>
+   /// Convert a constant in 'v' into an expression description 'e'
+   /// </summary>
    private static void const2exp(TValue* v, expdesc* e)
     {
         switch (ttypetag(v))
@@ -916,15 +924,15 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Fix an expression to return the number of results 'nresults'.
-     ** 'e' must be a multi-ret expression (function call or vararg).
-     */
+    /// <summary>
+    /// Fix an expression to return the number of results 'nresults'.
+    /// 'e' must be a multi-ret expression (function call or vararg).
+    /// </summary>
     private static void luaK_setreturns(FuncState* fs, expdesc* e, int nresults)
     {
         ref uint pc = ref getinstruction(fs, e);
         luaY_checklimit(fs, nresults + 1, MAXARG_C, "multiple results");
-        if (e->k == expkind.VCALL) /* expression is an open function call? */
+        if (e->k == expkind.VCALL) // expression is an open function call?
         {
             SETARG_C(ref pc, nresults + 1);
         }
@@ -937,9 +945,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Convert a VKSTR to a VK
-     */
+    /// <summary>
+    /// Convert a VKSTR to a VK
+    /// </summary>
     private static int str2K(FuncState* fs, expdesc* e)
     {
         Debug.Assert(e->k == expkind.VKSTR);
@@ -948,47 +956,47 @@ public static unsafe partial class Lua
         return e->u.info;
     }
 
-    /*
-    ** Fix an expression to return one result.
-    ** If expression is not a multi-ret expression (function call or
-    ** vararg), it already returns one result, so nothing needs to be done.
-    ** Function calls become VNONRELOC expressions (as its result comes
-    ** fixed in the base register of the call), while vararg expressions
-    ** become VRELOC (as OP_VARARG puts its results where it wants).
-    ** (Calls are created returning one result, so that does not need
-    ** to be fixed.)
-    */
+    /// <summary>
+    /// Fix an expression to return one result.
+    /// If expression is not a multi-ret expression (function call or
+    /// vararg), it already returns one result, so nothing needs to be done.
+    /// Function calls become VNONRELOC expressions (as its result comes
+    /// fixed in the base register of the call), while vararg expressions
+    /// become VRELOC (as OP_VARARG puts its results where it wants).
+    /// (Calls are created returning one result, so that does not need
+    /// to be fixed.)
+    /// </summary>
     private static void luaK_setoneret(FuncState* fs, expdesc* e)
     {
         if (e->k == expkind.VCALL)
         {
-            /* expression is an open function call? */
-            /* already returns 1 value */
+            // expression is an open function call?
+            // already returns 1 value
             Debug.Assert(GETARG_C(getinstruction(fs, e)) == 2);
-            e->k = expkind.VNONRELOC; /* result has fixed position */
+            e->k = expkind.VNONRELOC; // result has fixed position
             e->u.info = GETARG_A(getinstruction(fs, e));
         }
         else if (e->k == expkind.VVARARG)
         {
             SETARG_C(ref getinstruction(fs, e), 2);
-            e->k = expkind.VRELOC; /* can relocate its simple result */
+            e->k = expkind.VRELOC; // can relocate its simple result
         }
     }
 
-    /*
-     ** Change a vararg parameter into a regular local variable
-     */
+    /// <summary>
+    /// Change a vararg parameter into a regular local variable
+    /// </summary>
     private static void luaK_vapar2local(FuncState* fs, expdesc* var)
     {
-        needvatab(fs->f); /* function will need a vararg table */
-        /* now a vararg parameter is equivalent to a regular local variable */
+        needvatab(fs->f); // function will need a vararg table
+        // now a vararg parameter is equivalent to a regular local variable
         var->k = expkind.VLOCAL;
     }
 
-    /*
-     ** Ensure that expression 'e' is not a variable (nor a <const>).
-     ** (Expression still may have jump lists.)
-     */
+    /// <summary>
+    /// Ensure that expression 'e' is not a variable (nor a &lt;const&gt;).
+    /// (Expression still may have jump lists.)
+    /// </summary>
     private static void luaK_dischargevars(FuncState* fs, expdesc* e)
     {
         switch (e->k)
@@ -998,50 +1006,50 @@ public static unsafe partial class Lua
                 break;
             
             case expkind.VVARGVAR:
-                luaK_vapar2local(fs, e); /* turn it into a local variable */
+                luaK_vapar2local(fs, e); // turn it into a local variable
                 goto case expkind.VLOCAL;
 
             case expkind.VLOCAL:
                 {
-                    /* already in a register */
+                    // already in a register
                     int temp = e->u.var.ridx;
-                    e->u.info = temp; /* (can't do a direct assignment; values overlap) */
-                    e->k = expkind.VNONRELOC; /* becomes a non-relocatable value */
+                    e->u.info = temp; // (can't do a direct assignment; values overlap)
+                    e->k = expkind.VNONRELOC; // becomes a non-relocatable value
                     break;
                 }
 
             case expkind.VUPVAL:
-                /* move value to some (pending) register */
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETUPVAL, 0, e->u.info, 0);
+                // move value to some (pending) register
+                e->u.info = luaK_codeABC(fs, OpCode.GetUpVal, 0, e->u.info, 0);
                 e->k = expkind.VRELOC;
                 break;
             
             case expkind.VINDEXUP:
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETTABUP, 0, e->u.ind.t, e->u.ind.idx);
+                e->u.info = luaK_codeABC(fs, OpCode.GetTabUp, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
             
             case expkind.VINDEXI:
                 freereg(fs, e->u.ind.t);
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETI, 0, e->u.ind.t, e->u.ind.idx);
+                e->u.info = luaK_codeABC(fs, OpCode.GetI, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
             
             case expkind.VINDEXSTR:
                 freereg(fs, e->u.ind.t);
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETFIELD, 0, e->u.ind.t, e->u.ind.idx);
+                e->u.info = luaK_codeABC(fs, OpCode.GetField, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
             
             case expkind.VINDEXED:
                 freeregs(fs, e->u.ind.t, e->u.ind.idx);
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETTABLE, 0, e->u.ind.t, e->u.ind.idx);
+                e->u.info = luaK_codeABC(fs, OpCode.GetTable, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
 
             case expkind.VVARGIND:
                 freeregs(fs, e->u.ind.t, e->u.ind.idx);
-                e->u.info = luaK_codeABC(fs, OpCode.OP_GETVARG, 0, e->u.ind.t, e->u.ind.idx);
+                e->u.info = luaK_codeABC(fs, OpCode.GetVArg, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
             
@@ -1052,11 +1060,11 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Ensure expression value is in register 'reg', making 'e' a
-    ** non-relocatable expression.
-    ** (Expression still may have jump lists.)
-    */
+    /// <summary>
+    /// Ensure expression value is in register 'reg', making 'e' a
+    /// non-relocatable expression.
+    /// (Expression still may have jump lists.)
+    /// </summary>
     private static void discharge2reg(FuncState* fs, expdesc* e, int reg)
     {
         luaK_dischargevars(fs, e);
@@ -1067,11 +1075,11 @@ public static unsafe partial class Lua
                 break;
 
             case expkind.VFALSE:
-                luaK_codeABC(fs, OpCode.OP_LOADFALSE, reg, 0, 0);
+                luaK_codeABC(fs, OpCode.LoadFalse, reg, 0, 0);
                 break;
 
             case expkind.VTRUE:
-                luaK_codeABC(fs, OpCode.OP_LOADTRUE, reg, 0, 0);
+                luaK_codeABC(fs, OpCode.LoadTrue, reg, 0, 0);
                 break;
 
             case expkind.VKSTR:
@@ -1093,20 +1101,20 @@ public static unsafe partial class Lua
             case expkind.VRELOC:
                 {
                     ref uint pc = ref getinstruction(fs, e);
-                    SETARG_A(ref pc, reg); /* instruction will put result in 'reg' */
+                    SETARG_A(ref pc, reg); // instruction will put result in 'reg'
                     break;
                 }
 
             case expkind.VNONRELOC:
                 if (reg != e->u.info)
                 {
-                    luaK_codeABC(fs, OpCode.OP_MOVE, reg, e->u.info, 0);
+                    luaK_codeABC(fs, OpCode.Move, reg, e->u.info, 0);
                 }
 
                 break;
             
             case expkind.VJMP:
-                return; /* nothing to do... */
+                return; // nothing to do...
 
             default:
                 throw new InvalidOperationException();
@@ -1116,70 +1124,70 @@ public static unsafe partial class Lua
         e->k = expkind.VNONRELOC;
     }
 
-    /*
-    ** Ensure expression value is in a register, making 'e' a
-    ** non-relocatable expression.
-    ** (Expression still may have jump lists.)
-    */
+    /// <summary>
+    /// Ensure expression value is in a register, making 'e' a
+    /// non-relocatable expression.
+    /// (Expression still may have jump lists.)
+    /// </summary>
     private static void discharge2anyreg(FuncState* fs, expdesc* e)
     {
         if (e->k != expkind.VNONRELOC)
         {
-            /* no fixed register yet? */
-            luaK_reserveregs(fs, 1); /* get a register */
-            discharge2reg(fs, e, fs->freereg - 1); /* put value there */
+            // no fixed register yet?
+            luaK_reserveregs(fs, 1); // get a register
+            discharge2reg(fs, e, fs->freereg - 1); // put value there
         }
     }
 
     private static int code_loadbool(FuncState* fs, int A, OpCode op)
     {
-        luaK_getlabel(fs); /* those instructions may be jump targets */
+        luaK_getlabel(fs); // those instructions may be jump targets
         return luaK_codeABC(fs, op, A, 0, 0);
     }
 
-    /*
-     ** check whether list has any jump that do not produce a value
-     ** or produce an inverted value
-     */
+    /// <summary>
+    /// check whether list has any jump that do not produce a value
+    /// or produce an inverted value
+    /// </summary>
     private static bool need_value(FuncState* fs, int list)
     {
         for (; list != NO_JUMP; list = getjump(fs, list))
         {
             uint i = *getjumpcontrol(fs, list);
-            if (GET_OPCODE(i) != OpCode.OP_TESTSET)
+            if (GET_OPCODE(i) != OpCode.TestSet)
             {
                 return true;
             }
         }
 
-        return false; /* not found */
+        return false; // not found
     }
 
-    /*
-     ** Ensures final expression result (which includes results from its
-     ** jump lists) is in register 'reg'.
-     ** If expression has jumps, need to patch these jumps either to
-     ** its final position or to "load" instructions (for those tests
-     ** that do not produce values).
-     */
+    /// <summary>
+    /// Ensures final expression result (which includes results from its
+    /// jump lists) is in register 'reg'.
+    /// If expression has jumps, need to patch these jumps either to
+    /// its final position or to "load" instructions (for those tests
+    /// that do not produce values).
+    /// </summary>
     private static void exp2reg(FuncState* fs, expdesc* e, int reg)
     {
         discharge2reg(fs, e, reg);
-        if (e->k == expkind.VJMP) /* expression itself is a test? */
+        if (e->k == expkind.VJMP) // expression itself is a test?
         {
-            luaK_concat(fs, &e->t, e->u.info); /* put this jump in 't' list */
+            luaK_concat(fs, &e->t, e->u.info); // put this jump in 't' list
         }
 
         if (hasjumps(e))
         {
-            int p_f = NO_JUMP; /* position of an eventual LOAD false */
-            int p_t = NO_JUMP; /* position of an eventual LOAD true */
+            int p_f = NO_JUMP; // position of an eventual LOAD false
+            int p_t = NO_JUMP; // position of an eventual LOAD true
             if (need_value(fs, e->t) || need_value(fs, e->f))
             {
                 int fj = e->k == expkind.VJMP ? NO_JUMP : luaK_jump(fs);
-                p_f = code_loadbool(fs, reg, OpCode.OP_LFALSESKIP); /* skip next inst. */
-                p_t = code_loadbool(fs, reg, OpCode.OP_LOADTRUE);
-                /* jump around these booleans if 'e' is not a test */
+                p_f = code_loadbool(fs, reg, OpCode.LFalseSkip); // skip next inst.
+                p_t = code_loadbool(fs, reg, OpCode.LoadTrue);
+                // jump around these booleans if 'e' is not a test
                 luaK_patchtohere(fs, fj);
             }
 
@@ -1193,9 +1201,9 @@ public static unsafe partial class Lua
         e->k = expkind.VNONRELOC;
     }
 
-    /*
-     ** Ensures final expression result is in next available register.
-     */
+    /// <summary>
+    /// Ensures final expression result is in next available register.
+    /// </summary>
     private static void luaK_exp2nextreg(FuncState* fs, expdesc* e)
     {
         luaK_dischargevars(fs, e);
@@ -1204,40 +1212,40 @@ public static unsafe partial class Lua
         exp2reg(fs, e, fs->freereg - 1);
     }
 
-    /*
-     ** Ensures final expression result is in some (any) register
-     ** and return that register.
-     */
+    /// <summary>
+    /// Ensures final expression result is in some (any) register
+    /// and return that register.
+    /// </summary>
     private static int luaK_exp2anyreg(FuncState* fs, expdesc* e)
     {
         luaK_dischargevars(fs, e);
         if (e->k == expkind.VNONRELOC)
         {
-            /* expression already has a register? */
-            if (!hasjumps(e)) /* no jumps? */
+            // expression already has a register?
+            if (!hasjumps(e)) // no jumps?
             {
-                return e->u.info; /* result is already in a register */
+                return e->u.info; // result is already in a register
             }
 
             if (e->u.info >= luaY_nvarstack(fs))
             {
-                /* reg. is not a local? */
-                exp2reg(fs, e, e->u.info); /* put final result in it */
+                // reg. is not a local?
+                exp2reg(fs, e, e->u.info); // put final result in it
                 return e->u.info;
             }
-            /* else expression has jumps and cannot change its register
-               to hold the jump values, because it is a local variable.
-               Go through to the default case. */
+            // else expression has jumps and cannot change its register
+            // to hold the jump values, because it is a local variable.
+            // Go through to the default case.
         }
 
-        luaK_exp2nextreg(fs, e); /* default: use next available register */
+        luaK_exp2nextreg(fs, e); // default: use next available register
         return e->u.info;
     }
 
-    /*
-     ** Ensures final expression result is either in a register,
-     ** in an upvalue, or it is the vararg parameter.
-     */
+    /// <summary>
+    /// Ensures final expression result is either in a register,
+    /// in an upvalue, or it is the vararg parameter.
+    /// </summary>
     private static void luaK_exp2anyregup(FuncState* fs, expdesc* e)
     {
         if (e->k != expkind.VUPVAL && e->k != expkind.VVARGVAR || hasjumps(e))
@@ -1246,10 +1254,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Ensures final expression result is either in a register
-    ** or it is a constant.
-    */
+    /// <summary>
+    /// Ensures final expression result is either in a register
+    /// or it is a constant.
+    /// </summary>
     private static void luaK_exp2val(FuncState* fs, expdesc* e)
     {
         if (e->k == expkind.VJMP || hasjumps(e))
@@ -1262,10 +1270,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-    ** Try to make 'e' a K expression with an index in the range of R/K
-    ** indices. Return true iff succeeded.
-    */
+    /// <summary>
+    /// Try to make 'e' a K expression with an index in the range of R/K
+    /// indices. Return true iff succeeded.
+    /// </summary>
     private static bool luaK_exp2K(FuncState* fs, expdesc* e)
     {
         if (!hasjumps(e))
@@ -1273,7 +1281,7 @@ public static unsafe partial class Lua
             int info;
             switch (e->k)
             {
-                /* move constants to 'k' */
+                // move constants to 'k'
                 case expkind.VTRUE: info = boolT(fs); break;
                 case expkind.VFALSE: info = boolF(fs); break;
                 case expkind.VNIL: info = nilK(fs); break;
@@ -1281,28 +1289,28 @@ public static unsafe partial class Lua
                 case expkind.VKFLT: info = luaK_numberK(fs, e->u.nval); break;
                 case expkind.VKSTR: info = stringK(fs, e->u.strval); break;
                 case expkind.VK: info = e->u.info; break;
-                default: return false; /* not a constant */
+                default: return false; // not a constant
             }
 
             if (info <= MAXINDEXRK)
             {
-                /* does constant fit in 'argC'? */
-                e->k = expkind.VK; /* make expression a 'K' expression */
+                // does constant fit in 'argC'?
+                e->k = expkind.VK; // make expression a 'K' expression
                 e->u.info = info;
                 return true;
             }
         }
 
-        /* expression doesn't fit; leave it unchanged */
+        // expression doesn't fit; leave it unchanged
         return false;
     }
 
-    /*
-     ** Ensures final expression result is in a valid R/K index
-     ** (that is, it is either in a register or in 'k' with an index
-     ** in the range of R/K indices).
-     ** Returns 1 iff expression is K.
-     */
+    /// <summary>
+    /// Ensures final expression result is in a valid R/K index
+    /// (that is, it is either in a register or in 'k' with an index
+    /// in the range of R/K indices).
+    /// Returns 1 iff expression is K.
+    /// </summary>
     private static bool exp2RK(FuncState* fs, expdesc* e)
     {
         if (luaK_exp2K(fs, e))
@@ -1310,7 +1318,7 @@ public static unsafe partial class Lua
             return true;
         }
 
-        /* not a constant in the right range: put it in a register */
+        // not a constant in the right range: put it in a register
         luaK_exp2anyreg(fs, e);
         return false;
     }
@@ -1326,44 +1334,44 @@ public static unsafe partial class Lua
         luaK_codeABCk(fs, o, A, B, ec->u.info, k);
     }
 
-    /*
-     ** Generate code to store result of expression 'ex' into variable 'var'.
-     */
+    /// <summary>
+    /// Generate code to store result of expression 'ex' into variable 'var'.
+    /// </summary>
     private static void luaK_storevar(FuncState* fs, expdesc* var, expdesc* ex)
     {
         switch (var->k)
         {
             case expkind.VLOCAL:
                 freeexp(fs, ex);
-                exp2reg(fs, ex, var->u.var.ridx); /* compute 'ex' into proper place */
+                exp2reg(fs, ex, var->u.var.ridx); // compute 'ex' into proper place
                 return;
 
             case expkind.VUPVAL:
                 {
                     int e = luaK_exp2anyreg(fs, ex);
-                    luaK_codeABC(fs, OpCode.OP_SETUPVAL, e, var->u.info, 0);
+                    luaK_codeABC(fs, OpCode.SetUpVal, e, var->u.info, 0);
                     break;
                 }
 
             case expkind.VINDEXUP:
-                codeABRK(fs, OpCode.OP_SETTABUP, var->u.ind.t, var->u.ind.idx, ex);
+                codeABRK(fs, OpCode.SetTabUp, var->u.ind.t, var->u.ind.idx, ex);
                 break;
 
             case expkind.VINDEXI:
-                codeABRK(fs, OpCode.OP_SETI, var->u.ind.t, var->u.ind.idx, ex);
+                codeABRK(fs, OpCode.SetI, var->u.ind.t, var->u.ind.idx, ex);
                 break;
 
             case expkind.VINDEXSTR:
-                codeABRK(fs, OpCode.OP_SETFIELD, var->u.ind.t, var->u.ind.idx, ex);
+                codeABRK(fs, OpCode.SetField, var->u.ind.t, var->u.ind.idx, ex);
                 break;
 
             case expkind.VVARGIND:
-                needvatab(fs->f); /* function will need a vararg table */
-                /* now, assignment is to a regular table */
+                needvatab(fs->f); // function will need a vararg table
+                // now, assignment is to a regular table
                 goto case expkind.VINDEXED;
                 
             case expkind.VINDEXED:
-                codeABRK(fs, OpCode.OP_SETTABLE, var->u.ind.t, var->u.ind.idx, ex);
+                codeABRK(fs, OpCode.SetTable, var->u.ind.t, var->u.ind.idx, ex);
                 break;
             
             default:
@@ -1373,56 +1381,56 @@ public static unsafe partial class Lua
         freeexp(fs, ex);
     }
 
-    /*
-     ** Negate condition 'e' (where 'e' is a comparison).
-     */
+    /// <summary>
+    /// Negate condition 'e' (where 'e' is a comparison).
+    /// </summary>
     private static void negatecondition(FuncState* fs, expdesc* e)
     {
         uint* pc = getjumpcontrol(fs, e->u.info);
         Debug.Assert(
             testTMode((OpMode)GET_OPCODE(*pc)) &&
-            GET_OPCODE(*pc) != OpCode.OP_TESTSET &&
-            GET_OPCODE(*pc) != OpCode.OP_TEST);
+            GET_OPCODE(*pc) != OpCode.TestSet &&
+            GET_OPCODE(*pc) != OpCode.Test);
         SETARG_k(ref *pc, !GETARG_k(*pc));
     }
 
-    /*
-     ** Emit instruction to jump if 'e' is 'cond' (that is, if 'cond'
-     ** is true, code will jump if 'e' is true.) Return jump position.
-     ** Optimise when 'e' is 'not' something, inverting the condition
-     ** and removing the 'not'.
-     */
+    /// <summary>
+    /// Emit instruction to jump if 'e' is 'cond' (that is, if 'cond'
+    /// is true, code will jump if 'e' is true.) Return jump position.
+    /// Optimise when 'e' is 'not' something, inverting the condition
+    /// and removing the 'not'.
+    /// </summary>
     private static int jumponcond(FuncState* fs, expdesc* e, bool cond)
     {
         if (e->k == expkind.VRELOC)
         {
             uint ie = getinstruction(fs, e);
-            if (GET_OPCODE(ie) == OpCode.OP_NOT)
+            if (GET_OPCODE(ie) == OpCode.Not)
             {
-                removelastinstruction(fs); /* remove previous OP_NOT */
-                return condjump(fs, OpCode.OP_TEST, GETARG_B(ie), 0, 0, !cond);
+                removelastinstruction(fs); // remove previous OP_NOT
+                return condjump(fs, OpCode.Test, GETARG_B(ie), 0, 0, !cond);
             }
-            /* else go through */
+            // else go through
         }
 
         discharge2anyreg(fs, e);
         freeexp(fs, e);
-        return condjump(fs, OpCode.OP_TESTSET, NO_REG, e->u.info, 0, cond);
+        return condjump(fs, OpCode.TestSet, NO_REG, e->u.info, 0, cond);
     }
 
-    /*
-     ** Emit code to go through if 'e' is true, jump otherwise.
-     */
+    /// <summary>
+    /// Emit code to go through if 'e' is true, jump otherwise.
+    /// </summary>
     private static void luaK_goiftrue(FuncState* fs, expdesc* e)
     {
-        int pc; /* pc of new jump */
+        int pc; // pc of new jump
         luaK_dischargevars(fs, e);
         switch (e->k)
         {
             case expkind.VJMP:
-                /* condition? */
-                negatecondition(fs, e); /* jump when it is false */
-                pc = e->u.info; /* save jump position */
+                // condition?
+                negatecondition(fs, e); // jump when it is false
+                pc = e->u.info; // save jump position
                 break;
             
             case expkind.VK:
@@ -1430,47 +1438,47 @@ public static unsafe partial class Lua
             case expkind.VKINT:
             case expkind.VKSTR:
             case expkind.VTRUE:
-                pc = NO_JUMP; /* always true; do nothing */
+                pc = NO_JUMP; // always true; do nothing
                 break;
             
             default:
-                pc = jumponcond(fs, e, false); /* jump when false */
+                pc = jumponcond(fs, e, false); // jump when false
                 break;
         }
 
-        luaK_concat(fs, &e->f, pc); /* insert new jump in false list */
-        luaK_patchtohere(fs, e->t); /* true list jumps to here (to go through) */
+        luaK_concat(fs, &e->f, pc); // insert new jump in false list
+        luaK_patchtohere(fs, e->t); // true list jumps to here (to go through)
         e->t = NO_JUMP;
     }
 
-    /*
-     ** Emit code to go through if 'e' is false, jump otherwise.
-     */
+    /// <summary>
+    /// Emit code to go through if 'e' is false, jump otherwise.
+    /// </summary>
     private static void luaK_goiffalse(FuncState* fs, expdesc* e)
     {
         luaK_dischargevars(fs, e);
         int pc = e->k switch
         {
-            expkind.VJMP => e->u.info /* already jump if true */,
-            expkind.VNIL or expkind.VFALSE => NO_JUMP /* always false; do nothing */,
+            expkind.VJMP => e->u.info , // already jump if true
+            expkind.VNIL or expkind.VFALSE => NO_JUMP , // always false; do nothing
             _ => jumponcond(fs, e, true),
         };
 
-        luaK_concat(fs, &e->t, pc); /* insert new jump in 't' list */
-        luaK_patchtohere(fs, e->f); /* false list jumps to here (to go through) */
+        luaK_concat(fs, &e->t, pc); // insert new jump in 't' list
+        luaK_patchtohere(fs, e->f); // false list jumps to here (to go through)
         e->f = NO_JUMP;
     }
 
-    /*
-     ** Code 'not e', doing constant folding.
-     */
+    /// <summary>
+    /// Code 'not e', doing constant folding.
+    /// </summary>
     private static void codenot(FuncState* fs, expdesc* e)
     {
         switch (e->k)
         {
             case expkind.VNIL:
             case expkind.VFALSE:
-                e->k = expkind.VTRUE;  /* true == not nil == not false */
+                e->k = expkind.VTRUE; // true == not nil == not false
                 break;
 
             case expkind.VK:
@@ -1478,7 +1486,7 @@ public static unsafe partial class Lua
             case expkind.VKINT:
             case expkind.VKSTR:
             case expkind.VTRUE:
-                e->k = expkind.VFALSE;  /* false == not "x" == not 0.5 == not 1 == not true */
+                e->k = expkind.VFALSE; // false == not "x" == not 0.5 == not 1 == not true
                 break;
 
             case expkind.VJMP:
@@ -1489,7 +1497,7 @@ public static unsafe partial class Lua
             case expkind.VNONRELOC:
                 discharge2anyreg(fs, e);
                 freeexp(fs, e);
-                e->u.info = luaK_codeABC(fs, OpCode.OP_NOT, 0, e->u.info, 0);
+                e->u.info = luaK_codeABC(fs, OpCode.Not, 0, e->u.info, 0);
                 e->k = expkind.VRELOC;
                 break;
 
@@ -1497,17 +1505,17 @@ public static unsafe partial class Lua
                 throw new InvalidOperationException();
         }
 
-        /* interchange true and false lists */
+        // interchange true and false lists
         int temp = e->f;
         e->f = e->t;
         e->t = temp;
-        removevalues(fs, e->f); /* values are useless when negated */
+        removevalues(fs, e->f); // values are useless when negated
         removevalues(fs, e->t);
     }
 
-    /*
-     ** Check whether expression 'e' is a short literal string
-     */
+    /// <summary>
+    /// Check whether expression 'e' is a short literal string
+    /// </summary>
     private static bool isKstr(FuncState* fs, expdesc* e)
     {
         return e->k == expkind.VK &&
@@ -1516,36 +1524,36 @@ public static unsafe partial class Lua
                ttisshrstring(&fs->f->k[e->u.info]);
     }
 
-    /*
-    ** Check whether expression 'e' is a literal integer.
-    */
+    /// <summary>
+    /// Check whether expression 'e' is a literal integer.
+    /// </summary>
     private static bool isKint(expdesc* e)
     {
         return e->k == expkind.VKINT && !hasjumps(e);
     }
 
-    /*
-     ** Check whether expression 'e' is a literal integer in
-     ** proper range to fit in register C
-     */
+    /// <summary>
+    /// Check whether expression 'e' is a literal integer in
+    /// proper range to fit in register C
+    /// </summary>
     private static bool isCint(expdesc* e)
     {
         return isKint(e) && (ulong)e->u.ival <= MAXARG_C;
     }
 
-    /*
-    ** Check whether expression 'e' is a literal integer in
-    ** proper range to fit in register sC
-    */
+    /// <summary>
+    /// Check whether expression 'e' is a literal integer in
+    /// proper range to fit in register sC
+    /// </summary>
     private static bool isSCint(expdesc* e)
     {
         return isKint(e) && fitsC(e->u.ival);
     }
 
-    /*
-     ** Check whether expression 'e' is a literal integer or float in
-     ** proper range to fit in a register (sB or sC).
-     */
+    /// <summary>
+    /// Check whether expression 'e' is a literal integer or float in
+    /// proper range to fit in a register (sB or sC).
+    /// </summary>
     private static bool isSCnumber(expdesc* e, int* pi, bool* isfloat)
     {
         long i;
@@ -1559,7 +1567,7 @@ public static unsafe partial class Lua
         }
         else
         {
-            return false; /* not a number */
+            return false; // not a number
         }
 
         if (!hasjumps(e) && fitsC(i))
@@ -1571,49 +1579,51 @@ public static unsafe partial class Lua
         return false;
     }
 
-    /*
-     ** Emit SELF instruction or equivalent: the code will convert
-     ** expression 'e' into 'e.key(e,'.
-     */
+    /// <summary>
+    /// Emit SELF instruction or equivalent: the code will convert
+    /// expression 'e' into 'e.key(e,'.
+    /// </summary>
     private static void luaK_self(FuncState* fs, expdesc* e, expdesc* key)
     {
         luaK_exp2anyreg(fs, e);
-        int ereg = e->u.info; /* register where 'e' (the receiver) was placed */
+        int ereg = e->u.info; // register where 'e' (the receiver) was placed
         freeexp(fs, e);
-        int @base = e->u.info = fs->freereg; /* base register for op_self */
-        e->k = expkind.VNONRELOC; /* self expression has a fixed register */
-        luaK_reserveregs(fs, 2); /* method and 'self' produced by op_self */
+        int @base = e->u.info = fs->freereg; // base register for op_self
+        e->k = expkind.VNONRELOC; // self expression has a fixed register
+        luaK_reserveregs(fs, 2); // method and 'self' produced by op_self
         Debug.Assert(key->k == expkind.VKSTR);
-        /* is method name a short string in a valid K index? */
+        // is method name a short string in a valid K index?
         if (strisshr(key->u.strval) && luaK_exp2K(fs, key))
         {
-            /* can use 'self' opcode */
-            luaK_codeABCk(fs, OpCode.OP_SELF, @base, ereg, key->u.info, false);
+            // can use 'self' opcode
+            luaK_codeABCk(fs, OpCode.Self, @base, ereg, key->u.info, false);
         }
         else
         {
-            /* cannot use 'self' opcode; use move+gettable */
-            luaK_exp2anyreg(fs, key); /* put method name in a register */
-            luaK_codeABC(fs, OpCode.OP_MOVE, @base + 1, ereg, 0); /* copy self to base+1 */
-            luaK_codeABC(fs, OpCode.OP_GETTABLE, @base, ereg, key->u.info); /* get method */
+            // cannot use 'self' opcode; use move+gettable
+            luaK_exp2anyreg(fs, key); // put method name in a register
+            luaK_codeABC(fs, OpCode.Move, @base + 1, ereg, 0); // copy self to base+1
+            luaK_codeABC(fs, OpCode.GetTable, @base, ereg, key->u.info); // get method
         }
 
         freeexp(fs, key);
     }
 
-    /* auxiliary function to define indexing expressions */
+    /// <summary>
+    /// auxiliary function to define indexing expressions
+    /// </summary>
     private static void fillidxk(expdesc* t, int idx, expkind k)
     {
         t->u.ind.idx = (byte)idx;
         t->k = k;
     }
 
-    /*
-     ** Create expression 't[k]'. 't' must have its final result already in a
-     ** register or upvalue. Upvalues can only be indexed by literal strings.
-     ** Keys can be literal strings in the constant table or arbitrary
-     ** values in registers.
-     */
+    /// <summary>
+    /// Create expression 't[k]'. 't' must have its final result already in a
+    /// register or upvalue. Upvalues can only be indexed by literal strings.
+    /// Keys can be literal strings in the constant table or arbitrary
+    /// values in registers.
+    /// </summary>
     private static void luaK_indexed(FuncState* fs, expdesc* t, expdesc* k)
     {
         int keystr = -1;
@@ -1628,73 +1638,73 @@ public static unsafe partial class Lua
              t->k == expkind.VVARGVAR ||
              t->k == expkind.VNONRELOC ||
              t->k == expkind.VUPVAL));
-        if (t->k == expkind.VUPVAL && !isKstr(fs, k)) /* upvalue indexed by non 'Kstr'? */
+        if (t->k == expkind.VUPVAL && !isKstr(fs, k)) // upvalue indexed by non 'Kstr'?
         {
-            luaK_exp2anyreg(fs, t); /* put it in a register */
+            luaK_exp2anyreg(fs, t); // put it in a register
         }
 
         if (t->k == expkind.VUPVAL)
         {
-            byte temp = (byte)t->u.info; /* upvalue index */
-            t->u.ind.t = temp; /* (can't do a direct assignment; values overlap) */
+            byte temp = (byte)t->u.info; // upvalue index
+            t->u.ind.t = temp; // (can't do a direct assignment; values overlap)
             Debug.Assert(isKstr(fs, k));
-            fillidxk(t, k->u.info, expkind.VINDEXUP); /* literal short string */
+            fillidxk(t, k->u.info, expkind.VINDEXUP); // literal short string
         }
         else if (t->k == expkind.VVARGVAR)
         {
-            /* indexing the vararg parameter? */
-            int kreg = luaK_exp2anyreg(fs, k); /* put key in some register */
-            byte vreg = t->u.var.ridx; /* register with vararg param. */
+            // indexing the vararg parameter?
+            int kreg = luaK_exp2anyreg(fs, k); // put key in some register
+            byte vreg = t->u.var.ridx; // register with vararg param.
             Debug.Assert(vreg == fs->f->numparams);
-            t->u.ind.t = vreg; /* (avoid a direct assignment; values may overlap) */
-            fillidxk(t, kreg, expkind.VVARGIND); /* 't' represents 'vararg[k]' */
+            t->u.ind.t = vreg; // (avoid a direct assignment; values may overlap)
+            fillidxk(t, kreg, expkind.VVARGIND); // 't' represents 'vararg[k]'
         }
         else
         {
-            /* register index of the table */
+            // register index of the table
             t->u.ind.t = (byte)(t->k == expkind.VLOCAL ? t->u.var.ridx : t->u.info);
             if (isKstr(fs, k))
             {
-                fillidxk(t, k->u.info, expkind.VINDEXSTR); /* literal short string */
+                fillidxk(t, k->u.info, expkind.VINDEXSTR); // literal short string
             }
-            else if (isCint(k)) /* int. constant in proper range? */
+            else if (isCint(k)) // int. constant in proper range?
             {
                 fillidxk(t, (int)k->u.ival, expkind.VINDEXI);
             }
             else
             {
-                fillidxk(t, luaK_exp2anyreg(fs, k), expkind.VINDEXED); /* register */
+                fillidxk(t, luaK_exp2anyreg(fs, k), expkind.VINDEXED); // register
             }
         }
 
-        t->u.ind.keystr = keystr; /* string index in 'k' */
-        t->u.ind.ro = false; /* by default, not read-only */
+        t->u.ind.keystr = keystr; // string index in 'k'
+        t->u.ind.ro = false; // by default, not read-only
     }
 
-    /*
-    ** Return false if folding can raise an error.
-    ** Bitwise operations need operands convertible to integers; division
-    ** operations cannot have 0 as divisor.
-    */
+    /// <summary>
+    /// Return false if folding can raise an error.
+    /// Bitwise operations need operands convertible to integers; division
+    /// operations cannot have 0 as divisor.
+    /// </summary>
     private static bool validop(int op, TValue* v1, TValue* v2)
     {
         return op switch
         {
-            /* conversion errors */
+            // conversion errors
             LUA_OPBAND or LUA_OPBOR or LUA_OPBXOR or LUA_OPSHL or LUA_OPSHR or LUA_OPBNOT =>
                 luaV_tointegerns(v1, out _, LUA_FLOORN2I) && luaV_tointegerns(v2, out _, LUA_FLOORN2I),
 
-            /* division by 0 */
+            // division by 0
             LUA_OPDIV or LUA_OPIDIV or LUA_OPMOD => nvalue(v2) != 0,
 
             _ => true,
         };
     }
 
-    /*
-     ** Try to "constant-fold" an operation; return 1 iff successful.
-     ** (In this case, 'e1' has the final result.)
-     */
+    /// <summary>
+    /// Try to "constant-fold" an operation; return 1 iff successful.
+    /// (In this case, 'e1' has the final result.)
+    /// </summary>
     private static bool constfolding(
         FuncState* fs,
         int op,
@@ -1704,10 +1714,10 @@ public static unsafe partial class Lua
         TValue v1, v2, res;
         if (!tonumeral(e1, &v1) || !tonumeral(e2, &v2) || !validop(op, &v1, &v2))
         {
-            return false; /* non-numeric operands or not safe to fold */
+            return false; // non-numeric operands or not safe to fold
         }
 
-        luaO_rawarith(fs->ls->L, op, &v1, &v2, &res); /* does operation */
+        luaO_rawarith(fs->ls->L, op, &v1, &v2, &res); // does operation
         if (ttisinteger(&res))
         {
             e1->k = expkind.VKINT;
@@ -1715,7 +1725,7 @@ public static unsafe partial class Lua
         }
         else
         {
-            /* folds neither NaN nor 0.0 (to avoid problems with -0.0) */
+            // folds neither NaN nor 0.0 (to avoid problems with -0.0)
             double n = fltvalue(&res);
             if (double.IsNaN(n) || n == 0)
             {
@@ -1729,9 +1739,9 @@ public static unsafe partial class Lua
         return true;
     }
 
-    /*
-     ** Convert a BinOpr to an OpCode  (ORDER OPR - ORDER OP)
-     */
+    /// <summary>
+    /// Convert a BinOpr to an OpCode  (ORDER OPR - ORDER OP)
+    /// </summary>
     private static OpCode binopr2op(BinOpr opr, BinOpr baser, OpCode @base)
     {
         Debug.Assert(
@@ -1741,43 +1751,43 @@ public static unsafe partial class Lua
         return (OpCode)((int)opr - (int)baser + (int)@base);
     }
 
-    /*
-     ** Convert a UnOpr to an OpCode  (ORDER OPR - ORDER OP)
-     */
+    /// <summary>
+    /// Convert a UnOpr to an OpCode  (ORDER OPR - ORDER OP)
+    /// </summary>
     private static OpCode unopr2op(UnOpr opr)
     {
-        return (OpCode)((int)opr - (int)UnOpr.MINUS + (int)OpCode.OP_UNM);
+        return (OpCode)((int)opr - (int)UnOpr.MINUS + (int)OpCode.UNM);
     }
 
-    /*
-     ** Convert a BinOpr to a tag method  (ORDER OPR - ORDER TM)
-     */
+    /// <summary>
+    /// Convert a BinOpr to a tag method  (ORDER OPR - ORDER TM)
+    /// </summary>
     private static TMS binopr2TM(BinOpr opr)
     {
         Debug.Assert(opr is >= BinOpr.OPR_ADD and <= BinOpr.OPR_SHR);
         return (TMS)((int)opr - (int)BinOpr.OPR_ADD + (int)TMS.ADD);
     }
 
-    /*
-     ** Emit code for unary expressions that "produce values"
-     ** (everything but 'not').
-     ** Expression to produce final result will be encoded in 'e'.
-     */
+    /// <summary>
+    /// Emit code for unary expressions that "produce values"
+    /// (everything but 'not').
+    /// Expression to produce final result will be encoded in 'e'.
+    /// </summary>
     private static void codeunexpval(FuncState* fs, OpCode op, expdesc* e, int line)
     {
-        int r = luaK_exp2anyreg(fs, e); /* opcodes operate only on registers */
+        int r = luaK_exp2anyreg(fs, e); // opcodes operate only on registers
         freeexp(fs, e);
-        e->u.info = luaK_codeABC(fs, op, 0, r, 0); /* generate opcode */
-        e->k = expkind.VRELOC; /* all those operations are relocatable */
+        e->u.info = luaK_codeABC(fs, op, 0, r, 0); // generate opcode
+        e->k = expkind.VRELOC; // all those operations are relocatable
         luaK_fixline(fs, line);
     }
 
-    /*
-     ** Emit code for binary expressions that "produce values"
-     ** (everything but logical operators 'and'/'or' and comparison
-     ** operators).
-     ** Expression to produce final result will be encoded in 'e1'.
-     */
+    /// <summary>
+    /// Emit code for binary expressions that "produce values"
+    /// (everything but logical operators 'and'/'or' and comparison
+    /// operators).
+    /// Expression to produce final result will be encoded in 'e1'.
+    /// </summary>
     private static void finishbinexpval(
         FuncState* fs,
         expdesc* e1,
@@ -1793,16 +1803,16 @@ public static unsafe partial class Lua
         int pc = luaK_codeABCk(fs, op, 0, v1, v2, false);
         freeexps(fs, e1, e2);
         e1->u.info = pc;
-        e1->k = expkind.VRELOC; /* all those operations are relocatable */
+        e1->k = expkind.VRELOC; // all those operations are relocatable
         luaK_fixline(fs, line);
-        luaK_codeABCk(fs, mmop, v1, v2, (int)@event, flip); /* metamethod */
+        luaK_codeABCk(fs, mmop, v1, v2, (int)@event, flip); // metamethod
         luaK_fixline(fs, line);
     }
 
-    /*
-     ** Emit code for binary expressions that "produce values" over
-     ** two registers.
-     */
+    /// <summary>
+    /// Emit code for binary expressions that "produce values" over
+    /// two registers.
+    /// </summary>
     private static void codebinexpval(
         FuncState* fs,
         BinOpr opr,
@@ -1810,20 +1820,20 @@ public static unsafe partial class Lua
         expdesc* e2,
         int line)
     {
-        OpCode op = binopr2op(opr, BinOpr.OPR_ADD, OpCode.OP_ADD);
-        int v2 = luaK_exp2anyreg(fs, e2); /* make sure 'e2' is in a register */
-        /* 'e1' must be already in a register or it is a constant */
+        OpCode op = binopr2op(opr, BinOpr.OPR_ADD, OpCode.Add);
+        int v2 = luaK_exp2anyreg(fs, e2); // make sure 'e2' is in a register
+        // 'e1' must be already in a register or it is a constant
         Debug.Assert(
             expkind.VNIL <= e1->k && e1->k <= expkind.VKSTR ||
             e1->k == expkind.VNONRELOC ||
             e1->k == expkind.VRELOC);
-        Debug.Assert(op is >= OpCode.OP_ADD and <= OpCode.OP_SHR);
-        finishbinexpval(fs, e1, e2, op, v2, false, line, OpCode.OP_MMBIN, binopr2TM(opr));
+        Debug.Assert(op is >= OpCode.Add and <= OpCode.Shr);
+        finishbinexpval(fs, e1, e2, op, v2, false, line, OpCode.MMBin, binopr2TM(opr));
     }
 
-    /*
-     ** Code binary operators with immediate operands.
-     */
+    /// <summary>
+    /// Code binary operators with immediate operands.
+    /// </summary>
     private static void codebini(
         FuncState* fs,
         OpCode op,
@@ -1833,14 +1843,14 @@ public static unsafe partial class Lua
         int line,
         TMS @event)
     {
-        int v2 = int2sC((int)e2->u.ival); /* immediate operand */
+        int v2 = int2sC((int)e2->u.ival); // immediate operand
         Debug.Assert(e2->k == expkind.VKINT);
-        finishbinexpval(fs, e1, e2, op, v2, flip, line, OpCode.OP_MMBINI, @event);
+        finishbinexpval(fs, e1, e2, op, v2, flip, line, OpCode.MMBinI, @event);
     }
 
-    /*
-     ** Code binary operators with K operand.
-     */
+    /// <summary>
+    /// Code binary operators with K operand.
+    /// </summary>
     private static void codebinK(
         FuncState* fs,
         BinOpr opr,
@@ -1850,14 +1860,15 @@ public static unsafe partial class Lua
         int line)
     {
         TMS @event = binopr2TM(opr);
-        int v2 = e2->u.info; /* K index */
-        OpCode op = binopr2op(opr, BinOpr.OPR_ADD, OpCode.OP_ADDK);
-        finishbinexpval(fs, e1, e2, op, v2, flip, line, OpCode.OP_MMBINK, @event);
+        int v2 = e2->u.info; // K index
+        OpCode op = binopr2op(opr, BinOpr.OPR_ADD, OpCode.AddK);
+        finishbinexpval(fs, e1, e2, op, v2, flip, line, OpCode.MMBinK, @event);
     }
 
-    /* Try to code a binary operator negating its second operand.
-     ** For the metamethod, 2nd operand must keep its original value.
-     */
+    /// <summary>
+    /// Try to code a binary operator negating its second operand.
+    /// For the metamethod, 2nd operand must keep its original value.
+    /// </summary>
     private static bool finishbinexpneg(
         FuncState* fs,
         expdesc* e1,
@@ -1868,33 +1879,33 @@ public static unsafe partial class Lua
     {
         if (!isKint(e2))
         {
-            return false; /* not an integer constant */
+            return false; // not an integer constant
         }
 
         long i2 = e2->u.ival;
         if (!(fitsC(i2) && fitsC(-i2)))
         {
-            return false; /* not in the proper range */
+            return false; // not in the proper range
         }
 
-        /* operating a small integer constant */
+        // operating a small integer constant
         int v2 = (int)i2;
-        finishbinexpval(fs, e1, e2, op, int2sC(-v2), false, line, OpCode.OP_MMBINI, @event);
-        /* correct metamethod argument */
+        finishbinexpval(fs, e1, e2, op, int2sC(-v2), false, line, OpCode.MMBinI, @event);
+        // correct metamethod argument
         SETARG_B(ref fs->f->code[fs->pc - 1], int2sC(v2));
-        return true; /* successfully coded */
+        return true; // successfully coded
     }
 
     private static void swapexps(expdesc* e1, expdesc* e2)
     {
         expdesc temp = *e1;
         *e1 = *e2;
-        *e2 = temp; /* swap 'e1' and 'e2' */
+        *e2 = temp; // swap 'e1' and 'e2'
     }
 
-    /*
-     ** Code binary operators with no constant operand.
-     */
+    /// <summary>
+    /// Code binary operators with no constant operand.
+    /// </summary>
     private static void codebinNoK(
         FuncState* fs,
         BinOpr opr,
@@ -1905,16 +1916,16 @@ public static unsafe partial class Lua
     {
         if (flip)
         {
-            swapexps(e1, e2); /* back to original order */
+            swapexps(e1, e2); // back to original order
         }
 
-        codebinexpval(fs, opr, e1, e2, line); /* use standard operators */
+        codebinexpval(fs, opr, e1, e2, line); // use standard operators
     }
 
-    /*
-     ** Code arithmetic operators ('+', '-', ...). If second operand is a
-     ** constant in the proper range, use variant opcodes with K operands.
-     */
+    /// <summary>
+    /// Code arithmetic operators ('+', '-', ...). If second operand is a
+    /// constant in the proper range, use variant opcodes with K operands.
+    /// </summary>
     private static void codearith(
         FuncState* fs,
         BinOpr opr,
@@ -1923,21 +1934,21 @@ public static unsafe partial class Lua
         bool flip,
         int line)
     {
-        if (tonumeral(e2, null) && luaK_exp2K(fs, e2)) /* K operand? */
+        if (tonumeral(e2, null) && luaK_exp2K(fs, e2)) // K operand?
         {
             codebinK(fs, opr, e1, e2, flip, line);
         }
-        else /* 'e2' is neither an immediate nor a K operand */
+        else // 'e2' is neither an immediate nor a K operand
         {
             codebinNoK(fs, opr, e1, e2, flip, line);
         }
     }
 
-    /*
-     ** Code commutative operators ('+', '*'). If first operand is a
-     ** numeric constant, change order of operands to try to use an
-     ** immediate or K operator.
-     */
+    /// <summary>
+    /// Code commutative operators ('+', '*'). If first operand is a
+    /// numeric constant, change order of operands to try to use an
+    /// immediate or K operator.
+    /// </summary>
     private static void codecommutative(
         FuncState* fs,
         BinOpr op,
@@ -1948,14 +1959,14 @@ public static unsafe partial class Lua
         bool flip = false;
         if (tonumeral(e1, null))
         {
-            /* is first operand a numeric constant? */
-            swapexps(e1, e2); /* change order */
+            // is first operand a numeric constant?
+            swapexps(e1, e2); // change order
             flip = true;
         }
 
-        if (op == BinOpr.OPR_ADD && isSCint(e2)) /* immediate operand? */
+        if (op == BinOpr.OPR_ADD && isSCint(e2)) // immediate operand?
         {
-            codebini(fs, OpCode.OP_ADDI, e1, e2, flip, line, TMS.ADD);
+            codebini(fs, OpCode.AddI, e1, e2, flip, line, TMS.ADD);
         }
         else
         {
@@ -1963,10 +1974,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Code bitwise operations; they are all commutative, so the function
-     ** tries to put an integer constant as the 2nd operand (a K operand).
-     */
+    /// <summary>
+    /// Code bitwise operations; they are all commutative, so the function
+    /// tries to put an integer constant as the 2nd operand (a K operand).
+    /// </summary>
     private static void codebitwise(
         FuncState* fs,
         BinOpr opr,
@@ -1977,24 +1988,24 @@ public static unsafe partial class Lua
         bool flip = false;
         if (e1->k == expkind.VKINT)
         {
-            swapexps(e1, e2); /* 'e2' will be the constant operand */
+            swapexps(e1, e2); // 'e2' will be the constant operand
             flip = true;
         }
 
-        if (e2->k == expkind.VKINT && luaK_exp2K(fs, e2)) /* K operand? */
+        if (e2->k == expkind.VKINT && luaK_exp2K(fs, e2)) // K operand?
         {
             codebinK(fs, opr, e1, e2, flip, line);
         }
-        else /* no constants */
+        else // no constants
         {
             codebinNoK(fs, opr, e1, e2, flip, line);
         }
     }
 
-    /*
-     ** Emit code for order comparisons. When using an immediate operand,
-     ** 'isfloat' tells whether the original value was a float.
-     */
+    /// <summary>
+    /// Emit code for order comparisons. When using an immediate operand,
+    /// 'isfloat' tells whether the original value was a float.
+    /// </summary>
     private static void codeorder(FuncState* fs, BinOpr opr, expdesc* e1, expdesc* e2)
     {
         int im;
@@ -2004,24 +2015,24 @@ public static unsafe partial class Lua
         OpCode op;
         if (isSCnumber(e2, &im, &isfloat))
         {
-            /* use immediate operand */
+            // use immediate operand
             r1 = luaK_exp2anyreg(fs, e1);
             r2 = im;
-            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.OP_LTI);
+            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.LTI);
         }
         else if (isSCnumber(e1, &im, &isfloat))
         {
-            /* transform (A < B) to (B > A) and (A <= B) to (B >= A) */
+            // transform (A < B) to (B > A) and (A <= B) to (B >= A)
             r1 = luaK_exp2anyreg(fs, e2);
             r2 = im;
-            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.OP_GTI);
+            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.GTI);
         }
         else
         {
-            /* regular case, compare two registers */
+            // regular case, compare two registers
             r1 = luaK_exp2anyreg(fs, e1);
             r2 = luaK_exp2anyreg(fs, e2);
-            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.OP_LT);
+            op = binopr2op(opr, BinOpr.OPR_LT, OpCode.LT);
         }
 
         freeexps(fs, e1, e2);
@@ -2029,10 +2040,10 @@ public static unsafe partial class Lua
         e1->k = expkind.VJMP;
     }
 
-    /*
-     ** Emit code for equality comparisons ('==', '~=').
-     ** 'e1' was already put as RK by 'luaK_infix'.
-     */
+    /// <summary>
+    /// Emit code for equality comparisons ('==', '~=').
+    /// 'e1' was already put as RK by 'luaK_infix'.
+    /// </summary>
     private static void codeeq(FuncState* fs, BinOpr opr, expdesc* e1, expdesc* e2)
     {
         if (e1->k != expkind.VNONRELOC)
@@ -2041,25 +2052,25 @@ public static unsafe partial class Lua
             swapexps(e1, e2);
         }
 
-        int r1 = luaK_exp2anyreg(fs, e1); /* 1st expression must be in register */
+        int r1 = luaK_exp2anyreg(fs, e1); // 1st expression must be in register
         int im;
-        bool isfloat = false; /* not needed here, but kept for symmetry */
+        bool isfloat = false; // not needed here, but kept for symmetry
         int r2;
         OpCode op;
         if (isSCnumber(e2, &im, &isfloat))
         {
-            op = OpCode.OP_EQI;
-            r2 = im; /* immediate operand */
+            op = OpCode.EqI;
+            r2 = im; // immediate operand
         }
         else if (exp2RK(fs, e2))
         {
-            /* 2nd expression is constant? */
-            op = OpCode.OP_EQK;
-            r2 = e2->u.info; /* constant index */
+            // 2nd expression is constant?
+            op = OpCode.EqK;
+            r2 = e2->u.info; // constant index
         }
         else
         {
-            op = OpCode.OP_EQ; /* will compare two registers */
+            op = OpCode.Eq; // will compare two registers
             r2 = luaK_exp2anyreg(fs, e2);
         }
 
@@ -2068,9 +2079,9 @@ public static unsafe partial class Lua
         e1->k = expkind.VJMP;
     }
 
-    /*
-     ** Apply prefix operation 'op' to expression 'e'.
-     */
+    /// <summary>
+    /// Apply prefix operation 'op' to expression 'e'.
+    /// </summary>
     private static void luaK_prefix(FuncState* fs, UnOpr opr, expdesc* e, int line)
     {
         expdesc ef = new()
@@ -2084,7 +2095,7 @@ public static unsafe partial class Lua
         switch (opr)
         {
             case UnOpr.MINUS:
-            case UnOpr.BNOT: /* use 'ef' as fake 2nd operand */
+            case UnOpr.BNOT: // use 'ef' as fake 2nd operand
                 if (constfolding(fs, (int)(opr + LUA_OPUNM), e, &ef))
                 {
                     break;
@@ -2105,25 +2116,25 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Process 1st operand 'v' of binary operation 'op' before reading
-     ** 2nd operand.
-     */
+    /// <summary>
+    /// Process 1st operand 'v' of binary operation 'op' before reading
+    /// 2nd operand.
+    /// </summary>
     private static void luaK_infix(FuncState* fs, BinOpr op, expdesc* v)
     {
         luaK_dischargevars(fs, v);
         switch (op)
         {
             case BinOpr.OPR_AND:
-                luaK_goiftrue(fs, v); /* go ahead only if 'v' is true */
+                luaK_goiftrue(fs, v); // go ahead only if 'v' is true
                 break;
             
             case BinOpr.OPR_OR:
-                luaK_goiffalse(fs, v); /* go ahead only if 'v' is false */
+                luaK_goiffalse(fs, v); // go ahead only if 'v' is false
                 break;
             
             case BinOpr.OPR_CONCAT:
-                luaK_exp2nextreg(fs, v); /* operand must be on the stack */
+                luaK_exp2nextreg(fs, v); // operand must be on the stack
                 break;
             
             case BinOpr.OPR_ADD:
@@ -2143,8 +2154,8 @@ public static unsafe partial class Lua
                     luaK_exp2anyreg(fs, v);
                 }
 
-                /* else keep numeral, which may be folded or used as an immediate
-                   operand */
+                // else keep numeral, which may be folded or used as an immediate
+                // operand
                 break;
             
             case BinOpr.OPR_EQ:
@@ -2154,7 +2165,7 @@ public static unsafe partial class Lua
                     exp2RK(fs, v);
                 }
 
-                /* else keep numeral, which may be an immediate operand */
+                // else keep numeral, which may be an immediate operand
                 break;
             
             case BinOpr.OPR_LT:
@@ -2169,7 +2180,7 @@ public static unsafe partial class Lua
                         luaK_exp2anyreg(fs, v);
                     }
 
-                    /* else keep numeral, which may be an immediate operand */
+                    // else keep numeral, which may be an immediate operand
                     break;
                 }
             
@@ -2178,59 +2189,59 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Create code for '(e1 .. e2)'.
-     ** For '(e1 .. e2.1 .. e2.2)' (which is '(e1 .. (e2.1 .. e2.2))',
-     ** because concatenation is right associative), merge both CONCATs.
-     */
+    /// <summary>
+    /// Create code for '(e1 .. e2)'.
+    /// For '(e1 .. e2.1 .. e2.2)' (which is '(e1 .. (e2.1 .. e2.2))',
+    /// because concatenation is right associative), merge both CONCATs.
+    /// </summary>
     private static void codeconcat(FuncState* fs, expdesc* e1, expdesc* e2, int line)
     {
         uint* ie2 = previousinstruction(fs);
-        if (GET_OPCODE(*ie2) == OpCode.OP_CONCAT)
+        if (GET_OPCODE(*ie2) == OpCode.Concat)
         {
-            /* is 'e2' a concatenation? */
-            int n = GETARG_B(*ie2); /* # of elements concatenated in 'e2' */
+            // is 'e2' a concatenation?
+            int n = GETARG_B(*ie2); // # of elements concatenated in 'e2'
             Debug.Assert(e1->u.info + 1 == GETARG_A(*ie2));
             freeexp(fs, e2);
-            SETARG_A(ref *ie2, e1->u.info); /* correct first element ('e1') */
-            SETARG_B(ref *ie2, n + 1); /* will concatenate one more element */
+            SETARG_A(ref *ie2, e1->u.info); // correct first element ('e1')
+            SETARG_B(ref *ie2, n + 1); // will concatenate one more element
         }
         else
         {
-            /* 'e2' is not a concatenation */
-            luaK_codeABC(fs, OpCode.OP_CONCAT, e1->u.info, 2, 0); /* new concat opcode */
+            // 'e2' is not a concatenation
+            luaK_codeABC(fs, OpCode.Concat, e1->u.info, 2, 0); // new concat opcode
             freeexp(fs, e2);
             luaK_fixline(fs, line);
         }
     }
 
-    /*
-     ** Finalise code for binary operation, after reading 2nd operand.
-     */
+    /// <summary>
+    /// Finalise code for binary operation, after reading 2nd operand.
+    /// </summary>
     private static void luaK_posfix(FuncState* fs, BinOpr opr, expdesc* e1, expdesc* e2, int line)
     {
         luaK_dischargevars(fs, e2);
         if (foldbinop(opr) && constfolding(fs, (int)(opr + LUA_OPADD), e1, e2))
         {
-            return; /* done by folding */
+            return; // done by folding
         }
 
         switch (opr)
         {
             case BinOpr.OPR_AND:
-                Debug.Assert(e1->t == NO_JUMP); /* list closed by 'luaK_infix' */
+                Debug.Assert(e1->t == NO_JUMP); // list closed by 'luaK_infix'
                 luaK_concat(fs, &e2->f, e1->f);
                 *e1 = *e2;
                 break;
 
             case BinOpr.OPR_OR:
-                Debug.Assert(e1->f == NO_JUMP); /* list closed by 'luaK_infix' */
+                Debug.Assert(e1->f == NO_JUMP); // list closed by 'luaK_infix'
                 luaK_concat(fs, &e2->t, e1->t);
                 *e1 = *e2;
                 break;
 
             case BinOpr.OPR_CONCAT:
-                /* e1 .. e2 */
+                // e1 .. e2
                 luaK_exp2nextreg(fs, e2);
                 codeconcat(fs, e1, e2, line);
                 break;
@@ -2241,9 +2252,9 @@ public static unsafe partial class Lua
                 break;
 
             case BinOpr.OPR_SUB:
-                if (finishbinexpneg(fs, e1, e2, OpCode.OP_ADDI, line, TMS.SUB))
+                if (finishbinexpneg(fs, e1, e2, OpCode.AddI, line, TMS.SUB))
                 {
-                    break; /* coded as (r1 + -I) */
+                    break; // coded as (r1 + -I)
                 }
 
                 goto case BinOpr.OPR_DIV;
@@ -2264,12 +2275,12 @@ public static unsafe partial class Lua
             case BinOpr.OPR_SHL:
                 if (isSCint(e1)) {
                     swapexps(e1, e2);
-                    codebini(fs, OpCode.OP_SHLI, e1, e2, true, line, TMS.SHL);  /* I << r2 */
+                    codebini(fs, OpCode.ShlI, e1, e2, true, line, TMS.SHL); // I << r2
                 }
-                else if (finishbinexpneg(fs, e1, e2, OpCode.OP_SHRI, line, TMS.SHL)) {
-                    /* coded as (r1 >> -I) */;
+                else if (finishbinexpneg(fs, e1, e2, OpCode.ShrI, line, TMS.SHL)) {
+                    ; // coded as (r1 >> -I)
                 }
-                else  /* regular case (two registers) */
+                else // regular case (two registers)
                 {
                     codebinexpval(fs, opr, e1, e2, line);
                 }
@@ -2279,9 +2290,9 @@ public static unsafe partial class Lua
             case BinOpr.OPR_SHR:
                 if (isSCint(e2))
                 {
-                    codebini(fs, OpCode.OP_SHRI, e1, e2, false, line, TMS.SHR);  /* r1 >> I */
+                    codebini(fs, OpCode.ShrI, e1, e2, false, line, TMS.SHR); // r1 >> I
                 }
-                else  /* regular case (two registers) */
+                else // regular case (two registers)
                 {
                     codebinexpval(fs, opr, e1, e2, line);
                 }
@@ -2295,7 +2306,7 @@ public static unsafe partial class Lua
 
             case BinOpr.OPR_GT:
             case BinOpr.OPR_GE:
-                /* '(a > b)' <=> '(b < a)';  '(a >= b)' <=> '(b <= a)' */
+                // '(a > b)' <=> '(b < a)';  '(a >= b)' <=> '(b <= a)'
                 swapexps(e1, e2);
                 opr = opr - BinOpr.OPR_GT + BinOpr.OPR_LT;
                 goto case BinOpr.OPR_LT;
@@ -2310,10 +2321,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Change line information associated with current position, by removing
-     ** previous info and adding it again with new line.
-     */
+    /// <summary>
+    /// Change line information associated with current position, by removing
+    /// previous info and adding it again with new line.
+    /// </summary>
     private static void luaK_fixline(FuncState* fs, int line)
     {
         removelastlineinfo(fs);
@@ -2323,21 +2334,21 @@ public static unsafe partial class Lua
     private static void luaK_settablesize(FuncState* fs, int pc, int ra, int asize, int hsize)
     {
         uint* inst = &fs->f->code[pc];
-        int extra = asize / (MAXARG_vC + 1); /* higher bits of array size */
-        int rc = asize % (MAXARG_vC + 1); /* lower bits of array size */
-        bool k = extra > 0; /* true iff needs extra argument */
+        int extra = asize / (MAXARG_vC + 1); // higher bits of array size
+        int rc = asize % (MAXARG_vC + 1); // lower bits of array size
+        bool k = extra > 0; // true iff needs extra argument
         hsize = hsize != 0 ? luaO_ceillog2((uint)hsize) + 1 : 0;
-        *inst = CREATE_vABCk(OpCode.OP_NEWTABLE, ra, hsize, rc, k);
-        *(inst + 1) = CREATE_Ax(OpCode.OP_EXTRAARG, extra);
+        *inst = CREATE_vABCk(OpCode.NewTable, ra, hsize, rc, k);
+        *(inst + 1) = CREATE_Ax(OpCode.ExtraArg, extra);
     }
 
-    /*
-     ** Emit a SETLIST instruction.
-     ** 'base' is register that keeps table;
-     ** 'nelems' is #table plus those to be stored now;
-     ** 'tostore' is number of values (in registers 'base + 1',...) to add to
-     ** table (or LUA_MULTRET to add up to stack top).
-     */
+    /// <summary>
+    /// Emit a SETLIST instruction.
+    /// 'base' is register that keeps table;
+    /// 'nelems' is #table plus those to be stored now;
+    /// 'tostore' is number of values (in registers 'base + 1',...) to add to
+    /// table (or LUA_MULTRET to add up to stack top).
+    /// </summary>
     private static void luaK_setlist(FuncState* fs, int @base, int nelems, int tostore)
     {
         Debug.Assert(tostore != 0);
@@ -2348,29 +2359,29 @@ public static unsafe partial class Lua
 
         if (nelems <= MAXARG_vC)
         {
-            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, false);
+            luaK_codevABCk(fs, OpCode.SetList, @base, tostore, nelems, false);
         }
         else
         {
             int extra = nelems / (MAXARG_vC + 1);
             nelems %= MAXARG_vC + 1;
-            luaK_codevABCk(fs, OpCode.OP_SETLIST, @base, tostore, nelems, true);
+            luaK_codevABCk(fs, OpCode.SetList, @base, tostore, nelems, true);
             codeextraarg(fs, extra);
         }
 
-        fs->freereg = (byte)(@base + 1); /* free registers with list values */
+        fs->freereg = (byte)(@base + 1); // free registers with list values
     }
 
-    /*
-     ** return the final target of a jump (skipping jumps to jumps)
-     */
+    /// <summary>
+    /// return the final target of a jump (skipping jumps to jumps)
+    /// </summary>
     private static int finaltarget(uint* code, int i)
     {
         for (int count = 0; count < 100; count++)
         {
-            /* avoid infinite loops */
+            // avoid infinite loops
             uint pc = code[i];
-            if (GET_OPCODE(pc) != OpCode.OP_JMP)
+            if (GET_OPCODE(pc) != OpCode.Jmp)
             {
                 break;
             }
@@ -2381,71 +2392,71 @@ public static unsafe partial class Lua
         return i;
     }
 
-    /*
-     ** Do a final pass over the code of a function, doing small peephole
-     ** optimisations and adjustments.
-     */
+    /// <summary>
+    /// Do a final pass over the code of a function, doing small peephole
+    /// optimisations and adjustments.
+    /// </summary>
     private static void luaK_finish(FuncState* fs)
     {
         Proto* p = fs->f;
-        if ((p->flag & PF_VATAB) != 0) /* will it use a vararg table? */
+        if ((p->flag & PF_VATAB) != 0) // will it use a vararg table?
         {
-            p->flag &= unchecked((byte)~PF_VAHID); /* then it will not use hidden args. */
+            p->flag &= unchecked((byte)~PF_VAHID); // then it will not use hidden args.
         }
 
         for (int i = 0; i < fs->pc; i++)
         {
             uint* pc = &p->code[i];
-            /* avoid "not used" warnings when assert is off (for 'onelua.c') */
+            // avoid "not used" warnings when assert is off (for 'onelua.c')
             Debug.Assert(i == 0 || luaP_isOT(*(pc - 1)) == luaP_isIT(*pc));
             switch (GET_OPCODE(*pc))
             {
-                case OpCode.OP_RETURN0:
-                case OpCode.OP_RETURN1:
+                case OpCode.Return0:
+                case OpCode.Return1:
                     if (!(fs->needclose || (p->flag & PF_VAHID) != 0))
                     {
-                        break; /* no extra work */
+                        break; // no extra work
                     }
 
-                    /* else use OP_RETURN to do the extra work */
-                    SET_OPCODE(ref *pc, OpCode.OP_RETURN);
-                    goto case OpCode.OP_RETURN;
+                    // else use OP_RETURN to do the extra work
+                    SET_OPCODE(ref *pc, OpCode.Return);
+                    goto case OpCode.Return;
 
-                case OpCode.OP_RETURN:
-                case OpCode.OP_TAILCALL:
+                case OpCode.Return:
+                case OpCode.TailCall:
                     if (fs->needclose)
                     {
-                        SETARG_k(ref *pc, true); /* signal that it needs to close */
+                        SETARG_k(ref *pc, true); // signal that it needs to close
                     }
 
-                    if ((p->flag & PF_VAHID) != 0) /* does it use hidden arguments? */
+                    if ((p->flag & PF_VAHID) != 0) // does it use hidden arguments?
                     {
-                        SETARG_C(ref *pc, p->numparams + 1); /* signal that */
-                    }
-
-                    break;
-
-                case OpCode.OP_GETVARG:
-                    if ((p->flag & PF_VATAB) != 0) /* function has a vararg table? */
-                    {
-                        SET_OPCODE(ref *pc, OpCode.OP_GETTABLE); /* must get vararg there */
+                        SETARG_C(ref *pc, p->numparams + 1); // signal that
                     }
 
                     break;
 
-                case OpCode.OP_VARARG:
-                    if ((p->flag & PF_VATAB) != 0) /* function has a vararg table? */
+                case OpCode.GetVArg:
+                    if ((p->flag & PF_VATAB) != 0) // function has a vararg table?
                     {
-                        SETARG_k(ref *pc, true); /* must get vararg there */
+                        SET_OPCODE(ref *pc, OpCode.GetTable); // must get vararg there
                     }
 
                     break;
 
-                case OpCode.OP_JMP:
+                case OpCode.VarArg:
+                    if ((p->flag & PF_VATAB) != 0) // function has a vararg table?
                     {
-                        /* to optimise jumps to jumps */
+                        SETARG_k(ref *pc, true); // must get vararg there
+                    }
+
+                    break;
+
+                case OpCode.Jmp:
+                    {
+                        // to optimise jumps to jumps
                         int target = finaltarget(p->code, i);
-                        fixjump(fs, i, target); /* jump directly to final target */
+                        fixjump(fs, i, target); // jump directly to final target
                         break;
                     }
             }

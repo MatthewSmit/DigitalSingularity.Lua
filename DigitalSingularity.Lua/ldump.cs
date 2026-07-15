@@ -5,28 +5,26 @@ using System.Text;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: ldump.c $
-    ** save precompiled Lua chunks
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: ldump.c $
+    // save precompiled Lua chunks
+    // See Copyright Notice in lua.h
 
     private struct DumpState
     {
         public lua_State* L;
         public lua_Writer writer;
         public void* data;
-        public long offset; /* current position relative to beginning of dump */
+        public long offset; // current position relative to beginning of dump
         public bool strip;
         public int status;
-        public Table* h; /* table to track saved strings */
-        public ulong nstr; /* counter for counting saved strings */
+        public Table* h; // table to track saved strings
+        public ulong nstr; // counter for counting saved strings
     }
 
-    /*
-    ** All high-level dumps go through dumpVector; you can change it to
-    ** change the endianness of the result
-    */
+    /// <summary>
+    /// All high-level dumps go through dumpVector; you can change it to
+    /// change the endianness of the result
+    /// </summary>
     private static void dumpVector<T>(ref DumpState D, T* v, int n)
         where T : unmanaged
     {
@@ -41,16 +39,16 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Dump the block of memory pointed by 'b' with given 'size'.
-     ** 'b' should not be null, except for the last call signalling the end
-     ** of the dump.
-     */
+    /// <summary>
+    /// Dump the block of memory pointed by 'b' with given 'size'.
+    /// 'b' should not be null, except for the last call signalling the end
+    /// of the dump.
+    /// </summary>
     private static void dumpBlock(ref DumpState D, void* b, long size)
     {
         if (D.status != 0)
         {
-            /* do not write anything after an error */
+            // do not write anything after an error
             return;
         }
 
@@ -60,16 +58,16 @@ public static unsafe partial class Lua
         D.offset += size;
     }
 
-    /*
-    ** Dump enough zeros to ensure that current position is a multiple of
-    ** 'align'.
-    */
+    /// <summary>
+    /// Dump enough zeros to ensure that current position is a multiple of
+    /// 'align'.
+    /// </summary>
     private static void dumpAlign(ref DumpState D, uint align)
     {
         uint padding = align - (uint)(D.offset % align);
         if (padding < align)
         {
-            /* padding == align means no padding */
+            // padding == align means no padding
             long paddingContent = 0;
             Debug.Assert(align <= sizeof(long));
             dumpBlock(ref D, &paddingContent, padding);
@@ -90,21 +88,21 @@ public static unsafe partial class Lua
         dumpVar(ref D, x);
     }
 
-    /*
-    ** size for 'dumpVarint' buffer: each byte can store up to 7 bits.
-    ** (The "+6" rounds up the division.)
-    */
+    /// <summary>
+    /// size for 'dumpVarint' buffer: each byte can store up to 7 bits.
+    /// (The "+6" rounds up the division.)
+    /// </summary>
     private const int DIBS = (sizeof(ulong) * 8 + 6) / 7;
 
-    /*
-    ** Dumps an unsigned integer using the MSB Varint encoding
-    */
+    /// <summary>
+    /// Dumps an unsigned integer using the MSB Varint encoding
+    /// </summary>
     private static void dumpVarint(ref DumpState D, ulong x)
     {
         byte* buff = stackalloc byte[DIBS];
         int n = 1;
-        buff[DIBS - 1] = (byte)(x & 0x7f);  /* fill least-significant byte */
-        while ((x >>= 7) != 0)  /* fill other bytes in reverse order */
+        buff[DIBS - 1] = (byte)(x & 0x7f); // fill least-significant byte
+        while ((x >>= 7) != 0) // fill other bytes in reverse order
         {
             buff[DIBS - ++n] = (byte)(x & 0x7f | 0x80);
         }
@@ -128,12 +126,12 @@ public static unsafe partial class Lua
         dumpVar(ref D, x);
     }
 
-    /*
-    ** Signed integers are coded to keep small values small. (Coding -1 as
-    ** 0xfff...fff would use too many bytes to save a quite common value.)
-    ** A non-negative x is coded as 2x; a negative x is coded as -2x - 1.
-    ** (0 => 0; -1 => 1; 1 => 2; -2 => 3; 2 => 4; ...)
-    */
+    /// <summary>
+    /// Signed integers are coded to keep small values small. (Coding -1 as
+    /// 0xfff...fff would use too many bytes to save a quite common value.)
+    /// A non-negative x is coded as 2x; a negative x is coded as -2x - 1.
+    /// (0 =&gt; 0; -1 =&gt; 1; 1 =&gt; 2; -2 =&gt; 3; 2 =&gt; 4; ...)
+    /// </summary>
     private static void dumpInteger(ref DumpState D, long x)
     {
         ulong cx = x >= 0
@@ -142,21 +140,21 @@ public static unsafe partial class Lua
         dumpVarint(ref D, cx);
     }
 
-    /*
-    ** Dump a String. First dump its "size":
-    ** size==0 is followed by an index and means "reuse saved string with
-    ** that index"; index==0 means null.
-    ** size>=1 is followed by the string contents with real size==size-1 and
-    ** means that string, which will be saved with the next available index.
-    ** The real size does not include the ending '\0' (which is not dumped),
-    ** so adding 1 to it cannot overflow a size_t.
-    */
+    /// <summary>
+    /// Dump a String. First dump its "size":
+    /// size==0 is followed by an index and means "reuse saved string with
+    /// that index"; index==0 means null.
+    /// size&gt;=1 is followed by the string contents with real size==size-1 and
+    /// means that string, which will be saved with the next available index.
+    /// The real size does not include the ending '\0' (which is not dumped),
+    /// so adding 1 to it cannot overflow a size_t.
+    /// </summary>
     private static void dumpString(ref DumpState D, TString* ts)
     {
         if (ts == null)
         {
-            dumpVarint(ref D, 0); /* will "reuse" null */
-            dumpVarint(ref D, 0); /* special index for null */
+            dumpVarint(ref D, 0); // will "reuse" null
+            dumpVarint(ref D, 0); // special index for null
         }
         else
         {
@@ -164,22 +162,22 @@ public static unsafe partial class Lua
             byte tag = luaH_getstr(D.h, ts, &idx);
             if (!tagisempty(tag))
             {
-                /* string already saved? */
-                dumpVarint(ref D, 0); /* reuse a saved string */
-                dumpVarint(ref D, (ulong)ivalue(&idx)); /* index of saved string */
+                // string already saved?
+                dumpVarint(ref D, 0); // reuse a saved string
+                dumpVarint(ref D, (ulong)ivalue(&idx)); // index of saved string
             }
             else
             {
-                /* must write and save the string */
-                TValue key, value; /* to save the string in the hash */
+                // must write and save the string
+                TValue key, value; // to save the string in the hash
                 byte* s = getlstr(ts, out int size);
                 dumpSize(ref D, size + 1);
-                dumpVector(ref D, s, size + 1); /* include ending '\0' */
-                D.nstr++; /* one more saved string */
-                setsvalue(D.L, &key, ts); /* the string is the key */
-                setivalue(&value, (long)D.nstr); /* its index is the value */
-                luaH_set(D.L, D.h, &key, &value); /* h[ts] = nstr */
-                /* integer value does not need barrier */
+                dumpVector(ref D, s, size + 1); // include ending '\0'
+                D.nstr++; // one more saved string
+                setsvalue(D.L, &key, ts); // the string is the key
+                setivalue(&value, (long)D.nstr); // its index is the value
+                luaH_set(D.L, D.h, &key, &value); // h[ts] = nstr
+                // integer value does not need barrier
             }
         }
     }
@@ -255,7 +253,7 @@ public static unsafe partial class Lua
         dumpInt(ref D, n);
         if (n > 0)
         {
-            /* 'abslineinfo' is an array of structures of int's */
+            // 'abslineinfo' is an array of structures of int's
             dumpAlign(ref D, sizeof(int));
             dumpVector(ref D, f->abslineinfo, n);
         }
@@ -311,14 +309,14 @@ public static unsafe partial class Lua
         dumpNumInfo(ref D, LUAC_NUM);
     }
 
-    /*
-     ** dump Lua function as precompiled chunk
-     */
+    /// <summary>
+    /// dump Lua function as precompiled chunk
+    /// </summary>
     private static int luaU_dump(lua_State* L, Proto* f, lua_Writer w, void* data, bool strip)
     {
         DumpState D = new()
         {
-            h = luaH_new(L), /* aux. table to keep strings already dumped */
+            h = luaH_new(L), // aux. table to keep strings already dumped
             L = L,
             writer = w,
             offset = 0,
@@ -327,12 +325,12 @@ public static unsafe partial class Lua
             status = 0,
             nstr = 0,
         };
-        sethvalue2s(L, L->top.p, D.h); /* anchor it */
+        sethvalue2s(L, L->top.p, D.h); // anchor it
         L->top.p++;
         dumpHeader(ref D);
         dumpByte(ref D, f->sizeupvalues);
         dumpFunction(ref D, f);
-        dumpBlock(ref D, null, 0); /* signal end of dump */
+        dumpBlock(ref D, null, 0); // signal end of dump
         return D.status;
     }
 }

@@ -4,11 +4,9 @@ using System.Numerics;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: lutf8lib.c $
-    ** Standard library for UTF-8 manipulation
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lutf8lib.c $
+    // Standard library for UTF-8 manipulation
+    // See Copyright Notice in lua.h
 
     private const uint MAXUNICODE = 0x10FFFFu;
 
@@ -26,8 +24,10 @@ public static unsafe partial class Lua
         return !p.IsEmpty && iscont(p[0]);
     }
 
-    /* from strlib */
-    /* translate a relative string position: negative means back from end */
+    /// <summary>
+    /// from strlib
+    /// translate a relative string position: negative means back from end
+    /// </summary>
     private static T u_posrelat<T>(T pos, T len)
         where T : IBinaryInteger<T>
     {
@@ -46,49 +46,49 @@ public static unsafe partial class Lua
 
     private static readonly uint[] limits = [~(uint)0, 0x80, 0x800, 0x10000u, 0x200000u, 0x4000000u];
 
-    /*
-    ** Decode one UTF-8 sequence, returning null if byte sequence is
-    ** invalid.  The array 'limits' stores the minimum value for each
-    ** sequence length, to check for overlong representations. Its first
-    ** entry forces an error for non-ASCII bytes with no continuation
-    ** bytes (count == 0).
-    */
+    /// <summary>
+    /// Decode one UTF-8 sequence, returning null if byte sequence is
+    /// invalid.  The array 'limits' stores the minimum value for each
+    /// sequence length, to check for overlong representations. Its first
+    /// entry forces an error for non-ASCII bytes with no continuation
+    /// bytes (count == 0).
+    /// </summary>
     private static bool utf8_decode(ReadOnlySpan<byte> s, out uint val, bool strict, out int length)
     {
         byte c = s[0];
-        val = 0; /* final result */
-        if (c < 0x80) /* ASCII? */
+        val = 0; // final result
+        if (c < 0x80) // ASCII?
         {
             val = c;
             length = 1;
             return true;
         }
 
-        int count = 0; /* to count number of continuation bytes */
+        int count = 0; // to count number of continuation bytes
         for (; (c & 0x40) != 0; c <<= 1)
         {
-            /* while it needs continuation bytes... */
+            // while it needs continuation bytes...
             ++count;
-            byte cc = s.Length <= count ? (byte)0 : s[count]; /* read next byte */
-            if (!iscont(cc)) /* not a continuation byte? */
+            byte cc = s.Length <= count ? (byte)0 : s[count]; // read next byte
+            if (!iscont(cc)) // not a continuation byte?
             {
                 length = 0;
-                return false; /* invalid byte sequence */
+                return false; // invalid byte sequence
             }
 
-            val = val << 6 | (uint)(cc & 0x3F); /* add lower 6 bits from cont. byte */
+            val = val << 6 | (uint)(cc & 0x3F); // add lower 6 bits from cont. byte
         }
 
-        val |= ((uint)(c & 0x7F) << (count * 5)); /* add first byte */
+        val |= ((uint)(c & 0x7F) << (count * 5)); // add first byte
         if (count > 5 || val > MAXUTF || val < limits[count])
         {
             length = 0;
-            return false; /* invalid byte sequence */
+            return false; // invalid byte sequence
         }
 
         if (strict)
         {
-            /* check for invalid code points; too large or surrogates */
+            // check for invalid code points; too large or surrogates
             if (val is > MAXUNICODE or >= 0xD800u and <= 0xDFFFu)
             {
                 length = 0;
@@ -100,11 +100,11 @@ public static unsafe partial class Lua
         return true;
     }
 
-    /*
-     ** utf8len(s [, i [, j [, lax]]]) --> number of characters that
-     ** start in the range [i,j], or nil + current position if 's' is not
-     ** well formed in that interval
-     */
+    /// <summary>
+    /// utf8len(s [, i [, j [, lax]]]) --&gt; number of characters that
+    /// start in the range [i,j], or nil + current position if 's' is not
+    /// well formed in that interval
+    /// </summary>
     private static int utflen(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
@@ -122,15 +122,15 @@ public static unsafe partial class Lua
             3,
             "final position out of bounds");
 
-        long n = 0; /* counter for the number of characters */
+        long n = 0; // counter for the number of characters
         while (posi <= posj)
         {
             bool success = utf8_decode(s[posi..], out _, !lax, out int length);
             if (!success)
             {
-                /* conversion error? */
-                luaL_pushfail(L); /* return fail ... */
-                lua_pushinteger(L, posi + 1); /* ... and current position */
+                // conversion error?
+                luaL_pushfail(L); // return fail ...
+                lua_pushinteger(L, posi + 1); // ... and current position
                 return 2;
             }
 
@@ -142,10 +142,10 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** codepoint(s, [i, [j [, lax]]]) -> returns codepoints for all
-     ** characters that start in the range [i,j]
-     */
+    /// <summary>
+    /// codepoint(s, [i, [j [, lax]]]) -&gt; returns codepoints for all
+    /// characters that start in the range [i,j]
+    /// </summary>
     private static int codepoint(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
@@ -156,17 +156,17 @@ public static unsafe partial class Lua
         luaL_argcheck(L, pose <= s.Length, 3, "out of bounds");
         if (posi > pose)
         {
-            return 0; /* empty interval; return no values */
+            return 0; // empty interval; return no values
         }
 
-        if (pose - posi >= int.MaxValue) /* (long -> int) overflow? */
+        if (pose - posi >= int.MaxValue) // (long -> int) overflow?
         {
             return luaL_error(L, "string slice too long");
         }
 
-        int n = (int)(pose - posi) + 1; /* upper bound for number of returns */
+        int n = (int)(pose - posi) + 1; // upper bound for number of returns
         luaL_checkstack(L, n, "string slice too long");
-        n = 0; /* count the number of returns */
+        n = 0; // count the number of returns
         int length = (int)(pose - posi + 1);
         s = s[(int)(posi - 1)..];
         for (int i = 0; i < length;)
@@ -193,13 +193,13 @@ public static unsafe partial class Lua
         lua_pushfstring(L, "%U", code);
     }
 
-    /*
-     ** utfchar(n1, n2, ...)  -> char(n1)..char(n2)...
-     */
+    /// <summary>
+    /// utfchar(n1, n2, ...)  -&gt; char(n1)..char(n2)...
+    /// </summary>
     private static int utfchar(lua_State* L)
     {
-        int n = lua_gettop(L); /* number of arguments */
-        if (n == 1) /* optimise common case of single char */
+        int n = lua_gettop(L); // number of arguments
+        if (n == 1) // optimise common case of single char
         {
             pushutfchar(L, 1);
         }
@@ -219,10 +219,10 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** offset(s, n, [i])  -> indices where n-th character counting from
-     **   position 'i' starts and ends; 0 means character at 'i'.
-     */
+    /// <summary>
+    /// offset(s, n, [i])  -&gt; indices where n-th character counting from
+    ///   position 'i' starts and ends; 0 means character at 'i'.
+    /// </summary>
     private static int byteoffset(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
@@ -236,7 +236,7 @@ public static unsafe partial class Lua
             "position out of bounds");
         if (n == 0)
         {
-            /* find beginning of current byte sequence */
+            // find beginning of current byte sequence
             while (posi > 0 && iscontp(s[posi..]))
             {
                 posi--;
@@ -253,10 +253,10 @@ public static unsafe partial class Lua
             {
                 while (n < 0 && posi > 0)
                 {
-                    /* move back */
+                    // move back
                     do
                     {
-                        /* find beginning of previous character */
+                        // find beginning of previous character
                         posi--;
                     } while (posi > 0 && iscontp(s[posi..]));
 
@@ -265,14 +265,14 @@ public static unsafe partial class Lua
             }
             else
             {
-                n--; /* do not move for 1st character */
+                n--; // do not move for 1st character
                 while (n > 0 && posi < (long)s.Length)
                 {
                     do
                     {
-                        /* find beginning of next character */
+                        // find beginning of next character
                         posi++;
-                    } while (iscontp(s[posi..])); /* (cannot pass final '\0') */
+                    } while (iscontp(s[posi..])); // (cannot pass final '\0')
 
                     n--;
                 }
@@ -281,15 +281,15 @@ public static unsafe partial class Lua
 
         if (n != 0)
         {
-            /* did not find given character? */
+            // did not find given character?
             luaL_pushfail(L);
             return 1;
         }
 
-        lua_pushinteger(L, posi + 1); /* initial position */
+        lua_pushinteger(L, posi + 1); // initial position
         if (posi < s.Length && (s[posi] & 0x80) != 0)
         {
-            /* multi-byte character? */
+            // multi-byte character?
             if (iscont(s[posi]))
             {
                 return luaL_error(L, "initial position is a continuation byte");
@@ -297,12 +297,12 @@ public static unsafe partial class Lua
 
             while (iscontp(s[(posi + 1)..]))
             {
-                posi++; /* skip to last continuation byte */
+                posi++; // skip to last continuation byte
             }
         }
 
-        /* else one-byte character: final position is the initial one */
-        lua_pushinteger(L, posi + 1); /* 'posi' now is the final position */
+        // else one-byte character: final position is the initial one
+        lua_pushinteger(L, posi + 1); // 'posi' now is the final position
         return 2;
     }
 
@@ -317,12 +317,12 @@ public static unsafe partial class Lua
         
         while (n < s.Length && iscontp(s[n..]))
         {
-            n++; /* go to next character */
+            n++; // go to next character
         }
 
-        if (n >= s.Length || n < 0) /* (also handles original 'n' being negative) */
+        if (n >= s.Length || n < 0) // (also handles original 'n' being negative)
         {
-            return 0; /* no more codepoints */
+            return 0; // no more codepoints
         }
 
         bool success = utf8_decode(s[n..], out uint code, strict, out int length);
@@ -364,14 +364,14 @@ public static unsafe partial class Lua
         new("char", &utfchar),
         new("len", &utflen),
         new("codes", &iter_codes),
-        /* placeholders */
+        // placeholders
         new("charpattern", null),
     ];
 
     public static int luaopen_utf8(lua_State* L)
     {
         luaL_newlib(L, funcs);
-        /* pattern to match a single UTF-8 character */
+        // pattern to match a single UTF-8 character
         
         // "[\0-\x7F\xC2-\xFD][\x80-\xBF]*"
         ReadOnlySpan<byte> charpattern =

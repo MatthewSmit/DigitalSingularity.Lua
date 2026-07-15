@@ -4,20 +4,18 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: ltablib.c $
-    ** Library for Table Manipulation
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: ltablib.c $
+    // Library for Table Manipulation
+    // See Copyright Notice in lua.h
 
-    /*
-    ** Operations that an object must define to mimic a table
-    ** (some functions only need some of them)
-    */
-    private const int TAB_R = 1;			/* read */
-    private const int TAB_W = 2;			/* write */
-    private const int TAB_L = 4;			/* length */
-    private const int TAB_RW = TAB_R | TAB_W;		/* read/write */
+    /// <summary>
+    /// Operations that an object must define to mimic a table
+    /// (some functions only need some of them)
+    /// </summary>
+    private const int TAB_R = 1; // read
+    private const int TAB_W = 2; // write
+    private const int TAB_L = 4; // length
+    private const int TAB_RW = TAB_R | TAB_W; // read/write
 
     private static long aux_getn(lua_State* L, int n, int w)
     {
@@ -31,26 +29,26 @@ public static unsafe partial class Lua
         return lua_rawget(L, -n) != LUA_TNIL;
     }
 
-    /*
-     ** Check that 'arg' either is a table or can behave like one (that is,
-     ** has a metatable with the required metamethods)
-     */
+    /// <summary>
+    /// Check that 'arg' either is a table or can behave like one (that is,
+    /// has a metatable with the required metamethods)
+    /// </summary>
     private static void checktab(lua_State* L, int arg, int what)
     {
         if (lua_type(L, arg) != LUA_TTABLE)
         {
-            /* is it not a table? */
-            int n = 1; /* number of elements to pop */
-            if (lua_getmetatable(L, arg) && /* must have metatable */
+            // is it not a table?
+            int n = 1; // number of elements to pop
+            if (lua_getmetatable(L, arg) && // must have metatable
                 ((what & TAB_R) == 0 || checkfield(L, "__index"u8, ++n)) &&
                 ((what & TAB_W) == 0 || checkfield(L, "__newindex"u8, ++n)) &&
                 ((what & TAB_L) == 0 || checkfield(L, "__len"u8, ++n)))
             {
-                lua_pop(L, n); /* pop metatable and tested metamethods */
+                lua_pop(L, n); // pop metatable and tested metamethods
             }
             else
             {
-                luaL_checktype(L, arg, LUA_TTABLE); /* force an error */
+                luaL_checktype(L, arg, LUA_TTABLE); // force an error
             }
         }
     }
@@ -68,19 +66,19 @@ public static unsafe partial class Lua
     private static int tinsert(lua_State* L)
     {
         long e = aux_getn(L, 1, TAB_RW);
-        e++; /* first empty element */
+        e++; // first empty element
 
-        long pos; /* where to insert new element */
+        long pos; // where to insert new element
         switch (lua_gettop(L))
         {
             case 2:
-                /* called with only 2 arguments */
-                pos = e; /* insert new element at the end */
+                // called with only 2 arguments
+                pos = e; // insert new element at the end
                 break;
 
             case 3:
-                pos = luaL_checkinteger(L, 2); /* 2nd argument is the position */
-                /* check whether 'pos' is in [1, e] */
+                pos = luaL_checkinteger(L, 2); // 2nd argument is the position
+                // check whether 'pos' is in [1, e]
                 luaL_argcheck(
                     L,
                     (ulong)pos - 1u < (ulong)e,
@@ -88,9 +86,9 @@ public static unsafe partial class Lua
                     "position out of bounds");
                 for (long i = e; i > pos; i--)
                 {
-                    /* move up elements */
+                    // move up elements
                     lua_geti(L, 1, i - 1);
-                    lua_seti(L, 1, i); /* t[i] = t[i - 1] */
+                    lua_seti(L, 1, i); // t[i] = t[i - 1]
                 }
 
                 break;
@@ -99,7 +97,7 @@ public static unsafe partial class Lua
                 return luaL_error(L, "wrong number of arguments to 'insert'");
         }
 
-        lua_seti(L, 1, pos); /* t[pos] = v */
+        lua_seti(L, 1, pos); // t[pos] = v
         return 0;
     }
 
@@ -109,8 +107,8 @@ public static unsafe partial class Lua
         long pos = luaL_optinteger(L, 2, size);
         if (pos != size)
         {
-            /* validate 'pos' if given */
-            /* check whether 'pos' is in [1, size + 1] */
+            // validate 'pos' if given
+            // check whether 'pos' is in [1, size + 1]
             luaL_argcheck(
                 L,
                 (ulong)pos - 1u <= (ulong)size,
@@ -118,41 +116,41 @@ public static unsafe partial class Lua
                 "position out of bounds");
         }
 
-        lua_geti(L, 1, pos); /* result = t[pos] */
+        lua_geti(L, 1, pos); // result = t[pos]
         for (; pos < size; pos++)
         {
             lua_geti(L, 1, pos + 1);
-            lua_seti(L, 1, pos); /* t[pos] = t[pos + 1] */
+            lua_seti(L, 1, pos); // t[pos] = t[pos + 1]
         }
 
         lua_pushnil(L);
-        lua_seti(L, 1, pos); /* remove entry t[pos] */
+        lua_seti(L, 1, pos); // remove entry t[pos]
         return 1;
     }
 
-    /*
-     ** Copy elements (1[f], ..., 1[e]) into (tt[t], tt[t+1], ...). Whenever
-     ** possible, copy in increasing order, which is better for rehashing.
-     ** "possible" means destination after original range, or smaller
-     ** than origin, or copying to another table.
-     */
+    /// <summary>
+    /// Copy elements (1[f], ..., 1[e]) into (tt[t], tt[t+1], ...). Whenever
+    /// possible, copy in increasing order, which is better for rehashing.
+    /// "possible" means destination after original range, or smaller
+    /// than origin, or copying to another table.
+    /// </summary>
     private static int tmove(lua_State* L)
     {
         long f = luaL_checkinteger(L, 2);
         long e = luaL_checkinteger(L, 3);
         long t = luaL_checkinteger(L, 4);
-        int tt = !lua_isnoneornil(L, 5) ? 5 : 1; /* destination table */
+        int tt = !lua_isnoneornil(L, 5) ? 5 : 1; // destination table
         checktab(L, 1, TAB_R);
         checktab(L, tt, TAB_W);
         if (e >= f)
         {
-            /* otherwise, nothing to move */
+            // otherwise, nothing to move
             luaL_argcheck(
                 L,
                 f > 0 || e < long.MaxValue + f,
                 3,
                 "too many elements to move");
-            long n = e - f + 1 /* number of elements to move */;
+            long n = e - f + 1 ; // number of elements to move
             luaL_argcheck(
                 L,
                 t <= long.MaxValue - n + 1,
@@ -176,7 +174,7 @@ public static unsafe partial class Lua
             }
         }
 
-        lua_pushvalue(L, tt); /* return destination table */
+        lua_pushvalue(L, tt); // return destination table
         return 1;
     }
 
@@ -210,7 +208,7 @@ public static unsafe partial class Lua
             luaL_addlstring(&b, sep);
         }
 
-        if (i == last) /* add last value (if interval was not empty) */
+        if (i == last) // add last value (if interval was not empty)
         {
             addfield(L, &b, i);
         }
@@ -219,25 +217,23 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** {======================================================
-     ** Pack/unpack
-     ** =======================================================
-     */
+    // {======================================================
+    // Pack/unpack
+    // =======================================================
 
     private static int tpack(lua_State* L)
     {
-        int n = lua_gettop(L); /* number of elements to pack */
-        lua_createtable(L, n, 1); /* create result table */
-        lua_insert(L, 1); /* put it at index 1 */
-        for (int i = n; i >= 1; i--) /* assign elements */
+        int n = lua_gettop(L); // number of elements to pack
+        lua_createtable(L, n, 1); // create result table
+        lua_insert(L, 1); // put it at index 1
+        for (int i = n; i >= 1; i--) // assign elements
         {
             lua_seti(L, 1, i);
         }
 
         lua_pushinteger(L, n);
-        lua_setfield(L, 1, "n"); /* t.n = number of elements */
-        return 1; /* return table */
+        lua_setfield(L, 1, "n"); // t.n = number of elements
+        return 1; // return table
     }
 
     private static int tunpack(lua_State* L)
@@ -246,10 +242,10 @@ public static unsafe partial class Lua
         long e = lua_isnoneornil(L, 3) ? luaL_len(L, 1) : luaL_checkinteger(L, 3);
         if (i > e)
         {
-            return 0; /* empty range */
+            return 0; // empty range
         }
 
-        ulong n = (ulong)e - (ulong)i; /* number of elements minus 1 */
+        ulong n = (ulong)e - (ulong)i; // number of elements minus 1
         if (n >= int.MaxValue ||
             !lua_checkstack(L, (int)(++n)))
         {
@@ -258,25 +254,25 @@ public static unsafe partial class Lua
 
         for (; i < e; i++)
         {
-            /* push arg[i..e - 1] (to avoid overflows) */
+            // push arg[i..e - 1] (to avoid overflows)
             lua_geti(L, 1, i);
         }
 
-        lua_geti(L, 1, e); /* push last element */
+        lua_geti(L, 1, e); // push last element
         return (int)n;
     }
 
-/* }====================================================== */
+// }======================================================
 
-    /*
-     ** {======================================================
-     ** Quicksort
-     ** (based on 'Algorithms in MODULA-3', Robert Sedgewick;
-     **  Addison-Wesley, 1993.)
-     ** =======================================================
-     */
+    // {======================================================
+    // Quicksort
+    // (based on 'Algorithms in MODULA-3', Robert Sedgewick;
+    //  Addison-Wesley, 1993.)
+    // =======================================================
 
-    /* Versions of lua_seti/lua_geti specialized for IdxT */
+    /// <summary>
+    /// Versions of lua_seti/lua_geti specialized for IdxT
+    /// </summary>
     private static void geti(lua_State* L, int idt, int idx)
     {
         lua_geti(L, idt, idx);
@@ -287,18 +283,20 @@ public static unsafe partial class Lua
         lua_seti(L, idt, idx);
     }
 
-    /*
-    ** Produce a "random" 'unsigned int' to randomise pivot choice. This
-    ** macro is used only when 'sort' detects a big imbalance in the result
-    ** of a partition. (If you don't want/need this "randomness", ~0 is a
-    ** good choice.)
-    */
+    /// <summary>
+    /// Produce a "random" 'unsigned int' to randomise pivot choice. This
+    /// macro is used only when 'sort' detects a big imbalance in the result
+    /// of a partition. (If you don't want/need this "randomness", ~0 is a
+    /// good choice.)
+    /// </summary>
     private static uint l_randomizePivot(lua_State* L)
     {
         return luaL_makeseed(L);
     }
 
-    /* arrays larger than 'RANLIMIT' may use randomised pivots */
+    /// <summary>
+    /// arrays larger than 'RANLIMIT' may use randomised pivots
+    /// </summary>
     private const uint RANLIMIT = 100u;
 
     private static void set2(lua_State* L, int i, int j)
@@ -307,42 +305,42 @@ public static unsafe partial class Lua
         seti(L, 1, j);
     }
 
-    /*
-     ** Return true iff value at stack index 'a' is less than the value at
-     ** index 'b' (according to the order of the sort).
-     */
+    /// <summary>
+    /// Return true iff value at stack index 'a' is less than the value at
+    /// index 'b' (according to the order of the sort).
+    /// </summary>
     private static bool sort_comp(lua_State* L, int a, int b)
     {
-        if (lua_isnil(L, 2)) /* no function? */
+        if (lua_isnil(L, 2)) // no function?
         {
-            return lua_compare(L, a, b, LUA_OPLT); /* a < b */
+            return lua_compare(L, a, b, LUA_OPLT); // a < b
         }
 
-        /* function */
-        lua_pushvalue(L, 2); /* push function */
-        lua_pushvalue(L, a - 1); /* -1 to compensate function */
-        lua_pushvalue(L, b - 2); /* -2 to compensate function and 'a' */
-        lua_call(L, 2, 1); /* call function */
-        bool res = lua_toboolean(L, -1); /* get result */
-        lua_pop(L, 1); /* pop result */
+        // function
+        lua_pushvalue(L, 2); // push function
+        lua_pushvalue(L, a - 1); // -1 to compensate function
+        lua_pushvalue(L, b - 2); // -2 to compensate function and 'a'
+        lua_call(L, 2, 1); // call function
+        bool res = lua_toboolean(L, -1); // get result
+        lua_pop(L, 1); // pop result
         return res;
     }
 
-    /*
-    ** Does the partition: Pivot P is at the top of the stack.
-    ** precondition: a[lo] <= P == a[up-1] <= a[up],
-    ** so it only needs to do the partition from lo + 1 to up - 2.
-    ** Pos-condition: a[lo .. i - 1] <= a[i] == P <= a[i + 1 .. up]
-    ** returns 'i'.
-    */
+    /// <summary>
+    /// Does the partition: Pivot P is at the top of the stack.
+    /// precondition: a[lo] &lt;= P == a[up-1] &lt;= a[up],
+    /// so it only needs to do the partition from lo + 1 to up - 2.
+    /// Pos-condition: a[lo .. i - 1] &lt;= a[i] == P &lt;= a[i + 1 .. up]
+    /// returns 'i'.
+    /// </summary>
     private static int partition(lua_State* L, int lo, int up)
     {
-        int i = lo; /* will be incremented before first use */
-        int j = up - 1; /* will be decremented before first use */
-        /* loop invariant: a[lo .. i] <= P <= a[j .. up] */
+        int i = lo; // will be incremented before first use
+        int j = up - 1; // will be decremented before first use
+        // loop invariant: a[lo .. i] <= P <= a[j .. up]
         while (true)
         {
-            /* next loop: repeat ++i while a[i] < P */
+            // next loop: repeat ++i while a[i] < P
             while (true)
             {
                 geti(L, 1, ++i);
@@ -351,16 +349,16 @@ public static unsafe partial class Lua
                     break;
                 }
 
-                if (i == up - 1) /* a[up - 1] < P == a[up - 1] */
+                if (i == up - 1) // a[up - 1] < P == a[up - 1]
                 {
                     luaL_error(L, "invalid order function for sorting");
                 }
 
-                lua_pop(L, 1); /* remove a[i] */
+                lua_pop(L, 1); // remove a[i]
             }
 
-            /* after the loop, a[i] >= P and a[lo .. i - 1] < P  (a) */
-            /* next loop: repeat --j while P < a[j] */
+            // after the loop, a[i] >= P and a[lo .. i - 1] < P  (a)
+            // next loop: repeat --j while P < a[j]
 
             while (true)
             {
@@ -370,91 +368,91 @@ public static unsafe partial class Lua
                     break;
                 }
 
-                if (j < i) /* j <= i - 1 and a[j] > P, contradicts (a) */
+                if (j < i) // j <= i - 1 and a[j] > P, contradicts (a)
                 {
                     luaL_error(L, "invalid order function for sorting");
                 }
 
-                lua_pop(L, 1); /* remove a[j] */
+                lua_pop(L, 1); // remove a[j]
             }
 
-            /* after the loop, a[j] <= P and a[j + 1 .. up] >= P */
+            // after the loop, a[j] <= P and a[j + 1 .. up] >= P
             if (j < i)
             {
-                /* no elements out of place? */
-                /* a[lo .. i - 1] <= P <= a[j + 1 .. i .. up] */
-                lua_pop(L, 1); /* pop a[j] */
-                /* swap pivot (a[up - 1]) with a[i] to satisfy pos-condition */
+                // no elements out of place?
+                // a[lo .. i - 1] <= P <= a[j + 1 .. i .. up]
+                lua_pop(L, 1); // pop a[j]
+                // swap pivot (a[up - 1]) with a[i] to satisfy pos-condition
                 set2(L, up - 1, i);
                 return i;
             }
 
-            /* otherwise, swap a[i] - a[j] to restore invariant and repeat */
+            // otherwise, swap a[i] - a[j] to restore invariant and repeat
             set2(L, i, j);
         }
     }
 
-    /*
-     ** Choose an element in the middle (2nd-3th quarters) of [lo,up]
-     ** "randomised" by 'rnd'
-     */
+    /// <summary>
+    /// Choose an element in the middle (2nd-3th quarters) of [lo,up]
+    /// "randomised" by 'rnd'
+    /// </summary>
     private static int choosePivot(int lo, int up, uint rnd)
     {
-        int r4 = (up - lo) / 4; /* range/4 */
+        int r4 = (up - lo) / 4; // range/4
         int p = (int)((rnd ^ lo ^ up) % (r4 * 2) + (lo + r4));
         Debug.Assert(lo + r4 <= p && p <= up - r4);
         return p;
     }
 
-    /*
-     ** Quicksort algorithm (recursive function)
-     */
+    /// <summary>
+    /// Quicksort algorithm (recursive function)
+    /// </summary>
     private static void auxsort(lua_State* L, int lo, int up, uint rnd)
     {
         while (lo < up)
         {
-            /* loop for tail recursion */
-            int p; /* Pivot index */
-            int n; /* to be used later */
-            /* sort elements 'lo', 'p', and 'up' */
+            // loop for tail recursion
+            int p; // Pivot index
+            int n; // to be used later
+            // sort elements 'lo', 'p', and 'up'
             geti(L, 1, lo);
             geti(L, 1, up);
-            if (sort_comp(L, -1, -2)) /* a[up] < a[lo]? */
+            if (sort_comp(L, -1, -2)) // a[up] < a[lo]?
             {
-                set2(L, lo, up); /* swap a[lo] - a[up] */
+                set2(L, lo, up); // swap a[lo] - a[up]
             }
             else
             {
-                lua_pop(L, 2); /* remove both values */
+                lua_pop(L, 2); // remove both values
             }
 
-            if (up - lo == 1) /* only 2 elements? */
+            if (up - lo == 1) // only 2 elements?
             {
-                return; /* already sorted */
+                return; // already sorted
             }
 
-            if (up - lo < RANLIMIT || rnd == 0) /* small interval or no randomise? */
+            if (up - lo < RANLIMIT || rnd == 0) // small interval or no randomise?
             {
-                p = (lo + up) / 2; /* middle element is a good pivot */
+                p = (lo + up) / 2; // middle element is a good pivot
             }
-            else /* for larger intervals, it is worth a random pivot */
+            else // for larger intervals, it is worth a random pivot
             {
                 p = choosePivot(lo, up, rnd);
             }
 
             geti(L, 1, p);
             geti(L, 1, lo);
-            if (sort_comp(L, -2, -1)) /* a[p] < a[lo]? */
+            if (sort_comp(L, -2, -1)) // a[p] < a[lo]?
             {
-                set2(L, p, lo); /* swap a[p] - a[lo] */
+                set2(L, p, lo); // swap a[p] - a[lo]
             }
             else
             {
-                lua_pop(L, 1); /* remove a[lo] */
+                lua_pop(L, 1); // remove a[lo]
                 geti(L, 1, up);
-                if (sort_comp(L, -1, -2)) /* a[up] < a[p]? */
+                if (sort_comp(L, -1, -2)) // a[up] < a[p]?
                 {
-                    set2(L, p, up); /* swap a[up] - a[p] */
+                    set2(L, p, up); // swap a[up] - a[p]
                 }
                 else
                 {
@@ -462,36 +460,36 @@ public static unsafe partial class Lua
                 }
             }
 
-            if (up - lo == 2) /* only 3 elements? */
+            if (up - lo == 2) // only 3 elements?
             {
-                return; /* already sorted */
+                return; // already sorted
             }
 
-            geti(L, 1, p); /* get middle element (Pivot) */
-            lua_pushvalue(L, -1); /* push Pivot */
-            geti(L, 1, up - 1); /* push a[up - 1] */
-            set2(L, p, up - 1); /* swap Pivot (a[p]) with a[up - 1] */
+            geti(L, 1, p); // get middle element (Pivot)
+            lua_pushvalue(L, -1); // push Pivot
+            geti(L, 1, up - 1); // push a[up - 1]
+            set2(L, p, up - 1); // swap Pivot (a[p]) with a[up - 1]
             p = partition(L, lo, up);
-            /* a[lo .. p - 1] <= a[p] == P <= a[p + 1 .. up] */
+            // a[lo .. p - 1] <= a[p] == P <= a[p + 1 .. up]
             if (p - lo < up - p)
             {
-                /* lower interval is smaller? */
-                auxsort(L, lo, p - 1, rnd); /* call recursively for lower interval */
-                n = p - lo; /* size of smaller interval */
-                lo = p + 1; /* tail call for [p + 1 .. up] (upper interval) */
+                // lower interval is smaller?
+                auxsort(L, lo, p - 1, rnd); // call recursively for lower interval
+                n = p - lo; // size of smaller interval
+                lo = p + 1; // tail call for [p + 1 .. up] (upper interval)
             }
             else
             {
-                auxsort(L, p + 1, up, rnd); /* call recursively for upper interval */
-                n = up - p; /* size of smaller interval */
-                up = p - 1; /* tail call for [lo .. p - 1]  (lower interval) */
+                auxsort(L, p + 1, up, rnd); // call recursively for upper interval
+                n = up - p; // size of smaller interval
+                up = p - 1; // tail call for [lo .. p - 1]  (lower interval)
             }
 
-            if ((up - lo) / 128 > n) /* partition too imbalanced? */
+            if ((up - lo) / 128 > n) // partition too imbalanced?
             {
-                rnd = l_randomizePivot(L); /* try a new randomisation */
+                rnd = l_randomizePivot(L); // try a new randomisation
             }
-        } /* tail call auxsort(L, lo, up, rnd) */
+        } // tail call auxsort(L, lo, up, rnd)
     }
 
     private static int sort(lua_State* L)
@@ -499,14 +497,14 @@ public static unsafe partial class Lua
         long n = aux_getn(L, 1, TAB_RW);
         if (n > 1)
         {
-            /* non-trivial interval? */
+            // non-trivial interval?
             luaL_argcheck(L, n < int.MaxValue, 1, "array too big");
-            if (!lua_isnoneornil(L, 2)) /* is there a 2nd argument? */
+            if (!lua_isnoneornil(L, 2)) // is there a 2nd argument?
             {
-                luaL_checktype(L, 2, LUA_TFUNCTION); /* must be a function */
+                luaL_checktype(L, 2, LUA_TFUNCTION); // must be a function
             }
 
-            lua_settop(L, 2); /* make sure there are two arguments */
+            lua_settop(L, 2); // make sure there are two arguments
          
             auxsort(L, 1, (int)n, 0);
         }
@@ -514,7 +512,7 @@ public static unsafe partial class Lua
         return 0;
     }
 
-    /* }====================================================== */
+    // }======================================================
 
     private static luaL_Reg[] tab_funcs =
     [

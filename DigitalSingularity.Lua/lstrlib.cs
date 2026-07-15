@@ -10,17 +10,15 @@ using System.Text;
 
 public static unsafe partial class Lua
 {
-    /*
-     ** $Id: lstrlib.c $
-     ** Standard library for string operations and pattern-matching
-     ** See Copyright Notice in lua.h
-     */
+    // $Id: lstrlib.c $
+    // Standard library for string operations and pattern-matching
+    // See Copyright Notice in lua.h
 
-    /*
-     ** maximum number of captures that a pattern can do during
-     ** pattern-matching. This limit is arbitrary, but must fit in
-     ** an unsigned char.
-     */
+    /// <summary>
+    /// maximum number of captures that a pattern can do during
+    /// pattern-matching. This limit is arbitrary, but must fit in
+    /// an unsigned char.
+    /// </summary>
     private const int LUA_MAXCAPTURES = 32;
 
     private static int str_len(lua_State* L)
@@ -30,14 +28,14 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** translate a relative initial string position
-     ** (negative means back from end): clip result to [1, inf).
-     ** The length of any string in Lua must fit in a long,
-     ** so there are no overflows in the casts.
-     ** The inverted comparison avoids a possible overflow
-     ** computing '-pos'.
-     */
+    /// <summary>
+    /// translate a relative initial string position
+    /// (negative means back from end): clip result to [1, inf).
+    /// The length of any string in Lua must fit in a long,
+    /// so there are no overflows in the casts.
+    /// The inverted comparison avoids a possible overflow
+    /// computing '-pos'.
+    /// </summary>
     private static long posrelatI(long pos, long len)
     {
         if (pos > 0)
@@ -50,19 +48,19 @@ public static unsafe partial class Lua
             return 1;
         }
 
-        if (pos < -len) /* inverted comparison */
+        if (pos < -len) // inverted comparison
         {
-            return 1; /* clip to 1 */
+            return 1; // clip to 1
         }
 
         return len + pos + 1;
     }
 
-    /*
-    ** Gets an optional ending string position from argument 'arg',
-    ** with default value 'def'.
-    ** Negative means back from end: clip result to [0, len]
-    */
+    /// <summary>
+    /// Gets an optional ending string position from argument 'arg',
+    /// with default value 'def'.
+    /// Negative means back from end: clip result to [0, len]
+    /// </summary>
     private static long getendpos(lua_State* L, int arg, long def, long len)
     {
         long pos = luaL_optinteger(L, arg, def);
@@ -145,10 +143,10 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-     ** MAX_SIZE is limited both by size_t and long.
-     ** When x <= MAX_SIZE, x can be safely cast to size_t or long.
-     */
+    /// <summary>
+    /// MAX_SIZE is limited both by size_t and long.
+    /// When x &lt;= MAX_SIZE, x can be safely cast to size_t or long.
+    /// </summary>
     private static int str_rep(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
@@ -171,12 +169,12 @@ public static unsafe partial class Lua
         Span<byte> dest = new(p, checked((int)totallen));
         while (n-- > 1)
         {
-            /* first n-1 copies (followed by separator) */
+            // first n-1 copies (followed by separator)
             s.CopyTo(dest);
             dest = dest[s.Length..];
             if (sep.Length > 0)
             {
-                /* empty 'memcpy' is not that cheap */
+                // empty 'memcpy' is not that cheap
                 sep.CopyTo(dest);
                 dest = dest[sep.Length..];
             }
@@ -196,10 +194,10 @@ public static unsafe partial class Lua
         long pose = getendpos(L, 3, pi, s.Length);
         if (posi > pose)
         {
-            return 0; /* empty interval; return no values */
+            return 0; // empty interval; return no values
         }
 
-        if (pose - posi >= int.MaxValue) /* arithmetic overflow? */
+        if (pose - posi >= int.MaxValue) // arithmetic overflow?
         {
             return luaL_error(L, "string slice too long");
         }
@@ -216,7 +214,7 @@ public static unsafe partial class Lua
 
     private static int str_char(lua_State* L)
     {
-        int n = lua_gettop(L); /* number of arguments */
+        int n = lua_gettop(L); // number of arguments
         luaL_Buffer b;
         byte* p = luaL_buffinitsize(L, &b, n);
         for (int i = 1; i <= n; i++)
@@ -230,15 +228,15 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-    ** Buffer to store the result of 'string.dump'. It must be initialised
-    ** after the call to 'lua_dump', to ensure that the function is on the
-    ** top of the stack when 'lua_dump' is called. ('luaL_buffinit' might
-    ** push stuff.)
-    */
+    /// <summary>
+    /// Buffer to store the result of 'string.dump'. It must be initialised
+    /// after the call to 'lua_dump', to ensure that the function is on the
+    /// top of the stack when 'lua_dump' is called. ('luaL_buffinit' might
+    /// push stuff.)
+    /// </summary>
     private struct str_Writer
     {
-        public bool init; /* true iff buffer has been initialised */
+        public bool init; // true iff buffer has been initialised
         public luaL_Buffer B;
     }
 
@@ -253,9 +251,9 @@ public static unsafe partial class Lua
 
         if (b == null)
         {
-            /* finishing dump? */
-            luaL_pushresult(&state->B); /* push result */
-            lua_replace(L, 1); /* move it to reserved slot */
+            // finishing dump?
+            luaL_pushresult(&state->B); // push result
+            lua_replace(L, 1); // move it to reserved slot
         }
         else
         {
@@ -273,26 +271,24 @@ public static unsafe partial class Lua
             lua_type(L, 1) == LUA_TFUNCTION && !lua_iscfunction(L, 1),
             1,
             "Lua function expected");
-        /* ensure function is on the top of the stack and vacate slot 1 */
+        // ensure function is on the top of the stack and vacate slot 1
         lua_pushvalue(L, 1);
         str_Writer state = new();
         lua_dump(L, &writer, &state, strip);
-        lua_settop(L, 1); /* leave final result on top */
+        lua_settop(L, 1); // leave final result on top
         return 1;
     }
 
-    /*
-     ** {======================================================
-     ** METAMETHODS
-     ** =======================================================
-     */
+    // {======================================================
+    // METAMETHODS
+    // =======================================================
 
 #if LUA_NOCVTS2N
-    /* no coercion from strings to numbers */
+    // no coercion from strings to numbers
 
     private static readonly luaL_Reg[] stringmetamethods =
     [
-        new("__index", null),  /* placeholder */
+        new("__index", null), // placeholder
     ];
 
 #else
@@ -300,26 +296,26 @@ public static unsafe partial class Lua
     {
         if (lua_type(L, arg) == LUA_TNUMBER)
         {
-            /* already a number? */
+            // already a number?
             lua_pushvalue(L, arg);
             return true;
         }
 
-        /* check whether it is a numerical string */
+        // check whether it is a numerical string
         string? s = lua_tonetstring(L, arg);
         return s != null && lua_stringtonumber(L, s) == s.Length + 1;
     }
 
-    /*
-     ** To be here, either the first operand was a string or the first
-     ** operand didn't have a corresponding metamethod. (Otherwise, that
-     ** other metamethod would have been called.) So, if this metamethod
-     ** doesn't work, the only other option would be for the second
-     ** operand to have a different metamethod.
-     */
+    /// <summary>
+    /// To be here, either the first operand was a string or the first
+    /// operand didn't have a corresponding metamethod. (Otherwise, that
+    /// other metamethod would have been called.) So, if this metamethod
+    /// doesn't work, the only other option would be for the second
+    /// operand to have a different metamethod.
+    /// </summary>
     private static void trymt(lua_State* L, string mtkey, string opname)
     {
-        lua_settop(L, 2); /* back to the original arguments */
+        lua_settop(L, 2); // back to the original arguments
         if (lua_type(L, 2) == LUA_TSTRING ||
             luaL_getmetafield(L, 2, mtkey) == 0)
         {
@@ -331,15 +327,15 @@ public static unsafe partial class Lua
                 luaL_typename(L, -1));
         }
 
-        lua_insert(L, -3); /* put metamethod before arguments */
-        lua_call(L, 2, 1); /* call metamethod */
+        lua_insert(L, -3); // put metamethod before arguments
+        lua_call(L, 2, 1); // call metamethod
     }
 
     private static int arith(lua_State* L, int op, string mtname)
     {
         if (tonum(L, 1) && tonum(L, 2))
         {
-            lua_arith(L, op); /* result will be on the top */
+            lua_arith(L, op); // result will be on the top
         }
         else
         {
@@ -399,15 +395,13 @@ public static unsafe partial class Lua
         new("__div", &arith_div),
         new("__idiv", &arith_idiv),
         new("__unm", &arith_unm),
-        new("__index", null), /* placeholder */
+        new("__index", null), // placeholder
     ];
 #endif
 
-    /*
-     ** {======================================================
-     ** PATTERN MATCHING
-     ** =======================================================
-     */
+    // {======================================================
+    // PATTERN MATCHING
+    // =======================================================
 
     private const int CAP_UNFINISHED = -1;
     private const int CAP_POSITION = -2;
@@ -417,7 +411,7 @@ public static unsafe partial class Lua
         public struct Capture
         {
             public byte* init;
-            public long len; /* length or special value (CAP_*) */
+            public long len; // length or special value (CAP_*)
         }
 
         public struct CaptureArray
@@ -466,16 +460,18 @@ public static unsafe partial class Lua
             }
         }
 
-        public byte* src_init; /* init of source string */
-        public byte* src_end; /* end ('\0') of source string */
-        public byte* p_end; /* end ('\0') of pattern */
+        public byte* src_init; // init of source string
+        public byte* src_end; // end ('\0') of source string
+        public byte* p_end; // end ('\0') of pattern
         public lua_State* L;
-        public int matchdepth; /* control for recursive depth (to avoid C stack overflow) */
-        public int level; /* total number of captures (finished or unfinished) */
+        public int matchdepth; // control for recursive depth (to avoid C stack overflow)
+        public int level; // total number of captures (finished or unfinished)
         public CaptureArray capture;
     }
 
-    /* maximum recursion depth for 'match' */
+    /// <summary>
+    /// maximum recursion depth for 'match'
+    /// </summary>
     private const int MAXCCALLS = 200;
 
     private const char L_ESC = '%';
@@ -528,7 +524,7 @@ public static unsafe partial class Lua
 
                 do
                 {
-                    /* look for a ']' */
+                    // look for a ']'
                     if (p == ms.p_end)
                     {
                         luaL_error(ms.L, "malformed pattern (missing ']')");
@@ -536,7 +532,7 @@ public static unsafe partial class Lua
 
                     if (*p++ == L_ESC && p < ms.p_end)
                     {
-                        p++; /* skip escapes (e.g. '%]') */
+                        p++; // skip escapes (e.g. '%]')
                     }
                 } while (*p != ']');
 
@@ -562,7 +558,7 @@ public static unsafe partial class Lua
             case 'u': res = char.IsUpper(c); break;
             case 'w': res = char.IsLetterOrDigit(c); break;
             case 'x': res = char.IsAsciiHexDigit(c); break;
-            case 'z': res = c == 0; break; /* deprecated option */
+            case 'z': res = c == 0; break; // deprecated option
             default: return cl == c;
         }
 
@@ -575,7 +571,7 @@ public static unsafe partial class Lua
         if (*(p + 1) == '^')
         {
             sig = false;
-            p++; /* skip the '^' */
+            p++; // skip the '^'
         }
 
         while (++p < ec)
@@ -619,7 +615,7 @@ public static unsafe partial class Lua
         char c = (char)*s;
         return (*p) switch
         {
-            (byte)'.' => true /* matches any char */,
+            (byte)'.' => true , // matches any char
             (byte)L_ESC => match_class(c, (char)*(p + 1)),
             (byte)'[' => matchbracketclass(c, p, ep - 1),
             _ => (char)*p == c,
@@ -659,7 +655,7 @@ public static unsafe partial class Lua
             }
         }
 
-        return null; /* string ends out of balance */
+        return null; // string ends out of balance
     }
 
     private static byte* max_expand(
@@ -668,13 +664,13 @@ public static unsafe partial class Lua
         byte* p,
         byte* ep)
     {
-        long i = 0; /* counts maximum expand for item */
+        long i = 0; // counts maximum expand for item
         while (singlematch(ref ms, s + i, p, ep))
         {
             i++;
         }
 
-        /* keeps trying to match with the maximum repetitions */
+        // keeps trying to match with the maximum repetitions
         while (i >= 0)
         {
             byte* res = match(ref ms, s + i, ep + 1);
@@ -683,7 +679,7 @@ public static unsafe partial class Lua
                 return res;
             }
 
-            i--; /* else didn't match; reduce 1 repetition to try again */
+            i--; // else didn't match; reduce 1 repetition to try again
         }
 
         return null;
@@ -705,7 +701,7 @@ public static unsafe partial class Lua
 
             if (singlematch(ref ms, s, p, ep))
             {
-                s++; /* try with one more repetition */
+                s++; // try with one more repetition
             }
             else
             {
@@ -731,9 +727,9 @@ public static unsafe partial class Lua
         ms.level = level + 1;
         
         byte* res;
-        if ((res = match(ref ms, s, p)) == null) /* match failed? */
+        if ((res = match(ref ms, s, p)) == null) // match failed?
         {
-            ms.level--; /* undo capture */
+            ms.level--; // undo capture
         }
 
         return res;
@@ -745,12 +741,12 @@ public static unsafe partial class Lua
         byte* p)
     {
         int l = capture_to_close(ref ms);
-        ms.capture[l].len = s - ms.capture[l].init; /* close capture */
+        ms.capture[l].len = s - ms.capture[l].init; // close capture
 
         byte* res;
-        if ((res = match(ref ms, s, p)) == null) /* match failed? */
+        if ((res = match(ref ms, s, p)) == null) // match failed?
         {
-            ms.capture[l].len = CAP_UNFINISHED; /* undo capture */
+            ms.capture[l].len = CAP_UNFINISHED; // undo capture
         }
 
         return res;
@@ -776,16 +772,16 @@ public static unsafe partial class Lua
             luaL_error(ms.L, "pattern too complex");
         }
 
-        init: /* using goto to optimise tail recursion */
+        init: // using goto to optimise tail recursion
         if (p != ms.p_end)
         {
-            /* end of pattern? */
+            // end of pattern?
             switch (*p)
             {
                 case (byte)'(':
                     {
-                        /* start capture */
-                        if (*(p + 1) == ')')  /* position capture? */
+                        // start capture
+                        if (*(p + 1) == ')') // position capture?
                         {
                             s = start_capture(ref ms, s, p + 2, CAP_POSITION);
                         }
@@ -798,53 +794,53 @@ public static unsafe partial class Lua
                     }
 
                 case (byte)')':
-                    /* end capture */
+                    // end capture
                     s = end_capture(ref ms, s, p + 1);
                     break;
 
                 case (byte)'$':
-                    if (p + 1 != ms.p_end)  /* is the '$' the last char in pattern? */
+                    if (p + 1 != ms.p_end) // is the '$' the last char in pattern?
                     {
-                        goto dflt;  /* no; go to default */
+                        goto dflt; // no; go to default
                     }
 
-                    s = s == ms.src_end ? s : null;  /* check end of string */
+                    s = s == ms.src_end ? s : null; // check end of string
                     break;
 
                 case (byte)L_ESC:
-                    /* escaped sequences not in the format class[*+?-]? */
+                    // escaped sequences not in the format class[*+?-]?
                     switch (*(p + 1))
                     {
                         case (byte)'b':
-                            /* balanced string? */
+                            // balanced string?
                             s = matchbalance(ref ms, s, p + 2);
                             if (s != null)
                             {
                                 p += 4;
-                                goto init; /* return match(ms, s, p + 4); */
-                            } /* else fail (s == NULL) */
+                                goto init; // return match(ms, s, p + 4);
+                            } // else fail (s == NULL)
 
                             break;
 
                         case (byte)'f':
                             {
-                                /* frontier? */
+                                // frontier?
                                 p += 2;
                                 if (*p != '[')
                                 {
                                     luaL_error(ms.L, "missing '[' after '%%f' in pattern");
                                 }
 
-                                byte* ep = classend(ref ms, p); /* points to what is next */
+                                byte* ep = classend(ref ms, p); // points to what is next
                                 byte previous = s == ms.src_init ? (byte)0 : *(s - 1);
                                 if (!matchbracketclass((char)previous, p, ep - 1) &&
                                     matchbracketclass((char)*s, p, ep - 1))
                                 {
                                     p = ep;
-                                    goto init; /* return match(ms, s, ep); */
+                                    goto init; // return match(ms, s, ep);
                                 }
 
-                                s = null; /* match failed */
+                                s = null; // match failed
                                 break;
                             }
 
@@ -858,12 +854,12 @@ public static unsafe partial class Lua
                         case (byte)'7':
                         case (byte)'8':
                         case (byte)'9':
-                            /* capture results (%0-%9)? */
+                            // capture results (%0-%9)?
                             s = match_capture(ref ms, s, *(p + 1));
                             if (s != null)
                             {
                                 p += 2;
-                                goto init; /* return match(ms, s, p + 2) */
+                                goto init; // return match(ms, s, p + 2)
                             }
 
                             break;
@@ -877,30 +873,30 @@ public static unsafe partial class Lua
                 default:
                     dflt:
                 {
-                    /* pattern class plus optional suffix */
-                    byte* ep = classend(ref ms, p); /* points to optional suffix */
-                    /* does not match at least once? */
+                    // pattern class plus optional suffix
+                    byte* ep = classend(ref ms, p); // points to optional suffix
+                    // does not match at least once?
                     if (!singlematch(ref ms, s, p, ep))
                     {
                         if (*ep == '*' || *ep == '?' || *ep == '-')
                         {
-                            /* accept empty? */
+                            // accept empty?
                             p = ep + 1;
-                            goto init; /* return match(ms, s, ep + 1); */
+                            goto init; // return match(ms, s, ep + 1);
                         }
 
-                        /* '+' or no suffix */
-                        s = null; /* fail */
+                        // '+' or no suffix
+                        s = null; // fail
                     }
                     else
                     {
-                        /* matched once */
+                        // matched once
                         switch (*ep)
                         {
-                            /* handle optional suffix */
+                            // handle optional suffix
                             case (byte)'?':
                                 {
-                                    /* optional */
+                                    // optional
                                     byte* res;
                                     if ((res = match(ref ms, s + 1, ep + 1)) != null)
                                     {
@@ -909,28 +905,28 @@ public static unsafe partial class Lua
                                     else
                                     {
                                         p = ep + 1;
-                                        goto init; /* else return match(ms, s, ep + 1); */
+                                        goto init; // else return match(ms, s, ep + 1);
                                     }
 
                                     break;
                                 }
 
-                            case (byte)'+': /* 1 or more repetitions */
-                                s++;  /* 1 match already done */
+                            case (byte)'+': // 1 or more repetitions
+                                s++; // 1 match already done
                                 goto case (byte)'*';
 
-                            case (byte)'*': /* 0 or more repetitions */
+                            case (byte)'*': // 0 or more repetitions
                                 s = max_expand(ref ms, s, p, ep);
                                 break;
 
-                            case (byte)'-': /* 0 or more repetitions (minimum) */
+                            case (byte)'-': // 0 or more repetitions (minimum)
                                 s = min_expand(ref ms, s, p, ep);
                                 break;
 
-                            default: /* no suffix */
+                            default: // no suffix
                                 s++;
                                 p = ep;
-                                goto init; /* return match(ms, s + 1, ep); */
+                                goto init; // return match(ms, s + 1, ep);
                         }
                     }
 
@@ -954,13 +950,13 @@ public static unsafe partial class Lua
         return default;
     }
 
-    /*
-    ** get information about the i-th capture. If there are no captures
-    ** and 'i==0', return information about the whole match, which
-    ** is the range 's'..'e'. If the capture is a string, return
-    ** its length and put its address in '*cap'. If it is an integer
-    ** (a position), push it on the stack and return CAP_POSITION.
-    */
+    /// <summary>
+    /// get information about the i-th capture. If there are no captures
+    /// and 'i==0', return information about the whole match, which
+    /// is the range 's'..'e'. If the capture is a string, return
+    /// its length and put its address in '*cap'. If it is an integer
+    /// (a position), push it on the stack and return CAP_POSITION.
+    /// </summary>
     private static long get_onecapture(
         ref MatchState ms,
         int i,
@@ -995,9 +991,9 @@ public static unsafe partial class Lua
         return capl;
     }
 
-    /*
-     ** Push the i-th capture on the stack.
-     */
+    /// <summary>
+    /// Push the i-th capture on the stack.
+    /// </summary>
     private static void push_onecapture(
         ref MatchState ms,
         int i,
@@ -1010,7 +1006,7 @@ public static unsafe partial class Lua
         {
             lua_pushlstring(ms.L, new ReadOnlySpan<byte>(cap, (int)l));
         }
-        /* else position was already pushed */
+        // else position was already pushed
     }
 
     private static int push_captures(ref MatchState ms, byte* s, byte* e)
@@ -1022,10 +1018,12 @@ public static unsafe partial class Lua
             push_onecapture(ref ms, i, s, e);
         }
 
-        return nlevels; /* number of strings pushed */
+        return nlevels; // number of strings pushed
     }
 
-    /* check whether pattern has no special characters */
+    /// <summary>
+    /// check whether pattern has no special characters
+    /// </summary>
     private static bool nospecials(ReadOnlySpan<byte> p)
     {
         return !p.ContainsAny(specialsSearch);
@@ -1063,12 +1061,12 @@ public static unsafe partial class Lua
         int init = checked((int)(posrelatI(luaL_optinteger(L, 3, 1), sLength) - 1));
         if (init > sLength)
         {
-            /* start after string's end? */
-            luaL_pushfail(L); /* cannot find anything */
+            // start after string's end?
+            luaL_pushfail(L); // cannot find anything
             return 1;
         }
 
-        /* explicit request or no special characters? */
+        // explicit request or no special characters?
         if (find && (lua_toboolean(L, 4) || nospecials(pSpan)))
         {
             if (pSpan.IsEmpty)
@@ -1078,7 +1076,7 @@ public static unsafe partial class Lua
                 return 2;
             }
             
-            /* do a plain search */
+            // do a plain search
             ReadOnlySpan<byte> s2 = lmemfind(sSpan[init..], pSpan);
             if (!s2.IsEmpty)
             {
@@ -1094,7 +1092,7 @@ public static unsafe partial class Lua
             bool anchor = *p == '^';
             if (anchor)
             {
-                p++; /* skip anchor character */
+                p++; // skip anchor character
                 pLength--;
             }
 
@@ -1108,8 +1106,8 @@ public static unsafe partial class Lua
                 {
                     if (find)
                     {
-                        lua_pushinteger(L, s1p - s + 1); /* start */
-                        lua_pushinteger(L, res - s); /* end */
+                        lua_pushinteger(L, s1p - s + 1); // start
+                        lua_pushinteger(L, res - s); // end
                         return push_captures(ref ms, null, null) + 2;
                     }
 
@@ -1118,7 +1116,7 @@ public static unsafe partial class Lua
             } while (s1p++ < ms.src_end && !anchor);
         }
 
-        luaL_pushfail(L); /* not found */
+        luaL_pushfail(L); // not found
         return 1;
     }
 
@@ -1132,13 +1130,15 @@ public static unsafe partial class Lua
         return str_find_aux(L, false);
     }
 
-    /* state for 'gmatch' */
+    /// <summary>
+    /// state for 'gmatch'
+    /// </summary>
     private struct GMatchState
     {
-        public byte* src; /* current position */
-        public byte* p; /* pattern */
-        public byte* lastmatch; /* end of last match */
-        public MatchState ms; /* match state */
+        public byte* src; // current position
+        public byte* p; // pattern
+        public byte* lastmatch; // end of last match
+        public MatchState ms; // match state
     }
 
     private static int gmatch_aux(lua_State* L)
@@ -1156,7 +1156,7 @@ public static unsafe partial class Lua
             }
         }
 
-        return 0; /* not found */
+        return 0; // not found
     }
 
     private static int gmatch(lua_State* L)
@@ -1164,11 +1164,11 @@ public static unsafe partial class Lua
         byte* s = luaL_checklstring(L, 1, out int ls);
         byte* p = luaL_checklstring(L, 2, out int lp);
         long init = posrelatI(luaL_optinteger(L, 3, 1), ls) - 1;
-        lua_settop(L, 2); /* keep strings on closure to avoid being collected */
+        lua_settop(L, 2); // keep strings on closure to avoid being collected
         GMatchState* gm = (GMatchState*)lua_newuserdatauv(L, sizeof(GMatchState), 0);
-        if (init > ls) /* start after string's end? */
+        if (init > ls) // start after string's end?
         {
-            init = ls + 1; /* avoid overflows in 's + init' */
+            init = ls + 1; // avoid overflows in 's + init'
         }
 
         prepstate(ref gm->ms, L, s, ls, p, lp);
@@ -1191,23 +1191,23 @@ public static unsafe partial class Lua
         while ((p = memchr(news, (byte)L_ESC, l)) != null)
         {
             luaL_addlstring(b, new ReadOnlySpan<byte>(news, (int)(p - news)));
-            p++; /* skip ESC */
-            if (*p == L_ESC) /* '%%' */
+            p++; // skip ESC
+            if (*p == L_ESC) // '%%'
             {
                 luaL_addchar(b, *p);
             }
-            else if (*p == '0') /* '%0' */
+            else if (*p == '0') // '%0'
             {
                 luaL_addlstring(b, new ReadOnlySpan<byte>(s, (int)(e - s)));
             }
             else if (char.IsAsciiDigit((char)*p))
             {
-                /* '%n' */
+                // '%n'
                 byte* cap;
                 long resl = get_onecapture(ref ms, *p - '1', s, e, &cap);
                 if (resl == CAP_POSITION)
                 {
-                    luaL_addvalue(b); /* add position to accumulated result */
+                    luaL_addvalue(b); // add position to accumulated result
                 }
                 else
                 {
@@ -1226,11 +1226,11 @@ public static unsafe partial class Lua
         luaL_addlstring(b, new ReadOnlySpan<byte>(news, (int)l));
     }
 
-    /*
-     ** Add the replacement value to the string buffer 'b'.
-     ** Return true if the original string was changed. (Function calls and
-     ** table indexing resulting in nil or false do not change the subject.)
-     */
+    /// <summary>
+    /// Add the replacement value to the string buffer 'b'.
+    /// Return true if the original string was changed. (Function calls and
+    /// table indexing resulting in nil or false do not change the subject.)
+    /// </summary>
     private static bool add_value(
         ref MatchState ms,
         luaL_Buffer* b,
@@ -1243,31 +1243,31 @@ public static unsafe partial class Lua
         {
             case LUA_TFUNCTION:
                 {
-                    /* call the function */
-                    lua_pushvalue(L, 3); /* push the function */
-                    int n = push_captures(ref ms, s, e); /* all captures as arguments */
-                    lua_call(L, n, 1); /* call it */
+                    // call the function
+                    lua_pushvalue(L, 3); // push the function
+                    int n = push_captures(ref ms, s, e); // all captures as arguments
+                    lua_call(L, n, 1); // call it
                     break;
                 }
 
             case LUA_TTABLE:
-                /* index the table */
-                push_onecapture(ref ms, 0, s, e); /* first capture is the index */
+                // index the table
+                push_onecapture(ref ms, 0, s, e); // first capture is the index
                 lua_gettable(L, 3);
                 break;
 
             default:
-                /* LUA_TNUMBER or LUA_TSTRING */
-                add_s(ref ms, b, s, e); /* add value to the buffer */
-                return true; /* something changed */
+                // LUA_TNUMBER or LUA_TSTRING
+                add_s(ref ms, b, s, e); // add value to the buffer
+                return true; // something changed
         }
 
         if (!lua_toboolean(L, -1))
         {
-            /* nil or false? */
-            lua_pop(L, 1); /* remove value */
-            luaL_addlstring(b, new Span<byte>(s, (int)(e - s))); /* keep original text */
-            return false; /* no changes */
+            // nil or false?
+            lua_pop(L, 1); // remove value
+            luaL_addlstring(b, new Span<byte>(s, (int)(e - s))); // keep original text
+            return false; // no changes
         }
 
         if (!lua_isstring(L, -1))
@@ -1275,21 +1275,21 @@ public static unsafe partial class Lua
             return luaL_error(L, "invalid replacement value (a %s)", luaL_typename(L, -1)) != 0;
         }
 
-        luaL_addvalue(b); /* add result to accumulator */
-        return true; /* something changed */
+        luaL_addvalue(b); // add result to accumulator
+        return true; // something changed
     }
 
     private static int str_gsub(lua_State* L)
     {
-        ReadOnlySpan<byte> srcspan = luaL_checklstring(L, 1);  /* subject */
-        ReadOnlySpan<byte> pspan = luaL_checklstring(L, 2);  /* pattern */
-        byte* lastmatch = null;  /* end of last match */
-        int tr = lua_type(L, 3);  /* replacement type */
-        /* max replacements */
+        ReadOnlySpan<byte> srcspan = luaL_checklstring(L, 1); // subject
+        ReadOnlySpan<byte> pspan = luaL_checklstring(L, 2); // pattern
+        byte* lastmatch = null; // end of last match
+        int tr = lua_type(L, 3); // replacement type
+        // max replacements
         long max_s = luaL_optinteger(L, 4, srcspan.Length + 1);
         bool anchor = !pspan.IsEmpty && pspan[0] == '^';
-        long n = 0;  /* replacement count */
-        bool changed = false;  /* change flag */
+        long n = 0; // replacement count
+        bool changed = false; // change flag
         luaL_argexpected(
             L,
             tr is LUA_TNUMBER or LUA_TSTRING or LUA_TFUNCTION or LUA_TTABLE,
@@ -1299,7 +1299,7 @@ public static unsafe partial class Lua
         luaL_buffinit(L, &b);
         if (anchor)
         {
-            pspan = pspan[1..]; /* skip anchor character */
+            pspan = pspan[1..]; // skip anchor character
         }
 
         fixed (byte* srcp = srcspan)
@@ -1315,22 +1315,22 @@ public static unsafe partial class Lua
                 prepstate(ref ms, L, src, srcspan.Length, p, pspan.Length);
                 while (n < max_s)
                 {
-                    reprepstate(ref ms); /* (re)prepare state for new match */
+                    reprepstate(ref ms); // (re)prepare state for new match
                     byte* e;
                     if ((e = match(ref ms, src, p)) != null && e != lastmatch)
                     {
-                        /* match? */
+                        // match?
                         n++;
                         changed = add_value(ref ms, &b, src, e, tr) || changed;
                         src = lastmatch = e;
                     }
-                    else if (src < ms.src_end) /* otherwise, skip one character */
+                    else if (src < ms.src_end) // otherwise, skip one character
                     {
                         luaL_addchar(&b, *src++);
                     }
                     else
                     {
-                        break; /* end of subject */
+                        break; // end of subject
                     }
 
                     if (anchor)
@@ -1339,71 +1339,79 @@ public static unsafe partial class Lua
                     }
                 }
 
-                if (!changed)  /* no changes? */
+                if (!changed) // no changes?
                 {
-                    lua_pushvalue(L, 1);  /* return original string */
+                    lua_pushvalue(L, 1); // return original string
                 }
                 else
                 {
-                    /* something changed */
+                    // something changed
                     luaL_addlstring(&b, new ReadOnlySpan<byte>(src, (int)(ms.src_end - src)));
-                    luaL_pushresult(&b);  /* create and return new string */
+                    luaL_pushresult(&b); // create and return new string
                 }
 
-                lua_pushinteger(L, n);  /* number of substitutions */
+                lua_pushinteger(L, n); // number of substitutions
                 return 2;
             }
         }
     }
 
-    /*
-     ** {======================================================
-     ** STRING FORMAT
-     ** =======================================================
-     */
+    // {======================================================
+    // STRING FORMAT
+    // =======================================================
 
     private const int HEX_FLOAT_PRECISION = (DBL_MANT_DIG - 1 + 3) / 4;
     private const int DBL_MAX_10_EXP = 308;
 
-    /*
-     ** Maximum size for items formatted with '%f'. This size is produced
-     ** by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
-     ** and '\0') + number of decimal digits to represent maxfloat (which
-     ** is maximum exponent + 1). (99+3+1, adding some extra, 110)
-     */
+    /// <summary>
+    /// Maximum size for items formatted with '%f'. This size is produced
+    /// by format('%.99f', -maxfloat), and is equal to 99 + 3 ('-', '.',
+    /// and '\0') + number of decimal digits to represent maxfloat (which
+    /// is maximum exponent + 1). (99+3+1, adding some extra, 110)
+    /// </summary>
     private const int MAX_ITEMF = 110 + DBL_MAX_10_EXP;
 
-    /*
-     ** All formats except '%f' do not need that large limit.  The other
-     ** float formats use exponents, so that they fit in the 99 limit for
-     ** significant digits; 's' for large strings and 'q' add items directly
-     ** to the buffer; all integer formats also fit in the 99 limit.  The
-     ** worst case are floats: they may need 99 significant digits, plus
-     ** '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
-     */
+    /// <summary>
+    /// All formats except '%f' do not need that large limit.  The other
+    /// float formats use exponents, so that they fit in the 99 limit for
+    /// significant digits; 's' for large strings and 'q' add items directly
+    /// to the buffer; all integer formats also fit in the 99 limit.  The
+    /// worst case are floats: they may need 99 significant digits, plus
+    /// '0x', '-', '.', 'e+XXXX', and '\0'. Adding some extra, 120.
+    /// </summary>
     private const int MAX_ITEM = 120;
 
-    /* valid flags for a, A, e, E, f, F, g, and G conversions */
+    /// <summary>
+    /// valid flags for a, A, e, E, f, F, g, and G conversions
+    /// </summary>
     private static ReadOnlySpan<byte> L_FMTFLAGSF => "-+#0 "u8;
 
-    /* valid flags for o, x, and X conversions */
+    /// <summary>
+    /// valid flags for o, x, and X conversions
+    /// </summary>
     private static ReadOnlySpan<byte> L_FMTFLAGSX => "-#0"u8;
 
-    /* valid flags for d and i conversions */
+    /// <summary>
+    /// valid flags for d and i conversions
+    /// </summary>
     private static ReadOnlySpan<byte> L_FMTFLAGSI => "-+0 "u8;
 
-    /* valid flags for u conversions */
+    /// <summary>
+    /// valid flags for u conversions
+    /// </summary>
     private static ReadOnlySpan<byte> L_FMTFLAGSU => "-0"u8;
 
-    /* valid flags for c, p, and s conversions */
+    /// <summary>
+    /// valid flags for c, p, and s conversions
+    /// </summary>
     private static ReadOnlySpan<byte> L_FMTFLAGSC => "-"u8;
 
-    /*
-     ** Maximum size of each format specification (such as "%-099.99d"):
-     ** Initial '%', flags (up to 5), width (2), period, precision (2),
-     ** length modifier (8), conversion specifier, and final '\0', plus some
-     ** extra.
-     */
+    /// <summary>
+    /// Maximum size of each format specification (such as "%-099.99d"):
+    /// Initial '%', flags (up to 5), width (2), period, precision (2),
+    /// length modifier (8), conversion specifier, and final '\0', plus some
+    /// extra.
+    /// </summary>
     private const int MAX_FORMAT = 32;
 
     private static void addquoted(luaL_Buffer* b, ReadOnlySpan<byte> s)
@@ -1457,15 +1465,15 @@ public static unsafe partial class Lua
         luaL_addchar(b, '"');
     }
 
-    /*
-    ** Serialize a floating-point number in such a way that it can be
-    ** scanned back by Lua. Use hexadecimal format for "common" numbers
-    ** (to preserve precision); inf, -inf, and NaN are handled separately.
-    ** (NaN cannot be expressed as a numeral, so we write '(0/0)' for it.)
-    */
+    /// <summary>
+    /// Serialize a floating-point number in such a way that it can be
+    /// scanned back by Lua. Use hexadecimal format for "common" numbers
+    /// (to preserve precision); inf, -inf, and NaN are handled separately.
+    /// (NaN cannot be expressed as a numeral, so we write '(0/0)' for it.)
+    /// </summary>
     private static int quotefloat(lua_State* L, Span<byte> output, double n)
     {
-        ReadOnlySpan<byte> s; /* for the fixed representations */
+        ReadOnlySpan<byte> s; // for the fixed representations
         if (double.IsPositiveInfinity(n))
         {
             s = "1e9999"u8;
@@ -1480,11 +1488,11 @@ public static unsafe partial class Lua
         }
         else
         {
-            /* format number as hexadecimal */
+            // format number as hexadecimal
             return FormatFloat(n, new FormatFlags(), output, FloatFormatType.Hexadecimal, false);
         }
 
-        /* for the fixed representations */
+        // for the fixed representations
         s.CopyTo(output);
         return s.Length;
     }
@@ -1504,18 +1512,18 @@ public static unsafe partial class Lua
                 {
                     byte* buff = luaL_prepbuffsize(b, MAX_ITEM);
                     int nb;
-                    if (!lua_isinteger(L, arg)) /* float? */
+                    if (!lua_isinteger(L, arg)) // float?
                     {
                         nb = quotefloat(L, new Span<byte>(buff, MAX_ITEM), lua_tonumber(L, arg));
                     }
                     else
                     {
-                        /* integers */
+                        // integers
                         long n = lua_tointeger(L, arg);
                         if (n == long.MinValue)
                         {
-                            /* corner case? */
-                            /* use hex */
+                            // corner case?
+                            // use hex
                             nb = FormatInt(
                                 n,
                                 new FormatFlags
@@ -1555,7 +1563,7 @@ public static unsafe partial class Lua
             s = s[1..];
             if (char.IsAsciiDigit((char)s[0]))
             {
-                s = s[1..]; /* (2 digits at most) */
+                s = s[1..]; // (2 digits at most)
             }
         }
 
@@ -1571,7 +1579,7 @@ public static unsafe partial class Lua
             s = s[1..];
             if (char.IsAsciiDigit((char)s[0]))
             {
-                s = s[1..]; /* (2 digits at most) */
+                s = s[1..]; // (2 digits at most)
                 digits = ss[..2];
             }
             else
@@ -1583,45 +1591,45 @@ public static unsafe partial class Lua
         return s;
     }
 
-    /*
-     ** Check whether a conversion specification is valid. When called,
-     ** first character in 'form' must be '%' and last character must
-     ** be a valid conversion specifier. 'flags' are the accepted flags;
-     ** 'precision' signals whether to accept a precision.
-     */
+    /// <summary>
+    /// Check whether a conversion specification is valid. When called,
+    /// first character in 'form' must be '%' and last character must
+    /// be a valid conversion specifier. 'flags' are the accepted flags;
+    /// 'precision' signals whether to accept a precision.
+    /// </summary>
     private static void checkformat(lua_State* L, ReadOnlySpan<byte> form, ReadOnlySpan<byte> flags, bool precision)
     {
-        ReadOnlySpan<byte> spec = form[1..]; /* skip '%' */
-        spec = spec[strspn(spec, flags)..]; /* skip flags */
+        ReadOnlySpan<byte> spec = form[1..]; // skip '%'
+        spec = spec[strspn(spec, flags)..]; // skip flags
         if (spec[0] != '0')
         {
-            /* a width cannot start with '0' */
-            spec = get2digits(spec); /* skip width */
+            // a width cannot start with '0'
+            spec = get2digits(spec); // skip width
             if (spec[0] == '.' && precision)
             {
                 spec = spec[1..];
-                spec = get2digits(spec); /* skip precision */
+                spec = get2digits(spec); // skip precision
             }
         }
 
-        if (!char.IsAsciiLetter((char)spec[0])) /* did not go to the end? */
+        if (!char.IsAsciiLetter((char)spec[0])) // did not go to the end?
         {
             luaL_error(L, "invalid conversion specification: '%s'", Encoding.UTF8.GetString(form));
         }
     }
 
-    /*
-     ** Get a conversion specification and copy it to 'form'.
-     ** Return the address of its last character.
-     */
+    /// <summary>
+    /// Get a conversion specification and copy it to 'form'.
+    /// Return the address of its last character.
+    /// </summary>
     private static ReadOnlySpan<byte> getformat(lua_State* L, ReadOnlySpan<byte> strfrmt, Span<byte> form)
     {
         form.Clear();
 
-        /* spans flags, width, and precision ('0' is included as a flag) */
+        // spans flags, width, and precision ('0' is included as a flag)
         int len = strspn(strfrmt, "-+#0 123456789."u8);
-        len++; /* adds following character (should be the specifier) */
-        /* still needs space for '%', '\0', plus a length modifier */
+        len++; // adds following character (should be the specifier)
+        // still needs space for '%', '\0', plus a length modifier
         if (len >= MAX_FORMAT - 10)
         {
             luaL_error(L, "invalid format (too long)");
@@ -1635,7 +1643,7 @@ public static unsafe partial class Lua
 
     private static int str_format(lua_State* L)
     {
-        Span<byte> form = stackalloc byte[MAX_FORMAT]; /* to store the format ('%...') */
+        Span<byte> form = stackalloc byte[MAX_FORMAT]; // to store the format ('%...')
 
         int top = lua_gettop(L);
         int arg = 1;
@@ -1651,15 +1659,15 @@ public static unsafe partial class Lua
             }
             else if (strfrmt[1] == L_ESC)
             {
-                luaL_addchar(&b, strfrmt[1]); /* %% */
+                luaL_addchar(&b, strfrmt[1]); // %%
                 strfrmt = strfrmt[2..];
             }
             else
             {
                 strfrmt = strfrmt[1..];
-                /* format item */
-                byte* buff = luaL_prepbuffsize(&b, MAX_ITEMF); /* to put result */
-                int nb = 0; /* number of bytes in result */
+                // format item
+                byte* buff = luaL_prepbuffsize(&b, MAX_ITEMF); // to put result
+                int nb = 0; // number of bytes in result
                 if (++arg > top)
                 {
                     return luaL_argerror(L, arg, "no value");
@@ -1779,11 +1787,11 @@ public static unsafe partial class Lua
                             void* p = lua_topointer(L, arg);
                             if (p == null)
                             {
-                                /* avoid calling 'printf' with argument null */
+                                // avoid calling 'printf' with argument null
                                 nb = FormatString(
                                     "(null)"u8,
                                     format,
-                                    new Span<byte>(buff, MAX_ITEMF)); /* format it as a string */
+                                    new Span<byte>(buff, MAX_ITEMF)); // format it as a string
                             }
                             else
                             {
@@ -1803,7 +1811,7 @@ public static unsafe partial class Lua
                         }
 
                     case (byte)'q':
-                        if (form[2] != '\0') /* modifiers? */
+                        if (form[2] != '\0') // modifiers?
                         {
                             return luaL_error(L, "specifier '%%q' cannot have modifiers");
                         }
@@ -1814,9 +1822,9 @@ public static unsafe partial class Lua
                     case (byte)'s':
                         {
                             byte* s = luaL_tolstring(L, arg, out int l);
-                            if (form[2] == '\0') /* no modifiers? */
+                            if (form[2] == '\0') // no modifiers?
                             {
-                                luaL_addvalue(&b); /* keep entire string */
+                                luaL_addvalue(&b); // keep entire string
                             }
                             else
                             {
@@ -1824,17 +1832,17 @@ public static unsafe partial class Lua
                                 checkformat(L, form, L_FMTFLAGSC, true);
                                 if (format.Precision == null && l >= 100)
                                 {
-                                    /* no precision and string is too long to be formatted */
-                                    luaL_addvalue(&b); /* keep entire string */
+                                    // no precision and string is too long to be formatted
+                                    luaL_addvalue(&b); // keep entire string
                                 }
                                 else
                                 {
-                                    /* format the string into 'buff' */
+                                    // format the string into 'buff'
                                     nb = FormatString(
                                         new ReadOnlySpan<byte>(s, l),
                                         format,
                                         new Span<byte>(buff, MAX_ITEMF));
-                                    lua_pop(L, 1); /* remove result from 'luaL_tolstring' */
+                                    lua_pop(L, 1); // remove result from 'luaL_tolstring'
                                 }
                             }
 
@@ -1842,7 +1850,7 @@ public static unsafe partial class Lua
                         }
 
                     default:
-                        /* also treat cases 'pnLlh' */
+                        // also treat cases 'pnLlh'
                         return luaL_error(L, "invalid conversion '%s' to 'format'", Encoding.UTF8.GetString(form));
                 }
 
@@ -2649,30 +2657,36 @@ public static unsafe partial class Lua
         public byte Type;
     }
 
-    /*
-     ** {======================================================
-     ** PACK/UNPACK
-     ** =======================================================
-     */
+    // {======================================================
+    // PACK/UNPACK
+    // =======================================================
 
-    /* value used for padding */
+    /// <summary>
+    /// value used for padding
+    /// </summary>
     private const byte LUAL_PACKPADBYTE = 0x00;
 
-    /* maximum size for the binary representation of an integer */
+    /// <summary>
+    /// maximum size for the binary representation of an integer
+    /// </summary>
     private const int MAXINTSIZE = 16;
 
-    /* number of bits in a character */
+    /// <summary>
+    /// number of bits in a character
+    /// </summary>
     private const int NB = 8;
 
-    /* mask for one character (NB 1's) */
+    /// <summary>
+    /// mask for one character (NB 1's)
+    /// </summary>
     private const int MC = 0xFF;
 
-// /* size of a long */
+// size of a long
 // #define SZINT	((int)sizeof(long))
 
-    /*
-     ** information to pack/unpack stuff
-     */
+    /// <summary>
+    /// information to pack/unpack stuff
+    /// </summary>
     private struct Header
     {
         public lua_State* L;
@@ -2685,28 +2699,28 @@ public static unsafe partial class Lua
     /// </summary>
     private enum KOption
     {
-        Int, /* signed integers */
-        UInt, /* unsigned integers */
-        Float, /* single-precision floating-point numbers */
-        Number, /* Lua "native" floating-point numbers */
-        Double, /* double-precision floating-point numbers */
-        Char, /* fixed-length strings */
-        String, /* strings with prefixed length */
-        ZeroString, /* zero-terminated strings */
-        Padding, /* padding */
-        PaddAlign, /* padding for alignment */
-        Nop, /* no-op (configuration or spaces) */
+        Int, // signed integers
+        UInt, // unsigned integers
+        Float, // single-precision floating-point numbers
+        Number, // Lua "native" floating-point numbers
+        Double, // double-precision floating-point numbers
+        Char, // fixed-length strings
+        String, // strings with prefixed length
+        ZeroString, // zero-terminated strings
+        Padding, // padding
+        PaddAlign, // padding for alignment
+        Nop, // no-op (configuration or spaces)
     }
 
-    /*
-     ** Read an integer numeral from string 'fmt' or return 'df' if
-     ** there is no numeral
-     */
+    /// <summary>
+    /// Read an integer numeral from string 'fmt' or return 'df' if
+    /// there is no numeral
+    /// </summary>
     private static long getnum(ref ReadOnlySpan<char> fmt, long df)
     {
-        if (fmt.IsEmpty || !char.IsAsciiDigit(fmt[0])) /* no number? */
+        if (fmt.IsEmpty || !char.IsAsciiDigit(fmt[0])) // no number?
         {
-            return df; /* return default value */
+            return df; // return default value
         }
 
         long a = 0;
@@ -2719,10 +2733,10 @@ public static unsafe partial class Lua
         return a;
     }
 
-    /*
-     ** Read an integer numeral and raises an error if it is larger
-     ** than the maximum size of integers.
-     */
+    /// <summary>
+    /// Read an integer numeral and raises an error if it is larger
+    /// than the maximum size of integers.
+    /// </summary>
     private static uint getnumlimit(Header* h, ref ReadOnlySpan<char> fmt, int df)
     {
         long sz = getnum(ref fmt, df);
@@ -2757,14 +2771,14 @@ public static unsafe partial class Lua
             Marshal.OffsetOf<AlignProbe<double>>(nameof(AlignProbe<>.Value)).ToInt32(),
             Marshal.OffsetOf<AlignProbe<nint>>(nameof(AlignProbe<>.Value)).ToInt32());
 
-    /*
-     ** Read and classify next option. 'size' is filled with option's size.
-     */
+    /// <summary>
+    /// Read and classify next option. 'size' is filled with option's size.
+    /// </summary>
     private static KOption getoption(Header* h, ref ReadOnlySpan<char> fmt, out long size)
     {
         char opt = fmt[0];
         fmt = fmt[1..];
-        size = 0; /* default */
+        size = 0; // default
         switch (opt)
         {
             case 'b':
@@ -2878,15 +2892,15 @@ public static unsafe partial class Lua
         return (x & x - 1) == 0;
     }
 
-    /*
-     ** Read, classify, and fill other details about the next option.
-     ** 'psize' is filled with option's size, 'notoalign' with its
-     ** alignment requirements.
-     ** Local variable 'size' gets the size to be aligned. (Kpadal option
-     ** always gets its full alignment, other options are limited by
-     ** the maximum alignment ('maxalign'). Kchar option needs no alignment
-     ** despite its size.
-     */
+    /// <summary>
+    /// Read, classify, and fill other details about the next option.
+    /// 'psize' is filled with option's size, 'notoalign' with its
+    /// alignment requirements.
+    /// Local variable 'size' gets the size to be aligned. (Kpadal option
+    /// always gets its full alignment, other options are limited by
+    /// the maximum alignment ('maxalign'). Kchar option needs no alignment
+    /// despite its size.
+    /// </summary>
     private static KOption getdetails(
         Header* h,
         long totalsize,
@@ -2895,36 +2909,36 @@ public static unsafe partial class Lua
         out uint ntoalign)
     {
         KOption opt = getoption(h, ref fmt, out psize);
-        long align = psize; /* usually, alignment follows size */
+        long align = psize; // usually, alignment follows size
         if (opt == KOption.PaddAlign)
         {
-            /* 'X' gets alignment from following option */
+            // 'X' gets alignment from following option
             if (fmt.IsEmpty || getoption(h, ref fmt, out align) == KOption.Char || align == 0)
             {
                 luaL_argerror(h->L, 1, "invalid next option for option 'X'");
             }
         }
 
-        if (align <= 1 || opt == KOption.Char) /* need no alignment? */
+        if (align <= 1 || opt == KOption.Char) // need no alignment?
         {
             ntoalign = 0;
         }
         else
         {
-            if (align > h->maxalign) /* enforce maximum alignment */
+            if (align > h->maxalign) // enforce maximum alignment
             {
                 align = h->maxalign;
             }
 
             if (!ispow2(align))
             {
-                /* not a power of 2? */
-                ntoalign = 0; /* to avoid warnings */
+                // not a power of 2?
+                ntoalign = 0; // to avoid warnings
                 luaL_argerror(h->L, 1, "format asks for alignment not power of 2");
             }
             else
             {
-                /* 'szmoda' = totalsize % align */
+                // 'szmoda' = totalsize % align
                 uint szmoda = (uint)(totalsize & align - 1);
                 ntoalign = (uint)(align - szmoda & align - 1);
             }
@@ -2933,12 +2947,12 @@ public static unsafe partial class Lua
         return opt;
     }
 
-    /*
-     ** Pack integer 'n' with 'size' bytes and 'islittle' endianness.
-     ** The final 'if' handles the case when 'size' is larger than
-     ** the size of a Lua integer, correcting the extra sign-extension
-     ** bytes if necessary (by default they would be zeros).
-     */
+    /// <summary>
+    /// Pack integer 'n' with 'size' bytes and 'islittle' endianness.
+    /// The final 'if' handles the case when 'size' is larger than
+    /// the size of a Lua integer, correcting the extra sign-extension
+    /// bytes if necessary (by default they would be zeros).
+    /// </summary>
     private static void packint(
         luaL_Buffer* b,
         ulong n,
@@ -2947,7 +2961,7 @@ public static unsafe partial class Lua
         bool neg)
     {
         byte* buff = luaL_prepbuffsize(b, size);
-        buff[islittle ? 0 : size - 1] = (byte)(n & MC); /* first byte */
+        buff[islittle ? 0 : size - 1] = (byte)(n & MC); // first byte
         for (int i = 1; i < size; i++)
         {
             n >>= NB;
@@ -2956,20 +2970,20 @@ public static unsafe partial class Lua
 
         if (neg && size > sizeof(long))
         {
-            /* negative number need sign extension? */
-            for (long i = sizeof(long); i < size; i++) /* correct extra bytes */
+            // negative number need sign extension?
+            for (long i = sizeof(long); i < size; i++) // correct extra bytes
             {
                 buff[islittle ? i : size - 1 - i] = MC;
             }
         }
 
-        luaL_addsize(b, size); /* add result to buffer */
+        luaL_addsize(b, size); // add result to buffer
     }
 
-    /*
-     ** Copy 'size' bytes from 'src' to 'dest', correcting endianness if
-     ** given 'islittle' is different from native endianness.
-     */
+    /// <summary>
+    /// Copy 'size' bytes from 'src' to 'dest', correcting endianness if
+    /// given 'islittle' is different from native endianness.
+    /// </summary>
     [Obsolete]
     private static void copywithendian(byte* dest, byte* src, int size, bool islittle)
     {
@@ -2987,10 +3001,10 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Copy 'size' bytes from 'src' to 'dest', correcting endianness if
-     ** given 'islittle' is different from native endianness.
-     */
+    /// <summary>
+    /// Copy 'size' bytes from 'src' to 'dest', correcting endianness if
+    /// given 'islittle' is different from native endianness.
+    /// </summary>
     private static void copywithendian(Span<byte> dest, ReadOnlySpan<byte> src, int size, bool islittle)
     {
         if (islittle == BitConverter.IsLittleEndian)
@@ -3009,13 +3023,13 @@ public static unsafe partial class Lua
     private static int str_pack(lua_State* L)
     {
         luaL_Buffer b;
-        ReadOnlySpan<char> fmt = luaL_checknetstring(L, 1); /* format string */
-        int arg = 1; /* current argument to pack */
-        long totalsize = 0; /* accumulate total size of result */
+        ReadOnlySpan<char> fmt = luaL_checknetstring(L, 1); // format string
+        int arg = 1; // current argument to pack
+        long totalsize = 0; // accumulate total size of result
 
         Header h;
         initheader(L, &h);
-        lua_pushnil(L); /* mark to separate arguments from string buffer */
+        lua_pushnil(L); // mark to separate arguments from string buffer
         luaL_buffinit(L, &b);
         while (!fmt.IsEmpty)
         {
@@ -3028,7 +3042,7 @@ public static unsafe partial class Lua
             totalsize += ntoalign + size;
             while (ntoalign-- > 0)
             {
-                luaL_addchar(&b, LUAL_PACKPADBYTE); /* fill alignment */
+                luaL_addchar(&b, LUAL_PACKPADBYTE); // fill alignment
             }
 
             arg++;
@@ -3036,11 +3050,11 @@ public static unsafe partial class Lua
             {
                 case KOption.Int:
                     {
-                        /* signed integers */
+                        // signed integers
                         long n = luaL_checkinteger(L, arg);
                         if (size < sizeof(long))
                         {
-                            /* need overflow check? */
+                            // need overflow check?
                             long lim = (long)1 << (int)(size * 8 - 1);
                             luaL_argcheck(L, -lim <= n && n < lim, arg, "integer overflow");
                         }
@@ -3051,9 +3065,9 @@ public static unsafe partial class Lua
 
                 case KOption.UInt:
                     {
-                        /* unsigned integers */
+                        // unsigned integers
                         long n = luaL_checkinteger(L, arg);
-                        if (size < sizeof(long)) /* need overflow check? */
+                        if (size < sizeof(long)) // need overflow check?
                         {
                             luaL_argcheck(
                                 L,
@@ -3068,9 +3082,9 @@ public static unsafe partial class Lua
 
                 case KOption.Float: // C float
                     {
-                        float f = (float)luaL_checknumber(L, arg); /* get argument */
+                        float f = (float)luaL_checknumber(L, arg); // get argument
                         byte* buff = luaL_prepbuffsize(&b, sizeof(float));
-                        /* move 'f' to final result, correcting endianness if needed */
+                        // move 'f' to final result, correcting endianness if needed
                         copywithendian(buff, (byte*)&f, sizeof(float), h.islittle);
                         luaL_addsize(&b, size);
                         break;
@@ -3079,9 +3093,9 @@ public static unsafe partial class Lua
                 case KOption.Number: // Lua float
                 case KOption.Double: // C double
                     {
-                        double f = luaL_checknumber(L, arg); /* get argument */
+                        double f = luaL_checknumber(L, arg); // get argument
                         byte* buff = luaL_prepbuffsize(&b, sizeof(double));
-                        /* move 'f' to final result, correcting endianness if needed */
+                        // move 'f' to final result, correcting endianness if needed
                         copywithendian(buff, (byte*)&f, sizeof(double), h.islittle);
                         luaL_addsize(&b, size);
                         break;
@@ -3089,14 +3103,14 @@ public static unsafe partial class Lua
 
                 case KOption.Char:
                     {
-                        /* fixed-size string */
+                        // fixed-size string
                         ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
                         luaL_argcheck(L, s.Length <= size, arg, "string longer than given size");
-                        luaL_addlstring(&b, s); /* add string */
+                        luaL_addlstring(&b, s); // add string
                         if (s.Length < size)
                         {
-                            /* does it need padding? */
-                            long psize = size - s.Length;  /* pad size */
+                            // does it need padding?
+                            long psize = size - s.Length; // pad size
                             byte* buff = luaL_prepbuffsize(&b, psize);
                             new Span<byte>(buff, checked((int)psize)).Fill(LUAL_PACKPADBYTE);
                             luaL_addsize(&b, psize);
@@ -3107,14 +3121,14 @@ public static unsafe partial class Lua
 
                 case KOption.String:
                     {
-                        /* strings with length count */
+                        // strings with length count
                         ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
                         luaL_argcheck(
                             L,
                             size >= sizeof(ulong) || s.Length < ((long)1 << (int)(size * NB)),
                             arg,
                             "string length does not fit in given size");
-                        /* pack length */
+                        // pack length
                         packint(&b, (ulong)s.Length, h.islittle, (uint)size, false);
                         luaL_addlstring(&b, s);
                         totalsize += s.Length;
@@ -3123,11 +3137,11 @@ public static unsafe partial class Lua
 
                 case KOption.ZeroString:
                     {
-                        /* zero-terminated string */
+                        // zero-terminated string
                         ReadOnlySpan<byte> s = luaL_checklstring(L, arg);
                         luaL_argcheck(L, !s.Contains((byte)0), arg, "string contains zeros");
                         luaL_addlstring(&b, s);
-                        luaL_addchar(&b, '\0'); /* add zero at the end */
+                        luaL_addchar(&b, '\0'); // add zero at the end
                         totalsize += s.Length + 1;
                         break;
                     }
@@ -3138,7 +3152,7 @@ public static unsafe partial class Lua
 
                 case KOption.PaddAlign:
                 case KOption.Nop:
-                    arg--; /* undo increment */
+                    arg--; // undo increment
                     break;
             }
         }
@@ -3149,11 +3163,11 @@ public static unsafe partial class Lua
 
     private static int str_packsize(lua_State* L)
     {
-        ReadOnlySpan<char> fmt = luaL_checknetstring(L, 1); /* format string */
+        ReadOnlySpan<char> fmt = luaL_checknetstring(L, 1); // format string
         Header h;
         initheader(L, &h);
 
-        long totalsize = 0; /* accumulate total size of result */
+        long totalsize = 0; // accumulate total size of result
         while (!fmt.IsEmpty)
         {
             KOption opt = getdetails(&h, totalsize, ref fmt, out long size, out uint ntoalign);
@@ -3162,7 +3176,7 @@ public static unsafe partial class Lua
                 opt != KOption.String && opt != KOption.ZeroString,
                 1,
                 "variable-length format");
-            size += ntoalign; /* total space used by option */
+            size += ntoalign; // total space used by option
             luaL_argcheck(
                 L,
                 totalsize <= long.MaxValue - size,
@@ -3175,14 +3189,14 @@ public static unsafe partial class Lua
         return 1;
     }
 
-    /*
-    ** Unpack an integer with 'size' bytes and 'islittle' endianness.
-    ** If size is smaller than the size of a Lua integer and integer
-    ** is signed, must do sign extension (propagating the sign to the
-    ** higher bits); if size is larger than the size of a Lua integer,
-    ** it must check the unread bytes to see whether they do not cause an
-    ** overflow.
-    */
+    /// <summary>
+    /// Unpack an integer with 'size' bytes and 'islittle' endianness.
+    /// If size is smaller than the size of a Lua integer and integer
+    /// is signed, must do sign extension (propagating the sign to the
+    /// higher bits); if size is larger than the size of a Lua integer,
+    /// it must check the unread bytes to see whether they do not cause an
+    /// overflow.
+    /// </summary>
     private static long unpackint(
         lua_State* L,
         ReadOnlySpan<byte> str,
@@ -3200,17 +3214,17 @@ public static unsafe partial class Lua
 
         if (size < sizeof(long))
         {
-            /* real size smaller than long? */
+            // real size smaller than long?
             if (issigned)
             {
-                /* needs sign extension? */
+                // needs sign extension?
                 ulong mask = 1UL << size * NB - 1;
-                res = (res ^ mask) - mask; /* do sign extension */
+                res = (res ^ mask) - mask; // do sign extension
             }
         }
         else if (size > sizeof(long))
         {
-            /* must check unread bytes */
+            // must check unread bytes
             int mask = (!issigned || (long)res >= 0) ? 0 : MC;
             for (int i = limit; i < size; i++)
             {
@@ -3231,7 +3245,7 @@ public static unsafe partial class Lua
         int pos = (int)(posrelatI(luaL_optinteger(L, 3, 1), data.Length) - 1);
         luaL_argcheck(L, pos <= data.Length, 3, "initial position out of string");
 
-        int n = 0; /* number of results */
+        int n = 0; // number of results
         Header h;
         initheader(L, &h);
         while (!fmt.IsEmpty)
@@ -3242,8 +3256,8 @@ public static unsafe partial class Lua
                 ntoalign + size <= data.Length - pos,
                 2,
                 "data string too short");
-            pos += (int)ntoalign; /* skip alignment */
-            /* stack space for item + next position */
+            pos += (int)ntoalign; // skip alignment
+            // stack space for item + next position
             luaL_checkstack(L, 2, "too many results");
             n++;
             switch (opt)
@@ -3294,7 +3308,7 @@ public static unsafe partial class Lua
                         ulong len = (ulong)unpackint(L, data[pos..], h.islittle, (int)size, false);
                         luaL_argcheck(L, (long)len <= data.Length - pos - size, 2, "data string too short");
                         lua_pushlstring(L, data.Slice(checked((int)(pos + size)), checked((int)len)));
-                        pos += (int)len; /* skip string */
+                        pos += (int)len; // skip string
                         break;
                     }
 
@@ -3309,21 +3323,21 @@ public static unsafe partial class Lua
 
                         luaL_argcheck(L, pos + len < data.Length, 2, "unfinished string for format 'z'");
                         lua_pushlstring(L, data.Slice(pos, len));
-                        pos += len + 1; /* skip string plus final '\0' */
+                        pos += len + 1; // skip string plus final '\0'
                         break;
                     }
 
                 case KOption.PaddAlign:
                 case KOption.Padding:
                 case KOption.Nop:
-                    n--; /* undo increment */
+                    n--; // undo increment
                     break;
             }
 
             pos += (int)size;
         }
 
-        lua_pushinteger(L, pos + 1); /* next position */
+        lua_pushinteger(L, pos + 1); // next position
         return n + 1;
     }
 
@@ -3350,21 +3364,21 @@ public static unsafe partial class Lua
 
     private static void createmetatable(lua_State* L)
     {
-        /* table to be metatable for strings */
+        // table to be metatable for strings
         luaL_newlibtable(L, stringmetamethods);
         luaL_setfuncs(L, stringmetamethods, 0);
-        lua_pushliteral(L, ""); /* dummy string */
-        lua_pushvalue(L, -2); /* copy table */
-        lua_setmetatable(L, -2); /* set table as metatable for strings */
-        lua_pop(L, 1); /* pop dummy string */
-        lua_pushvalue(L, -2); /* get string library */
-        lua_setfield(L, -2, "__index"); /* metatable.__index = string */
-        lua_pop(L, 1); /* pop metatable */
+        lua_pushliteral(L, ""); // dummy string
+        lua_pushvalue(L, -2); // copy table
+        lua_setmetatable(L, -2); // set table as metatable for strings
+        lua_pop(L, 1); // pop dummy string
+        lua_pushvalue(L, -2); // get string library
+        lua_setfield(L, -2, "__index"); // metatable.__index = string
+        lua_pop(L, 1); // pop metatable
     }
 
-    /*
-     ** Open string library
-     */
+    /// <summary>
+    /// Open string library
+    /// </summary>
     public static int luaopen_string(lua_State* L)
     {
         luaL_newlib(L, strlib);

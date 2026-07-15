@@ -4,10 +4,10 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-    /*
-    ** Standard Libraries. (Must be listed in the same ORDER of their
-    ** respective constants LUA_<libname>K.)
-    */
+    /// <summary>
+    /// Standard Libraries. (Must be listed in the same ORDER of their
+    /// respective constants LUA_&lt;libname&gt;K.)
+    /// </summary>
     private static readonly luaL_Reg[] stdlibs =
     [
         new(LUA_GNAME, &luaopen_base),
@@ -22,15 +22,17 @@ public static unsafe partial class Lua
         new(LUA_UTF8LIBNAME, &luaopen_utf8),
     ];
 
-    /* open all libraries */
+    /// <summary>
+    /// open all libraries
+    /// </summary>
     public static void luaL_openlibs(lua_State* L)
     {
         luaL_openselectedlibs(L, ~0, 0);
     }
 
-    /*
-     ** require and preload selected standard libraries
-     */
+    /// <summary>
+    /// require and preload selected standard libraries
+    /// </summary>
     public static void luaL_openselectedlibs(lua_State* L, int load, int preload)
     {
         int mask;
@@ -40,19 +42,19 @@ public static unsafe partial class Lua
         {
             if ((load & mask) != 0)
             {
-                /* selected? */
-                luaL_requiref(L, lib[0].name, lib[0].func, true); /* require library */
-                lua_pop(L, 1); /* remove result from the stack */
+                // selected?
+                luaL_requiref(L, lib[0].name, lib[0].func, true); // require library
+                lua_pop(L, 1); // remove result from the stack
             }
             else if ((preload & mask) != 0)
             {
-                /* selected? */
+                // selected?
                 lua_pushcfunction(L, lib[0].func);
-                lua_setfield(L, -2, lib[0].name); /* add library to PRELOAD table */
+                lua_setfield(L, -2, lib[0].name); // add library to PRELOAD table
             }
         }
 
         Debug.Assert(mask >> 1 == LUA_UTF8LIBK);
-        lua_pop(L, 1); /* remove PRELOAD table */
+        lua_pop(L, 1); // remove PRELOAD table
     }
 }

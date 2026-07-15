@@ -6,69 +6,67 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-    /*
-     ** $Id: lparser.c $
-     ** Lua Parser
-     ** See Copyright Notice in lua.h
-     */
+    // $Id: lparser.c $
+    // Lua Parser
+    // See Copyright Notice in lua.h
 
-    /*
-    ** Expression and variable descriptor.
-    ** Code generation for variables and expressions can be delayed to allow
-    ** optimisations; An 'expdesc' structure describes a potentially-delayed
-    ** variable/expression. It has a description of its "main" value plus a
-    ** list of conditional jumps that can also produce its value (generated
-    ** by short-circuit operators 'and'/'or').
-    */
+    // Expression and variable descriptor.
+    // Code generation for variables and expressions can be delayed to allow
+    // optimisations; An 'expdesc' structure describes a potentially-delayed
+    // variable/expression. It has a description of its "main" value plus a
+    // list of conditional jumps that can also produce its value (generated
+    // by short-circuit operators 'and'/'or').
 
-    /* kinds of variables/expressions */
+    /// <summary>
+    /// kinds of variables/expressions
+    /// </summary>
     private enum expkind
     {
-        VVOID, /* when 'expdesc' describes the last expression of a list,
-                   this kind means an empty list (so, no expression) */
-        VNIL, /* constant nil */
-        VTRUE, /* constant true */
-        VFALSE, /* constant false */
-        VK, /* constant in 'k'; info = index of constant in 'k' */
-        VKFLT, /* floating constant; nval = numerical float value */
-        VKINT, /* integer constant; ival = numerical integer value */
-        VKSTR, /* string constant; strval = TString address;
-                   (string is fixed by the scanner) */
-        VNONRELOC, /* expression has its value in a fixed register;
-                       info = result register */
-        VLOCAL, /* local variable; var.ridx = register index;
-                    var.vidx = relative index in 'actvar.arr'  */
-        VVARGVAR, /* vararg parameter; var.ridx = register index;
-                    var.vidx = relative index in 'actvar.arr'  */
-        VGLOBAL, /* global variable;
-                     info = relative index in 'actvar.arr' (or -1 for
-                            implicit declaration) */
-        VUPVAL, /* upvalue variable; info = index of upvalue in 'upvalues' */
-        VCONST, /* compile-time <const> variable;
-                    info = absolute index in 'actvar.arr'  */
-        VINDEXED, /* indexed variable;
-                      ind.t = table register;
-                      ind.idx = key's R index;
-                      ind.ro = true if it represents a read-only global;
-                      ind.keystr = if key is a string, index in 'k' of that string;
-                                   -1 if key is not a string */
-        VVARGIND, /* indexed vararg parameter;
-                      ind.* as in VINDEXED */
-        VINDEXUP, /* indexed upvalue;
-                      ind.idx = key's K index;
-                      ind.* as in VINDEXED */
-        VINDEXI, /* indexed variable with constant integer;
-                      ind.t = table register;
-                      ind.idx = key's value */
-        VINDEXSTR, /* indexed variable with literal string;
-                      ind.idx = key's K index;
-                      ind.* as in VINDEXED */
-        VJMP, /* expression is a test/comparison;
-                  info = pc of corresponding jump instruction */
-        VRELOC, /* expression can put result in any register;
-                    info = instruction pc */
-        VCALL, /* expression is a function call; info = instruction pc */
-        VVARARG, /* vararg expression; info = instruction pc */
+        VVOID, // when 'expdesc' describes the last expression of a list,
+        // this kind means an empty list (so, no expression)
+        VNIL, // constant nil
+        VTRUE, // constant true
+        VFALSE, // constant false
+        VK, // constant in 'k'; info = index of constant in 'k'
+        VKFLT, // floating constant; nval = numerical float value
+        VKINT, // integer constant; ival = numerical integer value
+        VKSTR, // string constant; strval = TString address;
+        // (string is fixed by the scanner)
+        VNONRELOC, // expression has its value in a fixed register;
+        // info = result register
+        VLOCAL, // local variable; var.ridx = register index;
+        // var.vidx = relative index in 'actvar.arr'
+        VVARGVAR, // vararg parameter; var.ridx = register index;
+        // var.vidx = relative index in 'actvar.arr'
+        VGLOBAL, // global variable;
+        // info = relative index in 'actvar.arr' (or -1 for
+        // implicit declaration)
+        VUPVAL, // upvalue variable; info = index of upvalue in 'upvalues'
+        VCONST, // compile-time <const> variable;
+        // info = absolute index in 'actvar.arr'
+        VINDEXED, // indexed variable;
+        // ind.t = table register;
+        // ind.idx = key's R index;
+        // ind.ro = true if it represents a read-only global;
+        // ind.keystr = if key is a string, index in 'k' of that string;
+        // -1 if key is not a string
+        VVARGIND, // indexed vararg parameter;
+        // ind.* as in VINDEXED
+        VINDEXUP, // indexed upvalue;
+        // ind.idx = key's K index;
+        // ind.* as in VINDEXED
+        VINDEXI, // indexed variable with constant integer;
+        // ind.t = table register;
+        // ind.idx = key's value
+        VINDEXSTR, // indexed variable with literal string;
+        // ind.idx = key's K index;
+        // ind.* as in VINDEXED
+        VJMP, // expression is a test/comparison;
+        // info = pc of corresponding jump instruction
+        VRELOC, // expression can put result in any register;
+        // info = instruction pc
+        VCALL, // expression is a function call; info = instruction pc
+        VVARARG, // vararg expression; info = instruction pc
     }
 
     private static bool vkisvar(expkind k)
@@ -85,57 +83,65 @@ public static unsafe partial class Lua
     {
         public struct Ind
         {
-            public short idx; /* index (R or "long" K) */
-            public byte t; /* table (register or upvalue) */
-            public bool ro; /* true if variable is read-only */
-            public int keystr; /* index in 'k' of string key, or -1 if not a string */
+            public short idx; // index (R or "long" K)
+            public byte t; // table (register or upvalue)
+            public bool ro; // true if variable is read-only
+            public int keystr; // index in 'k' of string key, or -1 if not a string
         }
 
         public struct Var
         {
-            public byte ridx; /* register holding the variable */
-            public short vidx; /* index in 'actvar.arr' */
+            public byte ridx; // register holding the variable
+            public short vidx; // index in 'actvar.arr'
         }
 
         [StructLayout(LayoutKind.Explicit)]
         public struct U
         {
-            [FieldOffset(0)] public long ival; /* for VKINT */
-            [FieldOffset(0)] public double nval; /* for VKFLT */
-            [FieldOffset(0)] public TString *strval;  /* for VKSTR */
-            [FieldOffset(0)] public int info;  /* for generic use */
-            [FieldOffset(0)] public Ind ind; /* for indexed variables */
-            [FieldOffset(0)] public Var var; /* for local variables */
+            [FieldOffset(0)] public long ival; // for VKINT
+            [FieldOffset(0)] public double nval; // for VKFLT
+            [FieldOffset(0)] public TString *strval; // for VKSTR
+            [FieldOffset(0)] public int info; // for generic use
+            [FieldOffset(0)] public Ind ind; // for indexed variables
+            [FieldOffset(0)] public Var var; // for local variables
         }
 
         public expkind k;
         public U u;
-        public int t; /* patch list of 'exit when true' */
-        public int f; /* patch list of 'exit when false' */
+        public int t; // patch list of 'exit when true'
+        public int f; // patch list of 'exit when false'
     }
 
-    /* kinds of variables */
-    private const int VDKREG = 0;   /* regular local */
-    private const int RDKCONST = 1;   /* local constant */
-    private const int RDKVAVAR = 2;   /* vararg parameter */
-    private const int RDKTOCLOSE = 3;   /* to-be-closed */
-    private const int RDKCTC = 4;   /* local compile-time constant */
-    private const int GDKREG = 5;   /* regular global */
-    private const int GDKCONST = 6;   /* global constant */
+    /// <summary>
+    /// kinds of variables
+    /// </summary>
+    private const int VDKREG = 0; // regular local
+    private const int RDKCONST = 1; // local constant
+    private const int RDKVAVAR = 2; // vararg parameter
+    private const int RDKTOCLOSE = 3; // to-be-closed
+    private const int RDKCTC = 4; // local compile-time constant
+    private const int GDKREG = 5; // regular global
+    private const int GDKCONST = 6; // global constant
 
-    /* variables that live in registers */
+    /// <summary>
+    /// variables that live in registers
+    /// </summary>
     private static bool varinreg(Vardesc* v)
     {
         return v->vd.kind <= RDKTOCLOSE;
     }
 
-    /* test for global variables */
+    /// <summary>
+    /// test for global variables
+    /// </summary>
     private static bool varglobal(Vardesc* v)
     {
         return v->vd.kind >= GDKREG;
     }
 
-    /* description of an active variable */
+    /// <summary>
+    /// description of an active variable
+    /// </summary>
     [StructLayout(LayoutKind.Explicit)]
     private struct Vardesc
     {
@@ -144,75 +150,87 @@ public static unsafe partial class Lua
             public Value value_;
             public byte tt_;
             public byte kind;
-            public byte ridx; /* register holding the variable */
-            public short pidx; /* index of the variable in the Proto's 'locvars' array */
-            public TString* name; /* variable name */
+            public byte ridx; // register holding the variable
+            public short pidx; // index of the variable in the Proto's 'locvars' array
+            public TString* name; // variable name
         }
 
         [FieldOffset(0)] public Vd vd;
-        [FieldOffset(0)] public TValue k; /* constant value (if any) */
+        [FieldOffset(0)] public TValue k; // constant value (if any)
     }
 
-    /* description of pending goto statements and label statements */
+    /// <summary>
+    /// description of pending goto statements and label statements
+    /// </summary>
     private struct Labeldesc
     {
-        public TString* name; /* label identifier */
-        public int pc; /* position in code */
-        public int line; /* line where it appeared */
-        public short nactvar; /* number of active variables in that position */
-        public bool close; /* true for goto that escapes upvalues */
+        public TString* name; // label identifier
+        public int pc; // position in code
+        public int line; // line where it appeared
+        public short nactvar; // number of active variables in that position
+        public bool close; // true for goto that escapes upvalues
     }
 
-    /* list of labels or gotos */
+    /// <summary>
+    /// list of labels or gotos
+    /// </summary>
     private struct Labellist
     {
-        public Labeldesc* arr; /* array */
-        public int n; /* number of entries in use */
-        public int size; /* array size */
+        public Labeldesc* arr; // array
+        public int n; // number of entries in use
+        public int size; // array size
     }
 
-    /* dynamic structures used by the parser */
+    /// <summary>
+    /// dynamic structures used by the parser
+    /// </summary>
     private struct Dyndata
     {
         public struct ActVar
         {
-            /* list of all active local variables */
+            /// <summary>
+            /// list of all active local variables
+            /// </summary>
             public Vardesc* arr;
             public int n;
             public int size;
         }
 
         public ActVar actvar;
-        public Labellist gt; /* list of pending gotos */
-        public Labellist label; /* list of active labels */
+        public Labellist gt; // list of pending gotos
+        public Labellist label; // list of active labels
     }
 
-    /* state needed to generate code for a given function */
+    /// <summary>
+    /// state needed to generate code for a given function
+    /// </summary>
     private struct FuncState
     {
-        public Proto* f; /* current function header */
-        public FuncState* prev; /* enclosing function */
-        public LexState* ls; /* lexical state */
-        public BlockCnt* bl;  /* chain of current blocks */
-        public Table* kcache; /* cache for reusing constants */
-        public int pc; /* next position to code (equivalent to 'ncode') */
-        public int lasttarget; /* 'label' of last 'jump label' */
-        public int previousline; /* last line that was saved in 'lineinfo' */
-        public int nk; /* number of elements in 'k' */
-        public int np; /* number of elements in 'p' */
-        public int nabslineinfo; /* number of elements in 'abslineinfo' */
-        public int firstlocal; /* index of first local var (in Dyndata array) */
-        public int firstlabel; /* index of first label (in 'dyd->label->arr') */
-        public short ndebugvars; /* number of elements in 'f->locvars' */
-        public short nactvar; /* number of active variable declarations */
-        public byte nups; /* number of upvalues */
-        public byte freereg; /* first free register */
-        public byte iwthabs; /* instructions issued since last absolute line info */
-        public bool needclose; /* function needs to close upvalues when returning */
+        public Proto* f; // current function header
+        public FuncState* prev; // enclosing function
+        public LexState* ls; // lexical state
+        public BlockCnt* bl; // chain of current blocks
+        public Table* kcache; // cache for reusing constants
+        public int pc; // next position to code (equivalent to 'ncode')
+        public int lasttarget; // 'label' of last 'jump label'
+        public int previousline; // last line that was saved in 'lineinfo'
+        public int nk; // number of elements in 'k'
+        public int np; // number of elements in 'p'
+        public int nabslineinfo; // number of elements in 'abslineinfo'
+        public int firstlocal; // index of first local var (in Dyndata array)
+        public int firstlabel; // index of first label (in 'dyd->label->arr')
+        public short ndebugvars; // number of elements in 'f->locvars'
+        public short nactvar; // number of active variable declarations
+        public byte nups; // number of upvalues
+        public byte freereg; // first free register
+        public byte iwthabs; // instructions issued since last absolute line info
+        public bool needclose; // function needs to close upvalues when returning
     }
     
-    /* maximum number of variable declarations per function (must be
-       smaller than 250, due to the bytecode format) */
+    /// <summary>
+    /// maximum number of variable declarations per function (must be
+    /// smaller than 250, due to the bytecode format)
+    /// </summary>
     private const int MAXVARS = 200;
 
     private static bool hasmultret(expkind k)
@@ -220,25 +238,27 @@ public static unsafe partial class Lua
         return k is expkind.VCALL or expkind.VVARARG;
     }
 
-    /* because all strings are unified by the scanner, the parser
-       can use pointer equality for string equality */
+    /// <summary>
+    /// because all strings are unified by the scanner, the parser
+    /// can use pointer equality for string equality
+    /// </summary>
     private static bool eqstr(TString* a, TString* b)
     {
         return a == b;
     }
 
-    /*
-     ** nodes for block list (list of active blocks)
-     */
+    /// <summary>
+    /// nodes for block list (list of active blocks)
+    /// </summary>
     private struct BlockCnt
     {
-        public BlockCnt* previous; /* chain */
-        public int firstlabel; /* index of first label in this block */
-        public int firstgoto; /* index of first pending goto in this block */
-        public short nactvar; /* number of active declarations at block entry */
-        public bool upval; /* true if some variable in the block is an upvalue */
-        public byte isloop; /* 1 if 'block' is a loop; 2 if it has pending breaks */
-        public bool insidetbc; /* true if inside the scope of a to-be-closed var. */
+        public BlockCnt* previous; // chain
+        public int firstlabel; // index of first label in this block
+        public int firstgoto; // index of first pending goto in this block
+        public short nactvar; // number of active declarations at block entry
+        public bool upval; // true if some variable in the block is an upvalue
+        public byte isloop; // 1 if 'block' is a loop; 2 if it has pending breaks
+        public bool insidetbc; // true if inside the scope of a to-be-closed var.
     }
 
     [DoesNotReturn]
@@ -274,9 +294,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Test whether next token is 'c'; if so, skip it.
-     */
+    /// <summary>
+    /// Test whether next token is 'c'; if so, skip it.
+    /// </summary>
     private static bool testnext(LexState* ls, int c)
     {
         if (ls->t.token == c)
@@ -288,9 +308,9 @@ public static unsafe partial class Lua
         return false;
     }
 
-    /*
-     ** Check that next token is 'c'.
-     */
+    /// <summary>
+    /// Check that next token is 'c'.
+    /// </summary>
     private static void check(LexState* ls, int c)
     {
         if (ls->t.token != c)
@@ -299,9 +319,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Check that next token is 'c' and skip it.
-     */
+    /// <summary>
+    /// Check that next token is 'c' and skip it.
+    /// </summary>
     private static void checknext(LexState* ls, int c)
     {
         check(ls, c);
@@ -316,18 +336,18 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Check that next token is 'what' and skip it. In case of error,
-     ** raise an error that the expected 'what' should match a 'who'
-     ** in line 'where' (if that is not the current line).
-     */
+    /// <summary>
+    /// Check that next token is 'what' and skip it. In case of error,
+    /// raise an error that the expected 'what' should match a 'who'
+    /// in line 'where' (if that is not the current line).
+    /// </summary>
     private static void check_match(LexState* ls, int what, int who, int where)
     {
         if (!testnext(ls, what))
         {
-            if (where == ls->linenumber) /* all in the same line? */
+            if (where == ls->linenumber) // all in the same line?
             {
-                error_expected(ls, what); /* do not need a complex message */
+                error_expected(ls, what); // do not need a complex message
             }
             else
             {
@@ -370,10 +390,10 @@ public static unsafe partial class Lua
         codestring(e, str_checkname(ls));
     }
 
-    /*
-     ** Register a new local variable in the active 'Proto' (for debug
-     ** information).
-     */
+    /// <summary>
+    /// Register a new local variable in the active 'Proto' (for debug
+    /// information).
+    /// </summary>
     private static short registerlocalvar(
         LexState* ls,
         FuncState* fs,
@@ -399,10 +419,10 @@ public static unsafe partial class Lua
         return fs->ndebugvars++;
     }
 
-    /*
-     ** Create a new variable with the given 'name' and given 'kind'.
-     ** Return its index in the function.
-     */
+    /// <summary>
+    /// Create a new variable with the given 'name' and given 'kind'.
+    /// Return its index in the function.
+    /// </summary>
     private static int new_varkind(LexState* ls, TString* name, byte kind)
     {
         lua_State* L = ls->L;
@@ -416,14 +436,14 @@ public static unsafe partial class Lua
             short.MaxValue,
             "variable declarations");
         Vardesc* var = &dyd->actvar.arr[dyd->actvar.n++];
-        var->vd.kind = kind; /* default */
+        var->vd.kind = kind; // default
         var->vd.name = name;
         return dyd->actvar.n - 1 - fs->firstlocal;
     }
 
-    /*
-     ** Create a new local variable with the given 'name' and regular kind.
-     */
+    /// <summary>
+    /// Create a new local variable with the given 'name' and regular kind.
+    /// </summary>
     private static int new_localvar(LexState* ls, TString* name)
     {
         return new_varkind(ls, name, VDKREG);
@@ -434,53 +454,53 @@ public static unsafe partial class Lua
         return new_localvar(ls, luaX_newstring(ls, v));
     }
 
-    /*
-     ** Return the "variable description" (Vardesc) of a given variable.
-     ** (Unless noted otherwise, all variables are referred to by their
-     ** compiler indices.)
-     */
+    /// <summary>
+    /// Return the "variable description" (Vardesc) of a given variable.
+    /// (Unless noted otherwise, all variables are referred to by their
+    /// compiler indices.)
+    /// </summary>
     private static Vardesc* getlocalvardesc(FuncState* fs, int vidx)
     {
         return &fs->ls->dyd->actvar.arr[fs->firstlocal + vidx];
     }
 
-    /*
-     ** Convert 'nvar', a compiler index level, to its corresponding
-     ** register. For that, search for the highest variable below that level
-     ** that is in a register and uses its register index ('ridx') plus one.
-     */
+    /// <summary>
+    /// Convert 'nvar', a compiler index level, to its corresponding
+    /// register. For that, search for the highest variable below that level
+    /// that is in a register and uses its register index ('ridx') plus one.
+    /// </summary>
     private static byte reglevel(FuncState* fs, int nvar)
     {
         while (nvar-- > 0)
         {
-            Vardesc* vd = getlocalvardesc(fs, nvar); /* get previous variable */
-            if (varinreg(vd)) /* is in a register? */
+            Vardesc* vd = getlocalvardesc(fs, nvar); // get previous variable
+            if (varinreg(vd)) // is in a register?
             {
                 return (byte)(vd->vd.ridx + 1);
             }
         }
 
-        return 0; /* no variables in registers */
+        return 0; // no variables in registers
     }
 
-    /*
-     ** Return the number of variables in the register stack for the given
-     ** function.
-     */
+    /// <summary>
+    /// Return the number of variables in the register stack for the given
+    /// function.
+    /// </summary>
     private static byte luaY_nvarstack(FuncState* fs)
     {
         return reglevel(fs, fs->nactvar);
     }
 
-    /*
-     ** Get the debug-information entry for current variable 'vidx'.
-     */
+    /// <summary>
+    /// Get the debug-information entry for current variable 'vidx'.
+    /// </summary>
     private static LocVar* localdebuginfo(FuncState* fs, int vidx)
     {
         Vardesc* vd = getlocalvardesc(fs, vidx);
         if (!varinreg(vd))
         {
-            return null; /* no debug info. for constants */
+            return null; // no debug info. for constants
         }
 
         int idx = vd->vd.pidx;
@@ -488,9 +508,9 @@ public static unsafe partial class Lua
         return &fs->f->locvars[idx];
     }
 
-    /*
-     ** Create an expression representing variable 'vidx'
-     */
+    /// <summary>
+    /// Create an expression representing variable 'vidx'
+    /// </summary>
     private static void init_var(FuncState* fs, expdesc* e, int vidx)
     {
         e->f = e->t = NO_JUMP;
@@ -499,15 +519,15 @@ public static unsafe partial class Lua
         e->u.var.ridx = getlocalvardesc(fs, vidx)->vd.ridx;
     }
 
-    /*
-     ** Raises an error if variable described by 'e' is read only; moreover,
-     ** if 'e' is t[exp] where t is the vararg parameter, change it to index
-     ** a real table. (Virtual vararg tables cannot be changed.)
-     */
+    /// <summary>
+    /// Raises an error if variable described by 'e' is read only; moreover,
+    /// if 'e' is t[exp] where t is the vararg parameter, change it to index
+    /// a real table. (Virtual vararg tables cannot be changed.)
+    /// </summary>
     private static void check_readonly(LexState* ls, expdesc* e)
     {
         FuncState* fs = ls->fs;
-        TString* varname = null; /* to be set if variable is const */
+        TString* varname = null; // to be set if variable is const
         switch (e->k)
         {
             case expkind.VCONST:
@@ -518,7 +538,7 @@ public static unsafe partial class Lua
             case expkind.VVARGVAR:
                 {
                     Vardesc* vardesc = getlocalvardesc(fs, e->u.var.vidx);
-                    if (vardesc->vd.kind != VDKREG) /* not a regular variable? */
+                    if (vardesc->vd.kind != VDKREG) // not a regular variable?
                     {
                         varname = vardesc->vd.name;
                     }
@@ -538,15 +558,15 @@ public static unsafe partial class Lua
                 }
 
             case expkind.VVARGIND:
-                needvatab(fs->f); /* function will need a vararg table */
+                needvatab(fs->f); // function will need a vararg table
                 e->k = expkind.VINDEXED;
                 goto case expkind.VINDEXUP;
 
             case expkind.VINDEXUP:
             case expkind.VINDEXSTR:
             case expkind.VINDEXED:
-                /* global variable */
-                if (e->u.ind.ro) /* read-only? */
+                // global variable
+                if (e->u.ind.ro) // read-only?
                 {
                     varname = tsvalue(&fs->f->k[e->u.ind.keystr]);
                 }
@@ -554,8 +574,8 @@ public static unsafe partial class Lua
                 break;
 
             default:
-                Debug.Assert(e->k == expkind.VINDEXI); /* this one doesn't need any check */
-                return; /* integer index cannot be read-only */
+                Debug.Assert(e->k == expkind.VINDEXI); // this one doesn't need any check
+                return; // integer index cannot be read-only
         }
 
         if (varname != null)
@@ -567,9 +587,9 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Start the scope for the last 'nvars' created variables.
-     */
+    /// <summary>
+    /// Start the scope for the last 'nvars' created variables.
+    /// </summary>
     private static void adjustlocalvars(LexState* ls, int nvars)
     {
         FuncState* fs = ls->fs;
@@ -584,27 +604,27 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Close the scope for all variables up to level 'tolevel'.
-     ** (debug info.)
-     */
+    /// <summary>
+    /// Close the scope for all variables up to level 'tolevel'.
+    /// (debug info.)
+    /// </summary>
     private static void removevars(FuncState* fs, int tolevel)
     {
         fs->ls->dyd->actvar.n -= fs->nactvar - tolevel;
         while (fs->nactvar > tolevel)
         {
             LocVar* var = localdebuginfo(fs, --fs->nactvar);
-            if (var != null) /* does it have debug information? */
+            if (var != null) // does it have debug information?
             {
                 var->endpc = fs->pc;
             }
         }
     }
 
-    /*
-     ** Search the upvalues of the function 'fs' for one
-     ** with the given 'name'.
-     */
+    /// <summary>
+    /// Search the upvalues of the function 'fs' for one
+    /// with the given 'name'.
+    /// </summary>
     private static int searchupvalue(FuncState* fs, TString* name)
     {
         Upvaldesc* up = fs->f->upvalues;
@@ -616,7 +636,7 @@ public static unsafe partial class Lua
             }
         }
 
-        return -1; /* not found */
+        return -1; // not found
     }
 
     private static Upvaldesc* allocupvalue(FuncState* fs)
@@ -663,17 +683,17 @@ public static unsafe partial class Lua
         return fs->nups - 1;
     }
 
-    /*
-     ** Look for an active variable with the name 'n' in the
-     ** function 'fs'. If found, initialise 'var' with it and return
-     ** its expression kind; otherwise return -1. While searching,
-     ** var->u.info==-1 means that the preambular global declaration is
-     ** active (the default while there is no other global declaration);
-     ** var->u.info==-2 means there is no active collective declaration
-     ** (some previous global declaration but no collective declaration);
-     ** and var->u.info>=0 points to the inner-most (the first one found)
-     ** collective declaration, if there is one.
-     */
+    /// <summary>
+    /// Look for an active variable with the name 'n' in the
+    /// function 'fs'. If found, initialise 'var' with it and return
+    /// its expression kind; otherwise return -1. While searching,
+    /// var-&gt;u.info==-1 means that the preambular global declaration is
+    /// active (the default while there is no other global declaration);
+    /// var-&gt;u.info==-2 means there is no active collective declaration
+    /// (some previous global declaration but no collective declaration);
+    /// and var-&gt;u.info&gt;=0 points to the inner-most (the first one found)
+    /// collective declaration, if there is one.
+    /// </summary>
     private static int searchvar(FuncState* fs, TString* n, expdesc* var)
     {
         for (int i = fs->nactvar - 1; i >= 0; i--)
@@ -681,43 +701,43 @@ public static unsafe partial class Lua
             Vardesc* vd = getlocalvardesc(fs, i);
             if (varglobal(vd))
             {
-                /* global declaration? */
+                // global declaration?
                 if (vd->vd.name == null)
                 {
-                    /* collective declaration? */
-                    if (var->u.info < 0) /* no previous collective declaration? */
+                    // collective declaration?
+                    if (var->u.info < 0) // no previous collective declaration?
                     {
-                        var->u.info = fs->firstlocal + i; /* this is the first one */
+                        var->u.info = fs->firstlocal + i; // this is the first one
                     }
                 }
                 else
                 {
-                    /* global name */
+                    // global name
                     if (eqstr(n, vd->vd.name))
                     {
-                        /* found? */
+                        // found?
                         init_exp(var, expkind.VGLOBAL, fs->firstlocal + i);
                         return (int)expkind.VGLOBAL;
                     }
 
-                    if (var->u.info == -1) /* active preambular declaration? */
+                    if (var->u.info == -1) // active preambular declaration?
                     {
-                        var->u.info = -2; /* invalidate preambular declaration */
+                        var->u.info = -2; // invalidate preambular declaration
                     }
                 }
             }
             else if (eqstr(n, vd->vd.name))
             {
-                /* found? */
-                if (vd->vd.kind == RDKCTC) /* compile-time constant? */
+                // found?
+                if (vd->vd.kind == RDKCTC) // compile-time constant?
                 {
                     init_exp(var, expkind.VCONST, fs->firstlocal + i);
                 }
                 else
                 {
-                    /* local variable */
+                    // local variable
                     init_var(fs, var, i);
-                    if (vd->vd.kind == RDKVAVAR) /* vararg parameter? */
+                    if (vd->vd.kind == RDKVAVAR) // vararg parameter?
                     {
                         var->k = expkind.VVARGVAR;
                     }
@@ -727,13 +747,13 @@ public static unsafe partial class Lua
             }
         }
 
-        return -1; /* not found */
+        return -1; // not found
     }
 
-    /*
-     ** Mark block where variable at given level was defined
-     ** (to emit close instructions later).
-     */
+    /// <summary>
+    /// Mark block where variable at given level was defined
+    /// (to emit close instructions later).
+    /// </summary>
     private static void markupval(FuncState* fs, int level)
     {
         BlockCnt* bl = fs->bl;
@@ -746,9 +766,9 @@ public static unsafe partial class Lua
         fs->needclose = true;
     }
 
-    /*
-     ** Mark that current block has a to-be-closed variable.
-     */
+    /// <summary>
+    /// Mark that current block has a to-be-closed variable.
+    /// </summary>
     private static void marktobeclosed(FuncState* fs)
     {
         BlockCnt* bl = fs->bl;
@@ -757,62 +777,62 @@ public static unsafe partial class Lua
         fs->needclose = true;
     }
 
-    /*
-     ** Find a variable with the given name 'n'. If it is an upvalue, add
-     ** this upvalue into all intermediate functions. If it is a global, set
-     ** 'var' as 'void' as a flag.
-     */
+    /// <summary>
+    /// Find a variable with the given name 'n'. If it is an upvalue, add
+    /// this upvalue into all intermediate functions. If it is a global, set
+    /// 'var' as 'void' as a flag.
+    /// </summary>
     private static void singlevaraux(FuncState* fs, TString* n, expdesc* var, bool @base)
     {
-        int v = searchvar(fs, n, var); /* look up variables at current level */
+        int v = searchvar(fs, n, var); // look up variables at current level
         if (v >= 0)
         {
-            /* found? */
+            // found?
             if (!@base)
             {
-                if (var->k == expkind.VVARGVAR) /* vararg parameter? */
+                if (var->k == expkind.VVARGVAR) // vararg parameter?
                 {
-                    luaK_vapar2local(fs, var); /* change it to a regular local */
+                    luaK_vapar2local(fs, var); // change it to a regular local
                 }
 
                 if (var->k == expkind.VLOCAL)
                 {
-                    markupval(fs, var->u.var.vidx); /* will be used as an upvalue */
+                    markupval(fs, var->u.var.vidx); // will be used as an upvalue
                 }
             }
-            /* else nothing else to be done */
+            // else nothing else to be done
         }
         else
         {
-            /* not found at current level; try upvalues */
-            int idx = searchupvalue(fs, n); /* try existing upvalues */
+            // not found at current level; try upvalues
+            int idx = searchupvalue(fs, n); // try existing upvalues
             if (idx < 0)
             {
-                /* not found? */
-                if (fs->prev != null) /* more levels? */
+                // not found?
+                if (fs->prev != null) // more levels?
                 {
-                    singlevaraux(fs->prev, n, var, false); /* try upper levels */
+                    singlevaraux(fs->prev, n, var, false); // try upper levels
                 }
 
-                if (var->k == expkind.VLOCAL || var->k == expkind.VUPVAL) /* local or upvalue? */
+                if (var->k == expkind.VLOCAL || var->k == expkind.VUPVAL) // local or upvalue?
                 {
-                    idx = newupvalue(fs, n, var); /* will be a new upvalue */
+                    idx = newupvalue(fs, n, var); // will be a new upvalue
                 }
-                else /* it is a global or a constant */
+                else // it is a global or a constant
                 {
-                    return; /* don't need to do anything at this level */
+                    return; // don't need to do anything at this level
                 }
             }
 
-            init_exp(var, expkind.VUPVAL, idx); /* new or old upvalue */
+            init_exp(var, expkind.VUPVAL, idx); // new or old upvalue
         }
     }
 
     private static void buildglobal(LexState* ls, TString* varname, expdesc* var)
     {
         FuncState* fs = ls->fs;
-        init_exp(var, expkind.VGLOBAL, -1); /* global by default */
-        singlevaraux(fs, ls->envn, var, true); /* get environment variable */
+        init_exp(var, expkind.VGLOBAL, -1); // global by default
+        singlevaraux(fs, ls->envn, var, true); // get environment variable
         if (var->k == expkind.VGLOBAL)
         {
             luaK_semerror(
@@ -822,26 +842,26 @@ public static unsafe partial class Lua
                 getnetstr(varname));
         }
 
-        luaK_exp2anyregup(fs, var); /* _ENV could be a constant */
+        luaK_exp2anyregup(fs, var); // _ENV could be a constant
         expdesc key;
-        codestring(&key, varname); /* key is variable name */
-        luaK_indexed(fs, var, &key); /* 'var' represents _ENV[varname] */
+        codestring(&key, varname); // key is variable name
+        luaK_indexed(fs, var, &key); // 'var' represents _ENV[varname]
     }
 
-    /*
-     ** Find a variable with the given name 'n', handling global variables
-     ** too.
-     */
+    /// <summary>
+    /// Find a variable with the given name 'n', handling global variables
+    /// too.
+    /// </summary>
     private static void buildvar(LexState* ls, TString* varname, expdesc* var)
     {
         FuncState* fs = ls->fs;
-        init_exp(var, expkind.VGLOBAL, -1); /* global by default */
+        init_exp(var, expkind.VGLOBAL, -1); // global by default
         singlevaraux(fs, varname, var, true);
         if (var->k == expkind.VGLOBAL)
         {
-            /* global name? */
+            // global name?
             int info = var->u.info;
-            /* global by default in the scope of a global declaration? */
+            // global by default in the scope of a global declaration?
             if (info == -2)
             {
                 luaK_semerror(ls, "variable '%s' not declared", getnetstr(varname));
@@ -850,9 +870,9 @@ public static unsafe partial class Lua
             buildglobal(ls, varname, var);
             if (info != -1 && ls->dyd->actvar.arr[info].vd.kind == GDKCONST)
             {
-                var->u.ind.ro = true; /* mark variable as read-only */
+                var->u.ind.ro = true; // mark variable as read-only
             }
-            else /* anyway must be a global */
+            else // anyway must be a global
             {
                 Debug.Assert(info == -1 || ls->dyd->actvar.arr[info].vd.kind == GDKREG);
             }
@@ -864,46 +884,46 @@ public static unsafe partial class Lua
         buildvar(ls, str_checkname(ls), var);
     }
 
-    /*
-     ** Adjust the number of results from an expression list 'e' with 'nexps'
-     ** expressions to 'nvars' values.
-     */
+    /// <summary>
+    /// Adjust the number of results from an expression list 'e' with 'nexps'
+    /// expressions to 'nvars' values.
+    /// </summary>
     private static void adjust_assign(LexState* ls, int nvars, int nexps, expdesc* e)
     {
         FuncState* fs = ls->fs;
-        int needed = nvars - nexps; /* extra values needed */
+        int needed = nvars - nexps; // extra values needed
         luaK_checkstack(fs, needed);
         if (hasmultret(e->k))
         {
-            /* last expression has multiple returns? */
-            int extra = needed + 1; /* discount last expression itself */
+            // last expression has multiple returns?
+            int extra = needed + 1; // discount last expression itself
             if (extra < 0)
             {
                 extra = 0;
             }
 
-            luaK_setreturns(fs, e, extra); /* last exp. provides the difference */
+            luaK_setreturns(fs, e, extra); // last exp. provides the difference
         }
         else
         {
-            if (e->k != expkind.VVOID) /* at least one expression? */
+            if (e->k != expkind.VVOID) // at least one expression?
             {
-                luaK_exp2nextreg(fs, e); /* close last expression */
+                luaK_exp2nextreg(fs, e); // close last expression
             }
 
-            if (needed > 0) /* missing values? */
+            if (needed > 0) // missing values?
             {
-                luaK_nil(fs, fs->freereg, needed); /* complete with nils */
+                luaK_nil(fs, fs->freereg, needed); // complete with nils
             }
         }
 
         if (needed > 0)
         {
-            luaK_reserveregs(fs, needed); /* registers for extra values */
+            luaK_reserveregs(fs, needed); // registers for extra values
         }
-        else /* adding 'needed' is actually a subtraction */
+        else // adding 'needed' is actually a subtraction
         {
-            fs->freereg = (byte)(fs->freereg + needed); /* remove extra values */
+            fs->freereg = (byte)(fs->freereg + needed); // remove extra values
         }
     }
 
@@ -917,10 +937,10 @@ public static unsafe partial class Lua
         ls->L->nCcalls--;
     }
 
-    /*
-     ** Generates an error that a goto jumps into the scope of some
-     ** variable declaration.
-     */
+    /// <summary>
+    /// Generates an error that a goto jumps into the scope of some
+    /// variable declaration.
+    /// </summary>
     [DoesNotReturn]
     private static void jumpscopeerror(LexState* ls, Labeldesc* gt)
     {
@@ -931,25 +951,25 @@ public static unsafe partial class Lua
             "<goto %s> at line %d jumps into the scope of '%s'",
             getnetstr(gt->name),
             gt->line,
-            varname); /* raise the error */
+            varname); // raise the error
     }
 
-    /*
-     ** Closes the goto at index 'g' to given 'label' and removes it
-     ** from the list of pending gotos.
-     ** If it jumps into the scope of some variable, raises an error.
-     ** The goto needs a CLOSE if it jumps out of a block with upvalues,
-     ** or out of the scope of some variable and the block has upvalues
-     ** (signalled by parameter 'bup').
-     */
+    /// <summary>
+    /// Closes the goto at index 'g' to given 'label' and removes it
+    /// from the list of pending gotos.
+    /// If it jumps into the scope of some variable, raises an error.
+    /// The goto needs a CLOSE if it jumps out of a block with upvalues,
+    /// or out of the scope of some variable and the block has upvalues
+    /// (signalled by parameter 'bup').
+    /// </summary>
     private static void closegoto(LexState* ls, int g, Labeldesc* label, bool bup)
     {
         int i;
         FuncState* fs = ls->fs;
-        Labellist* gl = &ls->dyd->gt; /* list of gotos */
-        Labeldesc* gt = &gl->arr[g]; /* goto to be resolved */
+        Labellist* gl = &ls->dyd->gt; // list of gotos
+        Labeldesc* gt = &gl->arr[g]; // goto to be resolved
         Debug.Assert(eqstr(gt->name, label->name));
-        if (gt->nactvar < label->nactvar) /* enter some scope? */
+        if (gt->nactvar < label->nactvar) // enter some scope?
         {
             jumpscopeerror(ls, gt);
         }
@@ -957,17 +977,17 @@ public static unsafe partial class Lua
         if (gt->close ||
             label->nactvar < gt->nactvar && bup)
         {
-            /* needs close? */
+            // needs close?
             byte stklevel = reglevel(fs, label->nactvar);
-            /* move jump to CLOSE position */
+            // move jump to CLOSE position
             fs->f->code[gt->pc + 1] = fs->f->code[gt->pc];
-            /* put CLOSE instruction at original position */
-            fs->f->code[gt->pc] = CREATE_ABCk(OpCode.OP_CLOSE, stklevel, 0, 0, false);
-            gt->pc++; /* must point to jump instruction */
+            // put CLOSE instruction at original position
+            fs->f->code[gt->pc] = CREATE_ABCk(OpCode.Close, stklevel, 0, 0, false);
+            gt->pc++; // must point to jump instruction
         }
 
-        luaK_patchlist(ls->fs, gt->pc, label->pc); /* goto jumps to label */
-        for (i = g; i < gl->n - 1; i++) /* remove goto from pending list */
+        luaK_patchlist(ls->fs, gt->pc, label->pc); // goto jumps to label
+        for (i = g; i < gl->n - 1; i++) // remove goto from pending list
         {
             gl->arr[i] = gl->arr[i + 1];
         }
@@ -975,29 +995,29 @@ public static unsafe partial class Lua
         gl->n--;
     }
 
-    /*
-     ** Search for an active label with the given name, starting at
-     ** index 'ilb' (so that it can search for all labels in current block
-     ** or all labels in current function).
-     */
+    /// <summary>
+    /// Search for an active label with the given name, starting at
+    /// index 'ilb' (so that it can search for all labels in current block
+    /// or all labels in current function).
+    /// </summary>
     private static Labeldesc* findlabel(LexState* ls, TString* name, int ilb)
     {
         Dyndata* dyd = ls->dyd;
         for (; ilb < dyd->label.n; ilb++)
         {
             Labeldesc* lb = &dyd->label.arr[ilb];
-            if (eqstr(lb->name, name)) /* correct label? */
+            if (eqstr(lb->name, name)) // correct label?
             {
                 return lb;
             }
         }
 
-        return null; /* label not found */
+        return null; // label not found
     }
 
-    /*
-     ** Adds a new label/goto in the corresponding list.
-     */
+    /// <summary>
+    /// Adds a new label/goto in the corresponding list.
+    /// </summary>
     private static int newlabelentry(
         LexState* ls,
         Labellist* l,
@@ -1016,29 +1036,29 @@ public static unsafe partial class Lua
         return n;
     }
 
-    /*
-     ** Create an entry for the goto and the code for it. As it is not known
-     ** at this point whether the goto may need a CLOSE, the code has a jump
-     ** followed by an CLOSE. (As the CLOSE comes after the jump, it is a
-     ** dead instruction; it works as a placeholder.) When the goto is closed
-     ** against a label, if it needs a CLOSE, the two instructions swap
-     ** positions, so that the CLOSE comes before the jump.
-     */
+    /// <summary>
+    /// Create an entry for the goto and the code for it. As it is not known
+    /// at this point whether the goto may need a CLOSE, the code has a jump
+    /// followed by an CLOSE. (As the CLOSE comes after the jump, it is a
+    /// dead instruction; it works as a placeholder.) When the goto is closed
+    /// against a label, if it needs a CLOSE, the two instructions swap
+    /// positions, so that the CLOSE comes before the jump.
+    /// </summary>
     private static int newgotoentry(LexState* ls, TString* name, int line)
     {
         FuncState* fs = ls->fs;
-        int pc = luaK_jump(fs); /* create jump */
-        luaK_codeABC(fs, OpCode.OP_CLOSE, 0, 1, 0); /* spaceholder, marked as dead */
+        int pc = luaK_jump(fs); // create jump
+        luaK_codeABC(fs, OpCode.Close, 0, 1, 0); // spaceholder, marked as dead
         return newlabelentry(ls, &ls->dyd->gt, name, line, pc);
     }
 
-    /*
-     ** Create a new label with the given 'name' at the given 'line'.
-     ** 'last' tells whether label is the last non-op statement in its
-     ** block. Solves all pending gotos to this new label and adds
-     ** a close instruction if necessary.
-     ** Returns true iff it added a close instruction.
-     */
+    /// <summary>
+    /// Create a new label with the given 'name' at the given 'line'.
+    /// 'last' tells whether label is the last non-op statement in its
+    /// block. Solves all pending gotos to this new label and adds
+    /// a close instruction if necessary.
+    /// Returns true iff it added a close instruction.
+    /// </summary>
     private static void createlabel(LexState* ls, TString* name, int line, bool last)
     {
         FuncState* fs = ls->fs;
@@ -1046,51 +1066,51 @@ public static unsafe partial class Lua
         int l = newlabelentry(ls, ll, name, line, luaK_getlabel(fs));
         if (last)
         {
-            /* label is last no-op statement in the block? */
-            /* assume that locals are already out of scope */
+            // label is last no-op statement in the block?
+            // assume that locals are already out of scope
             ll->arr[l].nactvar = fs->bl->nactvar;
         }
     }
 
-    /*
-     ** Traverse the pending gotos of the finishing block checking whether
-     ** each match some label of that block. Those that do not match are
-     ** "exported" to the outer block, to be solved there. In particular,
-     ** its 'nactvar' is updated with the level of the inner block,
-     ** as the variables of the inner block are now out of scope.
-     */
+    /// <summary>
+    /// Traverse the pending gotos of the finishing block checking whether
+    /// each match some label of that block. Those that do not match are
+    /// "exported" to the outer block, to be solved there. In particular,
+    /// its 'nactvar' is updated with the level of the inner block,
+    /// as the variables of the inner block are now out of scope.
+    /// </summary>
     private static void solvegotos(FuncState* fs, BlockCnt* bl)
     {
         LexState* ls = fs->ls;
         Labellist* gl = &ls->dyd->gt;
-        int outlevel = reglevel(fs, bl->nactvar); /* level outside the block */
-        int igt = bl->firstgoto; /* first goto in the finishing block */
+        int outlevel = reglevel(fs, bl->nactvar); // level outside the block
+        int igt = bl->firstgoto; // first goto in the finishing block
         while (igt < gl->n)
         {
-            /* for each pending goto */
+            // for each pending goto
             Labeldesc* gt = &gl->arr[igt];
-            /* search for a matching label in the current block */
+            // search for a matching label in the current block
             Labeldesc* lb = findlabel(ls, gt->name, bl->firstlabel);
-            if (lb != null) /* found a match? */
+            if (lb != null) // found a match?
             {
-                closegoto(ls, igt, lb, bl->upval); /* close and remove goto */
+                closegoto(ls, igt, lb, bl->upval); // close and remove goto
             }
             else
             {
-                /* adjust 'goto' for outer block */
-                /* block has variables to be closed and goto escapes the scope of
-                   some variable? */
+                // adjust 'goto' for outer block
+                // block has variables to be closed and goto escapes the scope of
+                // some variable?
                 if (bl->upval && reglevel(fs, gt->nactvar) > outlevel)
                 {
-                    gt->close = true; /* jump may need a close */
+                    gt->close = true; // jump may need a close
                 }
 
-                gt->nactvar = bl->nactvar; /* correct level for outer block */
-                igt++; /* go to next goto */
+                gt->nactvar = bl->nactvar; // correct level for outer block
+                igt++; // go to next goto
             }
         }
 
-        ls->dyd->label.n = bl->firstlabel; /* remove local labels */
+        ls->dyd->label.n = bl->firstlabel; // remove local labels
     }
 
     private static void enterblock(FuncState* fs, BlockCnt* bl, byte isloop)
@@ -1100,20 +1120,20 @@ public static unsafe partial class Lua
         bl->firstlabel = fs->ls->dyd->label.n;
         bl->firstgoto = fs->ls->dyd->gt.n;
         bl->upval = false;
-        /* inherit 'insidetbc' from enclosing block */
+        // inherit 'insidetbc' from enclosing block
         bl->insidetbc = fs->bl != null && fs->bl->insidetbc;
-        bl->previous = fs->bl; /* link block in function's block list */
+        bl->previous = fs->bl; // link block in function's block list
         fs->bl = bl;
         Debug.Assert(fs->freereg == luaY_nvarstack(fs));
     }
 
-    /*
-     ** generates an error for an undefined 'goto'.
-     */
+    /// <summary>
+    /// generates an error for an undefined 'goto'.
+    /// </summary>
     [DoesNotReturn]
     private static void undefgoto(LexState* ls, Labeldesc* gt)
     {
-        /* breaks are checked when created, cannot be undefined */
+        // breaks are checked when created, cannot be undefined
         Debug.Assert(!eqstr(gt->name, ls->brkn));
         luaK_semerror(
             ls,
@@ -1126,16 +1146,16 @@ public static unsafe partial class Lua
     {
         BlockCnt* bl = fs->bl;
         LexState* ls = fs->ls;
-        byte stklevel = reglevel(fs, bl->nactvar); /* level outside block */
-        if (bl->previous != null && bl->upval) /* need a 'close'? */
+        byte stklevel = reglevel(fs, bl->nactvar); // level outside block
+        if (bl->previous != null && bl->upval) // need a 'close'?
         {
-            luaK_codeABC(fs, OpCode.OP_CLOSE, stklevel, 0, 0);
+            luaK_codeABC(fs, OpCode.Close, stklevel, 0, 0);
         }
 
-        fs->freereg = stklevel; /* free registers */
-        removevars(fs, bl->nactvar); /* remove block locals */
-        Debug.Assert(bl->nactvar == fs->nactvar); /* back to level on entry */
-        if (bl->isloop == 2) /* has to fix pending breaks? */
+        fs->freereg = stklevel; // free registers
+        removevars(fs, bl->nactvar); // remove block locals
+        Debug.Assert(bl->nactvar == fs->nactvar); // back to level on entry
+        if (bl->isloop == 2) // has to fix pending breaks?
         {
             createlabel(ls, ls->brkn, 0, false);
         }
@@ -1143,24 +1163,24 @@ public static unsafe partial class Lua
         solvegotos(fs, bl);
         if (bl->previous == null)
         {
-            /* was it the last block? */
-            if (bl->firstgoto < ls->dyd->gt.n) /* still pending gotos? */
+            // was it the last block?
+            if (bl->firstgoto < ls->dyd->gt.n) // still pending gotos?
             {
-                undefgoto(ls, &ls->dyd->gt.arr[bl->firstgoto]); /* error */
+                undefgoto(ls, &ls->dyd->gt.arr[bl->firstgoto]); // error
             }
         }
 
-        fs->bl = bl->previous; /* current block now is previous one */
+        fs->bl = bl->previous; // current block now is previous one
     }
 
-    /*
-     ** adds a new prototype into list of prototypes
-     */
+    /// <summary>
+    /// adds a new prototype into list of prototypes
+    /// </summary>
     private static Proto* addprototype(LexState* ls)
     {
         lua_State* L = ls->L;
         FuncState* fs = ls->fs;
-        Proto* f = fs->f; /* prototype of current function */
+        Proto* f = fs->f; // prototype of current function
         if (fs->np >= f->sizep)
         {
             int oldsize = f->sizep;
@@ -1176,25 +1196,25 @@ public static unsafe partial class Lua
         return clp;
     }
 
-    /*
-    ** codes instruction to create new closure in parent function.
-    ** The OP_CLOSURE instruction uses the last available register,
-    ** so that, if it invokes the GC, the GC knows which registers
-    ** are in use at that time.
-
-    */
+    /// <summary>
+    /// codes instruction to create new closure in parent function.
+    /// The OP_CLOSURE instruction uses the last available register,
+    /// so that, if it invokes the GC, the GC knows which registers
+    /// are in use at that time.
+    ///
+    /// </summary>
     private static void codeclosure(LexState* ls, expdesc* v)
     {
         FuncState* fs = ls->fs->prev;
-        init_exp(v, expkind.VRELOC, luaK_codeABx(fs, OpCode.OP_CLOSURE, 0, fs->np - 1));
-        luaK_exp2nextreg(fs, v); /* fix it at the last register */
+        init_exp(v, expkind.VRELOC, luaK_codeABx(fs, OpCode.Closure, 0, fs->np - 1));
+        luaK_exp2nextreg(fs, v); // fix it at the last register
     }
 
     private static void open_func(LexState* ls, FuncState* fs, BlockCnt* bl)
     {
         lua_State* L = ls->L;
         Proto* f = fs->f;
-        fs->prev = ls->fs; /* linked list of funcstates */
+        fs->prev = ls->fs; // linked list of funcstates
         fs->ls = ls;
         ls->fs = fs;
         fs->pc = 0;
@@ -1214,9 +1234,9 @@ public static unsafe partial class Lua
         fs->bl = null;
         f->source = ls->source;
         luaC_objbarrier(L, (GCObject*)f, (GCObject*)f->source);
-        f->maxstacksize = 2; /* registers 0/1 are always valid */
-        fs->kcache = luaH_new(L); /* create table for function */
-        sethvalue2s(L, L->top.p, fs->kcache); /* anchor it */
+        f->maxstacksize = 2; // registers 0/1 are always valid
+        fs->kcache = luaH_new(L); // create table for function
+        sethvalue2s(L, L->top.p, fs->kcache); // anchor it
         luaD_inctop(L);
         enterblock(fs, bl, 0);
     }
@@ -1226,7 +1246,7 @@ public static unsafe partial class Lua
         lua_State* L = ls->L;
         FuncState* fs = ls->fs;
         Proto* f = fs->f;
-        luaK_ret(fs, luaY_nvarstack(fs), 0); /* final return */
+        luaK_ret(fs, luaY_nvarstack(fs), 0); // final return
         leaveblock(fs);
         Debug.Assert(fs->bl == null);
         luaK_finish(fs);
@@ -1238,21 +1258,19 @@ public static unsafe partial class Lua
         luaM_shrinkvector(L, ref f->locvars, ref f->sizelocvars, fs->ndebugvars);
         luaM_shrinkvector(L, ref f->upvalues, ref f->sizeupvalues, fs->nups);
         ls->fs = fs->prev;
-        L->top.p--; /* pop kcache table */
+        L->top.p--; // pop kcache table
         luaC_checkGC(L);
     }
 
-    /*
-     ** {======================================================================
-     ** GRAMMAR RULES
-     ** =======================================================================
-     */
+    // {======================================================================
+    // GRAMMAR RULES
+    // =======================================================================
 
-    /*
-     ** check whether current token is in the follow set of a block.
-     ** 'until' closes syntactical blocks, but do not close scope,
-     ** so it is handled in separate.
-     */
+    /// <summary>
+    /// check whether current token is in the follow set of a block.
+    /// 'until' closes syntactical blocks, but do not close scope,
+    /// so it is handled in separate.
+    /// </summary>
     private static bool block_follow(LexState* ls, bool withuntil)
     {
         return ls->t.token switch
@@ -1265,13 +1283,13 @@ public static unsafe partial class Lua
 
     private static void statlist(LexState* ls)
     {
-        /* statlist -> { stat [';'] } */
+        // statlist -> { stat [';'] }
         while (!block_follow(ls, true))
         {
             if (ls->t.token == (int)RESERVED.TK_RETURN)
             {
                 statement(ls);
-                return; /* 'return' must be last statement */
+                return; // 'return' must be last statement
             }
 
             statement(ls);
@@ -1280,10 +1298,10 @@ public static unsafe partial class Lua
 
     private static void fieldsel(LexState* ls, expdesc* v)
     {
-        /* fieldsel -> ['.' | ':'] NAME */
+        // fieldsel -> ['.' | ':'] NAME
         FuncState* fs = ls->fs;
         luaK_exp2anyregup(fs, v);
-        luaX_next(ls); /* skip the dot or colon */
+        luaX_next(ls); // skip the dot or colon
         expdesc key;
         codename(ls, &key);
         luaK_indexed(fs, v, &key);
@@ -1291,40 +1309,40 @@ public static unsafe partial class Lua
 
     private static void yindex(LexState* ls, expdesc* v)
     {
-        /* index -> '[' expr ']' */
-        luaX_next(ls); /* skip the '[' */
+        // index -> '[' expr ']'
+        luaX_next(ls); // skip the '['
         expr(ls, v);
         luaK_exp2val(ls->fs, v);
         checknext(ls, ']');
     }
 
-    /*
-     ** {======================================================================
-     ** Rules for Constructors
-     ** =======================================================================
-     */
+    // {======================================================================
+    // Rules for Constructors
+    // =======================================================================
 
     private struct ConsControl
     {
-        public expdesc v; /* last list item read */
-        public expdesc* t; /* table descriptor */
-        public int nh; /* total number of 'record' elements */
-        public int na; /* number of array elements already stored */
-        public int tostore; /* number of array elements pending to be stored */
-        public int maxtostore; /* maximum number of pending elements */
+        public expdesc v; // last list item read
+        public expdesc* t; // table descriptor
+        public int nh; // total number of 'record' elements
+        public int na; // number of array elements already stored
+        public int tostore; // number of array elements pending to be stored
+        public int maxtostore; // maximum number of pending elements
     }
 
-    // /*
-    // ** Maximum number of elements in a constructor, to control the following:
-    // ** * counter overflows;
-    // ** * overflows in 'extra' for OP_NEWTABLE and OP_SETLIST;
-    // ** * overflows when adding multiple returns in OP_SETLIST.
-    // */
+    /// <summary>
+    ///
+    /// Maximum number of elements in a constructor, to control the following:
+    /// * counter overflows;
+    /// * overflows in 'extra' for OP_NEWTABLE and OP_SETLIST;
+    /// * overflows when adding multiple returns in OP_SETLIST.
+    ///
+    /// </summary>
     private const int MAX_CNST = int.MaxValue / 2;
 
     private static void recfield(LexState* ls, ConsControl* cc)
     {
-        /* recfield -> (NAME | '['exp']') = exp */
+        // recfield -> (NAME | '['exp']') = exp
         FuncState* fs = ls->fs;
         byte reg = ls->fs->freereg;
         expdesc key;
@@ -1332,7 +1350,7 @@ public static unsafe partial class Lua
         {
             codename(ls, &key);
         }
-        else /* ls->t.token == '[' */
+        else // ls->t.token == '['
         {
             yindex(ls, &key);
         }
@@ -1344,7 +1362,7 @@ public static unsafe partial class Lua
         expdesc val;
         expr(ls, &val);
         luaK_storevar(fs, &tab, &val);
-        fs->freereg = reg; /* free registers */
+        fs->freereg = reg; // free registers
     }
 
     private static void closelistfield(FuncState* fs, ConsControl* cc)
@@ -1354,9 +1372,9 @@ public static unsafe partial class Lua
         cc->v.k = expkind.VVOID;
         if (cc->tostore >= cc->maxtostore)
         {
-            luaK_setlist(fs, cc->t->u.info, cc->na, cc->tostore); /* flush */
+            luaK_setlist(fs, cc->t->u.info, cc->na, cc->tostore); // flush
             cc->na += cc->tostore;
-            cc->tostore = 0; /* no more items pending */
+            cc->tostore = 0; // no more items pending
         }
     }
 
@@ -1371,7 +1389,7 @@ public static unsafe partial class Lua
         {
             luaK_setmultret(fs, &cc->v);
             luaK_setlist(fs, cc->t->u.info, cc->na, LUA_MULTRET);
-            cc->na--; /* do not count last expression (unknown number of elements) */
+            cc->na--; // do not count last expression (unknown number of elements)
         }
         else
         {
@@ -1388,19 +1406,19 @@ public static unsafe partial class Lua
 
     private static void listfield(LexState* ls, ConsControl* cc)
     {
-        /* listfield -> exp */
+        // listfield -> exp
         expr(ls, &cc->v);
         cc->tostore++;
     }
 
     private static void field(LexState* ls, ConsControl* cc)
     {
-        /* field -> listfield | recfield */
+        // field -> listfield | recfield
         switch (ls->t.token)
         {
             case (int)RESERVED.TK_NAME:
-                /* may be 'listfield' or 'recfield' */
-                if (luaX_lookahead(ls) != '=') /* expression? */
+                // may be 'listfield' or 'recfield'
+                if (luaX_lookahead(ls) != '=') // expression?
                 {
                     listfield(ls, cc);
                 }
@@ -1421,83 +1439,83 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** Compute a limit for how many registers a constructor can use before
-     ** emitting a 'SETLIST' instruction, based on how many registers are
-     ** available.
-     */
+    /// <summary>
+    /// Compute a limit for how many registers a constructor can use before
+    /// emitting a 'SETLIST' instruction, based on how many registers are
+    /// available.
+    /// </summary>
     private static int maxtostore(FuncState* fs)
     {
         int numfreeregs = MAX_FSTACK - fs->freereg;
-        if (numfreeregs >= 160) /* "lots" of registers? */
+        if (numfreeregs >= 160) // "lots" of registers?
         {
-            return numfreeregs / 5; /* use up to 1/5 of them */
+            return numfreeregs / 5; // use up to 1/5 of them
         }
 
-        if (numfreeregs >= 80) /* still "enough" registers? */
+        if (numfreeregs >= 80) // still "enough" registers?
         {
-            return 10; /* one 'SETLIST' instruction for each 10 values */
+            return 10; // one 'SETLIST' instruction for each 10 values
         }
 
-        /* save registers for potential more nesting */
+        // save registers for potential more nesting
         return 1;
     }
 
     private static void constructor(LexState* ls, expdesc* t)
     {
-        /* constructor -> '{' [ field { sep field } [sep] ] '}'
-           sep -> ',' | ';' */
+        // constructor -> '{' [ field { sep field } [sep] ] '}'
+        // sep -> ',' | ';'
         FuncState* fs = ls->fs;
         int line = ls->linenumber;
-        int pc = luaK_codevABCk(fs, OpCode.OP_NEWTABLE, 0, 0, 0, false);
-        luaK_code(fs, 0); /* space for extra arg. */
+        int pc = luaK_codevABCk(fs, OpCode.NewTable, 0, 0, 0, false);
+        luaK_code(fs, 0); // space for extra arg.
         ConsControl cc;
         cc.na = cc.nh = cc.tostore = 0;
         cc.t = t;
-        init_exp(t, expkind.VNONRELOC, fs->freereg); /* table will be at stack top */
+        init_exp(t, expkind.VNONRELOC, fs->freereg); // table will be at stack top
         luaK_reserveregs(fs, 1);
-        init_exp(&cc.v, expkind.VVOID, 0); /* no value (yet) */
-        checknext(ls, '{' /*}*/);
+        init_exp(&cc.v, expkind.VVOID, 0); // no value (yet)
+        checknext(ls, '{' ); // }
         cc.maxtostore = maxtostore(fs);
         do
         {
-            if (ls->t.token == /*{*/ '}')
+            if (ls->t.token ==  '}') // {
             {
                 break;
             }
 
-            if (cc.v.k != expkind.VVOID) /* is there a previous list item? */
+            if (cc.v.k != expkind.VVOID) // is there a previous list item?
             {
-                closelistfield(fs, &cc); /* close it */
+                closelistfield(fs, &cc); // close it
             }
 
             field(ls, &cc);
             luaY_checklimit(fs, cc.tostore + cc.na + cc.nh, MAX_CNST, "items in a constructor");
         } while (testnext(ls, ',') || testnext(ls, ';'));
 
-        check_match(ls, /*{*/ '}', '{' /*}*/, line);
+        check_match(ls,  '}', '{' , line); // { // }
         lastlistfield(fs, &cc);
         luaK_settablesize(fs, pc, t->u.info, cc.na, cc.nh);
     }
 
-    /* }====================================================================== */
+    // }======================================================================
 
     private static void setvararg(FuncState* fs)
     {
-        fs->f->flag |= PF_VAHID; /* by default, use hidden vararg arguments */
-        luaK_codeABC(fs, OpCode.OP_VARARGPREP, 0, 0, 0);
+        fs->f->flag |= PF_VAHID; // by default, use hidden vararg arguments
+        luaK_codeABC(fs, OpCode.VarArgPrep, 0, 0, 0);
     }
 
     private static void parlist(LexState* ls)
     {
-        /* parlist -> [ {NAME ','} (NAME | '...') ] */
+        // parlist -> [ {NAME ','} (NAME | '...') ]
         FuncState* fs = ls->fs;
         Proto* f = fs->f;
         int nparams = 0;
         bool varargk = false;
         if (ls->t.token != ')')
         {
-            /* is 'parlist' not empty? */
+            // is 'parlist' not empty?
             do
             {
                 switch (ls->t.token)
@@ -1509,7 +1527,7 @@ public static unsafe partial class Lua
 
                     case (int)RESERVED.TK_DOTS:
                         varargk = true;
-                        luaX_next(ls); /* skip '...' */
+                        luaX_next(ls); // skip '...'
                         if (ls->t.token == (int)RESERVED.TK_NAME)
                         {
                             new_varkind(ls, str_checkname(ls), RDKVAVAR);
@@ -1532,17 +1550,17 @@ public static unsafe partial class Lua
         f->numparams = (byte)fs->nactvar;
         if (varargk)
         {
-            setvararg(fs); /* declared vararg */
-            adjustlocalvars(ls, 1); /* vararg parameter */
+            setvararg(fs); // declared vararg
+            adjustlocalvars(ls, 1); // vararg parameter
         }
 
-        /* reserve registers for parameters (plus vararg parameter, if present) */
+        // reserve registers for parameters (plus vararg parameter, if present)
         luaK_reserveregs(fs, fs->nactvar);
     }
 
     private static void body(LexState* ls, expdesc* e, bool ismethod, int line)
     {
-        /* body ->  '(' parlist ')' block END */
+        // body ->  '(' parlist ')' block END
         FuncState new_fs;
         new_fs.f = addprototype(ls);
         new_fs.f->linedefined = line;
@@ -1551,7 +1569,7 @@ public static unsafe partial class Lua
         checknext(ls, '(');
         if (ismethod)
         {
-            new_localvarliteral(ls, "self"); /* create 'self' parameter */
+            new_localvarliteral(ls, "self"); // create 'self' parameter
             adjustlocalvars(ls, 1);
         }
 
@@ -1566,8 +1584,8 @@ public static unsafe partial class Lua
 
     private static int explist(LexState* ls, expdesc* v)
     {
-        /* explist -> expr { ',' expr } */
-        int n = 1; /* at least one expression */
+        // explist -> expr { ',' expr }
+        int n = 1; // at least one expression
         expr(ls, v);
         while (testnext(ls, ','))
         {
@@ -1588,9 +1606,9 @@ public static unsafe partial class Lua
         switch (ls->t.token)
         {
             case '(':
-                /* funcargs -> '(' [ explist ] ')' */
+                // funcargs -> '(' [ explist ] ')'
                 luaX_next(ls);
-                if (ls->t.token == ')') /* arg list is empty? */
+                if (ls->t.token == ')') // arg list is empty?
                 {
                     args.k = expkind.VVOID;
                 }
@@ -1606,15 +1624,15 @@ public static unsafe partial class Lua
                 check_match(ls, ')', '(', line);
                 break;
 
-            case '{' /*}*/:
-                /* funcargs -> constructor */
+            case '{' : // }
+                // funcargs -> constructor
                 constructor(ls, &args);
                 break;
 
             case (int)RESERVED.TK_STRING:
-                /* funcargs -> STRING */
+                // funcargs -> STRING
                 codestring(&args, ls->t.seminfo.ts);
-                luaX_next(ls); /* must use 'seminfo' before 'next' */
+                luaX_next(ls); // must use 'seminfo' before 'next'
                 break;
 
             default:
@@ -1623,38 +1641,36 @@ public static unsafe partial class Lua
         }
 
         Debug.Assert(f->k == expkind.VNONRELOC);
-        int @base = f->u.info; /* base register for call */
+        int @base = f->u.info; // base register for call
         int nparams;
         if (hasmultret(args.k))
         {
-            nparams = LUA_MULTRET; /* open call */
+            nparams = LUA_MULTRET; // open call
         }
         else
         {
             if (args.k != expkind.VVOID)
             {
-                luaK_exp2nextreg(fs, &args); /* close last argument */
+                luaK_exp2nextreg(fs, &args); // close last argument
             }
 
             nparams = fs->freereg - (@base + 1);
         }
 
-        init_exp(f, expkind.VCALL, luaK_codeABC(fs, OpCode.OP_CALL, @base, nparams + 1, 2));
+        init_exp(f, expkind.VCALL, luaK_codeABC(fs, OpCode.Call, @base, nparams + 1, 2));
         luaK_fixline(fs, line);
-        /* call removes function and arguments and leaves one result (unless
-           changed later) */
+        // call removes function and arguments and leaves one result (unless
+        // changed later)
         fs->freereg = (byte)(@base + 1);
     }
 
-    /*
-     ** {======================================================================
-     ** Expression parsing
-     ** =======================================================================
-     */
+    // {======================================================================
+    // Expression parsing
+    // =======================================================================
 
     private static void primaryexp(LexState* ls, expdesc* v)
     {
-        /* primaryexp -> NAME | '(' expr ')' */
+        // primaryexp -> NAME | '(' expr ')'
         switch (ls->t.token)
         {
             case '(':
@@ -1679,8 +1695,8 @@ public static unsafe partial class Lua
 
     private static void suffixedexp(LexState* ls, expdesc* v)
     {
-        /* suffixedexp ->
-             primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs } */
+        // suffixedexp ->
+        // primaryexp { '.' NAME | '[' exp ']' | ':' NAME funcargs | funcargs }
         FuncState* fs = ls->fs;
         primaryexp(ls, v);
         while (true)
@@ -1688,13 +1704,13 @@ public static unsafe partial class Lua
             switch (ls->t.token)
             {
                 case '.':
-                    /* fieldsel */
+                    // fieldsel
                     fieldsel(ls, v);
                     break;
 
                 case '[':
                     {
-                        /* '[' exp ']' */
+                        // '[' exp ']'
                         expdesc key;
                         luaK_exp2anyregup(fs, v);
                         yindex(ls, &key);
@@ -1704,7 +1720,7 @@ public static unsafe partial class Lua
 
                 case ':':
                     {
-                        /* ':' NAME funcargs */
+                        // ':' NAME funcargs
                         expdesc key;
                         luaX_next(ls);
                         codename(ls, &key);
@@ -1715,8 +1731,8 @@ public static unsafe partial class Lua
 
                 case '(':
                 case (int)RESERVED.TK_STRING:
-                case '{' /*}*/:
-                    /* funcargs */
+                case '{' : // }
+                    // funcargs
                     luaK_exp2nextreg(fs, v);
                     funcargs(ls, v);
                     break;
@@ -1728,8 +1744,8 @@ public static unsafe partial class Lua
 
     private static void simpleexp(LexState* ls, expdesc* v)
     {
-        /* simpleexp -> FLT | INT | STRING | NIL | TRUE | FALSE | ... |
-                        constructor | FUNCTION body | suffixedexp */
+        // simpleexp -> FLT | INT | STRING | NIL | TRUE | FALSE | ... |
+        // constructor | FUNCTION body | suffixedexp
         switch (ls->t.token)
         {
             case (int)RESERVED.TK_FLT:
@@ -1760,18 +1776,18 @@ public static unsafe partial class Lua
 
             case (int)RESERVED.TK_DOTS:
                 {
-                    /* vararg */
+                    // vararg
                     FuncState* fs = ls->fs;
                     check_condition(
                         ls,
                         isvararg(fs->f),
                         "cannot use '...' outside a vararg function");
-                    init_exp(v, expkind.VVARARG, luaK_codeABC(fs, OpCode.OP_VARARG, 0, fs->f->numparams, 1));
+                    init_exp(v, expkind.VVARARG, luaK_codeABC(fs, OpCode.VarArg, 0, fs->f->numparams, 1));
                     break;
                 }
 
-            case '{' /*}*/:
-                /* constructor */
+            case '{' : // }
+                // constructor
                 constructor(ls, v);
                 return;
 
@@ -1831,43 +1847,43 @@ public static unsafe partial class Lua
 
     private struct Priority(byte left, byte right)
     {
-        public byte left = left; /* left priority for each binary operator */
-        public byte right = right; /* right priority */
+        public byte left = left; // left priority for each binary operator
+        public byte right = right; // right priority
     }
 
-    /*
-     ** Priority table for binary operators.
-     */
+    /// <summary>
+    /// Priority table for binary operators.
+    /// </summary>
     private static readonly Priority[] priority =
     [
-        /* ORDER OPR */
-        new(10, 10), new(10, 10), /* '+' '-' */
-        new(11, 11), new(11, 11), /* '*' '%' */
-        new(14, 13), /* '^' (right associative) */
-        new(11, 11), new(11, 11), /* '/' '//' */
-        new(6, 6), new(4, 4), new(5, 5), /* '&' '|' '~' */
-        new(7, 7), new(7, 7), /* '<<' '>>' */
-        new(9, 8), /* '..' (right associative) */
-        new(3, 3), new(3, 3), new(3, 3), /* ==, <, <= */
-        new(3, 3), new(3, 3), new(3, 3), /* ~=, >, >= */
-        new(2, 2), new(1, 1) /* and, or */
+        // ORDER OPR
+        new(10, 10), new(10, 10), // '+' '-'
+        new(11, 11), new(11, 11), // '*' '%'
+        new(14, 13), // '^' (right associative)
+        new(11, 11), new(11, 11), // '/' '//'
+        new(6, 6), new(4, 4), new(5, 5), // '&' '|' '~'
+        new(7, 7), new(7, 7), // '<<' '>>'
+        new(9, 8), // '..' (right associative)
+        new(3, 3), new(3, 3), new(3, 3), // ==, <, <=
+        new(3, 3), new(3, 3), new(3, 3), // ~=, >, >=
+        new(2, 2), new(1, 1) // and, or
     ];
 
-    private const int UNARY_PRIORITY = 12; /* priority for unary operators */
+    private const int UNARY_PRIORITY = 12; // priority for unary operators
 
-    /*
-     ** subexpr -> (simpleexp | unop subexpr) { binop subexpr }
-     ** where 'binop' is any binary operator with a priority higher than 'limit'
-     */
+    /// <summary>
+    /// subexpr -&gt; (simpleexp | unop subexpr) { binop subexpr }
+    /// where 'binop' is any binary operator with a priority higher than 'limit'
+    /// </summary>
     private static BinOpr subexpr(LexState* ls, expdesc* v, int limit)
     {
         enterlevel(ls);
         UnOpr uop = getunopr(ls->t.token);
         if (uop != UnOpr.NOUNOPR)
         {
-            /* prefix (unary) operator? */
+            // prefix (unary) operator?
             int line = ls->linenumber;
-            luaX_next(ls); /* skip operator */
+            luaX_next(ls); // skip operator
             subexpr(ls, v, UNARY_PRIORITY);
             luaK_prefix(ls->fs, uop, v, line);
         }
@@ -1876,14 +1892,14 @@ public static unsafe partial class Lua
             simpleexp(ls, v);
         }
 
-        /* expand while operators have priorities higher than 'limit' */
+        // expand while operators have priorities higher than 'limit'
         BinOpr op = getbinopr(ls->t.token);
         while (op != BinOpr.OPR_NOBINOPR && priority[(int)op].left > limit)
         {
             int line = ls->linenumber;
-            luaX_next(ls); /* skip operator */
+            luaX_next(ls); // skip operator
             luaK_infix(ls->fs, op, v);
-            /* read sub-expression with higher priority */
+            // read sub-expression with higher priority
             expdesc v2;
             BinOpr nextop = subexpr(ls, &v2, priority[(int)op].right);
             luaK_posfix(ls->fs, op, v, &v2, line);
@@ -1891,7 +1907,7 @@ public static unsafe partial class Lua
         }
 
         leavelevel(ls);
-        return op; /* return first untreated operator */
+        return op; // return first untreated operator
     }
 
     private static void expr(LexState* ls, expdesc* v)
@@ -1899,17 +1915,15 @@ public static unsafe partial class Lua
         subexpr(ls, v, 0);
     }
 
-    /* }==================================================================== */
+    // }====================================================================
 
-    /*
-     ** {======================================================================
-     ** Rules for Statements
-     ** =======================================================================
-     */
+    // {======================================================================
+    // Rules for Statements
+    // =======================================================================
 
     private static void block(LexState* ls)
     {
-        /* block -> statlist */
+        // block -> statlist
         FuncState* fs = ls->fs;
         BlockCnt bl;
         enterblock(fs, &bl, 0);
@@ -1917,59 +1931,59 @@ public static unsafe partial class Lua
         leaveblock(fs);
     }
 
-    /*
-     ** structure to chain all variables in the left-hand side of an
-     ** assignment
-     */
+    /// <summary>
+    /// structure to chain all variables in the left-hand side of an
+    /// assignment
+    /// </summary>
     private struct LHS_assign
     {
         public LHS_assign* prev;
-        public expdesc v; /* variable (global, local, upvalue, or indexed) */
+        public expdesc v; // variable (global, local, upvalue, or indexed)
     }
 
-    /*
-     ** check whether, in an assignment to an upvalue/local variable, the
-     ** upvalue/local variable is begin used in a previous assignment to a
-     ** table. If so, save original upvalue/local value in a safe place and
-     ** use this safe copy in the previous assignment.
-     */
+    /// <summary>
+    /// check whether, in an assignment to an upvalue/local variable, the
+    /// upvalue/local variable is begin used in a previous assignment to a
+    /// table. If so, save original upvalue/local value in a safe place and
+    /// use this safe copy in the previous assignment.
+    /// </summary>
     private static void check_conflict(LexState* ls, LHS_assign* lh, expdesc* v)
     {
         FuncState* fs = ls->fs;
-        byte extra = fs->freereg; /* eventual position to save local variable */
+        byte extra = fs->freereg; // eventual position to save local variable
         bool conflict = false;
         for (; lh != null; lh = lh->prev)
         {
-            /* check all previous assignments */
+            // check all previous assignments
             if (vkisindexed(lh->v.k))
             {
-                /* assignment to table field? */
+                // assignment to table field?
                 if (lh->v.k == expkind.VINDEXUP)
                 {
-                    /* is table an upvalue? */
+                    // is table an upvalue?
                     if (v->k == expkind.VUPVAL && lh->v.u.ind.t == v->u.info)
                     {
-                        conflict = true; /* table is the upvalue being assigned now */
+                        conflict = true; // table is the upvalue being assigned now
                         lh->v.k = expkind.VINDEXSTR;
-                        lh->v.u.ind.t = extra; /* assignment will use safe copy */
+                        lh->v.u.ind.t = extra; // assignment will use safe copy
                     }
                 }
                 else
                 {
-                    /* table is a register */
+                    // table is a register
                     if (v->k == expkind.VLOCAL && lh->v.u.ind.t == v->u.var.ridx)
                     {
-                        conflict = true; /* table is the local being assigned now */
-                        lh->v.u.ind.t = extra; /* assignment will use safe copy */
+                        conflict = true; // table is the local being assigned now
+                        lh->v.u.ind.t = extra; // assignment will use safe copy
                     }
 
-                    /* is index the local being assigned? */
+                    // is index the local being assigned?
                     if (lh->v.k == expkind.VINDEXED &&
                         v->k == expkind.VLOCAL &&
                         lh->v.u.ind.idx == v->u.var.ridx)
                     {
                         conflict = true;
-                        lh->v.u.ind.idx = extra; /* previous assignment will use safe copy */
+                        lh->v.u.ind.idx = extra; // previous assignment will use safe copy
                     }
                 }
             }
@@ -1977,42 +1991,44 @@ public static unsafe partial class Lua
 
         if (conflict)
         {
-            /* copy upvalue/local value to a temporary (in position 'extra') */
+            // copy upvalue/local value to a temporary (in position 'extra')
             if (v->k == expkind.VLOCAL)
             {
-                luaK_codeABC(fs, OpCode.OP_MOVE, extra, v->u.var.ridx, 0);
+                luaK_codeABC(fs, OpCode.Move, extra, v->u.var.ridx, 0);
             }
             else
             {
-                luaK_codeABC(fs, OpCode.OP_GETUPVAL, extra, v->u.info, 0);
+                luaK_codeABC(fs, OpCode.GetUpVal, extra, v->u.info, 0);
             }
 
             luaK_reserveregs(fs, 1);
         }
     }
 
-    /* Create code to store the "top" register in 'var' */
+    /// <summary>
+    /// Create code to store the "top" register in 'var'
+    /// </summary>
     private static void storevartop(FuncState* fs, expdesc* var)
     {
         expdesc e;
         init_exp(&e, expkind.VNONRELOC, fs->freereg - 1);
-        luaK_storevar(fs, var, &e); /* will also free the top register */
+        luaK_storevar(fs, var, &e); // will also free the top register
     }
 
-    /*
-     ** Parse and compile a multiple assignment. The first "variable"
-     ** (a 'suffixedexp') was already read by the caller.
-     **
-     ** assignment -> suffixedexp restassign
-     ** restassign -> ',' suffixedexp restassign | '=' explist
-     */
+    /// <summary>
+    /// Parse and compile a multiple assignment. The first "variable"
+    /// (a 'suffixedexp') was already read by the caller.
+    ///
+    /// assignment -&gt; suffixedexp restassign
+    /// restassign -&gt; ',' suffixedexp restassign | '=' explist
+    /// </summary>
     private static void restassign(LexState* ls, LHS_assign* lh, int nvars)
     {
         check_condition(ls, vkisvar(lh->v.k), "syntax error");
         check_readonly(ls, &lh->v);
         if (testnext(ls, ','))
         {
-            /* restassign -> ',' suffixedexp restassign */
+            // restassign -> ',' suffixedexp restassign
             LHS_assign nv;
             nv.prev = lh;
             suffixedexp(ls, &nv.v);
@@ -2021,13 +2037,13 @@ public static unsafe partial class Lua
                 check_conflict(ls, lh, &nv.v);
             }
 
-            enterlevel(ls); /* control recursion depth */
+            enterlevel(ls); // control recursion depth
             restassign(ls, &nv, nvars + 1);
             leavelevel(ls);
         }
         else
         {
-            /* restassign -> '=' explist */
+            // restassign -> '=' explist
             checknext(ls, '=');
             expdesc e;
             int nexps = explist(ls, &e);
@@ -2037,23 +2053,23 @@ public static unsafe partial class Lua
             }
             else
             {
-                luaK_setoneret(ls->fs, &e); /* close last expression */
+                luaK_setoneret(ls->fs, &e); // close last expression
                 luaK_storevar(ls->fs, &lh->v, &e);
-                return; /* avoid default */
+                return; // avoid default
             }
         }
 
-        storevartop(ls->fs, &lh->v); /* default assignment */
+        storevartop(ls->fs, &lh->v); // default assignment
     }
 
     private static int cond(LexState* ls)
     {
-        /* cond -> exp */
+        // cond -> exp
         expdesc v;
-        expr(ls, &v); /* read condition */
+        expr(ls, &v); // read condition
         if (v.k == expkind.VNIL)
         {
-            v.k = expkind.VFALSE; /* 'falses' are all equal here */
+            v.k = expkind.VFALSE; // 'falses' are all equal here
         }
 
         luaK_goiftrue(ls->fs, &v);
@@ -2062,19 +2078,19 @@ public static unsafe partial class Lua
 
     private static void gotostat(LexState* ls, int line)
     {
-        TString* name = str_checkname(ls); /* label's name */
+        TString* name = str_checkname(ls); // label's name
         newgotoentry(ls, name, line);
     }
 
-    /*
-    ** Break statement. Semantically equivalent to "goto break".
-    */
+    /// <summary>
+    /// Break statement. Semantically equivalent to "goto break".
+    /// </summary>
     private static void breakstat(LexState* ls, int line)
     {
-        BlockCnt* bl; /* to look for an enclosing loop */
+        BlockCnt* bl; // to look for an enclosing loop
         for (bl = ls->fs->bl; bl != null; bl = bl->previous)
         {
-            if (bl->isloop != 0) /* found one? */
+            if (bl->isloop != 0) // found one?
             {
                 goto ok;
             }
@@ -2082,46 +2098,46 @@ public static unsafe partial class Lua
 
         luaX_syntaxerror(ls, "break outside loop");
         ok:
-        bl->isloop = 2; /* signal that block has pending breaks */
-        luaX_next(ls); /* skip break */
+        bl->isloop = 2; // signal that block has pending breaks
+        luaX_next(ls); // skip break
         newgotoentry(ls, ls->brkn, line);
     }
 
-    /*
-     ** Check whether there is already a label with the given 'name' at
-     ** current function.
-     */
+    /// <summary>
+    /// Check whether there is already a label with the given 'name' at
+    /// current function.
+    /// </summary>
     private static void checkrepeated(LexState* ls, TString* name)
     {
         Labeldesc* lb = findlabel(ls, name, ls->fs->firstlabel);
-        if (lb != null) /* already defined? */
+        if (lb != null) // already defined?
         {
             luaK_semerror(
                 ls,
                 "label '%s' already defined on line %d",
                 getnetstr(name),
-                lb->line); /* error */
+                lb->line); // error
         }
     }
 
     private static void labelstat(LexState* ls, TString* name, int line)
     {
-        /* label -> '::' NAME '::' */
-        checknext(ls, (int)RESERVED.TK_DBCOLON); /* skip double colon */
+        // label -> '::' NAME '::'
+        checknext(ls, (int)RESERVED.TK_DBCOLON); // skip double colon
         while (ls->t.token == ';' || ls->t.token == (int)RESERVED.TK_DBCOLON)
         {
-            statement(ls); /* skip other no-op statements */
+            statement(ls); // skip other no-op statements
         }
 
-        checkrepeated(ls, name); /* check for repeated labels */
+        checkrepeated(ls, name); // check for repeated labels
         createlabel(ls, name, line, block_follow(ls, false));
     }
 
     private static void whilestat(LexState* ls, int line)
     {
-        /* whilestat -> WHILE cond DO block END */
+        // whilestat -> WHILE cond DO block END
         FuncState* fs = ls->fs;
-        luaX_next(ls); /* skip WHILE */
+        luaX_next(ls); // skip WHILE
         int whileinit = luaK_getlabel(fs);
         int condexit = cond(ls);
         BlockCnt bl;
@@ -2131,41 +2147,41 @@ public static unsafe partial class Lua
         luaK_jumpto(fs, whileinit);
         check_match(ls, (int)RESERVED.TK_END, (int)RESERVED.TK_WHILE, line);
         leaveblock(fs);
-        luaK_patchtohere(fs, condexit); /* false conditions finish the loop */
+        luaK_patchtohere(fs, condexit); // false conditions finish the loop
     }
 
     private static void repeatstat(LexState* ls, int line)
     {
-        /* repeatstat -> REPEAT block UNTIL cond */
+        // repeatstat -> REPEAT block UNTIL cond
         FuncState* fs = ls->fs;
         int repeatInit = luaK_getlabel(fs);
         BlockCnt bl1, bl2;
-        enterblock(fs, &bl1, 1); /* loop block */
-        enterblock(fs, &bl2, 0); /* scope block */
-        luaX_next(ls); /* skip REPEAT */
+        enterblock(fs, &bl1, 1); // loop block
+        enterblock(fs, &bl2, 0); // scope block
+        luaX_next(ls); // skip REPEAT
         statlist(ls);
         check_match(ls, (int)RESERVED.TK_UNTIL, (int)RESERVED.TK_REPEAT, line);
-        int condexit = cond(ls); /* read condition (inside scope block) */
-        leaveblock(fs); /* finish scope */
+        int condexit = cond(ls); // read condition (inside scope block)
+        leaveblock(fs); // finish scope
         if (bl2.upval)
         {
-            /* upvalues? */
-            int exit = luaK_jump(fs); /* normal exit must jump over fix */
-            luaK_patchtohere(fs, condexit); /* repetition must close upvalues */
-            luaK_codeABC(fs, OpCode.OP_CLOSE, reglevel(fs, bl2.nactvar), 0, 0);
-            condexit = luaK_jump(fs); /* repeat after closing upvalues */
-            luaK_patchtohere(fs, exit); /* normal exit comes to here */
+            // upvalues?
+            int exit = luaK_jump(fs); // normal exit must jump over fix
+            luaK_patchtohere(fs, condexit); // repetition must close upvalues
+            luaK_codeABC(fs, OpCode.Close, reglevel(fs, bl2.nactvar), 0, 0);
+            condexit = luaK_jump(fs); // repeat after closing upvalues
+            luaK_patchtohere(fs, exit); // normal exit comes to here
         }
 
-        luaK_patchlist(fs, condexit, repeatInit); /* close the loop */
-        leaveblock(fs); /* finish loop */
+        luaK_patchlist(fs, condexit, repeatInit); // close the loop
+        leaveblock(fs); // finish loop
     }
 
-    /*
-     ** Read an expression and generate code to put its results in next
-     ** stack slot.
-     **
-     */
+    /// <summary>
+    /// Read an expression and generate code to put its results in next
+    /// stack slot.
+    ///
+    /// </summary>
     private static void exp1(LexState* ls)
     {
         expdesc e;
@@ -2174,11 +2190,11 @@ public static unsafe partial class Lua
         Debug.Assert(e.k == expkind.VNONRELOC);
     }
 
-    /*
-     ** Fix for instruction at position 'pc' to jump to 'dest'.
-     ** (Jump addresses are relative in Lua). 'back' true means
-     ** a back jump.
-     */
+    /// <summary>
+    /// Fix for instruction at position 'pc' to jump to 'dest'.
+    /// (Jump addresses are relative in Lua). 'back' true means
+    /// a back jump.
+    /// </summary>
     private static void fixforjump(FuncState* fs, int pc, int dest, bool back)
     {
         uint* jmp = &fs->f->code[pc];
@@ -2196,75 +2212,75 @@ public static unsafe partial class Lua
         SETARG_Bx(ref *jmp, offset);
     }
 
-    /*
-     ** Generate code for a 'for' loop.
-     */
+    /// <summary>
+    /// Generate code for a 'for' loop.
+    /// </summary>
     private static void forbody(LexState* ls, int @base, int line, int nvars, bool isgen)
     {
-        /* forbody -> DO block */
+        // forbody -> DO block
         BlockCnt bl;
         FuncState* fs = ls->fs;
         checknext(ls, (int)RESERVED.TK_DO);
-        int prep = luaK_codeABx(fs, isgen ? OpCode.OP_TFORPREP : OpCode.OP_FORPREP, @base, 0);
-        fs->freereg--; /* both 'forprep' remove one register from the stack */
-        enterblock(fs, &bl, 0); /* scope for declared variables */
+        int prep = luaK_codeABx(fs, isgen ? OpCode.TForPrep : OpCode.ForPrep, @base, 0);
+        fs->freereg--; // both 'forprep' remove one register from the stack
+        enterblock(fs, &bl, 0); // scope for declared variables
         adjustlocalvars(ls, nvars);
         luaK_reserveregs(fs, nvars);
         block(ls);
-        leaveblock(fs); /* end of scope for declared variables */
+        leaveblock(fs); // end of scope for declared variables
         fixforjump(fs, prep, luaK_getlabel(fs), false);
         if (isgen)
         {
-            /* generic for? */
-            luaK_codeABC(fs, OpCode.OP_TFORCALL, @base, 0, nvars);
+            // generic for?
+            luaK_codeABC(fs, OpCode.TForCall, @base, 0, nvars);
             luaK_fixline(fs, line);
         }
 
-        int endfor = luaK_codeABx(fs, isgen ? OpCode.OP_TFORLOOP : OpCode.OP_FORLOOP, @base, 0);
+        int endfor = luaK_codeABx(fs, isgen ? OpCode.TForLoop : OpCode.ForLoop, @base, 0);
         fixforjump(fs, endfor, prep + 1, true);
         luaK_fixline(fs, line);
     }
 
     private static void fornum(LexState* ls, TString* varname, int line)
     {
-        /* fornum -> NAME = exp,exp[,exp] forbody */
+        // fornum -> NAME = exp,exp[,exp] forbody
         FuncState* fs = ls->fs;
         int @base = fs->freereg;
         new_localvarliteral(ls, "(for state)");
         new_localvarliteral(ls, "(for state)");
-        new_varkind(ls, varname, RDKCONST); /* control variable */
+        new_varkind(ls, varname, RDKCONST); // control variable
         checknext(ls, '=');
-        exp1(ls); /* initial value */
+        exp1(ls); // initial value
         checknext(ls, ',');
-        exp1(ls); /* limit */
+        exp1(ls); // limit
         if (testnext(ls, ','))
         {
-            exp1(ls); /* optional step */
+            exp1(ls); // optional step
         }
         else
         {
-            /* default step = 1 */
+            // default step = 1
             luaK_int(fs, fs->freereg, 1);
             luaK_reserveregs(fs, 1);
         }
 
-        adjustlocalvars(ls, 2); /* start scope for internal variables */
+        adjustlocalvars(ls, 2); // start scope for internal variables
         forbody(ls, @base, line, 1, false);
     }
 
     private static void forlist(LexState* ls, TString* indexname)
     {
-        /* forlist -> NAME {,NAME} IN explist forbody */
+        // forlist -> NAME {,NAME} IN explist forbody
         FuncState* fs = ls->fs;
         expdesc e;
-        int nvars = 4; /* function, state, closing, control */
+        int nvars = 4; // function, state, closing, control
         int @base = fs->freereg;
-        /* create internal variables */
-        new_localvarliteral(ls, "(for state)"); /* iterator function */
-        new_localvarliteral(ls, "(for state)"); /* state */
-        new_localvarliteral(ls, "(for state)"); /* closing var. (after swap) */
-        new_varkind(ls, indexname, RDKCONST); /* control variable */
-        /* other declared variables */
+        // create internal variables
+        new_localvarliteral(ls, "(for state)"); // iterator function
+        new_localvarliteral(ls, "(for state)"); // state
+        new_localvarliteral(ls, "(for state)"); // closing var. (after swap)
+        new_varkind(ls, indexname, RDKCONST); // control variable
+        // other declared variables
         while (testnext(ls, ','))
         {
             new_localvar(ls, str_checkname(ls));
@@ -2274,20 +2290,20 @@ public static unsafe partial class Lua
         checknext(ls, (int)RESERVED.TK_IN);
         int line = ls->linenumber;
         adjust_assign(ls, 4, explist(ls, &e), &e);
-        adjustlocalvars(ls, 3); /* start scope for internal variables */
-        marktobeclosed(fs); /* last internal var. must be closed */
-        luaK_checkstack(fs, 2); /* extra space to call iterator */
+        adjustlocalvars(ls, 3); // start scope for internal variables
+        marktobeclosed(fs); // last internal var. must be closed
+        luaK_checkstack(fs, 2); // extra space to call iterator
         forbody(ls, @base, line, nvars - 3, true);
     }
 
     private static void forstat(LexState* ls, int line)
     {
-        /* forstat -> FOR (fornum | forlist) END */
+        // forstat -> FOR (fornum | forlist) END
         FuncState* fs = ls->fs;
         BlockCnt bl;
-        enterblock(fs, &bl, 1); /* scope for loop and control variables */
-        luaX_next(ls); /* skip 'for' */
-        TString* varname = str_checkname(ls) /* first variable name */;
+        enterblock(fs, &bl, 1); // scope for loop and control variables
+        luaX_next(ls); // skip 'for'
+        TString* varname = str_checkname(ls) ; // first variable name
         switch (ls->t.token)
         {
             case '=':
@@ -2305,21 +2321,21 @@ public static unsafe partial class Lua
         }
 
         check_match(ls, (int)RESERVED.TK_END, (int)RESERVED.TK_FOR, line);
-        leaveblock(fs); /* loop scope ('break' jumps to this point) */
+        leaveblock(fs); // loop scope ('break' jumps to this point)
     }
 
     private static void test_then_block(LexState* ls, int* escapelist)
     {
-        /* test_then_block -> [IF | ELSEIF] cond THEN block */
+        // test_then_block -> [IF | ELSEIF] cond THEN block
         FuncState* fs = ls->fs;
-        luaX_next(ls); /* skip IF or ELSEIF */
-        int condtrue = cond(ls) /* read condition */;
+        luaX_next(ls); // skip IF or ELSEIF
+        int condtrue = cond(ls) ; // read condition
         checknext(ls, (int)RESERVED.TK_THEN);
-        block(ls); /* 'then' part */
+        block(ls); // 'then' part
         if (ls->t.token == (int)RESERVED.TK_ELSE ||
-            ls->t.token == (int)RESERVED.TK_ELSEIF) /* followed by 'else'/'elseif'? */
+            ls->t.token == (int)RESERVED.TK_ELSEIF) // followed by 'else'/'elseif'?
         {
-            luaK_concat(fs, escapelist, luaK_jump(fs)); /* must jump over it */
+            luaK_concat(fs, escapelist, luaK_jump(fs)); // must jump over it
         }
 
         luaK_patchtohere(fs, condtrue);
@@ -2327,40 +2343,40 @@ public static unsafe partial class Lua
 
     private static void ifstat(LexState* ls, int line)
     {
-        /* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
+        // ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END
         FuncState* fs = ls->fs;
-        int escapelist = NO_JUMP; /* exit list for finished parts */
-        test_then_block(ls, &escapelist); /* IF cond THEN block */
+        int escapelist = NO_JUMP; // exit list for finished parts
+        test_then_block(ls, &escapelist); // IF cond THEN block
         while (ls->t.token == (int)RESERVED.TK_ELSEIF)
         {
-            test_then_block(ls, &escapelist); /* ELSEIF cond THEN block */
+            test_then_block(ls, &escapelist); // ELSEIF cond THEN block
         }
 
         if (testnext(ls, (int)RESERVED.TK_ELSE))
         {
-            block(ls); /* 'else' part */
+            block(ls); // 'else' part
         }
 
         check_match(ls, (int)RESERVED.TK_END, (int)RESERVED.TK_IF, line);
-        luaK_patchtohere(fs, escapelist); /* patch escape list to 'if' end */
+        luaK_patchtohere(fs, escapelist); // patch escape list to 'if' end
     }
 
     private static void localfunc(LexState* ls)
     {
         FuncState* fs = ls->fs;
-        int fvar = fs->nactvar; /* function's variable index */
-        new_localvar(ls, str_checkname(ls)); /* new local variable */
-        adjustlocalvars(ls, 1); /* enter its scope */
+        int fvar = fs->nactvar; // function's variable index
+        new_localvar(ls, str_checkname(ls)); // new local variable
+        adjustlocalvars(ls, 1); // enter its scope
 
         expdesc b;
-        body(ls, &b, false, ls->linenumber); /* function created in next register */
-        /* debug information will only see the variable after this point! */
+        body(ls, &b, false, ls->linenumber); // function created in next register
+        // debug information will only see the variable after this point!
         localdebuginfo(fs, fvar)->startpc = fs->pc;
     }
 
     private static byte getvarattribute(LexState* ls, byte df)
     {
-        /* attrib -> ['<' NAME '>'] */
+        // attrib -> ['<' NAME '>']
         if (testnext(ls, '<'))
         {
             TString* ts = str_checkname(ls);
@@ -2368,51 +2384,51 @@ public static unsafe partial class Lua
             checknext(ls, '>');
             if (string.Equals(attr, "const", StringComparison.Ordinal))
             {
-                return RDKCONST; /* read-only variable */
+                return RDKCONST; // read-only variable
             }
 
             if (string.Equals(attr, "close", StringComparison.Ordinal))
             {
-                return RDKTOCLOSE; /* to-be-closed variable */
+                return RDKTOCLOSE; // to-be-closed variable
             }
 
             luaK_semerror(ls, "unknown attribute '%s'", attr);
         }
 
-        return df; /* return default value */
+        return df; // return default value
     }
 
     private static void checktoclose(FuncState* fs, int level)
     {
         if (level != -1)
         {
-            /* is there a to-be-closed variable? */
+            // is there a to-be-closed variable?
             marktobeclosed(fs);
-            luaK_codeABC(fs, OpCode.OP_TBC, reglevel(fs, level), 0, 0);
+            luaK_codeABC(fs, OpCode.TBC, reglevel(fs, level), 0, 0);
         }
     }
 
     private static void localstat(LexState* ls)
     {
-        /* stat -> LOCAL NAME attrib { ',' NAME attrib } ['=' explist] */
+        // stat -> LOCAL NAME attrib { ',' NAME attrib } ['=' explist]
         FuncState* fs = ls->fs;
-        int toclose = -1; /* index of to-be-closed variable (if any) */
+        int toclose = -1; // index of to-be-closed variable (if any)
 
         int nvars = 0;
-        int vidx; /* index of last variable */
+        int vidx; // index of last variable
 
-        /* get prefixed attribute (if any); default is regular local variable */
+        // get prefixed attribute (if any); default is regular local variable
         byte defkind = getvarattribute(ls, VDKREG);
         do
         {
-            /* for each variable */
-            TString* vname = str_checkname(ls); /* get its name */
-            byte kind = getvarattribute(ls, defkind); /* postfixed attribute */
-            vidx = new_varkind(ls, vname, kind); /* predeclare it */
+            // for each variable
+            TString* vname = str_checkname(ls); // get its name
+            byte kind = getvarattribute(ls, defkind); // postfixed attribute
+            vidx = new_varkind(ls, vname, kind); // predeclare it
             if (kind == RDKTOCLOSE)
             {
-                /* to-be-closed? */
-                if (toclose != -1) /* one already present? */
+                // to-be-closed?
+                if (toclose != -1) // one already present?
                 {
                     luaK_semerror(ls, "multiple to-be-closed variables in local list");
                 }
@@ -2425,7 +2441,7 @@ public static unsafe partial class Lua
 
         int nexps;
         expdesc e;
-        if (testnext(ls, '=')) /* initialisation? */
+        if (testnext(ls, '=')) // initialisation?
         {
             nexps = explist(ls, &e);
         }
@@ -2435,15 +2451,15 @@ public static unsafe partial class Lua
             nexps = 0;
         }
 
-        Vardesc* var = getlocalvardesc(fs, vidx); /* retrieve last variable */
-        if (nvars == nexps && /* no adjustments? */
-            var->vd.kind == RDKCONST && /* last variable is const? */
+        Vardesc* var = getlocalvardesc(fs, vidx); // retrieve last variable
+        if (nvars == nexps && // no adjustments?
+            var->vd.kind == RDKCONST && // last variable is const?
             luaK_exp2const(fs, &e, &var->k))
         {
-            /* compile-time constant? */
-            var->vd.kind = RDKCTC; /* variable is a compile-time constant */
-            adjustlocalvars(ls, nvars - 1); /* exclude last variable */
-            fs->nactvar++; /* but count it */
+            // compile-time constant?
+            var->vd.kind = RDKCTC; // variable is a compile-time constant
+            adjustlocalvars(ls, nvars - 1); // exclude last variable
+            fs->nactvar++; // but count it
         }
         else
         {
@@ -2461,10 +2477,10 @@ public static unsafe partial class Lua
         {
             case RDKTOCLOSE:
                 luaK_semerror(ls, "global variables cannot be to-be-closed");
-                return kind; /* to avoid warnings */
+                return kind; // to avoid warnings
 
             case RDKCONST:
-                return GDKCONST; /* adjust kind for global variable */
+                return GDKCONST; // adjust kind for global variable
 
             default:
                 return kind;
@@ -2475,19 +2491,19 @@ public static unsafe partial class Lua
     {
         FuncState* fs = ls->fs;
         expdesc var;
-        buildglobal(ls, varname, &var); /* create global variable in 'var' */
-        int k = var.u.ind.keystr /* index of global name in 'k' */;
+        buildglobal(ls, varname, &var); // create global variable in 'var'
+        int k = var.u.ind.keystr ; // index of global name in 'k'
         luaK_codecheckglobal(fs, &var, k, line);
     }
 
-    /*
-    ** Recursively traverse list of globals to be initalized. When
-    ** going, generate table description for the global. In the end,
-    ** after all indices have been generated, read list of initialising
-    ** expressions. When returning, generate the assignment of the value on
-    ** the stack to the corresponding table description. 'n' is the variable
-    ** being handled, range [0, nvars - 1].
-    */
+    /// <summary>
+    /// Recursively traverse list of globals to be initalized. When
+    /// going, generate table description for the global. In the end,
+    /// after all indices have been generated, read list of initialising
+    /// expressions. When returning, generate the assignment of the value on
+    /// the stack to the corresponding table description. 'n' is the variable
+    /// being handled, range [0, nvars - 1].
+    /// </summary>
     private static void initglobal(
         LexState* ls,
         int nvars,
@@ -2497,19 +2513,19 @@ public static unsafe partial class Lua
     {
         if (n == nvars)
         {
-            /* traversed all variables? */
+            // traversed all variables?
             expdesc e;
-            int nexps = explist(ls, &e); /* read list of expressions */
+            int nexps = explist(ls, &e); // read list of expressions
             adjust_assign(ls, nvars, nexps, &e);
         }
         else
         {
-            /* handle variable 'n' */
+            // handle variable 'n'
             FuncState* fs = ls->fs;
             expdesc var;
             TString* varname = getlocalvardesc(fs, firstidx + n)->vd.name;
-            buildglobal(ls, varname, &var); /* create global variable in 'var' */
-            enterlevel(ls); /* control recursion depth */
+            buildglobal(ls, varname, &var); // create global variable in 'var'
+            enterlevel(ls); // control recursion depth
             initglobal(ls, nvars, firstidx, n + 1, line);
             leavelevel(ls);
             checkglobal(ls, varname, line);
@@ -2521,30 +2537,30 @@ public static unsafe partial class Lua
     {
         FuncState* fs = ls->fs;
         int nvars = 0;
-        int lastidx; /* index of last registered variable */
+        int lastidx; // index of last registered variable
         do
         {
-            /* for each name */
+            // for each name
             TString* vname = str_checkname(ls);
             byte kind = getglobalattribute(ls, defkind);
             lastidx = new_varkind(ls, vname, kind);
             nvars++;
         } while (testnext(ls, ','));
 
-        if (testnext(ls, '=')) /* initialisation? */
+        if (testnext(ls, '=')) // initialisation?
         {
             initglobal(ls, nvars, lastidx - nvars + 1, 0, ls->linenumber);
         }
 
-        fs->nactvar = (short)(fs->nactvar + nvars); /* activate declaration */
+        fs->nactvar = (short)(fs->nactvar + nvars); // activate declaration
     }
 
     private static void globalstat(LexState* ls)
     {
-        /* globalstat -> (GLOBAL) attrib '*'
-           globalstat -> (GLOBAL) attrib NAME attrib {',' NAME attrib} */
+        // globalstat -> (GLOBAL) attrib '*'
+        // globalstat -> (GLOBAL) attrib NAME attrib {',' NAME attrib}
         FuncState* fs = ls->fs;
-        /* get prefixed attribute (if any); default is regular global variable */
+        // get prefixed attribute (if any); default is regular global variable
         byte defkind = getglobalattribute(ls, GDKREG);
         if (!testnext(ls, '*'))
         {
@@ -2552,31 +2568,31 @@ public static unsafe partial class Lua
         }
         else
         {
-            /* use null as name to represent '*' entries */
+            // use null as name to represent '*' entries
             new_varkind(ls, null, defkind);
-            fs->nactvar++; /* activate declaration */
+            fs->nactvar++; // activate declaration
         }
     }
 
     private static void globalfunc(LexState* ls, int line)
     {
-        /* globalfunc -> (GLOBAL FUNCTION) NAME body */
+        // globalfunc -> (GLOBAL FUNCTION) NAME body
         expdesc var, b;
         FuncState* fs = ls->fs;
         TString* fname = str_checkname(ls);
-        new_varkind(ls, fname, GDKREG); /* declare global variable */
-        fs->nactvar++; /* enter its scope */
+        new_varkind(ls, fname, GDKREG); // declare global variable
+        fs->nactvar++; // enter its scope
         buildglobal(ls, fname, &var);
-        body(ls, &b, false, ls->linenumber); /* compile and return closure in 'b' */
+        body(ls, &b, false, ls->linenumber); // compile and return closure in 'b'
         checkglobal(ls, fname, line);
         luaK_storevar(fs, &var, &b);
-        luaK_fixline(fs, line); /* definition "happens" in the first line */
+        luaK_fixline(fs, line); // definition "happens" in the first line
     }
 
     private static void globalstatfunc(LexState* ls, int line)
     {
-        /* stat -> GLOBAL globalfunc | GLOBAL globalstat */
-        luaX_next(ls); /* skip 'global' */
+        // stat -> GLOBAL globalfunc | GLOBAL globalstat
+        luaX_next(ls); // skip 'global'
         if (testnext(ls, (int)RESERVED.TK_FUNCTION))
         {
             globalfunc(ls, line);
@@ -2589,7 +2605,7 @@ public static unsafe partial class Lua
 
     private static bool funcname(LexState* ls, expdesc* v)
     {
-        /* funcname -> NAME {fieldsel} [':' NAME] */
+        // funcname -> NAME {fieldsel} [':' NAME]
         bool ismethod = false;
         singlevar(ls, v);
         while (ls->t.token == '.')
@@ -2608,72 +2624,72 @@ public static unsafe partial class Lua
 
     private static void funcstat(LexState* ls, int line)
     {
-        /* funcstat -> FUNCTION funcname body */
+        // funcstat -> FUNCTION funcname body
         expdesc v, b;
-        luaX_next(ls); /* skip FUNCTION */
+        luaX_next(ls); // skip FUNCTION
         bool ismethod = funcname(ls, &v);
         check_readonly(ls, &v);
         body(ls, &b, ismethod, line);
         luaK_storevar(ls->fs, &v, &b);
-        luaK_fixline(ls->fs, line); /* definition "happens" in the first line */
+        luaK_fixline(ls->fs, line); // definition "happens" in the first line
     }
 
     private static void exprstat(LexState* ls)
     {
-        /* stat -> func | assignment */
+        // stat -> func | assignment
         FuncState* fs = ls->fs;
         LHS_assign v;
         suffixedexp(ls, &v.v);
         if (ls->t.token == '=' || ls->t.token == ',')
         {
-            /* stat -> assignment ? */
+            // stat -> assignment ?
             v.prev = null;
             restassign(ls, &v, 1);
         }
         else
         {
-            /* stat -> func */
+            // stat -> func
             check_condition(ls, v.v.k == expkind.VCALL, "syntax error");
             ref uint inst = ref getinstruction(fs, &v.v);
-            SETARG_C(ref inst, 1); /* call statement uses no results */
+            SETARG_C(ref inst, 1); // call statement uses no results
         }
     }
 
     private static void retstat(LexState* ls)
     {
-        /* stat -> RETURN [explist] [';'] */
+        // stat -> RETURN [explist] [';']
         FuncState* fs = ls->fs;
-        int nret; /* number of values being returned */
-        int first = luaY_nvarstack(fs); /* first slot to be returned */
+        int nret; // number of values being returned
+        int first = luaY_nvarstack(fs); // first slot to be returned
         if (block_follow(ls, true) || ls->t.token == ';')
         {
-            nret = 0; /* return no values */
+            nret = 0; // return no values
         }
         else
         {
             expdesc e;
-            nret = explist(ls, &e); /* optional return values */
+            nret = explist(ls, &e); // optional return values
             if (hasmultret(e.k))
             {
                 luaK_setmultret(fs, &e);
                 if (e.k == expkind.VCALL && nret == 1 && !fs->bl->insidetbc)
                 {
-                    /* tail call? */
-                    SET_OPCODE(ref getinstruction(fs, &e), OpCode.OP_TAILCALL);
+                    // tail call?
+                    SET_OPCODE(ref getinstruction(fs, &e), OpCode.TailCall);
                     Debug.Assert(GETARG_A(getinstruction(fs, &e)) == luaY_nvarstack(fs));
                 }
 
-                nret = LUA_MULTRET; /* return all values */
+                nret = LUA_MULTRET; // return all values
             }
             else
             {
-                if (nret == 1) /* only one single value? */
+                if (nret == 1) // only one single value?
                 {
-                    first = luaK_exp2anyreg(fs, &e); /* can use original slot */
+                    first = luaK_exp2anyreg(fs, &e); // can use original slot
                 }
                 else
                 {
-                    /* values must go to the top of the stack */
+                    // values must go to the top of the stack
                     luaK_exp2nextreg(fs, &e);
                     Debug.Assert(nret == fs->freereg - first);
                 }
@@ -2681,59 +2697,59 @@ public static unsafe partial class Lua
         }
 
         luaK_ret(fs, first, nret);
-        testnext(ls, ';'); /* skip optional semicolon */
+        testnext(ls, ';'); // skip optional semicolon
     }
 
-    /*
-     ** prototypes for recursive non-terminal functions
-     */
+    /// <summary>
+    /// prototypes for recursive non-terminal functions
+    /// </summary>
     private static void statement(LexState* ls)
     {
-        int line = ls->linenumber; /* may be needed for error messages */
+        int line = ls->linenumber; // may be needed for error messages
         enterlevel(ls);
         switch (ls->t.token)
         {
             case ';':
-                /* stat -> ';' (empty statement) */
-                luaX_next(ls); /* skip ';' */
+                // stat -> ';' (empty statement)
+                luaX_next(ls); // skip ';'
                 break;
 
             case (int)RESERVED.TK_IF:
-                /* stat -> ifstat */
+                // stat -> ifstat
                 ifstat(ls, line);
                 break;
 
             case (int)RESERVED.TK_WHILE:
-                /* stat -> whilestat */
+                // stat -> whilestat
                 whilestat(ls, line);
                 break;
 
             case (int)RESERVED.TK_DO:
-                /* stat -> DO block END */
-                luaX_next(ls); /* skip DO */
+                // stat -> DO block END
+                luaX_next(ls); // skip DO
                 block(ls);
                 check_match(ls, (int)RESERVED.TK_END, (int)RESERVED.TK_DO, line);
                 break;
 
             case (int)RESERVED.TK_FOR:
-                /* stat -> forstat */
+                // stat -> forstat
                 forstat(ls, line);
                 break;
 
             case (int)RESERVED.TK_REPEAT:
-                /* stat -> repeatstat */
+                // stat -> repeatstat
                 repeatstat(ls, line);
                 break;
 
             case (int)RESERVED.TK_FUNCTION:
-                /* stat -> funcstat */
+                // stat -> funcstat
                 funcstat(ls, line);
                 break;
 
             case (int)RESERVED.TK_LOCAL:
-                /* stat -> localstat */
-                luaX_next(ls); /* skip LOCAL */
-                if (testnext(ls, (int)RESERVED.TK_FUNCTION)) /* local function? */
+                // stat -> localstat
+                luaX_next(ls); // skip LOCAL
+                if (testnext(ls, (int)RESERVED.TK_FUNCTION)) // local function?
                 {
                     localfunc(ls);
                 }
@@ -2745,54 +2761,54 @@ public static unsafe partial class Lua
                 break;
 
             case (int)RESERVED.TK_GLOBAL:
-                /* stat -> globalstatfunc */
+                // stat -> globalstatfunc
                 globalstatfunc(ls, line);
                 break;
 
             case (int)RESERVED.TK_DBCOLON:
-                /* stat -> label */
-                luaX_next(ls); /* skip double colon */
+                // stat -> label
+                luaX_next(ls); // skip double colon
                 labelstat(ls, str_checkname(ls), line);
                 break;
 
             case (int)RESERVED.TK_RETURN:
-                /* stat -> retstat */
-                luaX_next(ls); /* skip RETURN */
+                // stat -> retstat
+                luaX_next(ls); // skip RETURN
                 retstat(ls);
                 break;
 
             case (int)RESERVED.TK_BREAK:
-                /* stat -> breakstat */
+                // stat -> breakstat
                 breakstat(ls, line);
                 break;
 
             case (int)RESERVED.TK_GOTO:
-                /* stat -> 'goto' NAME */
-                luaX_next(ls); /* skip 'goto' */
+                // stat -> 'goto' NAME
+                luaX_next(ls); // skip 'goto'
                 gotostat(ls, line);
                 break;
 
 #if LUA_COMPAT_GLOBAL
             case (int)RESERVED.TK_NAME:
-                /* compatibility code to parse global keyword when "global"
-                   is not reserved */
+                // compatibility code to parse global keyword when "global"
+                // is not reserved
                 if (ls->t.seminfo.ts == ls->glbn)
                 {
-                    /* current = "global"? */
+                    // current = "global"?
                     int lk = luaX_lookahead(ls);
                     if (lk == '<' || lk == (int)RESERVED.TK_NAME || lk == '*' || lk == (int)RESERVED.TK_FUNCTION)
                     {
-                        /* 'global <attrib>' or 'global name' or 'global *' or
-                           'global function' */
+                        // 'global <attrib>' or 'global name' or 'global *' or
+                        // 'global function'
                         globalstatfunc(ls, line);
                         break;
                     }
-                } /* else... */
+                } // else...
 #endif
                 goto default;
 
             default:
-                /* stat -> func | assignment */
+                // stat -> func | assignment
                 exprstat(ls);
                 break;
         }
@@ -2800,31 +2816,31 @@ public static unsafe partial class Lua
         Debug.Assert(
             ls->fs->f->maxstacksize >= ls->fs->freereg &&
             ls->fs->freereg >= luaY_nvarstack(ls->fs));
-        ls->fs->freereg = luaY_nvarstack(ls->fs); /* free registers */
+        ls->fs->freereg = luaY_nvarstack(ls->fs); // free registers
         leavelevel(ls);
     }
 
-    /* }====================================================================== */
+    // }======================================================================
 
-    /* }====================================================================== */
+    // }======================================================================
 
-    /*
-     ** compiles the main function, which is a regular vararg function with an
-     ** upvalue named LUA_ENV
-     */
+    /// <summary>
+    /// compiles the main function, which is a regular vararg function with an
+    /// upvalue named LUA_ENV
+    /// </summary>
     private static void mainfunc(LexState* ls, FuncState* fs)
     {
         BlockCnt bl;
         open_func(ls, fs, &bl);
-        setvararg(fs); /* main function is always vararg */
-        Upvaldesc* env = allocupvalue(fs); /* ...set environment upvalue */
+        setvararg(fs); // main function is always vararg
+        Upvaldesc* env = allocupvalue(fs); // ...set environment upvalue
         env->instack = 1;
         env->idx = 0;
         env->kind = VDKREG;
         env->name = ls->envn;
         luaC_objbarrier(ls->L, (GCObject*)fs->f, (GCObject*)env->name);
-        luaX_next(ls); /* read first token */
-        statlist(ls); /* parse main body */
+        luaX_next(ls); // read first token
+        statlist(ls); // parse main body
         check(ls, (int)RESERVED.TK_EOS);
         close_func(ls);
     }
@@ -2837,18 +2853,18 @@ public static unsafe partial class Lua
         string name,
         int firstchar)
     {
-        LClosure* cl = luaF_newLclosure(L, 1); /* create main closure */
-        setclLvalue2s(L, L->top.p, cl); /* anchor it (to avoid being collected) */
+        LClosure* cl = luaF_newLclosure(L, 1); // create main closure
+        setclLvalue2s(L, L->top.p, cl); // anchor it (to avoid being collected)
         luaD_inctop(L);
 
         FuncState funcstate;
         LexState lexstate;
-        lexstate.h = luaH_new(L); /* create table for scanner */
-        sethvalue2s(L, L->top.p, lexstate.h); /* anchor it */
+        lexstate.h = luaH_new(L); // create table for scanner
+        sethvalue2s(L, L->top.p, lexstate.h); // anchor it
         luaD_inctop(L);
         funcstate.f = cl->p = luaF_newproto(L);
         luaC_objbarrier(L, (GCObject*)cl, (GCObject*)cl->p);
-        funcstate.f->source = luaS_new(L, name); /* create and anchor TString */
+        funcstate.f->source = luaS_new(L, name); // create and anchor TString
         luaC_objbarrier(L, (GCObject*)funcstate.f, (GCObject*)funcstate.f->source);
         lexstate.buff = buff;
         lexstate.dyd = dyd;
@@ -2856,9 +2872,9 @@ public static unsafe partial class Lua
         luaX_setinput(L, &lexstate, z, funcstate.f->source, firstchar);
         mainfunc(&lexstate, &funcstate);
         Debug.Assert(funcstate.prev == null && funcstate.nups == 1 && lexstate.fs == null);
-        /* all scopes should be correctly finished */
+        // all scopes should be correctly finished
         Debug.Assert(dyd->actvar.n == 0 && dyd->gt.n == 0 && dyd->label.n == 0);
-        L->top.p--; /* remove scanner's table */
-        return cl; /* closure is on the stack, too */
+        L->top.p--; // remove scanner's table
+        return cl; // closure is on the stack, too
     }
 }

@@ -4,10 +4,10 @@ using System.Diagnostics;
 
 public static unsafe partial class Lua
 {
-    /*
-     * WARNING: if you change the order of this enumeration,
-     * grep "ORDER TM" and "ORDER OP"
-     */
+    /// <summary>
+    /// WARNING: if you change the order of this enumeration,
+    /// grep "ORDER TM" and "ORDER OP"
+    /// </summary>
     internal enum TMS
     {
         INDEX,
@@ -15,7 +15,7 @@ public static unsafe partial class Lua
         GC,
         MODE,
         LEN,
-        EQ, /* last tag method with fast access */
+        EQ, // last tag method with fast access
         ADD,
         SUB,
         MUL,
@@ -35,21 +35,21 @@ public static unsafe partial class Lua
         CONCAT,
         CALL,
         CLOSE,
-        N, /* number of elements in the enum */
+        N, // number of elements in the enum
     }
 
-    /*
-     ** Mask with 1 in all fast-access methods. A 1 in any of these bits
-     ** in the flag of a (meta)table means the metatable does not have the
-     ** corresponding metamethod field. (Bit 6 of the flag indicates that
-     ** the table is using the dummy node; bit 7 is used for 'isrealasize'.)
-     */
+    /// <summary>
+    /// Mask with 1 in all fast-access methods. A 1 in any of these bits
+    /// in the flag of a (meta)table means the metatable does not have the
+    /// corresponding metamethod field. (Bit 6 of the flag indicates that
+    /// the table is using the dummy node; bit 7 is used for 'isrealasize'.)
+    /// </summary>
     private const byte maskflags = (byte)~(~0u << (int)TMS.EQ + 1);
 
-    /*
-     ** Test whether there is no tagmethod.
-     ** (Because tagmethods use raw accesses, the result may be an "empty" nil.)
-     */
+    /// <summary>
+    /// Test whether there is no tagmethod.
+    /// (Because tagmethods use raw accesses, the result may be an "empty" nil.)
+    /// </summary>
     private static bool notm(TValue* tm)
     {
         return ttisnil(tm);
@@ -77,14 +77,14 @@ public static unsafe partial class Lua
         "no value",
         "nil", "boolean", udatatypename, "number",
         "string", "table", "function", udatatypename, "thread",
-        "upvalue", "proto", /* these last cases are used for tests only */
+        "upvalue", "proto", // these last cases are used for tests only
     ];
     
     private const string udatatypename = "userdata";
 
     private static readonly string[] luaT_eventname =
     [
-        /* ORDER TM */
+        // ORDER TM
         "__index", "__newindex",
         "__gc", "__mode", "__len", "__eq",
         "__add", "__sub", "__mul", "__mod", "__pow",
@@ -99,22 +99,22 @@ public static unsafe partial class Lua
         for (int i = 0; i < (int)TMS.N; i++)
         {
             G(L)->tmname[i] = luaS_new(L, luaT_eventname[i]);
-            luaC_fix(L, obj2gco(G(L)->tmname[i])); /* never collect these names */
+            luaC_fix(L, obj2gco(G(L)->tmname[i])); // never collect these names
         }
     }
 
-    /*
-     ** function to be used with macro "fasttm": optimized for absence of
-     ** tag methods
-     */
+    /// <summary>
+    /// function to be used with macro "fasttm": optimized for absence of
+    /// tag methods
+    /// </summary>
     internal static TValue* luaT_gettm(Table* events, TMS @event, TString* ename)
     {
         TValue* tm = luaH_Hgetshortstr(events, ename);
         Debug.Assert(@event <= TMS.EQ);
         if (notm(tm))
         {
-            /* no tag method? */
-            events->flags |= (byte)(1u << (int)@event); /* cache this fact */
+            // no tag method?
+            events->flags |= (byte)(1u << (int)@event); // cache this fact
             return null;
         }
 
@@ -133,10 +133,10 @@ public static unsafe partial class Lua
         return mt != null ? luaH_Hgetshortstr(mt, G(L)->tmname[(int)@event]) : &G(L)->nilvalue;
     }
 
-    /*
-     ** Return the name of the type of an object. For tables and userdata
-     ** with metatable, use their '__name' metafield, if present.
-     */
+    /// <summary>
+    /// Return the name of the type of an object. For tables and userdata
+    /// with metatable, use their '__name' metafield, if present.
+    /// </summary>
     internal static string luaT_objtypename(lua_State* L, TValue* o)
     {
         Table* mt;
@@ -144,24 +144,24 @@ public static unsafe partial class Lua
             ttisfulluserdata(o) && (mt = uvalue(o)->metatable) != null)
         {
             TValue* name = luaH_Hgetshortstr(mt, luaS_new(L, "__name"));
-            if (ttisstring(name)) /* is '__name' a string? */
+            if (ttisstring(name)) // is '__name' a string?
             {
-                return getnetstr(tsvalue(name)); /* use it as type name */
+                return getnetstr(tsvalue(name)); // use it as type name
             }
         }
 
-        return ttypename(ttype(o)); /* else use standard type name */
+        return ttypename(ttype(o)); // else use standard type name
     }
 
     private static void luaT_callTM(lua_State* L, TValue* f, TValue* p1, TValue* p2, TValue* p3)
     {
         StkId func = L->top.p;
-        setobj2s(L, func, f); /* push function (assume EXTRA_STACK) */
-        setobj2s(L, func + 1, p1); /* 1st argument */
-        setobj2s(L, func + 2, p2); /* 2nd argument */
-        setobj2s(L, func + 3, p3); /* 3rd argument */
+        setobj2s(L, func, f); // push function (assume EXTRA_STACK)
+        setobj2s(L, func + 1, p1); // 1st argument
+        setobj2s(L, func + 2, p2); // 2nd argument
+        setobj2s(L, func + 3, p3); // 3rd argument
         L->top.p = func + 4;
-        /* metamethod may yield only when called from Lua code */
+        // metamethod may yield only when called from Lua code
         if (isLuacode(L->ci))
         {
             luaD_call(L, func, 0);
@@ -176,11 +176,11 @@ public static unsafe partial class Lua
     {
         IntPtr result = savestack(L, p3);
         StkId func = L->top.p;
-        setobj2s(L, func, f); /* push function (assume EXTRA_STACK) */
-        setobj2s(L, func + 1, p1); /* 1st argument */
-        setobj2s(L, func + 2, p2); /* 2nd argument */
+        setobj2s(L, func, f); // push function (assume EXTRA_STACK)
+        setobj2s(L, func + 1, p1); // 1st argument
+        setobj2s(L, func + 2, p2); // 2nd argument
         L->top.p += 3;
-        /* metamethod may yield only when called from Lua code */
+        // metamethod may yield only when called from Lua code
         if (isLuacode(L->ci))
         {
             luaD_call(L, func, 1);
@@ -191,8 +191,8 @@ public static unsafe partial class Lua
         }
 
         p3 = restorestack(L, result);
-        setobjs2s(L, p3, --L->top.p); /* move result to its place */
-        return ttypetag(s2v(p3)); /* return tag of the result */
+        setobjs2s(L, p3, --L->top.p); // move result to its place
+        return ttypetag(s2v(p3)); // return tag of the result
     }
 
     private static int callbinTM(
@@ -202,18 +202,18 @@ public static unsafe partial class Lua
         StkId res,
         TMS @event)
     {
-        TValue* tm = luaT_gettmbyobj(L, p1, @event); /* try first operand */
+        TValue* tm = luaT_gettmbyobj(L, p1, @event); // try first operand
         if (notm(tm))
         {
-            tm = luaT_gettmbyobj(L, p2, @event); /* try second operand */
+            tm = luaT_gettmbyobj(L, p2, @event); // try second operand
         }
 
         if (notm(tm))
         {
-            return -1; /* tag method not found */
+            return -1; // tag method not found
         }
 
-        // call tag method and return the tag of the result 
+        // call tag method and return the tag of the result
         return luaT_callTMres(L, tm, p1, p2, res);
     }
 
@@ -247,13 +247,13 @@ public static unsafe partial class Lua
         }
     }
 
-    /*
-     ** The use of 'p1' after 'callbinTM' is safe because, when a tag
-     ** method is not found, 'callbinTM' cannot change the stack.
-     */
+    /// <summary>
+    /// The use of 'p1' after 'callbinTM' is safe because, when a tag
+    /// method is not found, 'callbinTM' cannot change the stack.
+    /// </summary>
     private static void luaT_tryconcatTM(lua_State* L)
     {
-        StkId p1 = L->top.p - 2; /* first argument */
+        StkId p1 = L->top.p - 2; // first argument
         if (callbinTM(L, s2v(p1), s2v(p1 + 1), p1, TMS.CONCAT) < 0)
         {
             luaG_concaterror(L, s2v(p1), s2v(p1 + 1));
@@ -285,19 +285,19 @@ public static unsafe partial class Lua
         luaT_trybinassocTM(L, p1, &aux, flip, res, @event);
     }
 
-    /*
-     ** Calls an order tag method.
-     */
+    /// <summary>
+    /// Calls an order tag method.
+    /// </summary>
     private static bool luaT_callorderTM(lua_State* L, TValue* p1, TValue* p2, TMS @event)
     {
-        int tag = callbinTM(L, p1, p2, L->top.p, @event); /* try original event */
-        if (tag >= 0) /* found tag method? */
+        int tag = callbinTM(L, p1, p2, L->top.p, @event); // try original event
+        if (tag >= 0) // found tag method?
         {
             return !tagisfalse((byte)tag);
         }
 
-        luaG_ordererror(L, p1, p2); /* no metamethod found */
-        return false; /* to avoid warnings */
+        luaG_ordererror(L, p1, p2); // no metamethod found
+        return false; // to avoid warnings
     }
 
     private static bool luaT_callorderiTM(lua_State* L, TValue* p1, int v2, bool flip, bool isfloat, TMS @event)
@@ -315,9 +315,9 @@ public static unsafe partial class Lua
         TValue* p2;
         if (flip)
         {
-            /* arguments were exchanged? */
+            // arguments were exchanged?
             p2 = p1;
-            p1 = &aux; /* correct them */
+            p1 = &aux; // correct them
         }
         else
         {
@@ -327,10 +327,10 @@ public static unsafe partial class Lua
         return luaT_callorderTM(L, p1, p2, @event);
     }
 
-    /*
-     ** Create a vararg table at the top of the stack, with 'n' elements
-     ** starting at 'f'.
-     */
+    /// <summary>
+    /// Create a vararg table at the top of the stack, with 'n' elements
+    /// starting at 'f'.
+    /// </summary>
     private static void createvarargtab(lua_State* L, StkId f, int n)
     {
         Table* t = luaH_new(L);
@@ -338,12 +338,12 @@ public static unsafe partial class Lua
         L->top.p++;
         luaH_resize(L, t, (uint)n, 1);
         TValue key;
-        setsvalue(L, &key, luaS_new(L, "n")); /* key is "n" */
+        setsvalue(L, &key, luaS_new(L, "n")); // key is "n"
         TValue value;
-        setivalue(&value, n); /* value is n */
-        /* No need to anchor the key: Due to the resize, the next operation
-           cannot trigger a garbage collection */
-        luaH_set(L, t, &key, &value); /* t.n = n */
+        setivalue(&value, n); // value is n
+        // No need to anchor the key: Due to the resize, the next operation
+        // cannot trigger a garbage collection
+        luaH_set(L, t, &key, &value); // t.n = n
         for (int i = 0; i < n; i++)
         {
             luaH_setint(L, t, i + 1, s2v(f + i));
@@ -352,12 +352,12 @@ public static unsafe partial class Lua
         luaC_checkGC(L);
     }
 
-    /*
-     ** initial stack:  func arg1 ... argn extra1 ...
-     **                 ^ ci->func                    ^ L->top
-     ** final stack: func nil ... nil extra1 ... func arg1 ... argn
-     **                                          ^ ci->func
-     */
+    /// <summary>
+    /// initial stack:  func arg1 ... argn extra1 ...
+    ///                 ^ ci-&gt;func                    ^ L-&gt;top
+    /// final stack: func nil ... nil extra1 ... func arg1 ... argn
+    ///                                          ^ ci-&gt;func
+    /// </summary>
     private static void buildhiddenargs(
         lua_State* L,
         CallInfo* ci,
@@ -368,16 +368,16 @@ public static unsafe partial class Lua
     {
         ci->u.l.nextraargs = nextra;
         luaD_checkstack(L, p->maxstacksize + 1);
-        /* copy function to the top of the stack, after extra arguments */
+        // copy function to the top of the stack, after extra arguments
         setobjs2s(L, L->top.p++, ci->func.p);
-        /* move fixed parameters to after the copied function */
+        // move fixed parameters to after the copied function
         for (int i = 1; i <= nfixparams; i++)
         {
             setobjs2s(L, L->top.p++, ci->func.p + i);
-            setnilvalue(s2v(ci->func.p + i)); /* erase original parameter (for GC) */
+            setnilvalue(s2v(ci->func.p + i)); // erase original parameter (for GC)
         }
 
-        ci->func.p += totalargs + 1; /* 'func' now lives after hidden arguments */
+        ci->func.p += totalargs + 1; // 'func' now lives after hidden arguments
         ci->top.p += totalargs + 1;
     }
 
@@ -385,21 +385,21 @@ public static unsafe partial class Lua
     {
         int totalargs = (int)(L->top.p - ci->func.p) - 1;
         int nfixparams = p->numparams;
-        int nextra = totalargs - nfixparams; /* number of extra arguments */
+        int nextra = totalargs - nfixparams; // number of extra arguments
         if ((p->flag & PF_VATAB) != 0)
         {
-            /* does it need a vararg table? */
+            // does it need a vararg table?
             Debug.Assert((p->flag & PF_VAHID) == 0);
             createvarargtab(L, ci->func.p + nfixparams + 1, nextra);
-            /* move table to proper place (last parameter) */
+            // move table to proper place (last parameter)
             setobjs2s(L, ci->func.p + nfixparams + 1, L->top.p - 1);
         }
         else
         {
-            /* no table */
+            // no table
             Debug.Assert((p->flag & PF_VAHID) != 0);
             buildhiddenargs(L, ci, p, totalargs, nfixparams, nextra);
-            /* set vararg parameter to nil */
+            // set vararg parameter to nil
             setnilvalue(s2v(ci->func.p + nfixparams + 1));
             Debug.Assert(L->top.p <= ci->top.p && ci->top.p <= L->stack_last.p);
         }
@@ -410,7 +410,7 @@ public static unsafe partial class Lua
         int nextra = ci->u.l.nextraargs;
         if (tointegerns(rc, out long n))
         {
-            /* integral value? */
+            // integral value?
             if ((ulong)n - 1 < (uint)nextra)
             {
                 StkId slot = ci->func.p - nextra + (int)n - 1;
@@ -420,29 +420,29 @@ public static unsafe partial class Lua
         }
         else if (ttisstring(rc))
         {
-            /* string value? */
+            // string value?
             byte* s = getlstr(tsvalue(rc), out int len);
             if (len == 1 && s[0] == 'n')
             {
-                /* key is "n"? */
+                // key is "n"?
                 setivalue(s2v(ra), nextra);
                 return;
             }
         }
 
-        setnilvalue(s2v(ra)); /* else produce nil */
+        setnilvalue(s2v(ra)); // else produce nil
     }
 
-    /*
-     ** Get the number of extra arguments in a vararg function. If vararg
-     ** table has been optimised away, that number is in the call info.
-     ** Otherwise, get the field 'n' from the vararg table and check that it
-     ** has a proper value (non-negative integer not larger than the stack
-     ** limit).
-     */
+    /// <summary>
+    /// Get the number of extra arguments in a vararg function. If vararg
+    /// table has been optimised away, that number is in the call info.
+    /// Otherwise, get the field 'n' from the vararg table and check that it
+    /// has a proper value (non-negative integer not larger than the stack
+    /// limit).
+    /// </summary>
     private static int getnumargs(lua_State* L, CallInfo* ci, Table* h)
     {
-        if (h == null) /* no vararg table? */
+        if (h == null) // no vararg table?
         {
             return ci->u.l.nextraargs;
         }
@@ -457,20 +457,20 @@ public static unsafe partial class Lua
         return (int)ivalue(&res);
     }
 
-    /*
-    ** Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
-    ** the register of the vararg table or -1 if there is no vararg table.
-    */
+    /// <summary>
+    /// Get 'wanted' vararg arguments and put them in 'where'. 'vatab' is
+    /// the register of the vararg table or -1 if there is no vararg table.
+    /// </summary>
     private static void luaT_getvarargs(lua_State* L, CallInfo* ci, StkId where, int wanted, int vatab)
     {
         Table* h = vatab < 0 ? null : hvalue(s2v(ci->func.p + vatab + 1));
-        int nargs = getnumargs(L, ci, h); /* number of available vararg args. */
-        int touse; /* 'touse' is minimum between 'wanted' and 'nargs' */
+        int nargs = getnumargs(L, ci, h); // number of available vararg args.
+        int touse; // 'touse' is minimum between 'wanted' and 'nargs'
         if (wanted < 0)
         {
-            touse = wanted = nargs; /* get all extra arguments available */
-            checkstackp(L, nargs, ref where); /* ensure stack space */
-            L->top.p = where + nargs; /* next instruction will need top */
+            touse = wanted = nargs; // get all extra arguments available
+            checkstackp(L, nargs, ref where); // ensure stack space
+            L->top.p = where + nargs; // next instruction will need top
         }
         else
         {
@@ -480,15 +480,15 @@ public static unsafe partial class Lua
         int i;
         if (h == null)
         {
-            /* no vararg table? */
-            for (i = 0; i < touse; i++) /* get vararg values from the stack */
+            // no vararg table?
+            for (i = 0; i < touse; i++) // get vararg values from the stack
             {
                 setobjs2s(L, where + i, ci->func.p - nargs + i);
             }
         }
         else
         {
-            /* get vararg values from vararg table */
+            // get vararg values from vararg table
             for (i = 0; i < touse; i++)
             {
                 byte tag = luaH_getint(h, i + 1, s2v(where + i));
@@ -499,7 +499,7 @@ public static unsafe partial class Lua
             }
         }
 
-        for (; i < wanted; i++) /* complete required results with nil */
+        for (; i < wanted; i++) // complete required results with nil
         {
             setnilvalue(s2v(where + i));
         }

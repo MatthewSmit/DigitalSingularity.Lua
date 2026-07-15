@@ -2,11 +2,9 @@
 
 public static unsafe partial class Lua
 {
-    /*
-    ** $Id: lzio.c $
-    ** Buffered streams
-    ** See Copyright Notice in lua.h
-    */
+    // $Id: lzio.c $
+    // Buffered streams
+    // See Copyright Notice in lua.h
 
     private static int zgetc(Zio* z)
     {
@@ -72,15 +70,15 @@ public static unsafe partial class Lua
         luaZ_resizebuffer(L, buff, 0);
     }
 
-    /* --------- Private Part ------------------ */
+    // --------- Private Part ------------------
 
     internal struct Zio
     {
-        public long n; /* bytes still unread */
-        public byte* p; /* current position in buffer */
-        public lua_Reader reader; /* reader function */
-        public void* data; /* additional data */
-        public lua_State* L; /* Lua state (for reader) */
+        public long n; // bytes still unread
+        public byte* p; // current position in buffer
+        public lua_Reader reader; // reader function
+        public void* data; // additional data
+        public lua_State* L; // Lua state (for reader)
     }
     
     internal static int luaZ_fill(Zio* z)
@@ -94,7 +92,7 @@ public static unsafe partial class Lua
             return -1;
         }
 
-        z->n = size - 1; /* discount char being returned */
+        z->n = size - 1; // discount char being returned
         z->p = buff;
         return *z->p++;
     }
@@ -108,23 +106,23 @@ public static unsafe partial class Lua
         z->p = null;
     }
 
-    /* --------------------------------------------------------------- read --- */
+    // --------------------------------------------------------------- read ---
 
     private static bool checkbuffer(Zio* z)
     {
         if (z->n == 0)
         {
-            /* no bytes in buffer? */
-            if (luaZ_fill(z) == -1) /* try to read more */
+            // no bytes in buffer?
+            if (luaZ_fill(z) == -1) // try to read more
             {
-                return false; /* no more input */
+                return false; // no more input
             }
 
-            z->n++; /* luaZ_fill consumed first byte; put it back */
+            z->n++; // luaZ_fill consumed first byte; put it back
             z->p--;
         }
 
-        return true; /* now buffer has something */
+        return true; // now buffer has something
     }
 
     internal static long luaZ_read(Zio* z, void* b, long n)
@@ -133,10 +131,10 @@ public static unsafe partial class Lua
         {
             if (!checkbuffer(z))
             {
-                return n; /* no more input; return number of missing bytes */
+                return n; // no more input; return number of missing bytes
             }
 
-            long m = n <= z->n ? n : z->n; /* min. between n and z->n */
+            long m = n <= z->n ? n : z->n; // min. between n and z->n
             memcpy(b, z->p, m);
             z->n -= m;
             z->p += m;
@@ -151,16 +149,16 @@ public static unsafe partial class Lua
     {
         if (!checkbuffer(z))
         {
-            return null; /* no more input */
+            return null; // no more input
         }
 
-        if (z->n < n) /* not enough bytes? */
+        if (z->n < n) // not enough bytes?
         {
-            return null; /* block not whole; cannot give an address */
+            return null; // block not whole; cannot give an address
         }
 
-        byte* res = z->p; /* get block address */
-        z->n -= n; /* consume these bytes */
+        byte* res = z->p; // get block address
+        z->n -= n; // consume these bytes
         z->p += n;
         return res;
     }

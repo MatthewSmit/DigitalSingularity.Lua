@@ -2,14 +2,6 @@
 
 public static partial class Lua
 {
-    /*
-    ** $Id: lopnames.h $
-    ** Opcode names
-    ** See Copyright Notice in lua.h
-    */
-
-    /* ORDER OP */
-
     internal static readonly string[] opnames =
     [
         "MOVE",
