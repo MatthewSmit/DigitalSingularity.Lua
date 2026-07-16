@@ -462,8 +462,11 @@ do   -- testing closing file in line iteration
 
 end
 
+local separator = package.config:sub(1, 1)
+local isWindows = separator == "\\"
 
-do print("testing flush")
+if not isWindows then
+  print("testing flush")
   local f = io.output("/dev/null")
   assert(f:write("abcd"))   -- write to buffer
   assert(f:flush())         -- write to device
@@ -715,7 +718,7 @@ do
 end
 
 
-if T and T.nonblock and not _port then
+if T and T.nonblock and not _port and not isWindows then
   print("testing failed write")
 
   -- unable to write anything to /dev/full
@@ -766,7 +769,7 @@ if not _soft then
   x = nil; y = nil
 end
 
-if not _port then
+if not _port and not isWindows then
   local progname
   do  -- get name of running executable
     local arg = arg or ARG
@@ -879,14 +882,14 @@ checkerr("missing", os.time, {hour = 12})   -- missing date
 
 if string.packsize("i") == 4 then   -- 4-byte ints
   checkerr("field 'year' is out-of-bound", os.time,
-              {year = -(1 << 31) + 1899, month = 1, day = 1})
+              {year = -(1 << 32) + 1899, month = 1, day = 1})
 
   checkerr("field 'year' is out-of-bound", os.time,
-              {year = -(1 << 31), month = 1, day = 1})
+              {year = -(1 << 32), month = 1, day = 1})
 
   if math.maxinteger > 2^31 then   -- larger lua_integer?
     checkerr("field 'year' is out-of-bound", os.time,
-                {year = (1 << 31) + 1900, month = 1, day = 1})
+                {year = (1 << 32) + 1900, month = 1, day = 1})
   end
 end
 
@@ -910,9 +913,9 @@ if not _port then
     checkerr("out-of-bound", os.time, {year = -maxint, month = 1, day = 1})
     if string.packsize("i") == 4 then   -- 4-byte ints
       if testerr("out-of-bound", os.date, "%Y", 2^40) then
-        -- time_t has 4 bytes and therefore cannot represent year 4000
+        -- time_t has 4 bytes and therefore cannot represent year 40000
         print("  4-byte time_t")
-        checkerr("cannot be represented", os.time, {year=4000, month=1, day=1})
+        checkerr("cannot be represented", os.time, {year=40000, month=1, day=1})
       else
         -- time_t has 8 bytes; an int year cannot represent a huge time
         print("  8-byte time_t")

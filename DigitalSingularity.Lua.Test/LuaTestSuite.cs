@@ -452,7 +452,7 @@ public unsafe class LuaTestSuite
         Assert.That(L, Is.Not.Null);
         
         lua_gc(L, LUA_GCSTOP); // stop GC while building state
-        lua_pushcfunction(L, &pmain); // to call 'pmain' in protected mode
+        lua_pushcfunction(L, CFunction.FromFunction(&pmain)); // to call 'pmain' in protected mode
         lua_pushstring(L, file.Name);
 
         ExceptionDispatchInfo? capturedException = null;
@@ -481,11 +481,5 @@ public unsafe class LuaTestSuite
         lua_close(L);
         
         capturedException?.Throw();
-    }
-
-    [Test]
-    public void __Test2()
-    {
-        RunFile("test.lua");
     }
 }

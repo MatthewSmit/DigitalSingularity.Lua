@@ -168,7 +168,7 @@ public unsafe class FailureTests
     public void MessageHandlerFailureReturnsErrErrStatus()
     {
         lua_settop(this.L(), 0);
-        lua_pushcfunction(this.L(), &ErroringMessageHandler);
+        lua_pushcfunction(this.L(), CFunction.FromFunction(&ErroringMessageHandler));
         int messageHandler = lua_gettop(this.L());
         Assert.That(
             luaL_loadstring(

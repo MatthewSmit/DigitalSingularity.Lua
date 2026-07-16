@@ -85,7 +85,7 @@ public unsafe class PrivateTests
         global_State* global = G(L);
         luaM_freearray(L, global->strt.hash, global->strt.size);
         luaM_freearray(L, L->stack.p, stacksize(L) + EXTRA_STACK);
-        global->frealloc(global->ud, global, sizeof(global_State), 0);
+        global->frealloc.Call(global->ud, global, sizeof(global_State), 0);
     }
 
     private sealed class ReaderState
@@ -791,12 +791,12 @@ public unsafe class PrivateTests
         using LuaState state = new();
         byte* external = "external string data that stays outside the Lua allocation"u8.ToPointer();
 
-        TString* str = luaS_newextlstr(state, external, strlen(external), null, null);
+        TString* str = luaS_newextlstr(state, external, strlen(external), default, null);
         
         Assert.That(strisshr(str), Is.False);
         Assert.That(str->shrlen, Is.EqualTo(LSTRFIX));
         Assert.That(tsslen(str), Is.EqualTo(strlen(external)));
-        Assert.That(getstr(str), Is.EqualTo(external));
+        Assert.That(getstrptr(str), Is.EqualTo(external));
     }
 
     [Test]
@@ -813,7 +813,7 @@ public unsafe class PrivateTests
         using LuaState state = new();
         byte* external = "external-short"u8.ToPointer();
 
-        TString* externalString = luaS_newextlstr(state, external, strlen(external), null, null);
+        TString* externalString = luaS_newextlstr(state, external, strlen(external), default, null);
         TString* normalized = luaS_normstr(state, externalString);
 
         Assert.That(strisshr(normalized));
@@ -1765,7 +1765,7 @@ public unsafe class PrivateTests
         GCObject* @object = luaC_newobj(state, LUA_VCCL, sizeCclosure(0));
         CClosure* closure = gco2ccl(@object);
         closure->nupvalues = 0;
-        closure->f = null;
+        closure->f = default;
         
         Assert.That(global->allgc, Is.EqualTo(@object));
         Assert.That(@object->next, Is.EqualTo(previous_allgc));
@@ -1852,7 +1852,7 @@ public unsafe class PrivateTests
         GCObject* obj = obj2gco(userdata);
         Table* metatable = NewAnchoredTable(state);
         TValue finalizer;
-        setfvalue(&finalizer, &ReturnBoolean);
+        setfvalue(&finalizer, CFunction.FromFunction(&ReturnBoolean));
         TableSetString(state, metatable, global->tmname[(int)TMS.GC], &finalizer);
         invalidateTMcache(metatable);
         
@@ -2011,7 +2011,7 @@ public unsafe class PrivateTests
         using LuaState state = new();
         Table* metatable = NewAnchoredTable(state);
         TValue value;
-        setfvalue(&value, &ReturnBoolean);
+        setfvalue(&value, CFunction.FromFunction(&ReturnBoolean));
         TableSetString(state, metatable, G(state.get())->tmname[(int)TMS.EQ], &value);
 
         TValue* tm = luaT_gettm(metatable, TMS.EQ, G(state.get())->tmname[(int)TMS.EQ]);
@@ -2030,7 +2030,7 @@ public unsafe class PrivateTests
         TValue tableValue;
         sethvalue(state, &tableValue, table);
         TValue value;
-        setfvalue(&value, &ReturnBoolean);
+        setfvalue(&value, CFunction.FromFunction(&ReturnBoolean));
         TableSetString(state, metatable, G(state.get())->tmname[(int)TMS.LEN], &value);
         table->metatable = metatable;
         

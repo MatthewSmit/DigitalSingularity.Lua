@@ -88,7 +88,7 @@ public static unsafe partial class Lua
 
     private static bool isclosed(luaL_Stream* p)
     {
-        return p->closef == null;
+        return p->closef.ToPointer() == null;
     }
 
     private static int io_type(lua_State* L)
@@ -146,7 +146,7 @@ public static unsafe partial class Lua
     private static luaL_Stream* newprefile(lua_State* L)
     {
         luaL_Stream* p = (luaL_Stream*)lua_newuserdatauv(L, sizeof(luaL_Stream), 0);
-        p->closef = null; // mark file handle as 'closed'
+        p->closef = default; // mark file handle as 'closed'
         luaL_setmetatable(L, LUA_FILEHANDLE);
         return p;
     }
@@ -157,9 +157,9 @@ public static unsafe partial class Lua
     private static int aux_close(lua_State* L)
     {
         luaL_Stream* p = tolstream(L);
-        lua_CFunction cf = p->closef;
-        p->closef = null; // mark stream as closed
-        return cf(L); // close it
+        CFunction cf = p->closef;
+        p->closef = default; // mark stream as closed
+        return cf.Call(L); // close it
     }
 
     private static int f_close(lua_State* L)
@@ -211,7 +211,7 @@ public static unsafe partial class Lua
     {
         luaL_Stream* p = newprefile(L);
         p->f = null;
-        p->closef = &io_fclose;
+        p->closef = CFunction.FromFunction(&io_fclose);
         return p;
     }
 
@@ -222,14 +222,14 @@ public static unsafe partial class Lua
         (FileMode fm, FileAccess fa) = mode switch
         {
             "r" => (FileMode.Open, FileAccess.Read),
-            "w" => (FileMode.OpenOrCreate, FileAccess.Write),
+            "w" => (FileMode.Create, FileAccess.Write),
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
         };
         
         Stream f;
         try
         {
-            f = File.Open(fname, fm, fa, FileShare.Read);
+            f = File.Open(fname, fm, fa, FileShare.ReadWrite);
         }
         catch (Exception e)
         {
@@ -258,12 +258,20 @@ public static unsafe partial class Lua
         if (mode.Length > 1 && mode[1] == '+')
         {
             fileAccess = FileAccess.ReadWrite;
+            if (fileMode == FileMode.Append)
+            {
+                fileMode = FileMode.OpenOrCreate;
+            }
         }
 
         FileStream f;
         try
         {
-            f = File.Open(filename, fileMode, fileAccess, FileShare.Read);
+            f = File.Open(filename, fileMode, fileAccess, FileShare.ReadWrite);
+            if (mode[0] == 'a' && fileAccess == FileAccess.ReadWrite)
+            {
+                f.Seek(0, SeekOrigin.End);
+            }
         }
         catch (Exception e)
         {
@@ -299,11 +307,19 @@ public static unsafe partial class Lua
 
     private static int io_tmpfile(lua_State* L)
     {
-// LStream *p = newfile(L);
-// errno = 0;
-// p->f = tmpfile();
-// return (p->f == null) ? luaL_fileresult(L, 0, null) : 1;
-        throw new NotImplementedException();
+        string tempFileName = Path.Join(Path.GetTempPath(), Path.GetRandomFileName());
+        
+        luaL_Stream* p = newfile(L);
+        try
+        {
+            FileStream stream = File.Open(tempFileName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite);
+            p->f = new GCHandle<Stream>(stream).ToPointer();
+            return 1;
+        }
+        catch (Exception e)
+        {
+            return luaL_fileresult(L, false, null, e);
+        }
     }
 
     private static Stream getiofile(lua_State* L, string findex)
@@ -312,7 +328,7 @@ public static unsafe partial class Lua
         luaL_Stream* p = (luaL_Stream*)lua_touserdata(L, -1);
         if (isclosed(p))
         {
-            luaL_error(L, "default %s file is closed", findex + IO_PREFIX.Length);
+            luaL_error(L, "default %s file is closed", findex[IO_PREFIX.Length..]);
         }
 
         return GCHandle<Stream>.FromIntPtr((nint)p->f).Target;
@@ -374,7 +390,7 @@ public static unsafe partial class Lua
         lua_pushinteger(L, n); // number of arguments to read
         lua_pushboolean(L, toclose); // close/not close file when finished
         lua_rotate(L, 2, 3); // move the three values to their positions
-        lua_pushcclosure(L, &io_readline, 3 + n);
+        lua_pushcclosure(L, CFunction.FromFunction(&io_readline), 3 + n);
     }
 
     private static int f_lines(lua_State* L)
@@ -796,17 +812,17 @@ public static unsafe partial class Lua
         return g_write(L, f, 2);
     }
 
-    private static readonly SeekOrigin[] mode = [SeekOrigin.Begin, SeekOrigin.Current, SeekOrigin.End];
-    private static readonly string[] modenames = ["set", "cur", "end"];
+    private static readonly SeekOrigin[] seek_mode = [SeekOrigin.Begin, SeekOrigin.Current, SeekOrigin.End];
+    private static readonly string[] seek_modenames = ["set", "cur", "end"];
 
     private static int f_seek(lua_State* L)
     {
         Stream f = tofile(L);
-        long op = luaL_checkoption(L, 2, "cur", modenames);
+        long op = luaL_checkoption(L, 2, "cur", seek_modenames);
         long offset = luaL_optinteger(L, 3, 0);
         try
         {
-            op = f.Seek(offset, mode[op]);
+            op = f.Seek(offset, seek_mode[op]);
         }
         catch (Exception e)
         {
@@ -817,35 +833,68 @@ public static unsafe partial class Lua
         return 1;
     }
 
+    private static readonly string[] setvbuf_modenames = ["no", "full", "line"];
+
     private static int f_setvbuf(lua_State* L)
     {
-// static const int mode[] = {_IONBF, _IOFBF, _IOLBF};
-// static const char *const modenames[] = {"no", "full", "line", null};
-// FILE *f = tofile(L);
-// int op = luaL_checkoption(L, 2, null, modenames);
-// long sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
-// int res;
-// errno = 0;
-// res = setvbuf(f, null, mode[op], (size_t)sz);
-// return luaL_fileresult(L, res == 0, null);
-        throw new NotImplementedException();
+        luaL_Stream* p = tolstream(L);
+        if (isclosed(p))
+        {
+            luaL_error(L, "attempt to use a closed file");
+        }
+        
+        Debug.Assert(p->f != null);
+        GCHandle<Stream> handle = GCHandle<Stream>.FromIntPtr((nint)p->f);
+        Stream f = handle.Target;
+        
+        int op = luaL_checkoption(L, 2, null, setvbuf_modenames);
+        long sz = luaL_optinteger(L, 3, LUAL_BUFFERSIZE);
+        int bufferSize = (int)Math.Min(sz, int.MaxValue);
+        
+        switch (op)
+        {
+            case 0:
+                // No buffering
+                break;
+            
+            case 1:
+                // Full buffering
+                f = new BufferedStream(f, bufferSize);
+                handle.Target = f;
+                break;
+            
+            case 2:
+                // Line buffering
+                f = new LineBufferedStream(f, bufferSize);
+                handle.Target = f;
+                break;
+        }
+            
+        lua_pushboolean(L, true);
+        return 1;
     }
 
-// static int aux_flush (lua_State *L, FILE *f) {
-// errno = 0;
-// return luaL_fileresult(L, fflush(f) == 0, null);
-// }
+    private static int aux_flush(lua_State* L, Stream f)
+    {
+        try
+        {
+            f.Flush();
+            return luaL_fileresult(L, true, null, null);
+        }
+        catch (Exception e)
+        {
+            return luaL_fileresult(L, false, null, e);
+        }
+    }
 
     private static int f_flush(lua_State* L)
     {
-// return aux_flush(L, tofile(L));
-        throw new NotImplementedException();
+        return aux_flush(L, tofile(L));
     }
 
     private static int io_flush(lua_State* L)
     {
-// return aux_flush(L, getiofile(L, IO_OUTPUT));
-        throw new NotImplementedException();
+        return aux_flush(L, getiofile(L, IO_OUTPUT));
     }
 
     /// <summary>
@@ -853,17 +902,17 @@ public static unsafe partial class Lua
     /// </summary>
     private static readonly luaL_Reg[] iolib =
     [
-        new("close", &io_close),
-        new("flush", &io_flush),
-        new("input", &io_input),
-        new("lines", &io_lines),
-        new("open", &io_open),
-        new("output", &io_output),
-        new("popen", &io_popen),
-        new("read", &io_read),
-        new("tmpfile", &io_tmpfile),
-        new("type", &io_type),
-        new("write", &io_write),
+        new("close", CFunction.FromFunction(&io_close)),
+        new("flush", CFunction.FromFunction(&io_flush)),
+        new("input", CFunction.FromFunction(&io_input)),
+        new("lines", CFunction.FromFunction(&io_lines)),
+        new("open", CFunction.FromFunction(&io_open)),
+        new("output", CFunction.FromFunction(&io_output)),
+        new("popen", CFunction.FromFunction(&io_popen)),
+        new("read", CFunction.FromFunction(&io_read)),
+        new("tmpfile", CFunction.FromFunction(&io_tmpfile)),
+        new("type", CFunction.FromFunction(&io_type)),
+        new("write", CFunction.FromFunction(&io_write)),
     ];
 
     /// <summary>
@@ -871,13 +920,13 @@ public static unsafe partial class Lua
     /// </summary>
     private static readonly luaL_Reg[] meth =
     [
-        new("read", &f_read),
-        new("write", &f_write),
-        new("lines", &f_lines),
-        new("flush", &f_flush),
-        new("seek", &f_seek),
-        new("close", &f_close),
-        new("setvbuf", &f_setvbuf),
+        new("read", CFunction.FromFunction(&f_read)),
+        new("write", CFunction.FromFunction(&f_write)),
+        new("lines", CFunction.FromFunction(&f_lines)),
+        new("flush", CFunction.FromFunction(&f_flush)),
+        new("seek", CFunction.FromFunction(&f_seek)),
+        new("close", CFunction.FromFunction(&f_close)),
+        new("setvbuf", CFunction.FromFunction(&f_setvbuf)),
     ];
 
     /// <summary>
@@ -885,10 +934,10 @@ public static unsafe partial class Lua
     /// </summary>
     private static readonly luaL_Reg[] metameth =
     [
-        new("__index", null), // placeholder
-        new("__gc", &f_gc),
-        new("__close", &f_gc),
-        new("__tostring", &f_tostring),
+        new("__index", default), // placeholder
+        new("__gc", CFunction.FromFunction(&f_gc)),
+        new("__close", CFunction.FromFunction(&f_gc)),
+        new("__tostring", CFunction.FromFunction(&f_tostring)),
     ];
 
     private static void createmeta(lua_State* L)
@@ -907,7 +956,7 @@ public static unsafe partial class Lua
     private static int io_noclose(lua_State* L)
     {
         luaL_Stream* p = tolstream(L);
-        p->closef = &io_noclose; // keep file opened
+        p->closef = CFunction.FromFunction(&io_noclose); // keep file opened
         luaL_pushfail(L);
         lua_pushliteral(L, "cannot close standard file");
         return 2;
@@ -917,7 +966,7 @@ public static unsafe partial class Lua
     {
         luaL_Stream* p = newprefile(L);
         p->f = new GCHandle<Stream>(f).ToPointer();
-        p->closef = &io_noclose;
+        p->closef = CFunction.FromFunction(&io_noclose);
         if (k != null)
         {
             lua_pushvalue(L, -1);

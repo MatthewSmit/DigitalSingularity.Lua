@@ -27,10 +27,10 @@ public static unsafe partial class Lua
     /// </summary>
     public const string LUA_PRELOAD_TABLE = "_PRELOAD";
 
-    public struct luaL_Reg(string name, lua_CFunction func)
+    public struct luaL_Reg(string name, CFunction func)
     {
         public string name = name;
-        public lua_CFunction func = func;
+        public CFunction func = func;
     }
 
     public const int LUAL_NUMSIZES = sizeof(long) * 16 + sizeof(double);
@@ -115,11 +115,6 @@ public static unsafe partial class Lua
     {
         return lua_getfield(L, LUA_REGISTRYINDEX, n);
     }
-
-    // private static T luaL_opt<T>(lua_State* L, Func<int, T> f, int n, T d) TODO
-    // {
-    // return lua_isnoneornil(L, n) ? d : f(L, n);
-    // }
 
     public static int luaL_loadbuffer(lua_State* L, ReadOnlySpan<byte> s, string? n)
     {
@@ -210,7 +205,7 @@ public static unsafe partial class Lua
     private struct luaL_Stream
     {
         public void* f; // stream (null for incompletely created streams)
-        public lua_CFunction closef; // to close stream (null for closed streams)
+        public CFunction closef; // to close stream (null for closed streams)
     }
 
     // }======================================================
@@ -665,7 +660,7 @@ public static unsafe partial class Lua
     /// this extra space, Lua will generate the same 'stack overflow' error,
     /// but without 'msg'.)
     /// </summary>
-    public static void luaL_checkstack(lua_State* L, int sz, string msg)
+    public static void luaL_checkstack(lua_State* L, int sz, string? msg)
     {
         if (!lua_checkstack(L, sz))
         {
@@ -823,8 +818,8 @@ public static unsafe partial class Lua
             return box->box; // keep the buffer
         }
 
-        lua_Alloc allocf = lua_getallocf(L, out void* ud);
-        void* temp = allocf(ud, box->box, box->bsize, newsize);
+        AllocFunction allocf = lua_getallocf(L, out void* ud);
+        void* temp = allocf.Call(ud, box->box, box->bsize, newsize);
         if (temp == null && newsize > 0)
         {
             // allocation error?
@@ -846,8 +841,8 @@ public static unsafe partial class Lua
     private static readonly luaL_Reg[] boxmt =
     [
         // box metamethods
-        new("__gc", &boxgc),
-        new("__close", &boxgc),
+        new("__gc", CFunction.FromFunction(&boxgc)),
+        new("__close", CFunction.FromFunction(&boxgc)),
     ];
 
     private static void newbox(lua_State* L)
@@ -1002,7 +997,7 @@ public static unsafe partial class Lua
         {
             // reuse buffer already allocated
             UBox* box = (UBox*)lua_touserdata(L, -1);
-            lua_Alloc allocf = lua_getallocf(L, out void* ud); // function to free buffer
+            AllocFunction allocf = lua_getallocf(L, out void* ud); // function to free buffer
             long len = B->n; // final string length
             resizebox(L, -1, len + 1); // adjust box size to content size
             byte* s = (byte*)box->box; // final buffer address
@@ -1232,7 +1227,7 @@ public static unsafe partial class Lua
             lua_pushfstring(L, "@%s", filename);
             try
             {
-                f = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.Read);
+                f = File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             }
             catch (Exception e)
             {
@@ -1483,7 +1478,7 @@ public static unsafe partial class Lua
     /// if 'glb' is true, also registers the result in the global table.
     /// Leaves resulting module on the top.
     /// </summary>
-    public static void luaL_requiref(lua_State* L, string modname, lua_CFunction openf, bool glb)
+    public static void luaL_requiref(lua_State* L, string modname, CFunction openf, bool glb)
     {
         luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
         lua_getfield(L, -1, modname); // LOADED[modname]
@@ -1647,20 +1642,6 @@ public static unsafe partial class Lua
     private static uint luai_makeseed()
     {
         return (uint)new Random().NextInt64();
-// unsigned int buff[BUFSEED];
-// unsigned int res;
-// unsigned int i;
-// time_t t = time(null);
-// char *b = (char*)buff;
-// addbuff(b, b); // local variable's address
-// addbuff(b, t); // time
-// fill (rare but possible) remain of the buffer with zeros
-// memset(b, 0, sizeof(buff) - BUFSEEDB);
-// res = buff[0];
-// for (i = 1; i < BUFSEED; i++)
-// res ^= (res >> 3) + (res << 7) + buff[i];
-// return res;
-        throw new NotImplementedException();
     }
 
     public static uint luaL_makeseed(lua_State* L)
@@ -1674,13 +1655,13 @@ public static unsafe partial class Lua
     public static lua_State* luaL_newstate()
     {
 #if LUA_TEST
-        lua_State* L = lua_newstate(&debug_realloc, l_memcontrol, luaL_makeseed(null));
+        lua_State* L = lua_newstate(AllocFunction.FromFunction(&debug_realloc), l_memcontrol, luaL_makeseed(null));
 #else
-        lua_State* L = lua_newstate(&luaL_alloc, null, luaL_makeseed(null));
+        lua_State* L = lua_newstate(AllocFunction.FromFunction(&luaL_alloc), null, luaL_makeseed(null));
 #endif
         if (L != null)
         {
-            lua_atpanic(L, &panic);
+            lua_atpanic(L, CFunction.FromFunction(&panic));
             lua_setwarnf(L, &warnfon, L);
         }
 

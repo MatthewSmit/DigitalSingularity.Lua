@@ -382,8 +382,8 @@ while arg and arg[1] do
     printf("---------------------------------------\n")
     for _,name in ipairs(benchmarks) do
       printf("%-7s %-13s %s\n", name,
-	     fmtparams(unpack(benchmarks.small[name])),
-	     fmtparams(unpack(benchmarks.large[name])))
+	     fmtparams(table.unpack(benchmarks.small[name])),
+	     fmtparams(table.unpack(benchmarks.large[name])))
     end
     printf("\n")
     os.exit(1)
@@ -393,7 +393,7 @@ end
 local params = benchmarks[SIZE_SELECT]
 local sum = 0
 for _,name in ipairs(benchmarks) do
-  sum = sum + measure(MIN_TIME, name, unpack(params[name]))
+  sum = sum + measure(MIN_TIME, name, table.unpack(params[name]))
 end
 printf("\nSciMark %8.2f  [%s problem sizes]\n", sum / #benchmarks, SIZE_SELECT)
 io.flush()

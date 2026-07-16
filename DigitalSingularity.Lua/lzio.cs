@@ -18,12 +18,6 @@ public static unsafe partial class Lua
         public long buffsize;
     }
 
-    private static void luaZ_initbuffer(lua_State* L, Mbuffer* buff)
-    {
-        buff->buffer = null;
-        buff->buffsize = 0;
-    }
-
     [Obsolete]
     private static byte* luaZ_bufferptr(Mbuffer* buff)
     {

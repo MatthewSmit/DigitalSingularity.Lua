@@ -387,15 +387,15 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] stringmetamethods =
     [
-        new("__add", &arith_add),
-        new("__sub", &arith_sub),
-        new("__mul", &arith_mul),
-        new("__mod", &arith_mod),
-        new("__pow", &arith_pow),
-        new("__div", &arith_div),
-        new("__idiv", &arith_idiv),
-        new("__unm", &arith_unm),
-        new("__index", null), // placeholder
+        new("__add", CFunction.FromFunction(&arith_add)),
+        new("__sub", CFunction.FromFunction(&arith_sub)),
+        new("__mul", CFunction.FromFunction(&arith_mul)),
+        new("__mod", CFunction.FromFunction(&arith_mod)),
+        new("__pow", CFunction.FromFunction(&arith_pow)),
+        new("__div", CFunction.FromFunction(&arith_div)),
+        new("__idiv", CFunction.FromFunction(&arith_idiv)),
+        new("__unm", CFunction.FromFunction(&arith_unm)),
+        new("__index", default), // placeholder
     ];
 #endif
 
@@ -1175,7 +1175,7 @@ public static unsafe partial class Lua
         gm->src = s + init;
         gm->p = p;
         gm->lastmatch = null;
-        lua_pushcclosure(L, &gmatch_aux, 3);
+        lua_pushcclosure(L, CFunction.FromFunction(&gmatch_aux), 3);
         return 1;
     }
 
@@ -3343,23 +3343,23 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] strlib =
     [
-        new("byte", &str_byte),
-        new("char", &str_char),
-        new("dump", &str_dump),
-        new("find", &str_find),
-        new("format", &str_format),
-        new("gmatch", &gmatch),
-        new("gsub", &str_gsub),
-        new("len", &str_len),
-        new("lower", &str_lower),
-        new("match", &str_match),
-        new("rep", &str_rep),
-        new("reverse", &str_reverse),
-        new("sub", &str_sub),
-        new("upper", &str_upper),
-        new("pack", &str_pack),
-        new("packsize", &str_packsize),
-        new("unpack", &str_unpack),
+        new("byte", CFunction.FromFunction(&str_byte)),
+        new("char", CFunction.FromFunction(&str_char)),
+        new("dump", CFunction.FromFunction(&str_dump)),
+        new("find", CFunction.FromFunction(&str_find)),
+        new("format", CFunction.FromFunction(&str_format)),
+        new("gmatch", CFunction.FromFunction(&gmatch)),
+        new("gsub", CFunction.FromFunction(&str_gsub)),
+        new("len", CFunction.FromFunction(&str_len)),
+        new("lower", CFunction.FromFunction(&str_lower)),
+        new("match", CFunction.FromFunction(&str_match)),
+        new("rep", CFunction.FromFunction(&str_rep)),
+        new("reverse", CFunction.FromFunction(&str_reverse)),
+        new("sub", CFunction.FromFunction(&str_sub)),
+        new("upper", CFunction.FromFunction(&str_upper)),
+        new("pack", CFunction.FromFunction(&str_pack)),
+        new("packsize", CFunction.FromFunction(&str_packsize)),
+        new("unpack", CFunction.FromFunction(&str_unpack)),
     ];
 
     private static void createmetatable(lua_State* L)

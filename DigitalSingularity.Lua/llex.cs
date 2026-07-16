@@ -316,7 +316,6 @@ public static unsafe partial class Lua
     }
 
     /// <summary>
-    /// LUA_NUMBER
     /// This function is quite liberal in what it accepts, as 'luaO_str2num'
     /// will reject ill-formed numerals. Roughly, it accepts the following
     /// pattern:

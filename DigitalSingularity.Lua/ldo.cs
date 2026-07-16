@@ -177,7 +177,7 @@ public static unsafe partial class Lua
             {
                 // panic function?
                 lua_unlock(L);
-                g->panic(L); // call panic function (last chance to jump out)
+                g->panic.Call(L); // call panic function (last chance to jump out)
             }
 
             throw new lua_longjmp(null);
@@ -799,7 +799,7 @@ public static unsafe partial class Lua
     /// <summary>
     /// precall for C functions
     /// </summary>
-    private static int precallC(lua_State* L, StkId func, uint status, lua_CFunction f)
+    private static int precallC(lua_State* L, StkId func, uint status, CFunction f)
     {
         checkstackp(L, LUA_MINSTACK, ref func); // ensure minimum stack size
         CallInfo* ci = L->ci = prepCallInfo(L, func, status | CIST_C, L->top.p + LUA_MINSTACK);
@@ -811,7 +811,7 @@ public static unsafe partial class Lua
         }
 
         lua_unlock(L);
-        int n = f(L); // do the actual call
+        int n = f.Call(L); // do the actual call
         lua_lock(L);
         api_checknelems(L, n);
         luaD_poscall(L, ci, n);
@@ -1411,12 +1411,12 @@ public static unsafe partial class Lua
 
     private static byte luaD_protectedparser(lua_State* L, Zio* z, string name, string? mode)
     {
-        SParser p;
         fixed (char* nameP = name)
         {
             fixed (char* modeP = mode)
             {
                 incnny(L); // cannot yield during parsing
+                SParser p;
                 p.z = z;
                 p.name = nameP;
                 p.mode = modeP;
@@ -1426,7 +1426,8 @@ public static unsafe partial class Lua
                 p.dyd.gt.size = 0;
                 p.dyd.label.arr = null;
                 p.dyd.label.size = 0;
-                luaZ_initbuffer(L, &p.buff);
+                p.buff.buffer = null;
+                p.buff.buffsize = 0;
                 byte status = luaD_pcall(L, f_parser, &p, savestack(L, L->top.p), L->errfunc);
                 luaZ_freebuffer(L, &p.buff);
                 luaM_freearray(L, p.dyd.actvar.arr, p.dyd.actvar.size);

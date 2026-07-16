@@ -44,7 +44,7 @@ public static unsafe partial class Lua
 
         for (int i = 1; i < n; i++) // compose warning
         {
-            lua_warning(L, lua_tonetstring(L, i), false);
+            lua_warning(L, lua_tonetstring(L, i), true);
         }
 
         lua_warning(L, lua_tonetstring(L, n), false); // close warning
@@ -364,7 +364,7 @@ public static unsafe partial class Lua
         if (luaL_getmetafield(L, 1, "__pairs") == LUA_TNIL)
         {
             // no metamethod?
-            lua_pushcfunction(L, &luaB_next); // will return generator and
+            lua_pushcfunction(L, CFunction.FromFunction(&luaB_next)); // will return generator and
             lua_pushvalue(L, 1); // state
             lua_pushnil(L); // initial value
             lua_pushnil(L); // to-be-closed object
@@ -396,7 +396,7 @@ public static unsafe partial class Lua
     private static int luaB_ipairs(lua_State* L)
     {
         luaL_checkany(L, 1);
-        lua_pushcfunction(L, &ipairsaux); // iteration function
+        lua_pushcfunction(L, CFunction.FromFunction(&ipairsaux)); // iteration function
         lua_pushvalue(L, 1); // state
         lua_pushinteger(L, 0); // initial value
         return 3;
@@ -626,32 +626,32 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] base_funcs =
     [
-        new("assert", &luaB_assert),
-        new("collectgarbage", &luaB_collectgarbage),
-        new("dofile", &luaB_dofile),
-        new("error", &luaB_error),
-        new("getmetatable", &luaB_getmetatable),
-        new("ipairs", &luaB_ipairs),
-        new("loadfile", &luaB_loadfile),
-        new("load", &luaB_load),
-        new("next", &luaB_next),
-        new("pairs", &luaB_pairs),
-        new("pcall", &luaB_pcall),
-        new("print", &luaB_print),
-        new("warn", &luaB_warn),
-        new("rawequal", &luaB_rawequal),
-        new("rawlen", &luaB_rawlen),
-        new("rawget", &luaB_rawget),
-        new("rawset", &luaB_rawset),
-        new("select", &luaB_select),
-        new("setmetatable", &luaB_setmetatable),
-        new("tonumber", &luaB_tonumber),
-        new("tostring", &luaB_tostring),
-        new("type", &luaB_type),
-        new("xpcall", &luaB_xpcall),
+        new("assert", CFunction.FromFunction(&luaB_assert)),
+        new("collectgarbage", CFunction.FromFunction(&luaB_collectgarbage)),
+        new("dofile", CFunction.FromFunction(&luaB_dofile)),
+        new("error", CFunction.FromFunction(&luaB_error)),
+        new("getmetatable", CFunction.FromFunction(&luaB_getmetatable)),
+        new("ipairs", CFunction.FromFunction(&luaB_ipairs)),
+        new("loadfile", CFunction.FromFunction(&luaB_loadfile)),
+        new("load", CFunction.FromFunction(&luaB_load)),
+        new("next", CFunction.FromFunction(&luaB_next)),
+        new("pairs", CFunction.FromFunction(&luaB_pairs)),
+        new("pcall", CFunction.FromFunction(&luaB_pcall)),
+        new("print", CFunction.FromFunction(&luaB_print)),
+        new("warn", CFunction.FromFunction(&luaB_warn)),
+        new("rawequal", CFunction.FromFunction(&luaB_rawequal)),
+        new("rawlen", CFunction.FromFunction(&luaB_rawlen)),
+        new("rawget", CFunction.FromFunction(&luaB_rawget)),
+        new("rawset", CFunction.FromFunction(&luaB_rawset)),
+        new("select", CFunction.FromFunction(&luaB_select)),
+        new("setmetatable", CFunction.FromFunction(&luaB_setmetatable)),
+        new("tonumber", CFunction.FromFunction(&luaB_tonumber)),
+        new("tostring", CFunction.FromFunction(&luaB_tostring)),
+        new("type", CFunction.FromFunction(&luaB_type)),
+        new("xpcall", CFunction.FromFunction(&luaB_xpcall)),
         // placeholders
-        new(LUA_GNAME, null),
-        new("_VERSION", null),
+        new(LUA_GNAME, default),
+        new("_VERSION", default),
     ];
 
     public static int luaopen_base(lua_State* L)

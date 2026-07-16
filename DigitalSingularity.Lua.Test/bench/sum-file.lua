@@ -1,4 +1,4 @@
-
+io.input("SUMCOL_1.txt")
 local sum = 0
 for line in io.lines() do
   sum = sum + line

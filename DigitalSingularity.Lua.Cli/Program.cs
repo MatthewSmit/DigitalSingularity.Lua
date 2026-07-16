@@ -161,7 +161,7 @@ public static unsafe class Program
     public static int docall(lua_State* L, int narg, int nres)
     {
         int @base = lua_gettop(L) - narg; // function index
-        lua_pushcfunction(L, &msghandler); // push message handler
+        lua_pushcfunction(L, CFunction.FromFunction(&msghandler)); // push message handler
         lua_insert(L, @base); // put it under function and args
         globalL = L; // to be available to 'laction'
 
@@ -191,8 +191,13 @@ public static unsafe class Program
     /// (If there is no interpreter's name either, 'script' is -1, so
     /// table sizes are zero.)
     /// </summary>
-    private static void createargtable(lua_State* L, ReadOnlySpan<string> argv, int script)
+    private static void createargtable(lua_State* L, Span<string> argv, int script)
     {
+        if (argv.Length > 0 && argv[0].EndsWith(".dll"))
+        {
+            argv[0] = argv[0][..^4] + ".exe";
+        }
+        
         int narg = argv.Length - (script + 1); // number of positive indices
         lua_createtable(L, narg, script + 1);
         for (int i = 0; i < argv.Length; i++)
@@ -876,14 +881,14 @@ public static unsafe class Program
         using GCHandle<string[]> argPtr = new(xargs);
 
         lua_gc(L, LUA_GCSTOP); // stop GC while building state
-        lua_pushcfunction(L, &pmain); // to call 'pmain' in protected mode
+        lua_pushcfunction(L, CFunction.FromFunction(&pmain)); // to call 'pmain' in protected mode
         lua_pushinteger(L, xargs.Length); // 1st argument
         lua_pushlightuserdata(L, (void*)GCHandle<string[]>.ToIntPtr(argPtr)); // 2nd argument
-        int status = lua_pcall(L, 2, 1, 0) ; // do the call
-        bool result = lua_toboolean(L, -1) ; // get result
+        int status = lua_pcall(L, 2, 1, 0); // do the call
+        bool result = lua_toboolean(L, -1); // get result
         report(L, status);
         lua_close(L);
-        
+
         return result && status == LUA_OK ? 0 : -1;
     }
 }

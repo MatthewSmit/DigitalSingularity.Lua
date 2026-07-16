@@ -1,8 +1,4 @@
-
-local bit = require("bit")
-local bor, band = bit.bor, bit.band
-local shl, shr, rol = bit.lshift, bit.rshift, bit.rol
-local write, char, unpack = io.write, string.char, unpack
+local write, char, unpack = io.write, string.char, table.unpack
 local N = tonumber(arg and arg[1]) or 100
 local M, buf = 2/N, {}
 write("P4\n", N, " ", N, "\n")

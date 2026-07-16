@@ -516,14 +516,14 @@ public static unsafe partial class Lua
 
     private static luaL_Reg[] tab_funcs =
     [
-        new("concat", &tconcat),
-        new("create", &tcreate),
-        new("insert", &tinsert),
-        new("pack", &tpack),
-        new("unpack", &tunpack),
-        new("remove", &tremove),
-        new("move", &tmove),
-        new("sort", &sort),
+        new("concat", CFunction.FromFunction(&tconcat)),
+        new("create", CFunction.FromFunction(&tcreate)),
+        new("insert", CFunction.FromFunction(&tinsert)),
+        new("pack", CFunction.FromFunction(&tpack)),
+        new("unpack", CFunction.FromFunction(&tunpack)),
+        new("remove", CFunction.FromFunction(&tremove)),
+        new("move", CFunction.FromFunction(&tmove)),
+        new("sort", CFunction.FromFunction(&sort)),
     ];
 
     public static int luaopen_table(lua_State* L)

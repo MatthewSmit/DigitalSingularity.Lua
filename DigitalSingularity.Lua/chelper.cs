@@ -1,3 +1,4 @@
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DigitalSingularity.Lua.Native")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DigitalSingularity.Lua.Test")]
 
 namespace DigitalSingularity.Lua;

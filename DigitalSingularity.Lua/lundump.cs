@@ -215,7 +215,7 @@ public static unsafe partial class Lua
         {
             // for a fixed buffer, use a fixed string
             byte* s = getaddr<byte>(ref S, size + 1); // get content address
-            sl = ts = luaS_newextlstr(L, s, size, null, null);
+            sl = ts = luaS_newextlstr(L, s, size, default, null);
             luaC_objbarrier(L, (GCObject*)p, (GCObject*)ts);
         }
         else

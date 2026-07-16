@@ -1,1 +1,0 @@
-print(string.char(255) <= string.char(254))

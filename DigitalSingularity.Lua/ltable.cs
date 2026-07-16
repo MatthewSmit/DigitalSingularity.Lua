@@ -390,7 +390,7 @@ public static unsafe partial class Lua
             LUA_VFALSE => hashboolean(t, false),
             LUA_VTRUE => hashboolean(t, true),
             LUA_VLIGHTUSERDATA => hashpointer(t, pvalue(key)),
-            LUA_VLCF => hashpointer(t, fvalue(key)),
+            LUA_VLCF => hashpointer(t, fvalue(key).ToPointer()),
             _ => hashpointer(t, gcvalue(key)),
         };
     }

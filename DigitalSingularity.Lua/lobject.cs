@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.Unicode;
 
 public static unsafe partial class Lua
 {
@@ -36,7 +35,7 @@ public static unsafe partial class Lua
     {
         [FieldOffset(0)] public GCObject* gc; // collectable objects
         [FieldOffset(0)] public void* p; // light userdata
-        [FieldOffset(0)] public lua_CFunction f; // light C functions
+        [FieldOffset(0)] public CFunction f; // light C functions
         [FieldOffset(0)] public long i; // integer numbers
         [FieldOffset(0)] public double n; // float numbers
     }
@@ -607,7 +606,7 @@ public static unsafe partial class Lua
         public uint hash;
         public U u;
         public byte* contents; // pointer to content in long strings
-        public lua_Alloc falloc; // deallocation function for external strings
+        public AllocFunction falloc; // deallocation function for external strings
         public void* ud; // user data for external strings
     }
     
@@ -644,14 +643,24 @@ public static unsafe partial class Lua
         return ts->contents;
     }
 
-    internal static byte* getstr(TString* ts)
+    internal static ReadOnlySpan<byte> getstr(TString* ts)
+    {
+        if (strisshr(ts))
+        {
+            return new ReadOnlySpan<byte>(rawgetshrstr(ts), ts->shrlen);
+        }
+
+        return new ReadOnlySpan<byte>(ts->contents, ts->u.lnglen);
+    }
+
+    internal static byte* getstrptr(TString* ts)
     {
         return strisshr(ts) ? rawgetshrstr(ts) : ts->contents;
     }
 
     internal static string getnetstr(TString* ts)
     {
-        return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(getstr(ts), tsslen(ts)));
+        return Encoding.UTF8.GetString(getstr(ts));
     }
 
     /// <summary>
@@ -962,7 +971,7 @@ public static unsafe partial class Lua
         return gco2lcl(val_(o).gc);
     }
 
-    private static lua_CFunction fvalue(TValue* o)
+    private static CFunction fvalue(TValue* o)
     {
         Debug.Assert(ttislcf(o));
         return val_(o).f;
@@ -974,7 +983,7 @@ public static unsafe partial class Lua
         return gco2ccl(val_(o).gc);
     }
 
-    private static lua_CFunction fvalueraw(in Value v)
+    private static CFunction fvalueraw(in Value v)
     {
         return v.f;
     }
@@ -991,7 +1000,7 @@ public static unsafe partial class Lua
         setclLvalue(L, s2v(o), cl);
     }
 
-    internal static void setfvalue(TValue* obj, lua_CFunction x)
+    internal static void setfvalue(TValue* obj, CFunction x)
     {
         val_(obj).f = x;
         settt_(obj, LUA_VLCF);
@@ -1043,7 +1052,7 @@ public static unsafe partial class Lua
         public byte marked;
         public byte nupvalues;
         public GCObject* gclist;
-        public lua_CFunction f;
+        public CFunction f;
 
         public static ref TValue GetUpValue(CClosure* closure, int index)
         {
@@ -1299,6 +1308,20 @@ public static unsafe partial class Lua
         {
             luaD_throw(L, LUA_ERRMEM); // only after 'va_end'
         }
+    }
+
+    /// <summary>
+    /// macro to call 'luaO_pushvfstring' correctly
+    /// </summary>
+    private static byte* pushvfstring(lua_State* L, IVarArgReader argp, byte* fmt)
+    {
+        byte* msg = luaO_pushfstring(L, fmt, argp);
+        if (msg == null!)
+        {
+            luaD_throw(L, LUA_ERRMEM); // only after 'va_end'
+        }
+
+        return msg;
     }
     
     private static byte[] log_2 =
@@ -1921,9 +1944,9 @@ public static unsafe partial class Lua
         }
     }
 
-    private static string? clearbuff(BuffFS* buff)
+    private static byte* clearbuff(BuffFS* buff)
     {
-        string? res;
+        byte* res;
         if (luaD_rawrunprotected(buff->L, pushbuff, buff) != LUA_OK) // errors?
         {
             res = null; // error message is on the top of the stack
@@ -1931,7 +1954,7 @@ public static unsafe partial class Lua
         else
         {
             TString* ts = tsvalue(s2v(buff->L->top.p - 1));
-            res = getnetstr(ts);
+            res = getstrptr(ts);
         }
 
         if (buff->b != buff->space) // using dynamic buffer?
@@ -2016,24 +2039,71 @@ public static unsafe partial class Lua
     internal static string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
     {
         byte[] fmtBytes = Encoding.UTF8.GetBytes(fmt);
-        ReadOnlySpan<byte> fmtSpan = fmtBytes;
+        luaO_pushfstring(L, fmtBytes, new ParamsReader(args));
+        
+        TString* ts = tsvalue(s2v(L->top.p - 1));
+        return Encoding.UTF8.GetString(getstr(ts));
+    }
+
+    internal struct ParamsReader(object?[] args) : IVarArgReader
+    {
+        private int i;
+        
+        public string? NextString()
+        {
+            return args[this.i++]?.ToString();
+        }
+
+        public byte NextByte()
+        {
+            return Convert.ToByte(args[this.i++], CultureInfo.InvariantCulture);
+        }
+
+        public int NextInt()
+        {
+            return Convert.ToInt32(args[this.i++], CultureInfo.InvariantCulture);
+        }
+
+        public long NextLong()
+        {
+            return Convert.ToInt64(args[this.i++], CultureInfo.InvariantCulture);
+        }
+
+        public double NextDouble()
+        {
+            return Convert.ToDouble(args[this.i++], CultureInfo.InvariantCulture);
+        }
+
+        public void* NextPointer()
+        {
+            return (void*)(nint)(args[this.i++] ?? 0);
+        }
+    }
+
+    internal static byte* luaO_pushfstring(lua_State* L, byte* fmt, IVarArgReader args)
+    {
+        ReadOnlySpan<byte> fmtSpan = new(fmt, strlen(fmt));
+        return luaO_pushfstring(L, fmtSpan, args);
+    }
+
+    internal static byte* luaO_pushfstring(lua_State* L, ReadOnlySpan<byte> fmt, IVarArgReader args)
+    {
         BuffFS buff; // holds last part of the result
         initbuff(L, &buff);
         
         Span<byte> bf = stackalloc byte[UTF8BUFFSZ];
         
         ReadOnlySpan<byte> e; // points to next '%'
-        int i = 0;
-        while (!(e = strchr(fmtSpan, '%')).IsEmpty)
+        while (!(e = strchr(fmt, '%')).IsEmpty)
         {
-            addstr2buff(&buff, fmtSpan[..^e.Length]); // add 'fmt' up to '%'
+            addstr2buff(&buff, fmt[..^e.Length]); // add 'fmt' up to '%'
             switch ((char)e[1])
             {
                 // conversion specifier
                 case 's':
                     {
                         // zero-terminated string
-                        string s = args[i++].ToString() ?? "(null)";
+                        string s = args.NextString() ?? "(null)";
                         addstr2buff(&buff, s);
                         break;
                     }
@@ -2041,7 +2111,7 @@ public static unsafe partial class Lua
                 case 'c':
                     {
                         // an 'int' as a character
-                        byte c = Convert.ToByte(args[i++], CultureInfo.InvariantCulture);
+                        byte c = args.NextByte();
                         addstr2buff(&buff, [c]);
                         break;
                     }
@@ -2050,7 +2120,7 @@ public static unsafe partial class Lua
                     {
                         // an 'int'
                         TValue num;
-                        setivalue(&num, Convert.ToInt32(args[i++], CultureInfo.InvariantCulture));
+                        setivalue(&num, args.NextInt());
                         addnum2buff(&buff, &num);
                         break;
                     }
@@ -2059,7 +2129,7 @@ public static unsafe partial class Lua
                     {
                         // a 'long'
                         TValue num;
-                        setivalue(&num, Convert.ToInt64(args[i++], CultureInfo.InvariantCulture));
+                        setivalue(&num, args.NextLong());
                         addnum2buff(&buff, &num);
                         break;
                     }
@@ -2068,7 +2138,7 @@ public static unsafe partial class Lua
                     {
                         // a 'double'
                         TValue num;
-                        setfltvalue(&num, (double)args[i++]);
+                        setfltvalue(&num, args.NextDouble());
                         addnum2buff(&buff, &num);
                         break;
                     }
@@ -2076,7 +2146,7 @@ public static unsafe partial class Lua
                 case 'p':
                     {
                         // a pointer
-                        nint p = (nint)args[i++];
+                        nint p = (nint)args.NextPointer();
                         addstr2buff(&buff, "0x"u8);
                         addstr2buff(&buff, ((nuint)p).ToString($"x{nint.Size * 2}", CultureInfo.InvariantCulture));
                         break;
@@ -2085,7 +2155,7 @@ public static unsafe partial class Lua
                 case 'U':
                     {
                         // an 'unsigned long' as a UTF-8 sequence
-                        ulong arg = (ulong)args[i++];
+                        ulong arg = (ulong)args.NextLong();
                         Span<byte> result = luaO_utf8esc(bf, (uint)arg);
                         addstr2buff(&buff, result);
                         break;
@@ -2100,11 +2170,11 @@ public static unsafe partial class Lua
                     break;
             }
 
-            fmtSpan = e[2..]; // skip '%' and the specifier
+            fmt = e[2..]; // skip '%' and the specifier
         }
 
-        addstr2buff(&buff, fmtSpan); // rest of 'fmt'
-        string? msg = clearbuff(&buff); // empty buffer into a new string
+        addstr2buff(&buff, fmt); // rest of 'fmt'
+        byte* msg = clearbuff(&buff); // empty buffer into a new string
 
         if (msg == null) // error?
         {

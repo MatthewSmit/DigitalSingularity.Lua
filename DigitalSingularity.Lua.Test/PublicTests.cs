@@ -76,7 +76,7 @@ public unsafe class PublicTests
 
     private static int ProtectedCall(lua_State* L, delegate*<lua_State*, int> fn, int nresults = LUA_MULTRET)
     {
-        lua_pushcfunction(L, fn);
+        lua_pushcfunction(L, CFunction.FromFunction(fn));
         return lua_pcall(L, 0, nresults, 0);
     }
 
@@ -196,13 +196,13 @@ public unsafe class PublicTests
 
     private static void PushClosable(lua_State* L, int* counter)
     {
-        PushClosable(L, counter, &CloseCounter);
+        PushClosable(L, counter, CFunction.FromFunction(&CloseCounter));
     }
 
     private static void PushClosable(
         lua_State* L,
         int* counter,
-        delegate* managed<lua_State*, int> closef)
+        CFunction closef)
     {
         lua_newuserdatauv(L, 1, 0);
         lua_newtable(L);
@@ -224,7 +224,7 @@ public unsafe class PublicTests
     private static int TocloseFailure(lua_State* L)
     {
         int counter = 0;
-        PushClosable(L, &counter, &CloseWithError);
+        PushClosable(L, &counter, CFunction.FromFunction(&CloseWithError));
         lua_toclose(L, -1);
         return 0;
     }
@@ -242,7 +242,7 @@ public unsafe class PublicTests
     private static int CloseSlotFailure(lua_State* L)
     {
         int counter = 0;
-        PushClosable(L, &counter, &CloseWithError);
+        PushClosable(L, &counter, CFunction.FromFunction(&CloseWithError));
         lua_toclose(L, -1);
         lua_closeslot(L, -1);
         return 0;
@@ -275,7 +275,7 @@ public unsafe class PublicTests
 
     private static int CallKSuccess(lua_State* L)
     {
-        lua_pushcfunction(L, &AddTwoIntegers);
+        lua_pushcfunction(L, CFunction.FromFunction(&AddTwoIntegers));
         lua_pushinteger(L, 20);
         lua_pushinteger(L, 22);
         lua_callk(L, 2, 1, 0, null);
@@ -284,21 +284,21 @@ public unsafe class PublicTests
 
     private static int CallKFailure(lua_State* L)
     {
-        lua_pushcfunction(L, &ErrorFunction);
+        lua_pushcfunction(L, CFunction.FromFunction(&ErrorFunction));
         lua_callk(L, 0, 0, 0, null);
         return 0;
     }
 
     private static int CallMacroSuccess(lua_State* L)
     {
-        lua_pushcfunction(L, &ReturnOne);
+        lua_pushcfunction(L, CFunction.FromFunction(&ReturnOne));
         lua_call(L, 0, 1);
         return 1;
     }
 
     private static int CallMacroFailure(lua_State* L)
     {
-        lua_pushcfunction(L, &ErrorFunction);
+        lua_pushcfunction(L, CFunction.FromFunction(&ErrorFunction));
         lua_call(L, 0, 0);
         return 0;
     }
@@ -452,13 +452,6 @@ public unsafe class PublicTests
         return luaL_typeerror(L, 1, "table");
     }
 
-// int AuxCheckLStringOk(lua_State* L) {
-//   size_t len = 0;
-//   const char* value = luaL_checklstring(L, 1, &len);
-//   lua_pushboolean(L, std::strcmp(value, "abc") == 0 && len == 3);
-//   return 1;
-// }
-
     private static int AuxCheckLStringFail(lua_State* L)
     {
         lua_newtable(L);
@@ -587,166 +580,14 @@ public unsafe class PublicTests
 
     private static readonly luaL_Reg[] kOneFunctionLib =
     [
-        new("one", &ReturnOne),
+        new("one", CFunction.FromFunction(&ReturnOne)),
     ];
-
-// #define EXPECT_INT_DEFINE_TEST(test_name, macro_name, expected_value) \
-//   [Test] public void test_name() { Assert.That((macro_name), Is.EqualTo((expected_value))); }
-//
-// #define EXPECT_STR_DEFINE_TEST(test_name, macro_name, expected_value) \
-//   [Test] public void test_name() { EXPECT_STREQ((expected_value), (macro_name)); }
-
-// EXPECT_STR_DEFINE_TEST(Define_LUA_AUTHORS, LUA_AUTHORS,
-//                        "R. Ierusalimschy, L. H. de Figueiredo, W. Celes")
-// [Test] public void Define_LUA_COPYRIGHT() {
-//   EXPECT_NE(std::string(LUA_COPYRIGHT).find(LUA_RELEASE), std::string::npos);
-//   EXPECT_NE(std::string(LUA_COPYRIGHT).find("Lua.org"), std::string::npos);
-// }
-// EXPECT_INT_DEFINE_TEST(Define_LUA_VERSION_MAJOR_N, LUA_VERSION_MAJOR_N, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_VERSION_MINOR_N, LUA_VERSION_MINOR_N, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_VERSION_RELEASE_N, LUA_VERSION_RELEASE_N, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_VERSION_NUM, LUA_VERSION_NUM, 505)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_VERSION_RELEASE_NUM, LUA_VERSION_RELEASE_NUM, 50500)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_SIGNATURE, LUA_SIGNATURE, "\x1bLua")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MULTRET, LUA_MULTRET, -1)
-// [Test] public void Define_LUA_REGISTRYINDEX() {
-//   EXPECT_LT(LUA_REGISTRYINDEX, 0);
-//   EXPECT_LT(lua_upvalueindex(1), LUA_REGISTRYINDEX);
-// }
-// [Test] public void Define_lua_upvalueindex() {
-//   Assert.That(lua_upvalueindex(2), Is.EqualTo(LUA_REGISTRYINDEX - 2));
-// }
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OK, LUA_OK, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_YIELD, LUA_YIELD, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_ERRRUN, LUA_ERRRUN, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_ERRSYNTAX, LUA_ERRSYNTAX, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_ERRMEM, LUA_ERRMEM, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_ERRERR, LUA_ERRERR, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TNONE, LUA_TNONE, -1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TNIL, LUA_TNIL, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TBOOLEAN, LUA_TBOOLEAN, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TLIGHTUSERDATA, LUA_TLIGHTUSERDATA, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TNUMBER, LUA_TNUMBER, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TSTRING, LUA_TSTRING, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TTABLE, LUA_TTABLE, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TFUNCTION, LUA_TFUNCTION, 6)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TUSERDATA, LUA_TUSERDATA, 7)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TTHREAD, LUA_TTHREAD, 8)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_NUMTYPES, LUA_NUMTYPES, 9)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MINSTACK, LUA_MINSTACK, 20)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_RIDX_GLOBALS, LUA_RIDX_GLOBALS, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_RIDX_MAINTHREAD, LUA_RIDX_MAINTHREAD, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_RIDX_LAST, LUA_RIDX_LAST, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPADD, LUA_OPADD, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPSUB, LUA_OPSUB, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPMUL, LUA_OPMUL, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPMOD, LUA_OPMOD, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPPOW, LUA_OPPOW, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPDIV, LUA_OPDIV, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPIDIV, LUA_OPIDIV, 6)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPBAND, LUA_OPBAND, 7)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPBOR, LUA_OPBOR, 8)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPBXOR, LUA_OPBXOR, 9)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPSHL, LUA_OPSHL, 10)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPSHR, LUA_OPSHR, 11)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPUNM, LUA_OPUNM, 12)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPBNOT, LUA_OPBNOT, 13)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPEQ, LUA_OPEQ, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPLT, LUA_OPLT, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OPLE, LUA_OPLE, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCSTOP, LUA_GCSTOP, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCRESTART, LUA_GCRESTART, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCCOLLECT, LUA_GCCOLLECT, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCCOUNT, LUA_GCCOUNT, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCCOUNTB, LUA_GCCOUNTB, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCSTEP, LUA_GCSTEP, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCISRUNNING, LUA_GCISRUNNING, 6)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCGEN, LUA_GCGEN, 7)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCINC, LUA_GCINC, 8)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPARAM, LUA_GCPARAM, 9)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPMINORMUL, LUA_GCPMINORMUL, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPMAJORMINOR, LUA_GCPMAJORMINOR, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPMINORMAJOR, LUA_GCPMINORMAJOR, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPPAUSE, LUA_GCPPAUSE, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPSTEPMUL, LUA_GCPSTEPMUL, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPSTEPSIZE, LUA_GCPSTEPSIZE, 5)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GCPN, LUA_GCPN, 6)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_N2SBUFFSZ, LUA_N2SBUFFSZ, 64)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_HOOKCALL, LUA_HOOKCALL, 0)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_HOOKRET, LUA_HOOKRET, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_HOOKLINE, LUA_HOOKLINE, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_HOOKCOUNT, LUA_HOOKCOUNT, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_HOOKTAILCALL, LUA_HOOKTAILCALL, 4)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MASKCALL, LUA_MASKCALL, 1 << LUA_HOOKCALL)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MASKRET, LUA_MASKRET, 1 << LUA_HOOKRET)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MASKLINE, LUA_MASKLINE, 1 << LUA_HOOKLINE)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MASKCOUNT, LUA_MASKCOUNT, 1 << LUA_HOOKCOUNT)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_VERSION_MAJOR, LUA_VERSION_MAJOR, "5")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_VERSION_MINOR, LUA_VERSION_MINOR, "5")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_VERSION_RELEASE, LUA_VERSION_RELEASE, "0")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_VERSION, LUA_VERSION, "Lua 5.5")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_RELEASE, LUA_RELEASE, "Lua 5.5.0")
-//
-// EXPECT_STR_DEFINE_TEST(Define_LUA_GNAME, LUA_GNAME, "_G")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_ERRFILE, LUA_ERRFILE, LUA_ERRERR + 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_LOADED_TABLE, LUA_LOADED_TABLE, "_LOADED")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_PRELOAD_TABLE, LUA_PRELOAD_TABLE, "_PRELOAD")
-// [Test] public void Define_LUAL_NUMSIZES() {
-//   Assert.That(LUAL_NUMSIZES, Is.EqualTo(sizeof(lua_Integer) * 16 + sizeof(lua_Number)));
-// }
-// EXPECT_INT_DEFINE_TEST(Define_LUA_NOREF, LUA_NOREF, -2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_REFNIL, LUA_REFNIL, -1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_FILEHANDLE, LUA_FILEHANDLE, "FILE*")
-//
-// EXPECT_STR_DEFINE_TEST(Define_LUA_VERSUFFIX, LUA_VERSUFFIX, "_5_5")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_GLIBK, LUA_GLIBK, 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_LOADLIBNAME, LUA_LOADLIBNAME, "package")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_LOADLIBK, LUA_LOADLIBK, LUA_GLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_COLIBNAME, LUA_COLIBNAME, "coroutine")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_COLIBK, LUA_COLIBK, LUA_LOADLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_DBLIBNAME, LUA_DBLIBNAME, "debug")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_DBLIBK, LUA_DBLIBK, LUA_COLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_IOLIBNAME, LUA_IOLIBNAME, "io")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_IOLIBK, LUA_IOLIBK, LUA_DBLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_MATHLIBNAME, LUA_MATHLIBNAME, "math")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_MATHLIBK, LUA_MATHLIBK, LUA_IOLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_OSLIBNAME, LUA_OSLIBNAME, "os")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_OSLIBK, LUA_OSLIBK, LUA_MATHLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_STRLIBNAME, LUA_STRLIBNAME, "string")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_STRLIBK, LUA_STRLIBK, LUA_OSLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_TABLIBNAME, LUA_TABLIBNAME, "table")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_TABLIBK, LUA_TABLIBK, LUA_STRLIBK << 1)
-// EXPECT_STR_DEFINE_TEST(Define_LUA_UTF8LIBNAME, LUA_UTF8LIBNAME, "utf8")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_UTF8LIBK, LUA_UTF8LIBK, LUA_TABLIBK << 1)
-//
-// EXPECT_INT_DEFINE_TEST(Define_LUA_INT_INT, LUA_INT_INT, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_INT_LONG, LUA_INT_LONG, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_INT_LONGLONG, LUA_INT_LONGLONG, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_FLOAT_FLOAT, LUA_FLOAT_FLOAT, 1)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_FLOAT_DOUBLE, LUA_FLOAT_DOUBLE, 2)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_FLOAT_LONGDOUBLE, LUA_FLOAT_LONGDOUBLE, 3)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_INT_DEFAULT, LUA_INT_DEFAULT, LUA_INT_LONGLONG)
-// EXPECT_INT_DEFINE_TEST(Define_LUA_FLOAT_DEFAULT, LUA_FLOAT_DEFAULT, LUA_FLOAT_DOUBLE)
-// [Test] public void Define_LUA_INT_TYPE() {
-//   Assert.That(LUA_INT_TYPE == LUA_INT_INT || LUA_INT_TYPE == LUA_INT_LONG ||
-//               LUA_INT_TYPE == LUA_INT_LONGLONG);
-// }
-// [Test] public void Define_LUA_FLOAT_TYPE() {
-//   Assert.That(LUA_FLOAT_TYPE == LUA_FLOAT_FLOAT ||
-//               LUA_FLOAT_TYPE == LUA_FLOAT_DOUBLE ||
-//               LUA_FLOAT_TYPE == LUA_FLOAT_LONGDOUBLE);
-// }
-// EXPECT_STR_DEFINE_TEST(Define_LUA_PATH_SEP, LUA_PATH_SEP, ";")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_PATH_MARK, LUA_PATH_MARK, "?")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_EXEC_DIR, LUA_EXEC_DIR, "!")
-// EXPECT_STR_DEFINE_TEST(Define_LUA_IGMARK, LUA_IGMARK, "-")
-// EXPECT_INT_DEFINE_TEST(Define_LUA_IDSIZE, LUA_IDSIZE, 60)
 
     [Test]
     public void Function_lua_newstate()
     {
         AllocStats stats;
-        lua_State* L = lua_newstate(&CountingAlloc, &stats, 123);
+        lua_State* L = lua_newstate(AllocFunction.FromFunction(&CountingAlloc), &stats, 123);
         Assert.That(L, Is.Not.Null);
         Assert.That(stats.alloc_calls, Is.GreaterThan(0));
 
@@ -754,7 +595,7 @@ public unsafe class PublicTests
 
         AllocStats failStats;
         failStats.fail_alloc = true;
-        L = lua_newstate(&CountingAlloc, &failStats, 123);
+        L = lua_newstate(AllocFunction.FromFunction(&CountingAlloc), &failStats, 123);
         Assert.That(L, Is.Null);
     }
 
@@ -762,7 +603,7 @@ public unsafe class PublicTests
     public void Function_lua_close()
     {
         AllocStats stats;
-        lua_State* L = lua_newstate(&CountingAlloc, &stats, 123);
+        lua_State* L = lua_newstate(AllocFunction.FromFunction(&CountingAlloc), &stats, 123);
         Assert.That(L, Is.Not.Null);
         lua_close(L);
         Assert.That(stats.free_calls, Is.GreaterThan(0));
@@ -774,11 +615,9 @@ public unsafe class PublicTests
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
 
-        {
-            Assert.That(co, Is.Not.Null);
-            Assert.That(lua_type(state, -1), Is.EqualTo(LUA_TTHREAD));
-            Assert.That(lua_tothread(state, -1), Is.EqualTo(co));
-        }
+        Assert.That(co, Is.Not.Null);
+        Assert.That(lua_type(state, -1), Is.EqualTo(LUA_TTHREAD));
+        Assert.That(lua_tothread(state, -1), Is.EqualTo(co));
     }
 
     [Test]
@@ -787,34 +626,29 @@ public unsafe class PublicTests
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
 
-        {
-            Assert.That(co, Is.Not.Null);
-            Assert.That(lua_closethread(co, state), Is.EqualTo(LUA_OK));
-        }
+        Assert.That(co, Is.Not.Null);
+        Assert.That(lua_closethread(co, state), Is.EqualTo(LUA_OK));
 
         lua_State* failing = lua_newthread(state);
-        lua_pushcfunction(failing, &ErrorFunction);
+        lua_pushcfunction(failing, CFunction.FromFunction(&ErrorFunction));
         int nres = 0;
 
-        {
-            Assert.That(lua_resume(failing, state, 0, &nres), Is.EqualTo(LUA_ERRRUN));
-            Assert.That(lua_closethread(failing, state), Is.EqualTo(LUA_ERRRUN));
-        }
+        Assert.That(lua_resume(failing, state, 0, &nres), Is.EqualTo(LUA_ERRRUN));
+        Assert.That(lua_closethread(failing, state), Is.EqualTo(LUA_ERRRUN));
     }
 
     [Test]
     public void Function_lua_atpanic()
     {
         AllocStats stats;
-        lua_State* L = lua_newstate(&CountingAlloc, &stats, 123);
+        lua_State* L = lua_newstate(AllocFunction.FromFunction(&CountingAlloc), &stats, 123);
         Assert.That(L, Is.Not.Null);
         delegate*<lua_State*, int> errorFunction = &ErrorFunction;
-        delegate*<lua_State*, int> previous = lua_atpanic(L, errorFunction);
+        CFunction previous = lua_atpanic(L, CFunction.FromFunction(errorFunction));
 
-        {
-            Assert.That(previous, Is.Null);
-            Assert.That(lua_atpanic(L, &ReturnZero), Is.EqualTo(errorFunction));
-        }
+        Assert.That(previous.fm, Is.Null);
+        Assert.That(previous.fn, Is.Null);
+        Assert.That(lua_atpanic(L, CFunction.FromFunction(&ReturnZero)).fm, Is.EqualTo(errorFunction));
         lua_close(L);
     }
 
@@ -963,7 +797,7 @@ public unsafe class PublicTests
     public void Function_lua_iscfunction()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
         lua_newtable(state);
 
         {
@@ -1110,10 +944,10 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         delegate*<lua_State*, int> returnOne = &ReturnOne;
-        lua_pushcfunction(state, returnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(returnOne));
         lua_pushnil(state);
-        Assert.That(lua_tocfunction(state, 1), Is.EqualTo(returnOne));
-        Assert.That(lua_tocfunction(state, 2), Is.Null);
+        Assert.That(lua_tocfunction(state, 1).fm, Is.EqualTo(returnOne));
+        Assert.That(lua_tocfunction(state, 2).fm, Is.Null);
     }
 
     [Test]
@@ -1238,7 +1072,7 @@ public unsafe class PublicTests
             state,
             text.ToPointer(),
             text.Length,
-            null,
+            default,
             null);
         Assert.That(lua_tostring(state, -1), Is.EqualTo(text.ToPointer()));
     }
@@ -1281,12 +1115,10 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 42);
-        lua_pushcclosure(state, &ReturnIntegerUpvalue, 1);
+        lua_pushcclosure(state, CFunction.FromFunction(&ReturnIntegerUpvalue), 1);
 
-        {
-            Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
-            Assert.That(lua_tointeger(state, -1), Is.EqualTo(42));
-        }
+        Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
+        Assert.That(lua_tointeger(state, -1), Is.EqualTo(42));
     }
 
     [Test]
@@ -1639,14 +1471,14 @@ public unsafe class PublicTests
     public void Function_lua_pcallk()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
 
         {
             Assert.That(lua_pcallk(state, 0, 1, 0, 0, null), Is.EqualTo(LUA_OK));
             Assert.That(lua_tointeger(state, -1), Is.EqualTo(1));
         }
         lua_settop(state, 0);
-        lua_pushcfunction(state, &ErrorFunction);
+        lua_pushcfunction(state, CFunction.FromFunction(&ErrorFunction));
         Assert.That(lua_pcallk(state, 0, 0, 0, 0, null), Is.EqualTo(LUA_ERRRUN));
     }
 
@@ -1695,7 +1527,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &YieldKFunction);
+        lua_pushcfunction(co, CFunction.FromFunction(&YieldKFunction));
         int nres = 0;
 
         {
@@ -1723,7 +1555,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &ReturnOne);
+        lua_pushcfunction(co, CFunction.FromFunction(&ReturnOne));
         int nres = 0;
 
         {
@@ -1733,7 +1565,7 @@ public unsafe class PublicTests
         }
 
         lua_State* failing = lua_newthread(state);
-        lua_pushcfunction(failing, &ErrorFunction);
+        lua_pushcfunction(failing, CFunction.FromFunction(&ErrorFunction));
         Assert.That(lua_resume(failing, state, 0, &nres), Is.EqualTo(LUA_ERRRUN));
     }
 
@@ -1743,7 +1575,7 @@ public unsafe class PublicTests
         using LuaState state = new();
         Assert.That(lua_status(state), Is.EqualTo(LUA_OK));
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &YieldFunction);
+        lua_pushcfunction(co, CFunction.FromFunction(&YieldFunction));
         int nres = 0;
 
         {
@@ -1758,7 +1590,7 @@ public unsafe class PublicTests
         using LuaState state = new();
         Assert.That(lua_isyieldable(state), Is.False);
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &IsYieldableFunction);
+        lua_pushcfunction(co, CFunction.FromFunction(&IsYieldableFunction));
         int nres = 0;
 
         {
@@ -1922,17 +1754,17 @@ public unsafe class PublicTests
     public void Function_lua_getallocf()
     {
         using LuaState state = new();
-        delegate*<void*, void*, long, long, void*> alloc = lua_getallocf(state, out void* _);
-        Assert.That(alloc, Is.Not.Null);
+        AllocFunction alloc = lua_getallocf(state, out void* _);
+        Assert.That(alloc, Is.Not.Default);
     }
 
     [Test]
     public void Function_lua_setallocf()
     {
         using LuaState state = new();
-        delegate*<void*, void*, long, long, void*> original = lua_getallocf(state, out void* originalUd);
+        AllocFunction original = lua_getallocf(state, out void* originalUd);
         AllocStats stats;
-        delegate*<void*, void*, long, long, void*> f = &CountingAlloc;
+        AllocFunction f = AllocFunction.FromFunction(&CountingAlloc);
         lua_setallocf(state, f, &stats);
         Assert.That(lua_getallocf(state, out void* newUd), Is.EqualTo(f));
         Assert.That(newUd, Is.EqualTo(&stats));
@@ -1978,7 +1810,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_Debug ar = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
 
         Assert.That(lua_getinfo(state, ">Snu", ref ar), Is.True);
         Assert.That(ar.what, Is.EqualTo("C"));
@@ -1989,7 +1821,7 @@ public unsafe class PublicTests
     public void Function_lua_getlocal()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &GetLocalProbe);
+        lua_pushcfunction(state, CFunction.FromFunction(&GetLocalProbe));
         lua_pushinteger(state, 123);
 
         {
@@ -2003,7 +1835,7 @@ public unsafe class PublicTests
     public void Function_lua_setlocal()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &SetLocalProbe);
+        lua_pushcfunction(state, CFunction.FromFunction(&SetLocalProbe));
         lua_pushinteger(state, 123);
 
         {
@@ -2018,7 +1850,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 321);
-        lua_pushcclosure(state, &ReturnIntegerUpvalue, 1);
+        lua_pushcclosure(state, CFunction.FromFunction(&ReturnIntegerUpvalue), 1);
         string? name = lua_getupvalue(state, -1, 1);
         Assert.That(name, Is.Not.Null);
         Assert.That(lua_tointeger(state, -1), Is.EqualTo(321));
@@ -2031,7 +1863,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 1);
-        lua_pushcclosure(state, &ReturnIntegerUpvalue, 1);
+        lua_pushcclosure(state, CFunction.FromFunction(&ReturnIntegerUpvalue), 1);
         lua_pushinteger(state, 654);
         string? name = lua_setupvalue(state, -2, 1);
         Assert.That(name, Is.Not.Null);
@@ -2048,7 +1880,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_pushinteger(state, 1);
-        lua_pushcclosure(state, &ReturnIntegerUpvalue, 1);
+        lua_pushcclosure(state, CFunction.FromFunction(&ReturnIntegerUpvalue), 1);
         Assert.That(lua_upvalueid(state, -1, 1), Is.Not.Null);
         Assert.That(lua_upvalueid(state, -1, 2), Is.Null);
     }
@@ -2124,14 +1956,14 @@ public unsafe class PublicTests
     public void Macro_lua_pcall()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
 
         {
             Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
             Assert.That(lua_tointeger(state, -1), Is.EqualTo(1));
         }
         lua_settop(state, 0);
-        lua_pushcfunction(state, &ErrorFunction);
+        lua_pushcfunction(state, CFunction.FromFunction(&ErrorFunction));
         Assert.That(lua_pcall(state, 0, 0, 0), Is.EqualTo(LUA_ERRRUN));
     }
 
@@ -2140,7 +1972,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &YieldFunction);
+        lua_pushcfunction(co, CFunction.FromFunction(&YieldFunction));
         int nres = 0;
 
         {
@@ -2208,7 +2040,7 @@ public unsafe class PublicTests
     public void Macro_lua_register()
     {
         using LuaState state = new();
-        lua_register(state, "registered", &ReturnOne);
+        lua_register(state, "registered", CFunction.FromFunction(&ReturnOne));
         lua_getglobal(state, "registered");
         Assert.That(lua_iscfunction(state, -1), Is.True);
         Assert.That(lua_pcall(state, 0, 1, 0), Is.EqualTo(LUA_OK));
@@ -2219,7 +2051,7 @@ public unsafe class PublicTests
     public void Macro_lua_pushcfunction()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
         Assert.That(lua_iscfunction(state, -1));
     }
 
@@ -2227,7 +2059,7 @@ public unsafe class PublicTests
     public void Macro_lua_isfunction()
     {
         using LuaState state = new();
-        lua_pushcfunction(state, &ReturnOne);
+        lua_pushcfunction(state, CFunction.FromFunction(&ReturnOne));
         lua_pushnil(state);
 
         Assert.That(lua_isfunction(state, 1));
@@ -2420,7 +2252,7 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         lua_State* co = lua_newthread(state);
-        lua_pushcfunction(co, &YieldFunction);
+        lua_pushcfunction(co, CFunction.FromFunction(&YieldFunction));
         int nres = 0;
 
         {
@@ -2471,7 +2303,7 @@ public unsafe class PublicTests
         using LuaState state = new();
         lua_newtable(state);
         lua_newtable(state);
-        lua_pushcfunction(state, &MetaToString);
+        lua_pushcfunction(state, CFunction.FromFunction(&MetaToString));
         lua_setfield(state, -2, "__tostring");
         lua_setmetatable(state, -2);
 
@@ -2866,11 +2698,11 @@ public unsafe class PublicTests
     {
         using LuaState state = new();
         g_require_count = 0;
-        luaL_requiref(state, "unit.require", &CountingRequire, true);
+        luaL_requiref(state, "unit.require", CFunction.FromFunction(&CountingRequire), true);
         Assert.That(g_require_count, Is.EqualTo(1));
         Assert.That(lua_istable(state, -1));
         lua_pop(state, 1);
-        luaL_requiref(state, "unit.require", &CountingRequire, true);
+        luaL_requiref(state, "unit.require", CFunction.FromFunction(&CountingRequire), true);
         Assert.That(g_require_count, Is.EqualTo(1));
         Assert.That(lua_istable(state, -1));
         lua_getglobal(state, "unit.require");

@@ -10,16 +10,16 @@ public static unsafe partial class Lua
     /// </summary>
     private static readonly luaL_Reg[] stdlibs =
     [
-        new(LUA_GNAME, &luaopen_base),
-        new(LUA_LOADLIBNAME, &luaopen_package),
-        new(LUA_COLIBNAME, &luaopen_coroutine),
-        new(LUA_DBLIBNAME, &luaopen_debug),
-        new(LUA_IOLIBNAME, &luaopen_io),
-        new(LUA_MATHLIBNAME, &luaopen_math),
-        new(LUA_OSLIBNAME, &luaopen_os),
-        new(LUA_STRLIBNAME, &luaopen_string),
-        new(LUA_TABLIBNAME, &luaopen_table),
-        new(LUA_UTF8LIBNAME, &luaopen_utf8),
+        new(LUA_GNAME, CFunction.FromFunction(&luaopen_base)),
+        new(LUA_LOADLIBNAME, CFunction.FromFunction(&luaopen_package)),
+        new(LUA_COLIBNAME, CFunction.FromFunction(&luaopen_coroutine)),
+        new(LUA_DBLIBNAME, CFunction.FromFunction(&luaopen_debug)),
+        new(LUA_IOLIBNAME, CFunction.FromFunction(&luaopen_io)),
+        new(LUA_MATHLIBNAME, CFunction.FromFunction(&luaopen_math)),
+        new(LUA_OSLIBNAME, CFunction.FromFunction(&luaopen_os)),
+        new(LUA_STRLIBNAME, CFunction.FromFunction(&luaopen_string)),
+        new(LUA_TABLIBNAME, CFunction.FromFunction(&luaopen_table)),
+        new(LUA_UTF8LIBNAME, CFunction.FromFunction(&luaopen_utf8)),
     ];
 
     /// <summary>

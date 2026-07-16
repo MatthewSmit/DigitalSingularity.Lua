@@ -372,7 +372,7 @@ public static unsafe partial class Lua
         TString** p = (TString**)Unsafe.AsPointer(ref G(L)->strcache) + i;
         for (int j = 0; j < STRCACHE_M; j++)
         {
-            if (strcmp(str, getstr(p[j])) == 0) // hit?
+            if (strcmp(str, getstrptr(p[j])) == 0) // hit?
             {
                 return p[j]; // that is it
             }
@@ -437,10 +437,10 @@ public static unsafe partial class Lua
         ne->ts = createstrobj(L, size, LUA_VLNGSTR, G(L)->seed);
     }
 
-    internal static TString* luaS_newextlstr(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
+    internal static TString* luaS_newextlstr(lua_State* L, byte* s, int len, AllocFunction falloc, void* ud)
     {
         NewExt ne;
-        if (falloc == null)
+        if (falloc == default)
         {
             ne.kind = LSTRFIX;
             f_newext(L, &ne); // just create header
@@ -451,7 +451,7 @@ public static unsafe partial class Lua
             if (luaD_rawrunprotected(L, f_newext, &ne) != LUA_OK)
             {
                 // mem. error?
-                falloc(ud, s, len + 1, 0); // free external string
+                falloc.Call(ud, s, len + 1, 0); // free external string
                 luaM_error(L); // re-raise memory error
             }
 

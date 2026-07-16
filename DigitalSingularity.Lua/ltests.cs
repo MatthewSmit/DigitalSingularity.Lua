@@ -46,7 +46,7 @@ public static unsafe partial class Lua
     public static void luai_openlibs(lua_State* L)
     {
         luaL_openlibs(L);
-        luaL_requiref(L, "T", &luaB_opentests, true);
+        luaL_requiref(L, "T", CFunction.FromFunction(&luaB_opentests), true);
         lua_pop(L, 1);
     }
     
@@ -71,11 +71,16 @@ public static unsafe partial class Lua
 
     private static void badexit(string fmt, ReadOnlySpan<char> s1, ReadOnlySpan<char> s2)
     {
+        Console.Error.WriteLine(fmt);
+        Console.Error.WriteLine(s1.ToString());
 // fprintf(stderr, fmt, s1);
-// if (s2)
-// fprintf(stderr, "extra info: %s\n", s2);
-// avoid assertion failures when exiting
-// l_memcontrol.numblocks = l_memcontrol.total = 0;
+        if (!s2.IsEmpty)
+        {
+            Console.Error.WriteLine("extra info: {0}", s2.ToString());
+        }
+
+        // avoid assertion failures when exiting
+        l_memcontrol->numblocks = l_memcontrol->total = 0;
 // exit(EXIT_FAILURE);
         throw new NotImplementedException();
     }
@@ -1330,23 +1335,26 @@ public static unsafe partial class Lua
 
     private static int hash_query(lua_State* L)
     {
-// if (lua_isnone(L, 2)) {
-// TString *ts;
-// luaL_argcheck(L, lua_type(L, 1) == LUA_TSTRING, 1, "string expected");
-// ts = tsvalue(obj_at(L, 1));
-// if (ts->tt == LUA_VLNGSTR)
-// luaS_hashlongstr(ts); // make sure long string has a hash
-// lua_pushinteger(L, cast_int(ts->hash));
-// }
-// else {
-// TValue *o = obj_at(L, 1);
-// Table *t;
-// luaL_checktype(L, 2, LUA_TTABLE);
-// t = hvalue(obj_at(L, 2));
-// lua_pushinteger(L, cast_Integer(luaH_mainposition(t, o) - t->node));
-// }
-// return 1;
-        throw new NotImplementedException();
+        if (lua_isnone(L, 2))
+        {
+            luaL_argcheck(L, lua_type(L, 1) == LUA_TSTRING, 1, "string expected");
+            TString* ts = tsvalue(obj_at(L, 1));
+            if (ts->tt == LUA_VLNGSTR)
+            {
+                luaS_hashlongstr(ts); // make sure long string has a hash
+            }
+
+            lua_pushinteger(L, (int)ts->hash);
+        }
+        else
+        {
+            TValue* o = obj_at(L, 1);
+            luaL_checktype(L, 2, LUA_TTABLE);
+            Table* t = hvalue(obj_at(L, 2));
+            lua_pushinteger(L, luaH_mainposition(t, o) - t->node);
+        }
+
+        return 1;
     }
 
     private static int stacklevel(lua_State* L)
@@ -1601,18 +1609,17 @@ public static unsafe partial class Lua
 
     private static int makeseed(lua_State* L)
     {
-// lua_pushinteger(L, cast_Integer(luaL_makeseed(L)));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushinteger(L, luaL_makeseed(L));
+        return 1;
     }
 
     private static int newstate(lua_State* L)
     {
-        lua_Alloc f = lua_getallocf(L, out void* ud);
+        AllocFunction f = lua_getallocf(L, out void* ud);
         lua_State* L1 = lua_newstate(f, ud, 0);
         if (L1 != null)
         {
-            lua_atpanic(L1, &tpanic);
+            lua_atpanic(L1, CFunction.FromFunction(&tpanic));
             lua_pushlightuserdata(L, L1);
         }
         else
@@ -1636,10 +1643,10 @@ public static unsafe partial class Lua
         int load = (int)luaL_checkinteger(L, 2);
         int preload = (int)luaL_checkinteger(L, 3);
         luaL_openselectedlibs(L1, load, preload);
-        luaL_requiref(L1, "T", &luaB_opentests, false);
+        luaL_requiref(L1, "T", CFunction.FromFunction(&luaB_opentests), false);
         Debug.Assert(lua_type(L1, -1) == LUA_TTABLE);
         // 'requiref' should not reload module already loaded...
-        luaL_requiref(L1, "T", null, true); // seg. fault if it reloads
+        luaL_requiref(L1, "T", default, true); // seg. fault if it reloads
         // ...but should return the same module
         Debug.Assert(lua_compare(L1, -1, -2, LUA_OPEQ));
         return 0;
@@ -1713,7 +1720,7 @@ public static unsafe partial class Lua
     private static int checkpanic(lua_State* L)
     {
         string code = luaL_checknetstring(L, 1);
-        lua_Alloc f = lua_getallocf(L, out void* ud);
+        AllocFunction f = lua_getallocf(L, out void* ud);
 
         Aux b = new();
         using GCHandle<Aux> bhandle = new(b);
@@ -1728,7 +1735,7 @@ public static unsafe partial class Lua
             return 1;
         }
 
-        lua_atpanic(L1, &panicback); // set its panic function
+        lua_atpanic(L1, CFunction.FromFunction(&panicback)); // set its panic function
         lua_pushlightuserdata(L1, bhandle.ToPointer());
         lua_setfield(L1, LUA_REGISTRYINDEX, "_jmpbuf"); // store 'Aux' struct
         try
@@ -1749,7 +1756,7 @@ public static unsafe partial class Lua
     private static int externKstr(lua_State* L)
     {
         byte* s = luaL_checklstring(L, 1, out int len);
-        lua_pushexternalstring(L, s, len, null, null);
+        lua_pushexternalstring(L, s, len, default, null);
         return 1;
     }
 
@@ -1761,9 +1768,9 @@ public static unsafe partial class Lua
     private static int externstr(lua_State* L)
     {
         ReadOnlySpan<byte> s = luaL_checklstring(L, 1);
-        lua_Alloc allocf = lua_getallocf(L, out void* ud); // get allocation function
+        AllocFunction allocf = lua_getallocf(L, out void* ud); // get allocation function
         // create the buffer
-        byte* buff = (byte*)allocf(ud, null, 0, s.Length + 1);
+        byte* buff = (byte*)allocf.Call(ud, null, 0, s.Length + 1);
         if (buff == null)
         {
             // memory error?
@@ -2055,8 +2062,8 @@ public static unsafe partial class Lua
                     }
 
                 case "func2num":
-                    lua_CFunction func = lua_tocfunction(L1, getindex_aux(L, L1, ref pc));
-                    lua_pushinteger(L1, (nint)(func));
+                    CFunction func = lua_tocfunction(L1, getindex_aux(L, L1, ref pc));
+                    lua_pushinteger(L1, (long)func.ToPointer());
                     break;
 
                 case "getfield":
@@ -2248,7 +2255,7 @@ public static unsafe partial class Lua
                     break;
 
                 case "pushcclosure":
-                    lua_pushcclosure(L1, &testC, getnum_aux(L, L1, ref pc));
+                    lua_pushcclosure(L1, CFunction.FromFunction(&testC), getnum_aux(L, L1, ref pc));
                     break;
 
                 case "pushint":
@@ -2592,7 +2599,7 @@ public static unsafe partial class Lua
     private static int makeCfunc(lua_State* L)
     {
         luaL_checkstring(L, 1);
-        lua_pushcclosure(L, &Cfunc, lua_gettop(L));
+        lua_pushcclosure(L, CFunction.FromFunction(&Cfunc), lua_gettop(L));
         return 1;
     }
 
@@ -2720,56 +2727,56 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] tests_funcs =
     [
-        new("checkmemory", &lua_checkmemory),
-        new("closestate", &closestate),
-        new("d2s", &d2s),
-        new("doonnewstack", &doonnewstack),
-        new("doremote", &doremote),
-        new("gccolor", &gc_color),
-        new("gcage", &gc_age),
-        new("gcstate", &gc_state),
-        new("tracegc", &tracegc),
-        new("pobj", &gc_printobj),
-        new("getref", &getref),
-        new("hash", &hash_query),
-        new("log2", &log2_aux),
-        new("limits", &get_limits),
-        new("listcode", &listcode),
-        new("printcode", &printcode),
-        new("printallstack", &lua_printallstack),
-        new("listk", &listk),
-        new("listabslineinfo", &listabslineinfo),
-        new("listlocals", &listlocals),
-        new("loadlib", &loadlib),
-        new("checkpanic", &checkpanic),
-        new("newstate", &newstate),
-        new("newuserdata", &newuserdata),
-        new("num2int", &num2int),
-        new("makeseed", &makeseed),
-        new("pushuserdata", &pushuserdata),
-        new("gcquery", &gc_query),
-        new("querystr", &string_query),
-        new("querytab", &table_query),
-        new("codeparam", &test_codeparam),
-        new("applyparam", &test_applyparam),
-        new("ref", &tref),
-        new("resume", &coresume),
-        new("s2d", &s2d),
-        new("sethook", &sethook),
-        new("stacklevel", &stacklevel),
-        new("sizes", &get_sizes),
-        new("testC", &testC),
-        new("makeCfunc", &makeCfunc),
-        new("totalmem", &mem_query),
-        new("alloccount", &alloc_count),
-        new("allocfailnext", &alloc_failnext),
-        new("trick", &settrick),
-        new("udataval", &udataval),
-        new("unref", &unref),
-        new("upvalue", &upvalue),
-        new("externKstr", &externKstr),
-        new("externstr", &externstr),
-        new("nonblock", &nonblock),
+        new("checkmemory", CFunction.FromFunction(&lua_checkmemory)),
+        new("closestate", CFunction.FromFunction(&closestate)),
+        new("d2s", CFunction.FromFunction(&d2s)),
+        new("doonnewstack", CFunction.FromFunction(&doonnewstack)),
+        new("doremote", CFunction.FromFunction(&doremote)),
+        new("gccolor", CFunction.FromFunction(&gc_color)),
+        new("gcage", CFunction.FromFunction(&gc_age)),
+        new("gcstate", CFunction.FromFunction(&gc_state)),
+        new("tracegc", CFunction.FromFunction(&tracegc)),
+        new("pobj", CFunction.FromFunction(&gc_printobj)),
+        new("getref", CFunction.FromFunction(&getref)),
+        new("hash", CFunction.FromFunction(&hash_query)),
+        new("log2", CFunction.FromFunction(&log2_aux)),
+        new("limits", CFunction.FromFunction(&get_limits)),
+        new("listcode", CFunction.FromFunction(&listcode)),
+        new("printcode", CFunction.FromFunction(&printcode)),
+        new("printallstack", CFunction.FromFunction(&lua_printallstack)),
+        new("listk", CFunction.FromFunction(&listk)),
+        new("listabslineinfo", CFunction.FromFunction(&listabslineinfo)),
+        new("listlocals", CFunction.FromFunction(&listlocals)),
+        new("loadlib", CFunction.FromFunction(&loadlib)),
+        new("checkpanic", CFunction.FromFunction(&checkpanic)),
+        new("newstate", CFunction.FromFunction(&newstate)),
+        new("newuserdata", CFunction.FromFunction(&newuserdata)),
+        new("num2int", CFunction.FromFunction(&num2int)),
+        new("makeseed", CFunction.FromFunction(&makeseed)),
+        new("pushuserdata", CFunction.FromFunction(&pushuserdata)),
+        new("gcquery", CFunction.FromFunction(&gc_query)),
+        new("querystr", CFunction.FromFunction(&string_query)),
+        new("querytab", CFunction.FromFunction(&table_query)),
+        new("codeparam", CFunction.FromFunction(&test_codeparam)),
+        new("applyparam", CFunction.FromFunction(&test_applyparam)),
+        new("ref", CFunction.FromFunction(&tref)),
+        new("resume", CFunction.FromFunction(&coresume)),
+        new("s2d", CFunction.FromFunction(&s2d)),
+        new("sethook", CFunction.FromFunction(&sethook)),
+        new("stacklevel", CFunction.FromFunction(&stacklevel)),
+        new("sizes", CFunction.FromFunction(&get_sizes)),
+        new("testC", CFunction.FromFunction(&testC)),
+        new("makeCfunc", CFunction.FromFunction(&makeCfunc)),
+        new("totalmem", CFunction.FromFunction(&mem_query)),
+        new("alloccount", CFunction.FromFunction(&alloc_count)),
+        new("allocfailnext", CFunction.FromFunction(&alloc_failnext)),
+        new("trick", CFunction.FromFunction(&settrick)),
+        new("udataval", CFunction.FromFunction(&udataval)),
+        new("unref", CFunction.FromFunction(&unref)),
+        new("upvalue", CFunction.FromFunction(&upvalue)),
+        new("externKstr", CFunction.FromFunction(&externKstr)),
+        new("externstr", CFunction.FromFunction(&externstr)),
+        new("nonblock", CFunction.FromFunction(&nonblock)),
     ];
 
     private static void checkfinalmem()
@@ -2780,14 +2787,14 @@ public static unsafe partial class Lua
 
     private static int luaB_opentests(lua_State* L)
     {
-        lua_Alloc f = lua_getallocf(L, out void* ud);
-        lua_atpanic(L, &tpanic);
+        AllocFunction f = lua_getallocf(L, out void* ud);
+        lua_atpanic(L, CFunction.FromFunction(&tpanic));
         lua_setwarnf(L, &warnf, L);
         lua_pushboolean(L, false);
         lua_setglobal(L, "_WARN"); // _WARN = false
         regcodes(L);
         AppDomain.CurrentDomain.ProcessExit += (_, _) => checkfinalmem();
-        Debug.Assert(f == (lua_Alloc)(&debug_realloc) && ud == l_memcontrol);
+        Debug.Assert(f == AllocFunction.FromFunction(&debug_realloc) && ud == l_memcontrol);
         lua_setallocf(L, f, ud); // exercise this function
         luaL_newlib(L, tests_funcs);
         return 1;

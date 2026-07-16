@@ -186,10 +186,10 @@ public static unsafe partial class Lua
         lua_unlock(to);
     }
 
-    public static lua_CFunction lua_atpanic(lua_State* L, lua_CFunction panicf)
+    public static CFunction lua_atpanic(lua_State* L, CFunction panicf)
     {
         lua_lock(L);
-        lua_CFunction old = G(L)->panic;
+        CFunction old = G(L)->panic;
         G(L)->panic = panicf;
         lua_unlock(L);
         return old;
@@ -536,7 +536,7 @@ public static unsafe partial class Lua
         }
     }
 
-    public static lua_CFunction lua_tocfunction(lua_State* L, int idx)
+    public static CFunction lua_tocfunction(lua_State* L, int idx)
     {
         TValue* o = index2value(L, idx);
         if (ttislcf(o))
@@ -549,7 +549,7 @@ public static unsafe partial class Lua
             return clCvalue(o)->f;
         }
 
-        return null; // not a C function
+        return default; // not a C function
     }
 
     private static void* touserdata(TValue* o)
@@ -586,7 +586,7 @@ public static unsafe partial class Lua
         TValue* o = index2value(L, idx);
         return ttypetag(o) switch
         {
-            LUA_VLCF => (void*)(nint)fvalue(o),
+            LUA_VLCF => fvalue(o).ToPointer(),
             LUA_VUSERDATA or LUA_VLIGHTUSERDATA => touserdata(o),
             _ => iscollectable(o) ? gcvalue(o) : null,
         };
@@ -672,7 +672,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static void lua_pushexternalstring(lua_State* L, byte* s, int len, lua_Alloc falloc, void* ud)
+    public static byte* lua_pushexternalstring(lua_State* L, byte* s, int len, AllocFunction falloc, void* ud)
     {
         lua_lock(L);
         TString* ts = luaS_newextlstr(L, s, len, falloc, ud);
@@ -680,10 +680,11 @@ public static unsafe partial class Lua
         api_incr_top(L);
         luaC_checkGC(L);
         lua_unlock(L);
+        return getstrptr(ts);
     }
 
     [Obsolete]
-    public static void lua_pushstring(lua_State* L, byte* s)
+    public static byte* lua_pushstring(lua_State* L, byte* s)
     {
         lua_lock(L);
         if (s == null)
@@ -694,11 +695,13 @@ public static unsafe partial class Lua
         {
             TString* ts = luaS_new(L, s);
             setsvalue2s(L, L->top.p, ts);
+            s = getstrptr(ts);
         }
 
         api_incr_top(L);
         luaC_checkGC(L);
         lua_unlock(L);
+        return s;
     }
 
     public static void lua_pushstring(lua_State* L, ReadOnlySpan<byte> s)
@@ -736,7 +739,16 @@ public static unsafe partial class Lua
         return ret;
     }
 
-    public static void lua_pushcclosure(lua_State* L, lua_CFunction fn, int n)
+    internal static byte* lua_pushfstring(lua_State* L, byte* fmt, IVarArgReader args)
+    {
+        lua_lock(L);
+        byte* ret = pushvfstring(L, args, fmt);
+        luaC_checkGC(L);
+        lua_unlock(L);
+        return ret;
+    }
+
+    public static void lua_pushcclosure(lua_State* L, CFunction fn, int n)
     {
         lua_lock(L);
         if (n == 0)
@@ -1520,17 +1532,16 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static lua_Alloc lua_getallocf(lua_State* L, out void* ud)
+    public static AllocFunction lua_getallocf(lua_State* L, out void* ud)
     {
-        lua_Alloc f;
         lua_lock(L);
         ud = G(L)->ud;
-        f = G(L)->frealloc;
+        AllocFunction f = G(L)->frealloc;
         lua_unlock(L);
         return f;
     }
 
-    public static void lua_setallocf(lua_State* L, lua_Alloc f, void* ud)
+    public static void lua_setallocf(lua_State* L, AllocFunction f, void* ud)
     {
         lua_lock(L);
         G(L)->ud = ud;

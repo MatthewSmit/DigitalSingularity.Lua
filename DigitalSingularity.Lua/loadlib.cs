@@ -1,20 +1,20 @@
 namespace DigitalSingularity.Lua;
 
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+
 public static unsafe partial class Lua
 {
     // $Id: loadlib.c $
     // Dynamic library loader for Lua
     // See Copyright Notice in lua.h
-    //
-    // This module contains an implementation of loadlib for Unix systems
-    // that have dlfcn, an implementation for Windows, and a stub for other
-    // systems.
 
-// prefix for open functions in C libraries
-// #define LUA_POF		"luaopen_"
-//
-// separator for open functions in C libraries
-// #define LUA_OFSEP	"_"
+    // prefix for open functions in C libraries
+    private const string LUA_POF = "luaopen_";
+
+    // separator for open functions in C libraries
+    private const string LUA_OFSEP = "_";
 
     /// <summary>
     /// key for table in the registry that keeps handles
@@ -22,100 +22,8 @@ public static unsafe partial class Lua
     /// </summary>
     private const string CLIBS = "_CLIBS";
 
-// #define LIB_FAIL	"open"
-//
-//
-// #define setprogdir(L)           ((void)0)
-//
-//
-// cast void* to a Lua function
-// #define cast_Lfunc(p)	cast(lua_CFunction, cast_func(p))
-//
-//
-//
-// system-dependent functions
-//
-//
-//
-// unload library 'lib'
-//
-// static void lsys_unloadlib (void *lib);
-//
-//
-// load C library in file 'path'. If 'seeglb', load with all names in
-// the library global.
-// Returns the library; in case of error, returns null plus an
-// error string in the stack.
-//
-// static void *lsys_load (lua_State *L, const char *path, int seeglb);
-//
-//
-// Try to find a function named 'sym' in library 'lib'.
-// Returns the function; in case of error, returns null plus an
-// error string in the stack.
-//
-// static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym);
-//
-//
-//
-//
-// #if defined(LUA_USE_DLOPEN) // {
-//
-// {========================================================================
-// This is an implementation of loadlib based on the dlfcn interface,
-// which is available in all POSIX systems.
-// =========================================================================
-//
-//
-// #include <dlfcn.h>
-//
-//
-// static void lsys_unloadlib (void *lib) {
-// dlclose(lib);
-// }
-//
-//
-// static void *lsys_load (lua_State *L, const char *path, int seeglb) {
-// void *lib = dlopen(path, RTLD_NOW | (seeglb ? RTLD_GLOBAL : RTLD_LOCAL));
-// if (l_unlikely(lib == null))
-// lua_pushstring(L, dlerror());
-// return lib;
-// }
-//
-//
-// static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
-// lua_CFunction f = cast_Lfunc(dlsym(lib, sym));
-// if (l_unlikely(f == null))
-// lua_pushstring(L, dlerror());
-// return f;
-// }
-//
-// }======================================================
-//
-//
-//
-// #elif defined(LUA_DL_DLL) // }{
-//
-// {======================================================================
-// This is an implementation of loadlib for Windows using native functions.
-// =======================================================================
-//
-//
-// #include <windows.h>
-//
-//
-//
-// optional flags for LoadLibraryEx
-//
-// #if !defined(LUA_LLE_FLAGS)
-// #define LUA_LLE_FLAGS	0
-// #endif
-//
-//
-// #undef setprogdir
-//
-//
-//
+    private const string LIB_FAIL = "open";
+    
 // Replace in the path (on the top of the stack) any occurrence
 // of LUA_EXEC_DIR with the executable's path.
 //
@@ -132,76 +40,6 @@ public static unsafe partial class Lua
 // lua_remove(L, -2); // remove original string
 // }
 // }
-//
-//
-//
-//
-// static void pusherror (lua_State *L) {
-// int error = GetLastError();
-// char buffer[128];
-// if (FormatMessageA(FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_FROM_SYSTEM,
-// null, error, 0, buffer, sizeof(buffer)/sizeof(char), null))
-// lua_pushstring(L, buffer);
-// else
-// lua_pushfstring(L, "system error %d\n", error);
-// }
-//
-// static void lsys_unloadlib (void *lib) {
-// FreeLibrary((HMODULE)lib);
-// }
-//
-//
-// static void *lsys_load (lua_State *L, const char *path, int seeglb) {
-// HMODULE lib = LoadLibraryExA(path, null, LUA_LLE_FLAGS);
-// (void)(seeglb); // not used: symbols are 'global' by default
-// if (lib == null) pusherror(L);
-// return lib;
-// }
-//
-//
-// static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
-// lua_CFunction f = cast_Lfunc(GetProcAddress((HMODULE)lib, sym));
-// if (f == null) pusherror(L);
-// return f;
-// }
-//
-// }======================================================
-//
-//
-// #else // }{
-//
-// {======================================================
-// Fallback for other systems
-// =======================================================
-//
-//
-// #undef LIB_FAIL
-// #define LIB_FAIL	"absent"
-//
-//
-// #define DLMSG	"dynamic libraries not enabled; check your Lua installation"
-//
-//
-// static void lsys_unloadlib (void *lib) {
-// (void)(lib); // not used
-// }
-//
-//
-// static void *lsys_load (lua_State *L, const char *path, int seeglb) {
-// (void)(path); (void)(seeglb); // not used
-// lua_pushliteral(L, DLMSG);
-// return null;
-// }
-//
-//
-// static lua_CFunction lsys_sym (lua_State *L, void *lib, const char *sym) {
-// (void)(lib); (void)(sym); // not used
-// lua_pushliteral(L, DLMSG);
-// return null;
-// }
-//
-// }======================================================
-// #endif // }
 
     // {==================================================================
     // Set Paths
@@ -270,75 +108,70 @@ public static unsafe partial class Lua
             lua_pushstring(L, path); // nothing to change
         }
 
+        // setprogdir(L); TODO?
         lua_setfield(L, -3, fieldname); // package[fieldname] = path value
         lua_pop(L, 1); // pop versioned variable name ('nver')
     }
 
-// }==================================================================
+    // External strings created by DLLs may need the DLL code to be
+    // deallocated. This implies that a DLL can only be unloaded after all
+    // its strings were deallocated. To ensure that, we create a 'library
+    // string' to represent each DLL, and when this string is deallocated
+    // it closes its corresponding DLL.
+    // (The string itself is irrelevant; its userdata is the DLL pointer.)
 
-//
-// External strings created by DLLs may need the DLL code to be
-// deallocated. This implies that a DLL can only be unloaded after all
-// its strings were deallocated. To ensure that, we create a 'library
-// string' to represent each DLL, and when this string is deallocated
-// it closes its corresponding DLL.
-// (The string itself is irrelevant; its userdata is the DLL pointer.)
-//
-//
-//
-//
-// return registry.CLIBS[path]
-//
-// static void *checkclib (lua_State *L, const char *path) {
-// void *plib;
-// lua_getfield(L, LUA_REGISTRYINDEX, CLIBS);
-// lua_getfield(L, -1, path);
-// plib = lua_touserdata(L, -1); // plib = CLIBS[path]
-// lua_pop(L, 2); // pop CLIBS table and 'plib'
-// return plib;
-// }
-//
-//
-//
-// Deallocate function for library strings.
-// Unload the DLL associated with the string being deallocated.
-//
-// static void *freelib (void *ud, void *ptr, size_t osize, size_t nsize) {
-// string itself is irrelevant and static
-// (void)ptr; (void)osize; (void)nsize;
-// lsys_unloadlib(ud); // unload library represented by the string
-// return null;
-// }
-//
-//
-//
-// Create a library string that, when deallocated, will unload 'plib'
-//
-// static void createlibstr (lua_State *L, void *plib) {
-// common content for all library strings
-// static const char dummy[] = "01234567890";
-// lua_pushexternalstring(L, dummy, sizeof(dummy) - 1, freelib, plib);
-// }
-//
-//
-//
-// registry.CLIBS[path] = plib          -- for queries.
-// Also create a reference to strlib, so that the library string will
-// only be collected when registry.CLIBS is collected.
-//
-// static void addtoclib (lua_State *L, const char *path, void *plib) {
-// lua_getfield(L, LUA_REGISTRYINDEX, CLIBS);
-// lua_pushlightuserdata(L, plib);
-// lua_setfield(L, -2, path); // CLIBS[path] = plib
-// createlibstr(L, plib);
-// luaL_ref(L, -2); // keep library string in CLIBS
-// lua_pop(L, 1); // pop CLIBS table
-// }
-//
-//
-// error codes for 'lookforfunc'
-// #define ERRLIB		1
-// #define ERRFUNC		2
+    /// <summary>
+    /// return registry.CLIBS[path]
+    /// </summary>
+    private static void* checkclib(lua_State* L, string path)
+    {
+        lua_getfield(L, LUA_REGISTRYINDEX, CLIBS);
+        lua_getfield(L, -1, path);
+        void* plib = lua_touserdata(L, -1); // plib = CLIBS[path]
+        lua_pop(L, 2); // pop CLIBS table and 'plib'
+        return plib;
+    }
+
+    /// <summary>
+    /// Deallocate function for library strings.
+    /// Unload the DLL associated with the string being deallocated.
+    /// </summary>
+    private static void* freelib(void* ud, void* ptr, long osize, long nsize)
+    { 
+        // string itself is irrelevant and static
+        NativeLibrary.Free((nint)ud); // unload library represented by the string
+        return null;
+    }
+
+    /// <summary>
+    /// Create a library string that, when deallocated, will unload 'plib'
+    /// </summary>
+    private static void createlibstr(lua_State* L, void* plib)
+    {
+        // common content for all library strings
+        lua_pushexternalstring(L, "01234567890"u8.ToPointer(), 11, AllocFunction.FromFunction(&freelib), plib);
+    }
+
+    /// <summary>
+    /// registry.CLIBS[path] = plib          -- for queries.
+    /// Also create a reference to strlib, so that the library string will
+    /// only be collected when registry.CLIBS is collected.
+    /// </summary>
+    private static void addtoclib(lua_State* L, string path, void* plib)
+    {
+        lua_getfield(L, LUA_REGISTRYINDEX, CLIBS);
+        lua_pushlightuserdata(L, plib);
+        lua_setfield(L, -2, path); // CLIBS[path] = plib
+        createlibstr(L, plib);
+        luaL_ref(L, -2); // keep library string in CLIBS
+        lua_pop(L, 1); // pop CLIBS table
+    }
+
+    // error codes for 'lookforfunc'
+    private const int ERRLIB = 1;
+    private const int ERRFUNC = 2;
+
+    private static void* nativeDll;
 
     /// <summary>
     /// Look for a C function named 'sym' in a dynamically loaded library
@@ -353,26 +186,68 @@ public static unsafe partial class Lua
     /// </summary>
     private static int lookforfunc(lua_State* L, string path, string sym)
     {
-        Console.WriteLine(path);
-        Console.WriteLine(sym);
-// void *reg = checkclib(L, path); // check loaded C libraries
-// if (reg == null) { // must load library?
-// reg = lsys_load(L, path, *sym == '*'); // global symbols if 'sym'=='*'
-// if (reg == null) return ERRLIB; // unable to load library
-// addtoclib(L, path, reg);
-// }
-// if (*sym == '*') { // loading only library (no function)?
-// lua_pushboolean(L, 1); // return 'true'
-// return 0; // no errors
-// }
-// else {
-// lua_CFunction f = lsys_sym(L, reg, sym);
-// if (f == null)
-// return ERRFUNC; // unable to find function
-// lua_pushcfunction(L, f); // else create new function
-// return 0; // no errors
-// }
-        throw new NotImplementedException();
+        void* reg = checkclib(L, path); // check loaded C libraries
+        if (reg == null)
+        {
+            if (nativeDll == null)
+            {
+                try
+                {
+                    nativeDll = (void*)NativeLibrary.Load(
+                        "lua55",
+                        Assembly.GetCallingAssembly(),
+                        DllImportSearchPath.ApplicationDirectory |
+                        DllImportSearchPath.AssemblyDirectory);
+                }
+                catch (Exception e)
+                {
+                    lua_pushstring(L, e.Message);
+                    return ERRLIB;
+                }
+            }
+
+            string s = Environment.CurrentDirectory;
+            
+            // must load library?
+            try
+            {
+                reg = (void*)NativeLibrary.Load(
+                    path,
+                    Assembly.GetCallingAssembly(),
+                    DllImportSearchPath.ApplicationDirectory |
+                    DllImportSearchPath.AssemblyDirectory |
+                    DllImportSearchPath.UserDirectories);
+            }
+            catch (Exception e)
+            {
+                lua_pushstring(L, e.Message);
+                return ERRLIB;
+            }
+
+            addtoclib(L, path, reg);
+        }
+
+        if (sym.StartsWith('*'))
+        {
+            // loading only library (no function)?
+            lua_pushboolean(L, true); // return 'true'
+            return 0; // no errors
+        }
+
+        CFunction f;
+        try
+        {
+            nint tmp = NativeLibrary.GetExport((nint)reg, sym);
+            f = CFunction.FromUnmanaged((delegate* unmanaged[Cdecl]<lua_State*, int>)tmp);
+        }
+        catch (Exception e)
+        {
+            lua_pushstring(L, e.Message);
+            return ERRFUNC;
+        }
+
+        lua_pushcfunction(L, f); // else create new function
+        return 0; // no errors
     }
 
     private static int ll_loadlib(lua_State* L)
@@ -388,9 +263,8 @@ public static unsafe partial class Lua
         // error; error message is on stack top
         luaL_pushfail(L);
         lua_insert(L, -2);
-        // lua_pushstring(L, stat == ERRLIB ? LIB_FAIL : "init");
-        // return 3; // return fail, error message, and where
-        throw new NotImplementedException();
+        lua_pushstring(L, stat == ERRLIB ? LIB_FAIL : "init");
+        return 3; // return fail, error message, and where
     }
 
     // {======================================================
@@ -572,21 +446,25 @@ public static unsafe partial class Lua
     /// </summary>
     private static int loadfunc(lua_State* L, string filename, string modname)
     {
-// const char *openfunc;
-// const char *mark;
-// modname = luaL_gsub(L, modname, ".", LUA_OFSEP);
-// mark = strchr(modname, *LUA_IGMARK);
-// if (mark) {
-// int stat;
-// openfunc = lua_pushlstring(L, modname, ct_diff2sz(mark - modname));
-// openfunc = lua_pushfstring(L, LUA_POF"%s", openfunc);
-// stat = lookforfunc(L, filename, openfunc);
-// if (stat != ERRFUNC) return stat;
-// modname = mark + 1; // else go ahead and try old-style name
-// }
-// openfunc = lua_pushfstring(L, LUA_POF"%s", modname);
-// return lookforfunc(L, filename, openfunc);
-        throw new NotImplementedException();
+        modname = luaL_gsub(L, modname, ".", LUA_OFSEP);
+        int mark = modname.IndexOf(LUA_IGMARK, StringComparison.InvariantCulture);
+        string openfunc;
+        if (mark >= 0)
+        {
+            openfunc = modname[..mark];
+            lua_pushlstring(L, openfunc);
+            openfunc = lua_pushfstring(L, LUA_POF + "%s", openfunc);
+            int stat = lookforfunc(L, filename, openfunc);
+            if (stat != ERRFUNC)
+            {
+                return stat;
+            }
+
+            modname = modname[(mark + 1)..]; // else go ahead and try old-style name
+        }
+
+        openfunc = lua_pushfstring(L, LUA_POF + "%s", modname);
+        return lookforfunc(L, filename, openfunc);
     }
 
     private static int searcher_C(lua_State* L)
@@ -603,29 +481,36 @@ public static unsafe partial class Lua
 
     private static int searcher_Croot(lua_State* L)
     {
-// const char *filename;
         ReadOnlySpan<byte> name = luaL_checkstring(L, 1);
-        ReadOnlySpan<byte> p = strchr(name, '.');
-// int stat;
-        if (p.IsEmpty)
+        int p = name.IndexOf((byte)'.');
+        if (p < 0)
         {
             return 0; // is root
         }
 
-        // lua_pushlstring(L, name, ct_diff2sz(p - name));
-// filename = findfile(L, lua_tostring(L, -1), "cpath", LUA_CSUBSEP);
-// if (filename == null) return 1; // root not found
-// if ((stat = loadfunc(L, filename, name)) != 0) {
-// if (stat != ERRFUNC)
-// return checkload(L, 0, filename); // real error
-// else { // open function not found
-// lua_pushfstring(L, "no module '%s' in file '%s'", name, filename);
-// return 1;
-// }
-// }
-// lua_pushstring(L, filename); // will be 2nd argument to module
-// return 2;
-        throw new NotImplementedException();
+        lua_pushlstring(L, name[..p]);
+        string? filename = findfile(L, lua_tonetstring(L, -1), "cpath", LUA_CSUBSEP);
+        if (filename == null)
+        {
+            return 1; // root not found
+        }
+
+        string names = Encoding.UTF8.GetString(name);
+        int stat = loadfunc(L, filename, names);
+        if (stat != 0)
+        {
+            if (stat != ERRFUNC)
+            {
+                return checkload(L, false, filename); // real error
+            }
+
+            // open function not found
+            lua_pushfstring(L, "no module '%s' in file '%s'", names, filename);
+            return 1;
+        }
+
+        lua_pushstring(L, filename); // will be 2nd argument to module
+        return 2;
     }
 
     private static int searcher_preload(lua_State* L)
@@ -731,27 +616,27 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] pk_funcs =
     [
-        new ("loadlib", &ll_loadlib),
-        new ("searchpath", &ll_searchpath),
+        new ("loadlib", CFunction.FromFunction(&ll_loadlib)),
+        new ("searchpath", CFunction.FromFunction(&ll_searchpath)),
         // placeholders
-        new ("preload", null),
-        new ("cpath", null),
-        new ("path", null),
-        new ("searchers", null),
-        new ("loaded", null),
+        new ("preload", default),
+        new ("cpath", default),
+        new ("path", default),
+        new ("searchers", default),
+        new ("loaded", default),
     ];
 
     private static readonly luaL_Reg[] ll_funcs =
     [
-        new("require", &ll_require),
+        new("require", CFunction.FromFunction(&ll_require)),
     ];
 
-    private static readonly lua_CFunction[] searchers =
+    private static readonly CFunction[] searchers =
     [
-        &searcher_preload,
-        &searcher_Lua,
-        &searcher_C,
-        &searcher_Croot,
+        CFunction.FromFunction(&searcher_preload),
+        CFunction.FromFunction(&searcher_Lua),
+        CFunction.FromFunction(&searcher_C),
+        CFunction.FromFunction(&searcher_Croot),
     ];
 
     private static void createsearcherstable(lua_State* L)

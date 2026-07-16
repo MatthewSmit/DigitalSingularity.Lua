@@ -295,7 +295,7 @@ else
   -- test C modules with prefixes in names
   package.cpath = DC"?"
   local lib2, ext = require"lib2-v2"
-  assert(string.find(ext, "libs/lib2-v2", 1, true))
+  assert(string.find(ext:gsub('\\', '/'), "libs/lib2-v2", 1, true))
   -- check correct access to global environment and correct
   -- parameters
   assert(_ENV.x == "lib2-v2" and _ENV.y == DC"lib2-v2")
@@ -304,7 +304,7 @@ else
   -- test C submodules
   local fs, ext = require"lib1.sub"
   assert(_ENV.x == "lib1.sub" and _ENV.y == DC"lib1")
-  assert(string.find(ext, "libs/lib1", 1, true))
+  assert(string.find(ext:gsub('\\', '/'), "libs/lib1", 1, true))
   assert(fs.id(45) == 45)
   _ENV.x, _ENV.y = nil
 end

@@ -1,5 +1,5 @@
 
-local write, char, unpack = io.write, string.char, unpack
+local write, char, unpack = io.write, string.char, table.unpack
 local N = tonumber(arg and arg[1]) or 100
 local M, ba, bb, buf = 2/N, 2^(N%8+1)-1, 2^(8-N%8), {}
 write("P4\n", N, " ", N, "\n")

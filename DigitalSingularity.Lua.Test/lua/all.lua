@@ -155,8 +155,6 @@ local dofile = function (n, strip)
   return f()
 end
 
-dofile('main.lua')
-
 -- trace GC cycles
 require"tracegc".start()
 

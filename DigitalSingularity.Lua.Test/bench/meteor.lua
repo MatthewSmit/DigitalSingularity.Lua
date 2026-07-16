@@ -206,7 +206,7 @@ local f93 = f91
   end
 
   -- Compile and return solver function and result getter.
-  return loadstring(s.."return f0, printresult\n", "solver")(countinit)
+  return load(s.."return f0, printresult\n", "solver")(countinit)
 end
 
 -- Generate the solver function hierarchy.

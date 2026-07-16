@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
@@ -9,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DigitalSingularity.Lua\DigitalSingularity.Lua.csproj" />
+        <ProjectReference Include="..\DigitalSingularity.Lua.Native\DigitalSingularity.Lua.Native.csproj" />
+        <ProjectReference Include="..\DigitalSingularity.Lua\DigitalSingularity.Lua.csproj" />
     </ItemGroup>
-
 </Project>

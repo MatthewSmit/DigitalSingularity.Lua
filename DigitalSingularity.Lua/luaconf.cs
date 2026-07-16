@@ -258,12 +258,6 @@ public static unsafe partial class Lua
 //
 // now the variable definitions
 
-// #define LUA_NUMBER	double
-//
-// #define l_floatatt(n)		(DBL_##n)
-//
-// #define LUAI_UACNUMBER	double
-
 // #define LUA_NUMBER_FRMLEN	""
 // #define LUA_NUMBER_FMT		"%.15g"
 // #define LUA_NUMBER_FMT_N	"%.17g"

@@ -477,7 +477,7 @@ public static unsafe partial class Lua
     /// </summary>
     internal struct global_State
     {
-        public lua_Alloc frealloc; // function to reallocate memory
+        public AllocFunction frealloc; // function to reallocate memory
         public void* ud; // auxiliary data to 'frealloc'
         public long GCtotalbytes; // number of bytes currently allocated + debt
         public long GCdebt; // bytes counted but not yet allocated
@@ -513,11 +513,11 @@ public static unsafe partial class Lua
         public GCObject* old1; // start of old1 objects
         public GCObject* reallyold; // objects more than one cycle old ("really old")
         public GCObject* firstold1; // first OLD1 object in the list (if any)
-        public GCObject* finobjsur; // list of survival objects with finalizers
-        public GCObject* finobjold1; // list of old1 objects with finalizers
-        public GCObject* finobjrold; // list of really old objects with finalizers
+        public GCObject* finobjsur; // list of survival objects with finalisers
+        public GCObject* finobjold1; // list of old1 objects with finalisers
+        public GCObject* finobjrold; // list of really old objects with finalisers
         public lua_State* twups; // list of threads with open upvalues
-        public lua_CFunction panic; // to be called in unprotected errors
+        public CFunction panic; // to be called in unprotected errors
         public TString* memerrmsg; // message for memory-allocation errors
         public TStringTagWrapper tmname; // array with tag-method names
         public TableArrayWrapper mt; // metatables for basic types
@@ -965,7 +965,7 @@ public static unsafe partial class Lua
         luaM_freearray(L, G(L)->strt.hash, G(L)->strt.size);
         freestack(L);
         Debug.Assert(gettotalbytes(g) == sizeof(global_State));
-        g->frealloc(g->ud, g, sizeof(global_State), 0); // free main block
+        g->frealloc.Call(g->ud, g, sizeof(global_State), 0); // free main block
     }
 
     public static lua_State* lua_newthread(lua_State* L)
@@ -1042,11 +1042,11 @@ public static unsafe partial class Lua
     }
 
     public static lua_State* lua_newstate(
-        lua_Alloc f,
+        AllocFunction f,
         void* ud,
         uint seed)
     {
-        global_State* g = (global_State*)f(ud, null, LUA_TTHREAD, sizeof(global_State));
+        global_State* g = (global_State*)f.Call(ud, null, LUA_TTHREAD, sizeof(global_State));
         if (g == null)
         {
             return null;
@@ -1069,7 +1069,7 @@ public static unsafe partial class Lua
         g->strt.size = g->strt.nuse = 0;
         g->strt.hash = null;
         setnilvalue(&g->l_registry);
-        g->panic = null;
+        g->panic = default;
         g->gcstate = GCSpause;
         g->gckind = KGC_INC;
         g->gcstopem = false;

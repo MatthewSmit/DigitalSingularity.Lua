@@ -1,7 +1,6 @@
 ﻿global using unsafe lua_Alloc = delegate* managed<void*, void*, long, long, void*>;
 global using unsafe lua_Hook = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, ref DigitalSingularity.Lua.Lua.lua_Debug, void>;
 global using unsafe lua_WarnFunction = delegate* managed<void*, System.ReadOnlySpan<char>, bool, void>;
-global using unsafe lua_CFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int>;
 global using unsafe lua_KFunction = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, int, nint, int>;
 global using unsafe StkId = DigitalSingularity.Lua.Lua.StackValue*;
 global using unsafe lua_Reader = delegate* managed<DigitalSingularity.Lua.Lua.lua_State*, void*, out long, byte*>;
@@ -11,7 +10,6 @@ namespace DigitalSingularity.Lua;
 
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Text;
 
 public static unsafe partial class Lua
 {
@@ -86,20 +84,11 @@ public static unsafe partial class Lua
     private static byte LUA_RIDX_MAINTHREAD = 3;
     private static byte LUA_RIDX_LAST = 3;
 
-// type of numbers in Lua TODO
-// typedef LUA_NUMBER double;
-//
-//
 // type for integer functions
 // typedef LUA_INTEGER long;
 //
 // unsigned integer type
 // typedef LUA_UNSIGNED lua_Unsigned;
-
-//
-// Type for continuation functions TODO
-//
-// typedef int (*lua_KFunction) (lua_State *L, int status, nint ctx);
 
     // Comparison and arithmetic functions
 
@@ -201,13 +190,13 @@ public static unsafe partial class Lua
         lua_createtable(L, 0, 0);
     }
 
-    public static void lua_register(lua_State* L, string n, lua_CFunction f)
+    public static void lua_register(lua_State* L, string n, CFunction f)
     {
         lua_pushcfunction(L, f);
         lua_setglobal(L, n);
     }
 
-    public static void lua_pushcfunction(lua_State* L, lua_CFunction f)
+    public static void lua_pushcfunction(lua_State* L, CFunction f)
     {
         lua_pushcclosure(L, f, 0);
     }

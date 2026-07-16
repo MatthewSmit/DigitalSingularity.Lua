@@ -1337,184 +1337,6 @@ public static unsafe partial class Lua
     // Function 'luaV_execute': main interpreter loop
     // ===================================================================
 
-    // some macros for common tasks in 'luaV_execute'
-
-    private static StkId RA(ref ExecuteState state)
-    {
-        return state.@base + GETARG_A(state.i);
-    }
-
-    private static StkId RA(ref ExecuteState state, uint i)
-    {
-        return state.@base + GETARG_A(i);
-    }
-
-    private static TValue* vRA(ref ExecuteState state)
-    {
-        return s2v(RA(ref state));
-    }
-
-    private static StkId RB(ref ExecuteState state)
-    {
-        return state.@base + GETARG_B(state.i);
-    }
-
-    private static TValue* vRB(ref ExecuteState state)
-    {
-        return s2v(RB(ref state));
-    }
-
-    private static TValue* KB(ref ExecuteState state)
-    {
-        return state.k + GETARG_B(state.i);
-    }
-
-    private static StkId RC(ref ExecuteState state)
-    {
-        return state.@base + GETARG_C(state.i);
-    }
-
-    private static TValue* vRC(ref ExecuteState state)
-    {
-        return s2v(RC(ref state));
-    }
-
-    private static TValue* KC(ref ExecuteState state)
-    {
-        return state.k + GETARG_C(state.i);
-    }
-
-    private static TValue* RKC(ref ExecuteState state)
-    {
-        return TESTARG_k(state.i) ? state.k + GETARG_C(state.i) : s2v(state.@base + GETARG_C(state.i));
-    }
-
-    private static void updatetrap(ref ExecuteState state)
-    {
-        state.trap = state.ci->u.l.trap;
-    }
-
-    private static void updatebase(ref ExecuteState state)
-    {
-        state.@base = state.ci->func.p + 1;
-    }
-
-    private static void updatestack(ref ExecuteState state, ref StkId ra)
-    {
-        if (state.trap != 0)
-        {
-            updatebase(ref state);
-            ra = state.@base + GETARG_A(state.i);
-        }
-    }
-
-    /// <summary>
-    /// Execute a jump instruction. The 'updatetrap' allows signals to stop
-    /// tight loops. (Without it, the local copy of 'trap' could never change.)
-    /// </summary>
-    private static void dojump(ref ExecuteState state, uint i, int e)
-    {
-        state.pc += GETARG_sJ(i) + e;
-        updatetrap(ref state);
-    }
-
-    /// <summary>
-    /// for test instructions, execute the jump instruction that follows it
-    /// </summary>
-    private static void donextjump(ref ExecuteState state)
-    {
-        uint ni = *state.pc;
-        dojump(ref state, ni, 1);
-    }
-
-    /// <summary>
-    /// do a conditional jump: skip next instruction if 'cond' is not what
-    /// was expected (parameter 'k'), else do next instruction, which must
-    /// be a jump.
-    /// </summary>
-    private static void docondjump(ref ExecuteState state)
-    {
-        if (state.cond != GETARG_k(state.i))
-        {
-            state.pc++;
-        }
-        else
-        {
-            donextjump(ref state);
-        }
-    }
-
-    /// <summary>
-    /// Correct global 'pc'.
-    /// </summary>
-    private static void savepc(ref ExecuteState state)
-    {
-        state.ci->u.l.savedpc = state.pc;
-    }
-
-    /// <summary>
-    /// Whenever code can raise errors, the global 'pc' and the global
-    /// 'top' must be correct to report occasional errors.
-    /// </summary>
-    private static void savestate(ref ExecuteState state)
-    {
-        state.ci->u.l.savedpc = state.pc;
-        state.L->top.p = state.ci->top.p;
-    }
-
-    /// <summary>
-    /// Protect code that, in general, can raise errors, reallocate the
-    /// stack, and change the hooks.
-    /// </summary>
-    private static void Protect(ref ExecuteState state, Execute exp)
-    {
-        savestate(ref state);
-        exp(ref state);
-        updatetrap(ref state);
-    }
-
-    private static void Protect(ref ExecuteState state, Action exp)
-    {
-        savestate(ref state);
-        exp();
-        updatetrap(ref state);
-    }
-
-    private delegate void Execute(ref ExecuteState state);
-
-    /// <summary>
-    /// special version that does not change the top
-    /// </summary>
-    private static void ProtectNT(ref ExecuteState state, Execute exp)
-    {
-        savepc(ref state);
-        exp(ref state);
-        updatetrap(ref state);
-    }
-
-    private static void ProtectNT(ref ExecuteState state, Action exp)
-    {
-        savepc(ref state);
-        exp();
-        updatetrap(ref state);
-    }
-
-    /// <summary>
-    /// Protect code that can only raise errors. (That is, it cannot change
-    /// the stack or hooks.)
-    /// </summary>
-    private static void halfProtect(ref ExecuteState state, Execute exp)
-    {
-        savestate(ref state);
-        exp(ref state);
-    }
-
-    private static void halfProtect(ref ExecuteState state, Action exp)
-    {
-        savestate(ref state);
-        exp();
-    }
-
     /// <summary>
     /// macro executed during Lua functions at points where the
     /// function can yield.
@@ -1525,165 +1347,118 @@ public static unsafe partial class Lua
         lua_lock(L);
     }
 
-    /// <summary>
-    /// 'c' is the limit of live values in the stack
-    /// </summary>
-    private static void checkGC(ref ExecuteState state, StkId c)
+    private static void luaV_execute(lua_State* L, CallInfo* ci)
     {
-        if (G(state.L)->GCdebt <= 0)
-        {
-            state.ci->u.l.savedpc = state.pc;
-            state.L->top.p = c;
-            luaC_step(state.L);
-            updatetrap(ref state);
-        }
-
-#if HARDMEMTESTS
-        if (gcrunning(G(state.L)))
-        {
-            state.ci->u.l.savedpc = state.pc;
-            state.L->top.p = c;
-            luaC_fullgc(state.L, false);
-            updatetrap(ref state);
-        }
-#endif
-
-        luai_threadyield(state.L);
-    }
-
-    private static void vmfetch(ref ExecuteState state)
-    {
-        if (state.trap != 0)
-        {
-            // stack reallocation or hooks?
-            state.trap = (byte)(luaG_traceexec(state.L, state.pc) ? 1 : 0); // handle hooks
-            updatebase(ref state); // correct stack
-        }
-
-        state.i = *state.pc++;
-    }
-
-    private struct ExecuteState
-    {
-        public lua_State* L;
-        public CallInfo* ci;
-        public LClosure* cl;
-        public TValue* k;
-        public StkId @base;
-        public uint* pc;
-        public byte trap;
-        public uint i; // instruction being executed
-        public bool cond;
-    }
-
-    private static void luaV_execute(lua_State* L, CallInfo* cix)
-    {
-        ExecuteState state = default;
-        state.L = L;
-        state.ci = cix;
         startfunc:
-        state.trap = L->hookmask;
+        byte trap = L->hookmask;
         returning: // trap already set
-        state.cl = ci_func(state.ci);
-        state.k = state.cl->p->k;
-        state.pc = state.ci->u.l.savedpc;
-        if (state.trap != 0)
+        LClosure* cl = ci_func(ci);
+        TValue* k = cl->p->k;
+        uint* pc = ci->u.l.savedpc;
+        if (trap != 0)
         {
-            state.trap = (byte)(luaG_tracecall(L) ? 1 : 0);
+            trap = (byte)(luaG_tracecall(L) ? 1 : 0);
         }
 
-        state.@base = state.ci->func.p + 1;
+        StkId @base = ci->func.p + 1;
         // main loop of interpreter
         while (true)
         {
-            vmfetch(ref state);
+            if (trap != 0)
+            {
+                // stack reallocation or hooks?
+                trap = (byte)(luaG_traceexec(L, pc) ? 1 : 0); // handle hooks
+                @base = ci->func.p + 1; // correct stack
+            }
+
+            uint i = *pc++;
 #if false
             {
                 // low-level line tracing for debugging Lua
-                int pcrel = pcRel(state.pc, state.cl->p);
+                int pcrel = pcRel(pc, cl->p);
                 Console.WriteLine(
                     "line: {0}; {1} ({2})",
-                    luaG_getfuncline(state.cl->p, pcrel),
-                    opnames[(int)GET_OPCODE(state.i)],
+                    luaG_getfuncline(cl->p, pcrel),
+                    opnames[(int)GET_OPCODE(i)],
                     pcrel);
             }
 #endif
-            Debug.Assert(state.@base == state.ci->func.p + 1);
-            Debug.Assert(state.@base <= L->top.p && L->top.p <= L->stack_last.p);
+            Debug.Assert(@base == ci->func.p + 1);
+            Debug.Assert(@base <= L->top.p && L->top.p <= L->stack_last.p);
             // for tests, invalidate top for instructions not expecting it
-            if (!luaP_isIT(state.i))
+            if (!luaP_isIT(i))
             {
-                L->top.p = state.@base;
+                L->top.p = @base;
             }
 
-            switch (GET_OPCODE(state.i))
+            switch (GET_OPCODE(i))
             {
                 case OpCode.Move:
                     {
-                        StkId ra = RA(ref state);
-                        setobjs2s(L, ra, RB(ref state));
+                        StkId ra = @base + GETARG_A(i);
+                        setobjs2s(L, ra, @base + GETARG_B(i));
                         break;
                     }
 
                 case OpCode.LoadI:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_sBx(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_sBx(i);
                         setivalue(s2v(ra), b);
                         break;
                     }
 
                 case OpCode.LoadF:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_sBx(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_sBx(i);
                         setfltvalue(s2v(ra), b);
                         break;
                     }
 
                 case OpCode.LoadK:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = state.k + GETARG_Bx(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = k + GETARG_Bx(i);
                         setobj2s(L, ra, rb);
                         break;
                     }
 
                 case OpCode.LoadKX:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = state.k + GETARG_Ax(*state.pc);
-                        state.pc++;
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = k + GETARG_Ax(*pc);
+                        pc++;
                         setobj2s(L, ra, rb);
                         break;
                     }
 
                 case OpCode.LoadFalse:
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         setbfvalue(s2v(ra));
                         break;
                     }
 
                 case OpCode.LFalseSkip:
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         setbfvalue(s2v(ra));
-                        state.pc++; // skip next instruction
+                        pc++; // skip next instruction
                         break;
                     }
 
                 case OpCode.LoadTrue:
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         setbtvalue(s2v(ra));
                         break;
                     }
 
                 case OpCode.LoadNil:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_B(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_B(i);
                         do
                         {
                             setnilvalue(s2v(ra++));
@@ -1694,16 +1469,16 @@ public static unsafe partial class Lua
 
                 case OpCode.GetUpVal:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_B(state.i);
-                        setobj2s(L, ra, LClosure.GetUpValue(state.cl, b)->v.p);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_B(i);
+                        setobj2s(L, ra, LClosure.GetUpValue(cl, b)->v.p);
                         break;
                     }
 
                 case OpCode.SetUpVal:
                     {
-                        StkId ra = RA(ref state);
-                        UpVal* uv = LClosure.GetUpValue(state.cl, GETARG_B(state.i));
+                        StkId ra = @base + GETARG_A(i);
+                        UpVal* uv = LClosure.GetUpValue(cl, GETARG_B(i));
                         setobj(L, uv->v.p, s2v(ra));
                         luaC_barrier(L, (GCObject*)uv, s2v(ra));
                         break;
@@ -1711,14 +1486,17 @@ public static unsafe partial class Lua
 
                 case OpCode.GetTabUp:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* upval = LClosure.GetUpValue(state.cl, GETARG_B(state.i))->v.p;
-                        TValue* rc = KC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* upval = LClosure.GetUpValue(cl, GETARG_B(i))->v.p;
+                        TValue* rc = k + GETARG_C(i);
                         TString* key = tsvalue(rc); // key must be a short string
                         byte tag = !ttistable(upval) ? LUA_VNOTABLE : luaH_getshortstr(hvalue(upval), key, s2v(ra));
                         if (tagisempty(tag))
                         {
-                            Protect(ref state, () => luaV_finishget(L, upval, rc, ra, tag));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishget(L, upval, rc, ra, tag);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1726,9 +1504,9 @@ public static unsafe partial class Lua
 
                 case OpCode.GetTable:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        TValue* rc = vRC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        TValue* rc = s2v(@base + GETARG_C(i));
                         byte tag;
                         if (ttisinteger(rc))
                         {
@@ -1742,7 +1520,10 @@ public static unsafe partial class Lua
 
                         if (tagisempty(tag))
                         {
-                            Protect(ref state, () => luaV_finishget(L, rb, rc, ra, tag));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishget(L, rb, rc, ra, tag);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1750,16 +1531,19 @@ public static unsafe partial class Lua
 
                 case OpCode.GetI:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        int c = (int)GETARG_C(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        int c = (int)GETARG_C(i);
                         luaV_fastgeti(rb, c, s2v(ra), out byte tag);
                         if (tagisempty(tag))
                         {
                             TValue key;
                             TValue* keyPtr = &key;
                             setivalue(keyPtr, c);
-                            Protect(ref state, () => luaV_finishget(L, rb, keyPtr, ra, tag));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishget(L, rb, keyPtr, ra, tag);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1767,14 +1551,17 @@ public static unsafe partial class Lua
 
                 case OpCode.GetField:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        TValue* rc = KC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        TValue* rc = k + GETARG_C(i);
                         TString* key = tsvalue(rc); // key must be a short string
                         byte tag = !ttistable(rb) ? LUA_VNOTABLE : luaH_getshortstr(hvalue(rb), key, s2v(ra));
                         if (tagisempty(tag))
                         {
-                            Protect(ref state, () => luaV_finishget(L, rb, rc, ra, tag));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishget(L, rb, rc, ra, tag);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1782,9 +1569,9 @@ public static unsafe partial class Lua
 
                 case OpCode.SetTabUp:
                     {
-                        TValue* upval = LClosure.GetUpValue(state.cl, GETARG_A(state.i))->v.p;
-                        TValue* rb = KB(ref state);
-                        TValue* rc = RKC(ref state);
+                        TValue* upval = LClosure.GetUpValue(cl, GETARG_A(i))->v.p;
+                        TValue* rb = k + GETARG_B(i);
+                        TValue* rc = TESTARG_k(i) ? k + GETARG_C(i) : s2v(@base + GETARG_C(i));
                         TString* key = tsvalue(rb); // key must be a short string
                         int hres = !ttistable(upval) ? HNOTATABLE : luaH_psetshortstr(hvalue(upval), key, rc);
                         if (hres == HOK)
@@ -1793,7 +1580,10 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            Protect(ref state, () => luaV_finishset(L, upval, rb, rc, hres));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishset(L, upval, rb, rc, hres);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1801,9 +1591,9 @@ public static unsafe partial class Lua
 
                 case OpCode.SetTable:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state); // key (table is in 'ra')
-                        TValue* rc = RKC(ref state); // value
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i)); // key (table is in 'ra')
+                        TValue* rc = TESTARG_k(i) ? k + GETARG_C(i) : s2v(@base + GETARG_C(i)); // value
 
                         int hres;
                         if (ttisinteger(rb))
@@ -1822,7 +1612,10 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            Protect(ref state, () => luaV_finishset(L, s2v(ra), rb, rc, hres));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishset(L, s2v(ra), rb, rc, hres);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1830,9 +1623,9 @@ public static unsafe partial class Lua
 
                 case OpCode.SetI:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_B(state.i);
-                        TValue* rc = RKC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_B(i);
+                        TValue* rc = TESTARG_k(i) ? k + GETARG_C(i) : s2v(@base + GETARG_C(i));
                         luaV_fastseti(s2v(ra), b, rc, out int hres);
                         if (hres == HOK)
                         {
@@ -1843,16 +1636,19 @@ public static unsafe partial class Lua
                             TValue key;
                             TValue* keyPtr = &key;
                             setivalue(keyPtr, b);
-                            Protect(ref state, () => luaV_finishset(L, s2v(ra), keyPtr, rc, hres));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishset(L, s2v(ra), keyPtr, rc, hres);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
                     }
                 case OpCode.SetField:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = KB(ref state);
-                        TValue* rc = RKC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = k + GETARG_B(i);
+                        TValue* rc = TESTARG_k(i) ? k + GETARG_C(i) : s2v(@base + GETARG_C(i));
                         TString* key = tsvalue(rb); // key must be a short string
                         int hres = !ttistable(s2v(ra)) ? HNOTATABLE : luaH_psetshortstr(hvalue(s2v(ra)), key, rc);
                         if (hres == HOK)
@@ -1861,7 +1657,10 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            Protect(ref state, () => luaV_finishset(L, s2v(ra), rb, rc, hres));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishset(L, s2v(ra), rb, rc, hres);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1869,23 +1668,23 @@ public static unsafe partial class Lua
 
                 case OpCode.NewTable:
                     {
-                        StkId ra = RA(ref state);
-                        uint b = (uint)GETARG_vB(state.i); // log2(hash size) + 1
-                        uint c = (uint)GETARG_vC(state.i); // array size
+                        StkId ra = @base + GETARG_A(i);
+                        uint b = (uint)GETARG_vB(i); // log2(hash size) + 1
+                        uint c = (uint)GETARG_vC(i); // array size
                         if (b > 0)
                         {
                             b = 1u << (int)(b - 1); // hash size is 2^(b - 1)
                         }
 
-                        if (TESTARG_k(state.i))
+                        if (TESTARG_k(i))
                         {
                             // non-zero extra argument?
-                            Debug.Assert(GETARG_Ax(*state.pc) != 0);
+                            Debug.Assert(GETARG_Ax(*pc) != 0);
                             // add it to array size
-                            c += (uint)GETARG_Ax(*state.pc) * (MAXARG_vC + 1);
+                            c += (uint)GETARG_Ax(*pc) * (MAXARG_vC + 1);
                         }
 
-                        state.pc++; // skip extra argument
+                        pc++; // skip extra argument
                         L->top.p = ra + 1; // correct top in case of emergency GC
                         Table* t = luaH_new(L) ; // memory allocation
                         sethvalue2s(L, ra, t);
@@ -1894,21 +1693,42 @@ public static unsafe partial class Lua
                             luaH_resize(L, t, c, b); // idem
                         }
 
-                        checkGC(ref state, ra + 1);
+                        if (G(L)->GCdebt <= 0)
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ra + 1;
+                            luaC_step(L);
+                            trap = ci->u.l.trap;
+                        }
+
+#if HARDMEMTESTS
+                        if (gcrunning(G(L)))
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ra + 1;
+                            luaC_fullgc(L, false);
+                            trap = ci->u.l.trap;
+                        }
+#endif
+
+                        luai_threadyield(L);
                         break;
                     }
 
                 case OpCode.Self:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        TValue* rc = KC(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        TValue* rc = k + GETARG_C(i);
                         TString* key = tsvalue(rc); // key must be a short string
                         setobj2s(L, ra + 1, rb);
                         byte tag = !ttistable(rb) ? LUA_VNOTABLE : luaH_getshortstr(hvalue(rb), key, s2v(ra));
                         if (tagisempty(tag))
                         {
-                            Protect(ref state, () => luaV_finishget(L, rb, rc, ra, tag));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaV_finishget(L, rb, rc, ra, tag);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -1916,20 +1736,20 @@ public static unsafe partial class Lua
 
                 case OpCode.AddI:
                     {
-                        TValue* ra = vRA(ref state);
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        int imm = (int)GETARG_sC(state.i);
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        int imm = (int)GETARG_sC(i);
                         if (ttisinteger(v1))
                         {
                             long iv1 = ivalue(v1);
-                            state.pc++;
+                            pc++;
                             setivalue(ra, iv1 + imm);
                         }
                         else if (ttisfloat(v1))
                         {
                             double nb = fltvalue(v1);
                             double fimm = imm;
-                            state.pc++;
+                            pc++;
                             setfltvalue(ra, nb + fimm);
                         }
                         
@@ -1938,21 +1758,21 @@ public static unsafe partial class Lua
 
                 case OpCode.AddK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 + i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 + n2);
                         }
 
@@ -1961,21 +1781,21 @@ public static unsafe partial class Lua
 
                 case OpCode.SubK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 - i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 - n2);
                         }
 
@@ -1984,21 +1804,21 @@ public static unsafe partial class Lua
 
                 case OpCode.MulK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 * i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 * n2);
                         }
 
@@ -2007,22 +1827,23 @@ public static unsafe partial class Lua
 
                 case OpCode.ModK:
                     {
-                        savestate(ref state); // in case of division by 0
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_mod(L, i1, i2));
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), luaV_modf(L, n1, n2));
                         }
 
@@ -2031,13 +1852,13 @@ public static unsafe partial class Lua
 
                 case OpCode.PowK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n2 == 2 ? n1 * n1 : Math.Pow(n1, n2));
                         }
 
@@ -2046,13 +1867,13 @@ public static unsafe partial class Lua
 
                 case OpCode.DivK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 / n2);
                         }
 
@@ -2061,22 +1882,23 @@ public static unsafe partial class Lua
 
                 case OpCode.IDivK:
                     {
-                        savestate(ref state); // in case of division by 0
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         Debug.Assert(ttisnumber(v2));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_idiv(L, i1, i2));
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), Math.Floor(n1 / n2));
                         }
 
@@ -2085,13 +1907,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BAndK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         long i2 = ivalue(v2);
                         if (tointegerns(v1, out long i1))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 & i2);
                         }
 
@@ -2100,13 +1922,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BOrK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         long i2 = ivalue(v2);
                         if (tointegerns(v1, out long i1))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 | i2);
                         }
 
@@ -2115,13 +1937,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BXorK:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = KC(ref state);
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = k + GETARG_C(i);
                         long i2 = ivalue(v2);
                         if (tointegerns(v1, out long i1))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 ^ i2);
                         }
 
@@ -2130,12 +1952,12 @@ public static unsafe partial class Lua
 
                 case OpCode.ShlI:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        int ic = (int)GETARG_sC(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        int ic = (int)GETARG_sC(i);
                         if (tointegerns(rb, out long ib))
                         {
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_shiftl(ic, ib));
                         }
 
@@ -2144,12 +1966,12 @@ public static unsafe partial class Lua
 
                 case OpCode.ShrI:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        int ic = (int)GETARG_sC(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        int ic = (int)GETARG_sC(i);
                         if (tointegerns(rb, out long ib))
                         {
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_shiftl(ib, -ic));
                         }
 
@@ -2158,20 +1980,20 @@ public static unsafe partial class Lua
 
                 case OpCode.Add:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 + i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 + n2);
                         }
 
@@ -2180,20 +2002,20 @@ public static unsafe partial class Lua
 
                 case OpCode.Sub:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 - i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 - n2);
                         }
 
@@ -2202,20 +2024,20 @@ public static unsafe partial class Lua
 
                 case OpCode.Mul:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), i1 * i2);
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 * n2);
                         }
 
@@ -2224,21 +2046,22 @@ public static unsafe partial class Lua
 
                 case OpCode.Mod:
                     {
-                        savestate(ref state); // in case of division by 0
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_mod(L, i1, i2));
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), luaV_modf(L, n1, n2));
                         }
 
@@ -2247,12 +2070,12 @@ public static unsafe partial class Lua
 
                 case OpCode.Pow:
                     {
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n2 == 2 ? n1 * n1 : Math.Pow(n1, n2));
                         }
 
@@ -2262,12 +2085,12 @@ public static unsafe partial class Lua
                 case OpCode.Div:
                     {
                         // float division (always with floats)
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), n1 / n2);
                         }
 
@@ -2277,21 +2100,22 @@ public static unsafe partial class Lua
                 case OpCode.IDiv:
                     {
                         // floor division
-                        savestate(ref state); // in case of division by 0
-                        TValue* v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        TValue* v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
                         if (ttisinteger(v1) && ttisinteger(v2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
+                            StkId ra = @base + GETARG_A(i);
                             long i1 = ivalue(v1);
                             long i2 = ivalue(v2);
-                            state.pc++;
+                            pc++;
                             setivalue(s2v(ra), luaV_idiv(L, i1, i2));
                         }
                         else if (tonumberns(v1, out double n1) && tonumberns(v2, out double n2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setfltvalue(s2v(ra), Math.Floor(n1 / n2));
                         }
 
@@ -2300,13 +2124,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BAnd:
                     {
-                        TValue *v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue *v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
 
                         if (tointegerns(v1, out long i1) && tointegerns(v2, out long i2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 & i2);
                         }
 
@@ -2315,13 +2139,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BOr:
                     {
-                        TValue *v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue *v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
 
                         if (tointegerns(v1, out long i1) && tointegerns(v2, out long i2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 | i2);
                         }
 
@@ -2330,13 +2154,13 @@ public static unsafe partial class Lua
 
                 case OpCode.BXor:
                     {
-                        TValue *v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue *v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
 
                         if (tointegerns(v1, out long i1) && tointegerns(v2, out long i2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), i1 ^ i2);
                         }
 
@@ -2345,13 +2169,13 @@ public static unsafe partial class Lua
 
                 case OpCode.Shl:
                     {
-                        TValue *v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue *v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
 
                         if (tointegerns(v1, out long i1) && tointegerns(v2, out long i2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), luaV_shiftl(i1, i2));
                         }
 
@@ -2360,13 +2184,13 @@ public static unsafe partial class Lua
 
                 case OpCode.Shr:
                     {
-                        TValue *v1 = s2v(state.@base + GETARG_B(state.i));
-                        TValue* v2 = s2v(state.@base + GETARG_C(state.i));
+                        TValue *v1 = s2v(@base + GETARG_B(i));
+                        TValue* v2 = s2v(@base + GETARG_C(i));
 
                         if (tointegerns(v1, out long i1) && tointegerns(v2, out long i2))
                         {
-                            StkId ra = state.@base + GETARG_A(state.i);
-                            state.pc++;
+                            StkId ra = @base + GETARG_A(i);
+                            pc++;
                             setivalue(s2v(ra), luaV_shiftr(i1, i2));
                         }
 
@@ -2375,44 +2199,53 @@ public static unsafe partial class Lua
 
                 case OpCode.MMBin:
                     {
-                        StkId ra = RA(ref state);
-                        uint pi = *(state.pc - 2); // original arith. expression
-                        TValue* rb = vRB(ref state);
-                        TMS tm = (TMS)GETARG_C(state.i);
-                        StkId result = RA(ref state, pi);
+                        StkId ra = @base + GETARG_A(i);
+                        uint pi = *(pc - 2); // original arith. expression
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        TMS tm = (TMS)GETARG_C(i);
+                        StkId result = @base + GETARG_A(pi);
                         Debug.Assert(OpCode.Add <= GET_OPCODE(pi) && GET_OPCODE(pi) <= OpCode.Shr);
-                        Protect(ref state, () => luaT_trybinTM(L, s2v(ra), rb, result, tm));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaT_trybinTM(L, s2v(ra), rb, result, tm);
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.MMBinI:
                     {
-                        StkId ra = RA(ref state);
-                        uint pi = *(state.pc - 2); // original arith. expression
-                        int imm = (int)GETARG_sB(state.i);
-                        TMS tm = (TMS)GETARG_C(state.i);
-                        bool flip = GETARG_k(state.i);
-                        StkId result = RA(ref state, pi);
-                        Protect(ref state, () => luaT_trybiniTM(L, s2v(ra), imm, flip, result, tm));
+                        StkId ra = @base + GETARG_A(i);
+                        uint pi = *(pc - 2); // original arith. expression
+                        int imm = (int)GETARG_sB(i);
+                        TMS tm = (TMS)GETARG_C(i);
+                        bool flip = GETARG_k(i);
+                        StkId result = @base + GETARG_A(pi);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaT_trybiniTM(L, s2v(ra), imm, flip, result, tm);
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.MMBinK:
                     {
-                        StkId ra = RA(ref state);
-                        uint pi = *(state.pc - 2); // original arith. expression
-                        TValue* imm = KB(ref state);
-                        TMS tm = (TMS)GETARG_C(state.i);
-                        bool flip = GETARG_k(state.i);
-                        StkId result = RA(ref state, pi);
-                        Protect(ref state, () => luaT_trybinassocTM(L, s2v(ra), imm, flip, result, tm));
+                        StkId ra = @base + GETARG_A(i);
+                        uint pi = *(pc - 2); // original arith. expression
+                        TValue* imm = k + GETARG_B(i);
+                        TMS tm = (TMS)GETARG_C(i);
+                        bool flip = GETARG_k(i);
+                        StkId result = @base + GETARG_A(pi);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaT_trybinassocTM(L, s2v(ra), imm, flip, result, tm);
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.UNM:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
                         if (ttisinteger(rb))
                         {
                             long ib = ivalue(rb);
@@ -2424,7 +2257,10 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            Protect(ref state, () => luaT_trybinTM(L, rb, rb, ra, TMS.UNM));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaT_trybinTM(L, rb, rb, ra, TMS.UNM);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -2432,15 +2268,18 @@ public static unsafe partial class Lua
 
                 case OpCode.BNot:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
                         if (tointegerns(rb, out long ib))
                         {
                             setivalue(s2v(ra), ~0L ^ ib);
                         }
                         else
                         {
-                            Protect(ref state, () => luaT_trybinTM(L, rb, rb, ra, TMS.BNOT));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaT_trybinTM(L, rb, rb, ra, TMS.BNOT);
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -2448,8 +2287,8 @@ public static unsafe partial class Lua
 
                 case OpCode.Not:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
                         if (l_isfalse(rb))
                         {
                             setbtvalue(s2v(ra));
@@ -2464,243 +2303,403 @@ public static unsafe partial class Lua
 
                 case OpCode.Len:
                     {
-                        StkId ra = RA(ref state);
-                        Protect(ref state, (ref state) => luaV_objlen(L, ra, vRB(ref state)));
+                        StkId ra = @base + GETARG_A(i);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaV_objlen(L, ra, s2v(@base + GETARG_B(i)));
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.Concat:
                     {
-                        StkId ra = RA(ref state);
-                        int n = GETARG_B(state.i); // number of elements to concatenate
+                        StkId ra = @base + GETARG_A(i);
+                        int n = GETARG_B(i); // number of elements to concatenate
                         L->top.p = ra + n; // mark the end of concat operands
-                        ProtectNT(ref state, () => luaV_concat(L, n));
-                        checkGC(ref state, L->top.p); // 'luaV_concat' ensures correct top
+                        ci->u.l.savedpc = pc;
+                        luaV_concat(L, n);
+                        trap = ci->u.l.trap;
+                        
+                        if (G(L)->GCdebt <= 0)
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = L->top.p;
+                            luaC_step(L);
+                            trap = ci->u.l.trap;
+                        }
+
+#if HARDMEMTESTS
+                        if (gcrunning(G(L)))
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = L->top.p;
+                            luaC_fullgc(L, false);
+                            trap = ci->u.l.trap;
+                        }
+#endif
+
+                        luai_threadyield(L);
                         break;
                     }
 
                 case OpCode.Close:
                     {
-                        StkId ra = RA(ref state);
-                        Debug.Assert(GETARG_B(state.i) == 0); // 'close must be alive
-                        Protect(ref state, () => luaF_close(L, ra, LUA_OK, true));
+                        StkId ra = @base + GETARG_A(i);
+                        Debug.Assert(GETARG_B(i) == 0); // 'close must be alive
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaF_close(L, ra, LUA_OK, true);
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.TBC:
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         // create new to-be-closed upvalue
-                        halfProtect(ref state, () => luaF_newtbcupval(L, ra));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaF_newtbcupval(L, ra);
                         break;
                     }
 
                 case OpCode.Jmp:
-                    dojump(ref state, state.i, 0);
+                    pc += GETARG_sJ(i) + 0;
+                    trap = ci->u.l.trap;
                     break;
 
                 case OpCode.Eq:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        Protect(ref state, (ref state) => state.cond = luaV_equalobj(L, s2v(ra), rb));
-                        docondjump(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        bool cond = luaV_equalobj(L, s2v(ra), rb);
+                        trap = ci->u.l.trap;
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.LT:
                     {
-                        TValue* ra = vRA(ref state);
-                        TValue* rb = s2v(state.@base + GETARG_B(state.i));
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        bool cond;
                         if (ttisinteger(ra) && ttisinteger(rb))
                         {
                             long ia = ivalue(ra);
                             long ib = ivalue(rb);
-                            state.cond = ia < ib;
+                            cond = ia < ib;
                         }
                         else if (ttisnumber(ra) && ttisnumber(rb))
                         {
-                            state.cond = LTnum(ra, rb);
+                            cond = LTnum(ra, rb);
                         }
                         else
                         {
-                            Protect(ref state, (ref state) => state.cond = lessthanothers(L, ra, rb));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = lessthanothers(L, ra, rb);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.LE:
                     {
-                        TValue* ra = vRA(ref state);
-                        TValue* rb = s2v(state.@base + GETARG_B(state.i));
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        bool cond;
                         if (ttisinteger(ra) && ttisinteger(rb))
                         {
                             long ia = ivalue(ra);
                             long ib = ivalue(rb);
-                            state.cond = ia <= ib;
+                            cond = ia <= ib;
                         }
                         else if (ttisnumber(ra) && ttisnumber(rb))
                         {
-                            state.cond = LEnum(ra, rb);
+                            cond = LEnum(ra, rb);
                         }
                         else
                         {
-                            Protect(ref state, (ref state) => state.cond = lessequalothers(L, ra, rb));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = lessequalothers(L, ra, rb);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.EqK:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = KB(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = k + GETARG_B(i);
                         // basic types do not use '__eq'; we can use raw equality
-                        state.cond = luaV_rawequalobj(s2v(ra), rb);
-                        docondjump(ref state);
+                        bool cond = luaV_rawequalobj(s2v(ra), rb);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.EqI:
                     {
-                        StkId ra = RA(ref state);
-                        int im = (int)GETARG_sB(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int im = (int)GETARG_sB(i);
+                        bool cond;
                         if (ttisinteger(s2v(ra)))
                         {
-                            state.cond = ivalue(s2v(ra)) == im;
+                            cond = ivalue(s2v(ra)) == im;
                         }
                         else if (ttisfloat(s2v(ra)))
                         {
-                            state.cond = fltvalue(s2v(ra)) == im;
+                            cond = fltvalue(s2v(ra)) == im;
                         }
                         else
                         {
-                            state.cond = false; // other types cannot be equal to a number
+                            cond = false; // other types cannot be equal to a number
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.LTI:
                     {
-                        TValue* ra = vRA(ref state);
-                        int im = (int)GETARG_sB(state.i);
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        int im = (int)GETARG_sB(i);
+                        bool cond;
                         if (ttisinteger(ra))
                         {
-                            state.cond = ivalue(ra) < im;
+                            cond = ivalue(ra) < im;
                         }
                         else if (ttisfloat(ra))
                         {
                             double fa = fltvalue(ra);
                             double fim = im;
-                            state.cond = fa < fim;
+                            cond = fa < fim;
                         }
                         else
                         {
-                            bool isf = GETARG_C(state.i) != 0;
-                            Protect(ref state, (ref state) => state.cond = luaT_callorderiTM(L, ra, im, false, isf, TMS.LT));
+                            bool isf = GETARG_C(i) != 0;
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = luaT_callorderiTM(L, ra, im, false, isf, TMS.LT);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.LEI:
                     {
-                        TValue* ra = vRA(ref state);
-                        int im = (int)GETARG_sB(state.i);
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        int im = (int)GETARG_sB(i);
+                        bool cond;
                         if (ttisinteger(ra))
                         {
-                            state.cond = ivalue(ra) <= im;
+                            cond = ivalue(ra) <= im;
                         }
                         else if (ttisfloat(ra))
                         {
                             double fa = fltvalue(ra);
                             double fim = im;
-                            state.cond = fa <= fim;
+                            cond = fa <= fim;
                         }
                         else
                         {
-                            bool isf = GETARG_C(state.i) != 0;
-                            Protect(ref state, (ref state) => state.cond = luaT_callorderiTM(L, ra, im, false, isf, TMS.LE));
+                            bool isf = GETARG_C(i) != 0;
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = luaT_callorderiTM(L, ra, im, false, isf, TMS.LE);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.GTI:
                     {
-                        TValue* ra = vRA(ref state);
-                        int im = (int)GETARG_sB(state.i);
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        int im = (int)GETARG_sB(i);
+                        bool cond;
                         if (ttisinteger(ra))
                         {
-                            state.cond = ivalue(ra) > im;
+                            cond = ivalue(ra) > im;
                         }
                         else if (ttisfloat(ra))
                         {
                             double fa = fltvalue(ra);
                             double fim = im;
-                            state.cond = fa > fim;
+                            cond = fa > fim;
                         }
                         else
                         {
-                            bool isf = GETARG_C(state.i) != 0;
-                            Protect(ref state, (ref state) => state.cond = luaT_callorderiTM(L, ra, im, true, isf, TMS.LT));
+                            bool isf = GETARG_C(i) != 0;
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = luaT_callorderiTM(L, ra, im, true, isf, TMS.LT);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.GEI:
                     {
-                        TValue* ra = vRA(ref state);
-                        int im = (int)GETARG_sB(state.i);
+                        TValue* ra = s2v(@base + GETARG_A(i));
+                        int im = (int)GETARG_sB(i);
+                        bool cond;
                         if (ttisinteger(ra))
                         {
-                            state.cond = ivalue(ra) >= im;
+                            cond = ivalue(ra) >= im;
                         }
                         else if (ttisfloat(ra))
                         {
                             double fa = fltvalue(ra);
                             double fim = im;
-                            state.cond = fa >= fim;
+                            cond = fa >= fim;
                         }
                         else
                         {
-                            bool isf = GETARG_C(state.i) != 0;
-                            Protect(ref state, (ref state) => state.cond = luaT_callorderiTM(L, ra, im, true, isf, TMS.LE));
+                            bool isf = GETARG_C(i) != 0;
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            cond = luaT_callorderiTM(L, ra, im, true, isf, TMS.LE);
+                            trap = ci->u.l.trap;
                         }
 
-                        docondjump(ref state);
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.Test:
                     {
-                        StkId ra = RA(ref state);
-                        state.cond = !l_isfalse(s2v(ra));
-                        docondjump(ref state);
+                        StkId ra = @base + GETARG_A(i);
+                        bool cond = !l_isfalse(s2v(ra));
+                        if (cond != GETARG_k(i))
+                        {
+                            pc++;
+                        }
+                        else
+                        {
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
+                        }
+
                         break;
                     }
 
                 case OpCode.TestSet:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rb = vRB(ref state);
-                        if (l_isfalse(rb) == GETARG_k(state.i))
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rb = s2v(@base + GETARG_B(i));
+                        if (l_isfalse(rb) == GETARG_k(i))
                         {
-                            state.pc++;
+                            pc++;
                         }
                         else
                         {
                             setobj2s(L, ra, rb);
-                            donextjump(ref state);
+                            uint ni = *pc;
+                            pc += GETARG_sJ(ni) + 1;
+                            trap = ci->u.l.trap;
                         }
 
                         break;
@@ -2708,26 +2707,26 @@ public static unsafe partial class Lua
 
                 case OpCode.Call:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_B(state.i);
-                        int nresults = (int)(GETARG_C(state.i) - 1);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_B(i);
+                        int nresults = (int)(GETARG_C(i) - 1);
                         if (b != 0) // fixed number of arguments?
                         {
                             L->top.p = ra + b; // top signals number of arguments
                         }
                         // else previous instruction set top
 
-                        savepc(ref state); // in case of errors
+                        ci->u.l.savedpc = pc; // in case of errors
 
                         CallInfo* newci;
                         if ((newci = luaD_precall(L, ra, nresults)) == null)
                         {
-                            updatetrap(ref state); // C call; nothing else to be done
+                            trap = ci->u.l.trap; // C call; nothing else to be done
                         }
                         else
                         {
                             // Lua call: run function in this same C frame
-                            state.ci = newci;
+                            ci = newci;
                             goto startfunc;
                         }
 
@@ -2736,11 +2735,11 @@ public static unsafe partial class Lua
 
                 case OpCode.TailCall:
                     {
-                        StkId ra = RA(ref state);
-                        int b = GETARG_B(state.i); // number of arguments + 1 (function)
-                        int nparams1 = (int)GETARG_C(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int b = GETARG_B(i); // number of arguments + 1 (function)
+                        int nparams1 = (int)GETARG_C(i);
                         // delta is virtual 'func' - real 'func' (vararg functions)
-                        int delta = nparams1 != 0 ? state.ci->u.l.nextraargs + nparams1 : 0;
+                        int delta = nparams1 != 0 ? ci->u.l.nextraargs + nparams1 : 0;
                         if (b != 0)
                         {
                             L->top.p = ra + b;
@@ -2750,60 +2749,64 @@ public static unsafe partial class Lua
                             b = (int)(L->top.p - ra);
                         }
 
-                        savepc(ref state); // several calls here can raise errors
-                        if (TESTARG_k(state.i))
+                        ci->u.l.savedpc = pc; // several calls here can raise errors
+                        if (TESTARG_k(i))
                         {
-                            luaF_closeupval(L, state.@base); // close upvalues from current call
-                            Debug.Assert(L->tbclist.p < state.@base); // no pending tbc variables
-                            Debug.Assert(state.@base == state.ci->func.p + 1);
+                            luaF_closeupval(L, @base); // close upvalues from current call
+                            Debug.Assert(L->tbclist.p < @base); // no pending tbc variables
+                            Debug.Assert(@base == ci->func.p + 1);
                         }
 
                         int n;
-                        if ((n = luaD_pretailcall(L, state.ci, ra, b, delta)) < 0) // Lua function?
+                        if ((n = luaD_pretailcall(L, ci, ra, b, delta)) < 0) // Lua function?
                         {
                             goto startfunc; // execute the callee
                         }
 
                         // C function?
-                        state.ci->func.p -= delta; // restore 'func' (if vararg)
-                        luaD_poscall(L, state.ci, n); // finish caller
-                        updatetrap(ref state); // 'luaD_poscall' can change hooks
+                        ci->func.p -= delta; // restore 'func' (if vararg)
+                        luaD_poscall(L, ci, n); // finish caller
+                        trap = ci->u.l.trap; // 'luaD_poscall' can change hooks
                         goto ret; // caller returns after the tail call
                     }
 
                 case OpCode.Return:
                     {
-                        StkId ra = RA(ref state);
-                        int n = GETARG_B(state.i) - 1; // number of results
-                        int nparams1 = (int)GETARG_C(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        int n = GETARG_B(i) - 1; // number of results
+                        int nparams1 = (int)GETARG_C(i);
                         if (n < 0) // not fixed?
                         {
                             n = (int)(L->top.p - ra); // get what is available
                         }
 
-                        savepc(ref state);
-                        if (TESTARG_k(state.i))
+                        ci->u.l.savedpc = pc;
+                        if (TESTARG_k(i))
                         {
                             // may there be open upvalues?
-                            state.ci->u2.nres = n; // save number of returns
-                            if (L->top.p < state.ci->top.p)
+                            ci->u2.nres = n; // save number of returns
+                            if (L->top.p < ci->top.p)
                             {
-                                L->top.p = state.ci->top.p;
+                                L->top.p = ci->top.p;
                             }
 
-                            luaF_close(L, state.@base, CLOSEKTOP, true);
-                            updatetrap(ref state);
-                            updatestack(ref state, ref ra);
+                            luaF_close(L, @base, CLOSEKTOP, true);
+                            trap = ci->u.l.trap;
+                            if (trap != 0)
+                            {
+                                @base = ci->func.p + 1;
+                                ra = @base + GETARG_A(i);
+                            }
                         }
 
                         if (nparams1 != 0) // vararg function?
                         {
-                            state.ci->func.p -= state.ci->u.l.nextraargs + nparams1;
+                            ci->func.p -= ci->u.l.nextraargs + nparams1;
                         }
 
                         L->top.p = ra + n; // set call for 'luaD_poscall'
-                        luaD_poscall(L, state.ci, n);
-                        updatetrap(ref state); // 'luaD_poscall' can change hooks
+                        luaD_poscall(L, ci, n);
+                        trap = ci->u.l.trap; // 'luaD_poscall' can change hooks
                         goto ret;
                     }
 
@@ -2811,18 +2814,18 @@ public static unsafe partial class Lua
                     {
                         if (L->hookmask != 0)
                         {
-                            StkId ra = RA(ref state);
+                            StkId ra = @base + GETARG_A(i);
                             L->top.p = ra;
-                            savepc(ref state);
-                            luaD_poscall(L, state.ci, 0); // no hurry...
-                            state.trap = 1;
+                            ci->u.l.savedpc = pc;
+                            luaD_poscall(L, ci, 0); // no hurry...
+                            trap = 1;
                         }
                         else
                         {
                             // do the 'poscall' here
-                            int nres = get_nresults(state.ci->callstatus);
-                            L->ci = state.ci->previous; // back to caller
-                            L->top.p = state.@base - 1;
+                            int nres = get_nresults(ci->callstatus);
+                            L->ci = ci->previous; // back to caller
+                            L->top.p = @base - 1;
                             for (; nres > 0; nres--)
                             {
                                 setnilvalue(s2v(L->top.p++)); // all results are nil
@@ -2835,26 +2838,26 @@ public static unsafe partial class Lua
                 case OpCode.Return1:
                     if (L->hookmask != 0)
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         L->top.p = ra + 1;
-                        savepc(ref state);
-                        luaD_poscall(L, state.ci, 1); // no hurry...
-                        state.trap = 1;
+                        ci->u.l.savedpc = pc;
+                        luaD_poscall(L, ci, 1); // no hurry...
+                        trap = 1;
                     }
                     else
                     {
                         // do the 'poscall' here
-                        int nres = get_nresults(state.ci->callstatus);
-                        L->ci = state.ci->previous; // back to caller
+                        int nres = get_nresults(ci->callstatus);
+                        L->ci = ci->previous; // back to caller
                         if (nres == 0)
                         {
-                            L->top.p = state.@base - 1; // asked for no results
+                            L->top.p = @base - 1; // asked for no results
                         }
                         else
                         {
-                            StkId ra = RA(ref state);
-                            setobjs2s(L, state.@base - 1, ra); // at least this result
-                            L->top.p = state.@base;
+                            StkId ra = @base + GETARG_A(i);
+                            setobjs2s(L, @base - 1, ra); // at least this result
+                            L->top.p = @base;
                             for (; nres > 1; nres--)
                             {
                                 setnilvalue(s2v(L->top.p++)); // complete missing results
@@ -2866,7 +2869,7 @@ public static unsafe partial class Lua
 
                 case OpCode.ForLoop:
                     {
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         if (ttisinteger(s2v(ra + 1)))
                         {
                             // integer loop?
@@ -2879,25 +2882,26 @@ public static unsafe partial class Lua
                                 chgivalue(s2v(ra), (long)(count - 1)); // update counter
                                 idx = idx + step; // add step to index
                                 chgivalue(s2v(ra + 2), idx); // update control variable
-                                state.pc -= GETARG_Bx(state.i); // jump back
+                                pc -= GETARG_Bx(i); // jump back
                             }
                         }
                         else if (floatforloop(ra)) // float loop
                         {
-                            state.pc -= GETARG_Bx(state.i); // jump back
+                            pc -= GETARG_Bx(i); // jump back
                         }
 
-                        updatetrap(ref state); // allows a signal to break the loop
+                        trap = ci->u.l.trap; // allows a signal to break the loop
                         break;
                     }
 
                 case OpCode.ForPrep:
                     {
-                        StkId ra = RA(ref state);
-                        savestate(ref state); // in case of errors
+                        StkId ra = @base + GETARG_A(i);
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
                         if (forprep(L, ra))
                         {
-                            state.pc += GETARG_Bx(state.i) + 1; // skip the loop
+                            pc += GETARG_Bx(i) + 1; // skip the loop
                         }
 
                         break;
@@ -2910,16 +2914,18 @@ public static unsafe partial class Lua
                         // 'ra + 3' has the closing variable. This opcode then swaps the
                         // control and the closing variables and marks the closing variable
                         // as to-be-closed.
-                        StkId ra = RA(ref state);
+                        StkId ra = @base + GETARG_A(i);
                         TValue temp; // to swap control and closing variables
                         setobj(L, &temp, s2v(ra + 3));
                         setobjs2s(L, ra + 3, ra + 2);
                         setobj2s(L, ra + 2, &temp);
                         // create to-be-closed upvalue (if closing var. is not nil)
-                        halfProtect(ref state, () => luaF_newtbcupval(L, ra + 2));
-                        state.pc += GETARG_Bx(state.i); // go to end of the loop
-                        state.i = *state.pc++; // fetch next instruction
-                        Debug.Assert(GET_OPCODE(state.i) == OpCode.TForCall && ra == RA(ref state));
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaF_newtbcupval(L, ra + 2);
+                        pc += GETARG_Bx(i); // go to end of the loop
+                        i = *pc++; // fetch next instruction
+                        Debug.Assert(GET_OPCODE(i) == OpCode.TForCall && ra == @base + GETARG_A(i));
                         goto l_tforcall;
                     }
 
@@ -2931,9 +2937,9 @@ public static unsafe partial class Lua
 
                 case OpCode.SetList:
                     {
-                        StkId ra = RA(ref state);
-                        uint n = (uint)GETARG_vB(state.i);
-                        uint last = (uint)GETARG_vC(state.i);
+                        StkId ra = @base + GETARG_A(i);
+                        uint n = (uint)GETARG_vB(i);
+                        uint last = (uint)GETARG_vC(i);
                         Table* h = hvalue(s2v(ra));
                         if (n == 0)
                         {
@@ -2941,14 +2947,14 @@ public static unsafe partial class Lua
                         }
                         else
                         {
-                            L->top.p = state.ci->top.p; // correct top in case of emergency GC
+                            L->top.p = ci->top.p; // correct top in case of emergency GC
                         }
 
                         last += n;
-                        if (TESTARG_k(state.i))
+                        if (TESTARG_k(i))
                         {
-                            last += (uint)GETARG_Ax(*state.pc) * (MAXARG_vC + 1);
-                            state.pc++;
+                            last += (uint)GETARG_Ax(*pc) * (MAXARG_vC + 1);
+                            pc++;
                         }
 
                         // when 'n' is known, table should have proper size
@@ -2956,7 +2962,7 @@ public static unsafe partial class Lua
                         {
                             // needs more space?
                             // fixed-size sets should have space preallocated
-                            Debug.Assert(GETARG_vB(state.i) == 0);
+                            Debug.Assert(GETARG_vB(i) == 0);
                             luaH_resizearray(L, h, last); // preallocate it at once
                         }
 
@@ -2973,36 +2979,62 @@ public static unsafe partial class Lua
 
                 case OpCode.Closure:
                     {
-                        StkId ra = RA(ref state);
-                        Proto* p = state.cl->p->p[GETARG_Bx(state.i)];
-                        halfProtect(ref state, (ref state) => pushclosure(L, p, state.cl, state.@base, ra));
-                        checkGC(ref state, ra + 1);
+                        StkId ra = @base + GETARG_A(i);
+                        Proto* p = cl->p->p[GETARG_Bx(i)];
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        pushclosure(L, p, cl, @base, ra);
+
+                        if (G(L)->GCdebt <= 0)
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ra + 1;
+                            luaC_step(L);
+                            trap = ci->u.l.trap;
+                        }
+
+#if HARDMEMTESTS
+                        if (gcrunning(G(L)))
+                        {
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ra + 1;
+                            luaC_fullgc(L, false);
+                            trap = ci->u.l.trap;
+                        }
+#endif
+
+                        luai_threadyield(L);
                         break;
                     }
 
                 case OpCode.VarArg:
                     {
-                        StkId ra = RA(ref state);
-                        int n = (int)(GETARG_C(state.i) - 1); // required results (-1 means all)
-                        int vatab = GETARG_k(state.i) ? GETARG_B(state.i) : -1;
-                        Protect(ref state, (ref state) => luaT_getvarargs(L, state.ci, ra, n, vatab));
+                        StkId ra = @base + GETARG_A(i);
+                        int n = (int)(GETARG_C(i) - 1); // required results (-1 means all)
+                        int vatab = GETARG_k(i) ? GETARG_B(i) : -1;
+                        ci->u.l.savedpc = pc;
+                        L->top.p = ci->top.p;
+                        luaT_getvarargs(L, ci, ra, n, vatab);
+                        trap = ci->u.l.trap;
                         break;
                     }
 
                 case OpCode.GetVArg:
                     {
-                        StkId ra = RA(ref state);
-                        TValue* rc = vRC(ref state);
-                        luaT_getvararg(state.ci, ra, rc);
+                        StkId ra = @base + GETARG_A(i);
+                        TValue* rc = s2v(@base + GETARG_C(i));
+                        luaT_getvararg(ci, ra, rc);
                         break;
                     }
 
                 case OpCode.ErrNNil:
                     {
-                        TValue* ra = vRA(ref state);
+                        TValue* ra = s2v(@base + GETARG_A(i));
                         if (!ttisnil(ra))
                         {
-                            halfProtect(ref state, (ref state) => luaG_errnnil(L, state.cl, GETARG_Bx(state.i)));
+                            ci->u.l.savedpc = pc;
+                            L->top.p = ci->top.p;
+                            luaG_errnnil(L, cl, GETARG_Bx(i));
                         }
 
                         break;
@@ -3010,15 +3042,17 @@ public static unsafe partial class Lua
 
                 case OpCode.VarArgPrep:
                     {
-                        ProtectNT(ref state, (ref state) => luaT_adjustvarargs(L, state.ci, state.cl->p));
-                        if (state.trap != 0)
+                        ci->u.l.savedpc = pc;
+                        luaT_adjustvarargs(L, ci, cl->p);
+                        trap = ci->u.l.trap;
+                        if (trap != 0)
                         {
                             // previous "Protect" updated trap
-                            luaD_hookcall(L, state.ci);
+                            luaD_hookcall(L, ci);
                             L->oldpc = 1; // next opcode will be seen as a "new" line
                         }
 
-                        updatebase(ref state); // function has new base after adjustment
+                        @base = ci->func.p + 1; // function has new base after adjustment
                         break;
                     }
 
@@ -3029,12 +3063,12 @@ public static unsafe partial class Lua
             continue;
 
             ret: // return from a Lua function
-            if ((state.ci->callstatus & CIST_FRESH) != 0)
+            if ((ci->callstatus & CIST_FRESH) != 0)
             {
                 return; // end this frame
             }
 
-            state.ci = state.ci->previous;
+            ci = ci->previous;
             goto returning; // continue running caller in this frame
             
             l_tforcall:
@@ -3044,23 +3078,30 @@ public static unsafe partial class Lua
                 // variable. The call will use the stack starting at 'ra + 3',
                 // so that it preserves the first three values, and the first
                 // return will be the new value for the control variable.
-                StkId ra = RA(ref state);
+                StkId ra = @base + GETARG_A(i);
                 setobjs2s(L, ra + 5, ra + 3); // copy the control variable
                 setobjs2s(L, ra + 4, ra + 1); // copy state
                 setobjs2s(L, ra + 3, ra); // copy function
                 L->top.p = ra + 3 + 3;
-                ProtectNT(ref state, (ref state) => luaD_call(L, ra + 3, (int)GETARG_C(state.i))); // do the call
-                updatestack(ref state, ref ra); // stack may have changed
-                state.i = *state.pc++; // go to next instruction
-                Debug.Assert(GET_OPCODE(state.i) == OpCode.TForLoop && ra == RA(ref state));
+                ci->u.l.savedpc = pc;
+                luaD_call(L, ra + 3, (int)GETARG_C(i));
+                trap = ci->u.l.trap;
+                if (trap != 0)
+                {
+                    @base = ci->func.p + 1;
+                    ra = @base + GETARG_A(i);
+                }
+
+                i = *pc++; // go to next instruction
+                Debug.Assert(GET_OPCODE(i) == OpCode.TForLoop && ra == @base + GETARG_A(i));
             }
             
             l_tforloop:
             {
-                StkId ra = RA(ref state);
+                StkId ra = @base + GETARG_A(i);
                 if (!ttisnil(s2v(ra + 3))) // continue loop?
                 {
-                    state.pc -= GETARG_Bx(state.i); // jump back
+                    pc -= GETARG_Bx(i); // jump back
                 }
             }
         }

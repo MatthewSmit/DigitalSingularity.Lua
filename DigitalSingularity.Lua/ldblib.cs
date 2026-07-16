@@ -559,22 +559,22 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] dblib =
     [
-        new("debug", &db_debug),
-        new("getuservalue", &db_getuservalue),
-        new("gethook", &db_gethook),
-        new("getinfo", &db_getinfo),
-        new("getlocal", &db_getlocal),
-        new("getregistry", &db_getregistry),
-        new("getmetatable", &db_getmetatable),
-        new("getupvalue", &db_getupvalue),
-        new("upvaluejoin", &db_upvaluejoin),
-        new("upvalueid", &db_upvalueid),
-        new("setuservalue", &db_setuservalue),
-        new("sethook", &db_sethook),
-        new("setlocal", &db_setlocal),
-        new("setmetatable", &db_setmetatable),
-        new("setupvalue", &db_setupvalue),
-        new("traceback", &db_traceback),
+        new("debug", CFunction.FromFunction(&db_debug)),
+        new("getuservalue", CFunction.FromFunction(&db_getuservalue)),
+        new("gethook", CFunction.FromFunction(&db_gethook)),
+        new("getinfo", CFunction.FromFunction(&db_getinfo)),
+        new("getlocal", CFunction.FromFunction(&db_getlocal)),
+        new("getregistry", CFunction.FromFunction(&db_getregistry)),
+        new("getmetatable", CFunction.FromFunction(&db_getmetatable)),
+        new("getupvalue", CFunction.FromFunction(&db_getupvalue)),
+        new("upvaluejoin", CFunction.FromFunction(&db_upvaluejoin)),
+        new("upvalueid", CFunction.FromFunction(&db_upvalueid)),
+        new("setuservalue", CFunction.FromFunction(&db_setuservalue)),
+        new("sethook", CFunction.FromFunction(&db_sethook)),
+        new("setlocal", CFunction.FromFunction(&db_setlocal)),
+        new("setmetatable", CFunction.FromFunction(&db_setmetatable)),
+        new("setupvalue", CFunction.FromFunction(&db_setupvalue)),
+        new("traceback", CFunction.FromFunction(&db_traceback)),
     ];
 
     public static int luaopen_debug(lua_State* L)

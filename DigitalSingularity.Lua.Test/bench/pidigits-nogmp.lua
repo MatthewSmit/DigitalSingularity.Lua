@@ -4,7 +4,7 @@ local chunk = [=[
 
 -- Factory function for multi-precision number (mpn) operations.
 local function fmm(fa, fb)
-  return loadstring([[
+  return load([[
     return function(y, a, ka, b, kb)
       local carry, n = 0, #a ]]..(fb == 0 and "" or [[
       local na, nb = n, #b -- Need to adjust lengths. 1 element suffices here.
@@ -84,7 +84,7 @@ local N = tonumber(arg and arg[1]) or 27
 local RADIX = N < 6500 and 2^36 or 2^32 -- Avoid overflow.
 
 -- Substitute radix and compile chunk.
-local pidigit = loadstring(string.gsub(chunk, "RADIX", tostring(RADIX)))()
+local pidigit = load(string.gsub(chunk, "RADIX", tostring(RADIX)))()
 
 -- Print lines with 10 digits.
 for i=10,N,10 do

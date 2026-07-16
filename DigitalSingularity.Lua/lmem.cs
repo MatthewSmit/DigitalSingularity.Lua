@@ -174,7 +174,7 @@ public static unsafe partial class Lua
             return null;
         }
 
-        return g->frealloc(g->ud, block, os, ns);
+        return g->frealloc.Call(g->ud, block, os, ns);
     }
 
     /// <summary>

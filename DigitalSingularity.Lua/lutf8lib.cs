@@ -351,7 +351,7 @@ public static unsafe partial class Lua
         bool lax = lua_toboolean(L, 2);
         ReadOnlySpan<byte> s = luaL_checkstring(L, 1);
         luaL_argcheck(L, !iscontp(s), 1, MSGInvalid);
-        lua_pushcfunction(L, lax ? &iter_auxlax : &iter_auxstrict);
+        lua_pushcfunction(L, CFunction.FromFunction(lax ? &iter_auxlax : &iter_auxstrict));
         lua_pushvalue(L, 1);
         lua_pushinteger(L, 0);
         return 3;
@@ -359,13 +359,13 @@ public static unsafe partial class Lua
 
     private static luaL_Reg[] funcs =
     [
-        new("offset", &byteoffset),
-        new("codepoint", &codepoint),
-        new("char", &utfchar),
-        new("len", &utflen),
-        new("codes", &iter_codes),
+        new("offset", CFunction.FromFunction(&byteoffset)),
+        new("codepoint", CFunction.FromFunction(&codepoint)),
+        new("char", CFunction.FromFunction(&utfchar)),
+        new("len", CFunction.FromFunction(&utflen)),
+        new("codes", CFunction.FromFunction(&iter_codes)),
         // placeholders
-        new("charpattern", null),
+        new("charpattern", default),
     ];
 
     public static int luaopen_utf8(lua_State* L)

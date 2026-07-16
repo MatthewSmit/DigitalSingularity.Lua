@@ -106,7 +106,7 @@ public static unsafe partial class Lua
     private static int luaB_cowrap(lua_State* L)
     {
         luaB_cocreate(L);
-        lua_pushcclosure(L, &luaB_auxwrap, 1);
+        lua_pushcclosure(L, CFunction.FromFunction(&luaB_auxwrap), 1);
         return 1;
     }
 
@@ -219,14 +219,14 @@ public static unsafe partial class Lua
 
     private static readonly luaL_Reg[] co_funcs =
     [
-        new("create", &luaB_cocreate),
-        new("resume", &luaB_coresume),
-        new("running", &luaB_corunning),
-        new("status", &luaB_costatus),
-        new("wrap", &luaB_cowrap),
-        new("yield", &luaB_yield),
-        new("isyieldable", &luaB_yieldable),
-        new("close", &luaB_close),
+        new("create", CFunction.FromFunction(&luaB_cocreate)),
+        new("resume", CFunction.FromFunction(&luaB_coresume)),
+        new("running", CFunction.FromFunction(&luaB_corunning)),
+        new("status", CFunction.FromFunction(&luaB_costatus)),
+        new("wrap", CFunction.FromFunction(&luaB_cowrap)),
+        new("yield", CFunction.FromFunction(&luaB_yield)),
+        new("isyieldable", CFunction.FromFunction(&luaB_yieldable)),
+        new("close", CFunction.FromFunction(&luaB_close)),
     ];
 
     public static int luaopen_coroutine(lua_State* L)

@@ -1007,10 +1007,10 @@ public static unsafe partial class Lua
             return 0; // ignore non-string modes
         }
 
-        byte* smode = getstr(tsvalue(mode));
+        byte* smode = getstrptr(tsvalue(mode));
         byte* weakkey = strchr(smode, 'k');
         byte* weakvalue = strchr(smode, 'v');
-        return ((weakkey != null ? 1 : 0) << 1) | (weakvalue != null ? 1 : 0);
+        return (weakkey != null ? 1 : 0) << 1 | (weakvalue != null ? 1 : 0);
     }
 
     private static long traversetable(global_State* g, Table* h)
@@ -1373,7 +1373,7 @@ public static unsafe partial class Lua
                     TString* ts = gco2ts(o);
                     if (ts->shrlen == LSTRMEM) // must free external string?
                     {
-                        ts->falloc(ts->ud, ts->contents, ts->u.lnglen + 1, 0);
+                        ts->falloc.Call(ts->ud, ts->contents, ts->u.lnglen + 1, 0);
                     }
 
                     luaM_freemem(L, ts, luaS_sizelngstr(ts->u.lnglen, ts->shrlen));
