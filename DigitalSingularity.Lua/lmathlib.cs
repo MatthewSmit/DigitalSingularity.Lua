@@ -544,42 +544,36 @@ public static unsafe partial class Lua
 #if LUA_COMPAT_MATHLIB
     private static int math_cosh(lua_State* L)
     {
-// lua_pushnumber(L, (cosh)(luaL_checknumber(L, 1)));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Math.Cosh(luaL_checknumber(L, 1)));
+        return 1;
     }
 
     private static int math_sinh(lua_State* L)
     {
-// lua_pushnumber(L, (sinh)(luaL_checknumber(L, 1)));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Math.Sinh(luaL_checknumber(L, 1)));
+        return 1;
     }
 
     private static int math_tanh(lua_State* L)
     {
-// lua_pushnumber(L, (tanh)(luaL_checknumber(L, 1)));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Math.Tanh(luaL_checknumber(L, 1)));
+        return 1;
     }
 
     private static int math_pow(lua_State* L)
     {
-// double x = luaL_checknumber(L, 1);
-// double y = luaL_checknumber(L, 2);
-// lua_pushnumber(L, (pow)(x, y));
-// return 1;
-        throw new NotImplementedException();
+        double x = luaL_checknumber(L, 1);
+        double y = luaL_checknumber(L, 2);
+        lua_pushnumber(L, Math.Pow(x, y));
+        return 1;
     }
 
     private static int math_log10(lua_State* L)
     {
-// lua_pushnumber(L, (log10)(luaL_checknumber(L, 1)));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushnumber(L, Math.Log10(luaL_checknumber(L, 1)));
+        return 1;
     }
 #endif
-    // }==================================================================
 
     private static readonly luaL_Reg[] mathlib =
     [

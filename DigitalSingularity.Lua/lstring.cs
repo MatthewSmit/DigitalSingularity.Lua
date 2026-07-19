@@ -78,10 +78,9 @@ public static unsafe partial class Lua
     /// </summary>
     internal static bool luaS_eqstr(TString* a, TString* b)
     {
-        byte* s1 = getlstr(a, out int len1);
-        byte* s2 = getlstr(b, out int len2);
-        return len1 == len2 && // equal length and ...
-               memcmp(s1, s2, len1) == 0; // equal contents
+        ReadOnlySpan<byte> s1 = getlstr(a);
+        ReadOnlySpan<byte> s2 = getlstr(b);
+        return s1.SequenceEqual(s2);
     }
 
     private static uint luaS_hash(ReadOnlySpan<byte> str, uint seed)
@@ -270,10 +269,11 @@ public static unsafe partial class Lua
         if (tb->nuse == int.MaxValue)
         {
             // too many strings?
-            // luaC_fullgc(L, 1); // try to free some...
-            // if (tb->nuse == INT_MAX) // still too many?
-            // luaM_error(L); // cannot even create a message...
-            throw new NotImplementedException();
+            luaC_fullgc(L, true); // try to free some...
+            if (tb->nuse == int.MaxValue) // still too many?
+            {
+                luaM_error(L); // cannot even create a message...
+            }
         }
 
         if (tb->size <= MAXSTRTB / 2) // can grow string table?

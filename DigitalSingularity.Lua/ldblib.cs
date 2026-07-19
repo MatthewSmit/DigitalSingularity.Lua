@@ -492,7 +492,7 @@ public static unsafe partial class Lua
 
     private static int db_gethook(lua_State* L)
     {
-        lua_State* L1 = getthread(L, out int arg);
+        lua_State* L1 = getthread(L, out _);
         int mask = lua_gethookmask(L1);
         lua_Hook hook = lua_gethook(L1);
         if (hook == null!)

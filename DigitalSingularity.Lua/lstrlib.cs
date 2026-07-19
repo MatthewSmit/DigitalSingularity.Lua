@@ -417,6 +417,7 @@ public static unsafe partial class Lua
         public struct CaptureArray
         {
             public Capture capture0;
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
             public Capture capture1;
             public Capture capture2;
             public Capture capture3;
@@ -448,6 +449,7 @@ public static unsafe partial class Lua
             public Capture capture29;
             public Capture capture30;
             public Capture capture31;
+#pragma warning restore CS0649 // Field is never assigned to, and will always have its default value
 
             static CaptureArray()
             {
@@ -1994,7 +1996,7 @@ public static unsafe partial class Lua
             {
                 if (c >= 36)
                 {
-                    throw new NotImplementedException();
+                    throw new InvalidOperationException();
                 }
 
                 c -= 10;

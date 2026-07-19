@@ -1,7 +1,6 @@
 ﻿namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
-using System.Text;
 
 public static unsafe partial class Lua
 {
@@ -29,6 +28,15 @@ public static unsafe partial class Lua
         where T : unmanaged
     {
         dumpBlock(ref D, v, n * sizeof(T));
+    }
+    
+    private static void dumpVector<T>(ref DumpState D, ReadOnlySpan<T> v)
+        where T : unmanaged
+    {
+        fixed(T* p = v)
+        {
+            dumpBlock(ref D, p, v.Length * sizeof(T));
+        }
     }
 
     private static void dumpLiteral(ref DumpState D, ReadOnlySpan<byte> s)
@@ -170,9 +178,13 @@ public static unsafe partial class Lua
             {
                 // must write and save the string
                 TValue key, value; // to save the string in the hash
-                byte* s = getlstr(ts, out int size);
-                dumpSize(ref D, size + 1);
-                dumpVector(ref D, s, size + 1); // include ending '\0'
+                
+                ReadOnlySpan<byte> s2 = getlstr(ts);
+                byte* s = getlstr(ts, out _);
+                dumpSize(ref D, s2.Length + 1);
+                dumpVector(ref D, s, s2.Length);
+                dumpByte(ref D, 0);  // include ending '\0'
+
                 D.nstr++; // one more saved string
                 setsvalue(D.L, &key, ts); // the string is the key
                 setivalue(&value, (long)D.nstr); // its index is the value

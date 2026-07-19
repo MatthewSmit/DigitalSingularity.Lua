@@ -730,7 +730,7 @@ public static unsafe partial class Lua
         lua_unlock(L);
     }
 
-    public static string lua_pushfstring(lua_State* L, string fmt, params object[] args)
+    public static string lua_pushfstring(lua_State* L, string fmt, params object?[] args)
     {
         lua_lock(L);
         pushvfstring(L, args, fmt, out string ret);

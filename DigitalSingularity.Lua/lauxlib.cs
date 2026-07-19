@@ -207,27 +207,6 @@ public static unsafe partial class Lua
         public void* f; // stream (null for incompletely created streams)
         public CFunction closef; // to close stream (null for closed streams)
     }
-
-    // }======================================================
-    
-    // TODO
-    // {============================================================
-    // Compatibility with deprecated conversions
-    // =============================================================
-    //
-    // #if defined(LUA_COMPAT_APIINTCASTS)
-    //
-    // #define luaL_checkunsigned(L,a)	((lua_Unsigned)luaL_checkinteger(L,a))
-    // #define luaL_optunsigned(L,a,d)	\
-    // ((lua_Unsigned)luaL_optinteger(L,a,(long)(d)))
-    //
-    // #define luaL_checkint(L,n)	((int)luaL_checkinteger(L, (n)))
-    // #define luaL_optint(L,n,d)	((int)luaL_optinteger(L, (n), (d)))
-    //
-    // #define luaL_checklong(L,n)	((long)luaL_checkinteger(L, (n)))
-    // #define luaL_optlong(L,n,d)	((long)luaL_optinteger(L, (n), (d)))
-    //
-    // #endif
     
     // {======================================================
     // Traceback
@@ -419,6 +398,7 @@ public static unsafe partial class Lua
     // Error-report functions
     // =======================================================
 
+    [DoesNotReturn]
     public static int luaL_argerror(lua_State* L, int arg, string extramsg)
     {
         lua_Debug ar = new();
@@ -465,9 +445,10 @@ public static unsafe partial class Lua
             extramsg);
     }
 
+    [DoesNotReturn]
     public static int luaL_typeerror(lua_State* L, int arg, string tname)
     {
-        string typearg; // name for the type of the actual argument
+        string? typearg; // name for the type of the actual argument
         if (luaL_getmetafield(L, arg, "__name") == LUA_TSTRING)
         {
             typearg = lua_tonetstring(L, -1); // use the given type name
@@ -519,7 +500,7 @@ public static unsafe partial class Lua
     /// a memory error instead of the given message.)
     /// </summary>
     [DoesNotReturn]
-    public static int luaL_error(lua_State* L, string fmt, params object[] args)
+    public static int luaL_error(lua_State* L, string fmt, params object?[] args)
     {
         luaL_where(L, 1);
         lua_pushfstring(L, fmt, args);
@@ -571,8 +552,6 @@ public static unsafe partial class Lua
         lua_pushinteger(L, stat);
         return 3; // return true/fail,what,code
     }
-
-    // }======================================================
 
     // {======================================================
     // Userdata's metatable manipulation
@@ -629,8 +608,6 @@ public static unsafe partial class Lua
         luaL_argexpected(L, p != null, ud, tname);
         return p;
     }
-    
-    // }======================================================
     
     // {======================================================
     // Argument check functions
@@ -788,8 +765,6 @@ public static unsafe partial class Lua
     {
         return lua_isnoneornil(L, arg) ? def : luaL_checkinteger(L, arg);
     }
-    
-    // }======================================================
 
     // {======================================================
     // Generic Buffer manipulation
@@ -974,6 +949,7 @@ public static unsafe partial class Lua
         }
     }
 
+    [Obsolete]
     public static void luaL_addstring(luaL_Buffer* B, ReadOnlySpan<char> s)
     {
         luaL_addlstring(B, s);
@@ -1115,8 +1091,6 @@ public static unsafe partial class Lua
         }
     }
 
-    // }======================================================
-
     // {======================================================
     // Load functions
     // =======================================================
@@ -1162,7 +1136,7 @@ public static unsafe partial class Lua
 
     private static int errfile(lua_State* L, string what, int fnameindex, Exception exception)
     {
-        string filename = lua_tonetstring(L, fnameindex)[1..];
+        string? filename = lua_tonetstring(L, fnameindex)?[1..];
         lua_pushfstring(L, "cannot %s %s: %s", what, filename, exception.Message);
         lua_remove(L, fnameindex);
         return LUA_ERRFILE;
@@ -1309,8 +1283,6 @@ public static unsafe partial class Lua
         return luaL_loadbuffer(L, bytes, s);
     }
 
-    // }======================================================
-
     public static int luaL_getmetafield(lua_State* L, int obj, string e)
     {
         if (!lua_getmetatable(L, obj)) // no metatable?
@@ -1433,7 +1405,7 @@ public static unsafe partial class Lua
         for (; !l.IsEmpty; l = l[1..])
         {
             // fill the table with given functions
-            if (l[0].func == null!) // placeholder?
+            if (l[0].func == default) // placeholder?
             {
                 lua_pushboolean(L, false);
             }
@@ -1516,7 +1488,7 @@ public static unsafe partial class Lua
         luaL_addstring(b, ss); // push last suffix
     }
 
-    public static string luaL_gsub(lua_State* L, string s, string p, string r)
+    public static string? luaL_gsub(lua_State* L, string? s, string? p, string? r)
     {
         luaL_Buffer b;
         luaL_buffinit(L, &b);
@@ -1616,28 +1588,6 @@ public static unsafe partial class Lua
         Console.Error.Write("Lua warning: "); // start a new warning
         warnfcont(ud, message, tocont); // finish processing
     }
-
-//
-// A function to compute an unsigned int with some level of
-// randomness. Rely on Address Space Layout Randomisation (if present)
-// and the current time.
-//
-// #if !defined(luai_makeseed)
-//
-// #include <time.h>
-//
-//
-// Size for the buffer, in bytes
-// #define BUFSEEDB	(sizeof(void*) + sizeof(time_t))
-//
-// Size for the buffer in int's, rounded up
-// #define BUFSEED		((BUFSEEDB + sizeof(int) - 1) / sizeof(int))
-//
-//
-// Copy the contents of variable 'v' into the buffer pointed by 'b'.
-// (The '&b[0]' disguises 'b' to fix an absurd warning from clang.)
-//
-// #define addbuff(b,v)	(memcpy(&b[0], &(v), sizeof(v)), b += sizeof(v))
 
     private static uint luai_makeseed()
     {

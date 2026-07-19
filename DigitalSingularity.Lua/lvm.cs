@@ -113,8 +113,6 @@ public static unsafe partial class Lua
         return luaV_tointegerns(o, out i, LUA_FLOORN2I);
     }
 
-    // #define intop(op,v1,v2) l_castU2S(l_castS2U(v1) op l_castS2U(v2)) TODO
-
     private static bool luaV_rawequalobj(TValue* t1, TValue* t2)
     {
         return luaV_equalobj(null, t1, t2);
@@ -997,9 +995,10 @@ public static unsafe partial class Lua
         do
         {
             TString* st = tsvalue(s2v(top - n));
-            byte* s = getlstr(st, out int l);
-            memcpy(buff + tl, s, l);
-            tl += l;
+            ReadOnlySpan<byte> s = getlstr(st);
+            Span<byte> output = new(buff + tl, s.Length);
+            s.CopyTo(output);
+            tl += s.Length;
         } while (--n > 0);
     }
 

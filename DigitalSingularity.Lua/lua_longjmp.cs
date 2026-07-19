@@ -6,7 +6,7 @@ internal unsafe struct lua_longjmp_data
     public byte status; // error code
 }
 
-internal sealed unsafe class lua_longjmp(lua_longjmp_data* data) : Exception
+internal sealed unsafe class lua_longjmp(lua_longjmp_data* jumpData) : Exception
 {
-    public lua_longjmp_data* Data { get; } = data;
+    public lua_longjmp_data* JumpData { get; } = jumpData;
 }

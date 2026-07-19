@@ -118,16 +118,16 @@ public static unsafe partial class Lua
         }
         else
         {
-            long n = 0; // to avoid warnings
             long @base = luaL_checkinteger(L, 2);
             luaL_checktype(L, 1, LUA_TSTRING); // no numbers as strings
             byte* s = lua_tolstring(L, 1, out int l);
             luaL_argcheck(L, @base is >= 2 and <= 36, 2, "base out of range");
-            if (b_str2int(s, (uint)@base, out n) == s + l)
+            if (b_str2int(s, (uint)@base, out long n) == s + l)
             {
                 lua_pushinteger(L, n);
                 return 1;
-            } // else not a number
+            }
+            // else not a number
         }
         // else not a number
 
@@ -439,7 +439,7 @@ public static unsafe partial class Lua
 
     private static int luaB_loadfile(lua_State* L)
     {
-        string fname = luaL_optnetstring(L, 1, null);
+        string? fname = luaL_optnetstring(L, 1, null);
         string mode = getMode(L, 2);
         int env = !lua_isnone(L, 3) ? 3 : 0; // 'env' index or 0 if no 'env'
         int status = luaL_loadfilex(L, fname, mode);
@@ -523,7 +523,7 @@ public static unsafe partial class Lua
 
     private static int luaB_dofile(lua_State* L)
     {
-        string fname = luaL_optnetstring(L, 1, null);
+        string? fname = luaL_optnetstring(L, 1, null);
         lua_settop(L, 1);
         if (luaL_loadfile(L, fname) != LUA_OK)
         {
@@ -552,7 +552,7 @@ public static unsafe partial class Lua
     private static int luaB_select(lua_State* L)
     {
         int n = lua_gettop(L);
-        if (lua_type(L, 1) == LUA_TSTRING && lua_tonetstring(L, 1).StartsWith('#'))
+        if (lua_type(L, 1) == LUA_TSTRING && lua_tonetstring(L, 1)?.StartsWith('#') == true)
         {
             lua_pushinteger(L, n - 1);
             return 1;

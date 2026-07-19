@@ -173,7 +173,7 @@ public static unsafe partial class Lua
         else
         {
             // no handler at all; abort
-            if (g->panic != null)
+            if (g->panic != default)
             {
                 // panic function?
                 lua_unlock(L);
@@ -214,7 +214,7 @@ public static unsafe partial class Lua
         }
         catch (lua_longjmp c1)
         {
-            if (c1.Data != &lj) // not the correct level?
+            if (c1.JumpData != &lj) // not the correct level?
             {
                 throw; // rethrow to upper level
             }

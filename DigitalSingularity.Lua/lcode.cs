@@ -2,7 +2,6 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
@@ -57,7 +56,7 @@ public static unsafe partial class Lua
 
     private enum UnOpr
     {
-        MINUS, 
+        MINUS,
         BNOT,
         NOT,
         LEN,
@@ -81,7 +80,7 @@ public static unsafe partial class Lua
     {
         luaK_patchlist(fs, luaK_jump(fs), t);
     }
-    
+
     /// <summary>
     /// (note that expressions VJMP also have jumps.)
     /// </summary>
@@ -307,7 +306,7 @@ public static unsafe partial class Lua
     {
         return codesJ(fs, OpCode.Jmp, NO_JUMP, 0);
     }
-    
+
     /// <summary>
     /// Code a 'return' instruction
     /// </summary>
@@ -343,7 +342,7 @@ public static unsafe partial class Lua
         fs->lasttarget = fs->pc;
         return fs->pc;
     }
-    
+
     /// <summary>
     /// Returns the position of the instruction "controlling" a given
     /// jump (that is, its condition), or the jump itself if it is
@@ -413,7 +412,7 @@ public static unsafe partial class Lua
             fixjump(
                 fs,
                 list,
-                patchtestreg(fs, list, reg) ? vtarget : dtarget ); // jump to default target
+                patchtestreg(fs, list, reg) ? vtarget : dtarget); // jump to default target
 
             list = next;
         }
@@ -779,7 +778,7 @@ public static unsafe partial class Lua
         double q = Math.ScaleB(1.0, -nbm + 1);
         double k = r * (1 + q); // key
         setfltvalue(&kv, k); // key as a TValue
-        if (!luaV_flttointeger(k, out long ik, F2Imod.F2Ieq))
+        if (!luaV_flttointeger(k, out _, F2Imod.F2Ieq))
         {
             // not an integer value?
             int n = k2proto(fs, &kv, &o); // use key
@@ -884,10 +883,10 @@ public static unsafe partial class Lua
         freeexp(fs, var);
     }
 
-   /// <summary>
-   /// Convert a constant in 'v' into an expression description 'e'
-   /// </summary>
-   private static void const2exp(TValue* v, expdesc* e)
+    /// <summary>
+    /// Convert a constant in 'v' into an expression description 'e'
+    /// </summary>
+    private static void const2exp(TValue* v, expdesc* e)
     {
         switch (ttypetag(v))
         {
@@ -895,30 +894,30 @@ public static unsafe partial class Lua
                 e->k = expkind.VKINT;
                 e->u.ival = ivalue(v);
                 break;
-            
+
             case LUA_VNUMFLT:
                 e->k = expkind.VKFLT;
                 e->u.nval = fltvalue(v);
                 break;
-            
+
             case LUA_VFALSE:
                 e->k = expkind.VFALSE;
                 break;
-            
+
             case LUA_VTRUE:
                 e->k = expkind.VTRUE;
                 break;
-            
+
             case LUA_VNIL:
                 e->k = expkind.VNIL;
                 break;
-            
+
             case LUA_VSHRSTR:
             case LUA_VLNGSTR:
                 e->k = expkind.VKSTR;
                 e->u.strval = tsvalue(v);
                 break;
-            
+
             default:
                 throw new InvalidOperationException();
         }
@@ -1004,7 +1003,7 @@ public static unsafe partial class Lua
             case expkind.VCONST:
                 const2exp(const2val(fs, e), e);
                 break;
-            
+
             case expkind.VVARGVAR:
                 luaK_vapar2local(fs, e); // turn it into a local variable
                 goto case expkind.VLOCAL;
@@ -1023,24 +1022,24 @@ public static unsafe partial class Lua
                 e->u.info = luaK_codeABC(fs, OpCode.GetUpVal, 0, e->u.info, 0);
                 e->k = expkind.VRELOC;
                 break;
-            
+
             case expkind.VINDEXUP:
                 e->u.info = luaK_codeABC(fs, OpCode.GetTabUp, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
-            
+
             case expkind.VINDEXI:
                 freereg(fs, e->u.ind.t);
                 e->u.info = luaK_codeABC(fs, OpCode.GetI, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
-            
+
             case expkind.VINDEXSTR:
                 freereg(fs, e->u.ind.t);
                 e->u.info = luaK_codeABC(fs, OpCode.GetField, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
-            
+
             case expkind.VINDEXED:
                 freeregs(fs, e->u.ind.t, e->u.ind.idx);
                 e->u.info = luaK_codeABC(fs, OpCode.GetTable, 0, e->u.ind.t, e->u.ind.idx);
@@ -1052,7 +1051,7 @@ public static unsafe partial class Lua
                 e->u.info = luaK_codeABC(fs, OpCode.GetVArg, 0, e->u.ind.t, e->u.ind.idx);
                 e->k = expkind.VRELOC;
                 break;
-            
+
             case expkind.VVARARG:
             case expkind.VCALL:
                 luaK_setoneret(fs, e);
@@ -1112,7 +1111,7 @@ public static unsafe partial class Lua
                 }
 
                 break;
-            
+
             case expkind.VJMP:
                 return; // nothing to do...
 
@@ -1369,11 +1368,11 @@ public static unsafe partial class Lua
                 needvatab(fs->f); // function will need a vararg table
                 // now, assignment is to a regular table
                 goto case expkind.VINDEXED;
-                
+
             case expkind.VINDEXED:
                 codeABRK(fs, OpCode.SetTable, var->u.ind.t, var->u.ind.idx, ex);
                 break;
-            
+
             default:
                 throw new InvalidOperationException();
         }
@@ -1432,7 +1431,7 @@ public static unsafe partial class Lua
                 negatecondition(fs, e); // jump when it is false
                 pc = e->u.info; // save jump position
                 break;
-            
+
             case expkind.VK:
             case expkind.VKFLT:
             case expkind.VKINT:
@@ -1440,7 +1439,7 @@ public static unsafe partial class Lua
             case expkind.VTRUE:
                 pc = NO_JUMP; // always true; do nothing
                 break;
-            
+
             default:
                 pc = jumponcond(fs, e, false); // jump when false
                 break;
@@ -1459,8 +1458,8 @@ public static unsafe partial class Lua
         luaK_dischargevars(fs, e);
         int pc = e->k switch
         {
-            expkind.VJMP => e->u.info , // already jump if true
-            expkind.VNIL or expkind.VFALSE => NO_JUMP , // always false; do nothing
+            expkind.VJMP => e->u.info, // already jump if true
+            expkind.VNIL or expkind.VFALSE => NO_JUMP, // always false; do nothing
             _ => jumponcond(fs, e, true),
         };
 
@@ -2128,15 +2127,15 @@ public static unsafe partial class Lua
             case BinOpr.OPR_AND:
                 luaK_goiftrue(fs, v); // go ahead only if 'v' is true
                 break;
-            
+
             case BinOpr.OPR_OR:
                 luaK_goiffalse(fs, v); // go ahead only if 'v' is false
                 break;
-            
+
             case BinOpr.OPR_CONCAT:
                 luaK_exp2nextreg(fs, v); // operand must be on the stack
                 break;
-            
+
             case BinOpr.OPR_ADD:
             case BinOpr.OPR_SUB:
             case BinOpr.OPR_MUL:
@@ -2157,7 +2156,7 @@ public static unsafe partial class Lua
                 // else keep numeral, which may be folded or used as an immediate
                 // operand
                 break;
-            
+
             case BinOpr.OPR_EQ:
             case BinOpr.OPR_NE:
                 if (!tonumeral(v, null))
@@ -2167,7 +2166,7 @@ public static unsafe partial class Lua
 
                 // else keep numeral, which may be an immediate operand
                 break;
-            
+
             case BinOpr.OPR_LT:
             case BinOpr.OPR_LE:
             case BinOpr.OPR_GT:
@@ -2183,7 +2182,7 @@ public static unsafe partial class Lua
                     // else keep numeral, which may be an immediate operand
                     break;
                 }
-            
+
             default:
                 throw new InvalidOperationException();
         }
@@ -2273,12 +2272,14 @@ public static unsafe partial class Lua
                 break;
 
             case BinOpr.OPR_SHL:
-                if (isSCint(e1)) {
+                if (isSCint(e1))
+                {
                     swapexps(e1, e2);
                     codebini(fs, OpCode.ShlI, e1, e2, true, line, TMS.SHL); // I << r2
                 }
-                else if (finishbinexpneg(fs, e1, e2, OpCode.ShrI, line, TMS.SHL)) {
-                    ; // coded as (r1 >> -I)
+                else if (finishbinexpneg(fs, e1, e2, OpCode.ShrI, line, TMS.SHL))
+                {
+                    // coded as (r1 >> -I)
                 }
                 else // regular case (two registers)
                 {
@@ -2286,7 +2287,7 @@ public static unsafe partial class Lua
                 }
 
                 break;
-            
+
             case BinOpr.OPR_SHR:
                 if (isSCint(e2))
                 {
@@ -2298,7 +2299,7 @@ public static unsafe partial class Lua
                 }
 
                 break;
-            
+
             case BinOpr.OPR_EQ:
             case BinOpr.OPR_NE:
                 codeeq(fs, opr, e1, e2);

@@ -2804,8 +2804,8 @@ public static unsafe partial class Lua
                         break;
                     }
                 } // else...
-#endif
                 goto default;
+#endif
 
             default:
                 // stat -> func | assignment

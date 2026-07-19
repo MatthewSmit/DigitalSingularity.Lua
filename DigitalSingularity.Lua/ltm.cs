@@ -421,8 +421,8 @@ public static unsafe partial class Lua
         else if (ttisstring(rc))
         {
             // string value?
-            byte* s = getlstr(tsvalue(rc), out int len);
-            if (len == 1 && s[0] == 'n')
+            ReadOnlySpan<byte> s = getlstr(tsvalue(rc));
+            if (s.Length == 1 && s[0] == 'n')
             {
                 // key is "n"?
                 setivalue(s2v(ra), nextra);

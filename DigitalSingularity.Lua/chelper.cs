@@ -37,36 +37,6 @@ public static unsafe partial class Lua
         // Return the difference of the unsigned character values
         return *s1 - *s2;
     }
-    
-    private static int strcmp(byte* s1, string? s2)
-    {
-        // If both are the same pointer or both null
-        if (s1 == null && s2 == null)
-        {
-            return 0;
-        }
-
-        if (s1 == null)
-        {
-            return -1;
-        }
-
-        if (s2 == null)
-        {
-            return 1;
-        }
-
-        int i = 0;
-
-        while (*s1 != 0 && *s1 == (s2.Length < i ? s2[i] : 0))
-        {
-            s1++;
-            i++;
-        }
-
-        // Return the difference of the unsigned character values
-        return *s1 - s2[i];
-    }
 
     internal static int strlen(byte* str)
     {

@@ -98,10 +98,10 @@ public static unsafe partial class Lua
         return luaM_newvector<byte>(L, size);
     }
 
-    private static T* luaM_growvector<T>(lua_State* L, ref T* v, int nelems, ref int size, long limit, string e)
+    private static void luaM_growvector<T>(lua_State* L, ref T* v, int nelems, ref int size, long limit, string e)
         where T : unmanaged
     {
-        return v = (T*)luaM_growaux_(
+        v = (T*)luaM_growaux_(
             L,
             v,
             nelems,
@@ -111,10 +111,10 @@ public static unsafe partial class Lua
             e);
     }
 
-    private static T** luaM_growvector2<T>(lua_State* L, ref T** v, int nelems, ref int size, long limit, string e)
+    private static void luaM_growvector2<T>(lua_State* L, ref T** v, int nelems, ref int size, long limit, string e)
         where T : unmanaged
     {
-        return v = (T**)luaM_growaux_(
+        v = (T**)luaM_growaux_(
             L,
             v,
             nelems,
@@ -240,8 +240,7 @@ public static unsafe partial class Lua
             // cannot double it?
             if (size >= limit) // cannot grow even a little?
             {
-// luaG_runerror(L, "too many %s (limit is %d)", what, limit);
-                throw new NotImplementedException();
+                luaG_runerror(L, "too many %s (limit is %d)", what, limit);
             }
 
             size = limit; // still have at least one free place

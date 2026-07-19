@@ -4,8 +4,6 @@ using System.Runtime.InteropServices;
 
 public static unsafe partial class Lua
 {
-    // TODO: remaining file
-    
     // ===================================================================
     // General Configuration File for Lua
     //
@@ -19,44 +17,6 @@ public static unsafe partial class Lua
     //
     // Search for "@@" to find all configurable definitions.
     // ===================================================================
-    
-    // {====================================================================
-    // System Configuration: macros to adapt (if needed) Lua to some
-    // particular platform, for instance restricting it to C89.
-    // =====================================================================
-
-    // #if defined(LUA_USE_WINDOWS)
-    // #define LUA_DL_DLL // enable support for DLL
-    // #define LUA_USE_C89 // broadly, Windows is C89
-    // #endif
-
-    //
-    // When POSIX DLL ('LUA_USE_DLOPEN') is enabled, the Lua stand-alone
-    // application will try to dynamically link a 'readline' facility
-    // for its REPL.  In that case, LUA_READLINELIB is the name of the
-    // library it will look for those facilities.  If lua.c cannot open
-    // the specified library, it will generate a warning and then run
-    // without 'readline'.  If that macro is not defined, lua.c will not
-    // use 'readline'.
-    //
-    // #if defined(LUA_USE_LINUX)
-    // #define LUA_USE_POSIX
-    // #define LUA_USE_DLOPEN // needs an extra library: -ldl
-    // #define LUA_READLINELIB		"libreadline.so"
-    // #endif
-
-    // #if defined(LUA_USE_MACOSX)
-    // #define LUA_USE_POSIX
-    // #define LUA_USE_DLOPEN // macOS does not need -ldl
-    // #define LUA_READLINELIB		"libedit.dylib"
-    // #endif
-
-    // #if defined(LUA_USE_IOS)
-    // #define LUA_USE_POSIX
-    // #define LUA_USE_DLOPEN
-    // #endif
-
-    // }==================================================================
     
 //
 // {==================================================================

@@ -2,7 +2,6 @@ namespace DigitalSingularity.Lua;
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 public static unsafe partial class Lua
 {

@@ -360,19 +360,6 @@ public static unsafe partial class Lua
     private static uint l_hashfloat(double n)
     {
         return (uint)n.GetHashCode();
-        // TODO:?
-// int i;
-// long ni;
-// n = (frexp)(n, &i) * -cast_num(INT_MIN);
-// if (!lua_numbertointeger(n, &ni)) { // is 'n' inf/-inf/NaN?
-// Debug.Assert(luai_numisnan(n) || (fabs)(n) == cast_num(HUGE_VAL));
-// return 0;
-// }
-// else { // normal case
-// unsigned int u = cast_uint(i) + cast_uint(ni);
-// return (u <= cast_uint(INT_MAX) ? u : ~u);
-// }
-        throw new NotImplementedException();
     }
 
     /// <summary>

@@ -1839,7 +1839,6 @@ public static unsafe partial class Lua
             }
 
             nw2black(curr); // make object black (to be removed)
-            goto remove;
 
             remove:
             *p = *next;

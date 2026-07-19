@@ -29,11 +29,6 @@ public static unsafe partial class Lua
         luai_tracegctest(L, f);
     }
 
-//
-// generic variable for debug tricks TODO
-//
-// extern void *l_Trick;
-
     /// <summary>
     /// test for lock/unlock
     /// </summary>
@@ -49,8 +44,8 @@ public static unsafe partial class Lua
         luaL_requiref(L, "T", CFunction.FromFunction(&luaB_opentests), true);
         lua_pop(L, 1);
     }
-    
-// void *l_Trick = 0;
+
+    private static void* l_Trick;
 
     private static TValue* obj_at(lua_State* L, int k)
     {
@@ -402,22 +397,23 @@ public static unsafe partial class Lua
         return true;
     }
 
-// static void printobj (global_State *g, GCObject *o) {
+    private static void printobj(global_State* g, GCObject* o)
+    {
 // printf("||%s(%p)-%c%c(%02X)||",
 // ttypename(novariant(o->tt)), (void *)o,
 // isdead(g,o) ? 'd' : isblack(o) ? 'b' : iswhite(o) ? 'w' : 'g',
 // "ns01oTt"[getage(o)], o->marked);
 // if (o->tt == LUA_VSHRSTR || o->tt == LUA_VLNGSTR)
 // printf(" '%s'", getstr(gco2ts(o)));
-// }
+        throw new NotImplementedException();
+    }
 
     /// <summary>
     /// Function to print an object GC-friendly
     /// </summary>
     private static void lua_printobj(lua_State* L, GCObject* o)
     {
-// printobj(G(L), o);
-        throw new NotImplementedException();
+        printobj(G(L), o);
     }
 
     /// <summary>
@@ -425,42 +421,70 @@ public static unsafe partial class Lua
     /// </summary>
     private static void lua_printvalue(TValue* v)
     {
-// switch (ttypetag(v)) {
-// case LUA_VNUMINT: case LUA_VNUMFLT: {
+        switch (ttypetag(v))
+        {
+            case LUA_VNUMINT:
+            case LUA_VNUMFLT:
+                {
 // char buff[LUA_N2SBUFFSZ];
 // unsigned len = luaO_tostringbuff(v, buff);
 // buff[len] = '\0';
 // printf("%s", buff);
 // break;
-// }
-// case LUA_VSHRSTR:
+                    throw new NotImplementedException();
+                }
+
+            case LUA_VSHRSTR:
 // printf("'%s'", getstr(tsvalue(v))); break;
-// case LUA_VLNGSTR:
+                throw new NotImplementedException();
+
+            case LUA_VLNGSTR:
 // printf("'%.30s...'", getstr(tsvalue(v))); break;
-// case LUA_VFALSE:
+                throw new NotImplementedException();
+
+            case LUA_VFALSE:
 // printf("%s", "false"); break;
-// case LUA_VTRUE:
+                throw new NotImplementedException();
+
+            case LUA_VTRUE:
 // printf("%s", "true"); break;
-// case LUA_VLIGHTUSERDATA:
+                throw new NotImplementedException();
+
+            case LUA_VLIGHTUSERDATA:
 // printf("light udata: %p", pvalue(v)); break;
-// case LUA_VUSERDATA:
+                throw new NotImplementedException();
+
+            case LUA_VUSERDATA:
 // printf("full udata: %p", uvalue(v)); break;
-// case LUA_VNIL:
+                throw new NotImplementedException();
+
+            case LUA_VNIL:
 // printf("nil"); break;
-// case LUA_VLCF:
+                throw new NotImplementedException();
+
+            case LUA_VLCF:
 // printf("light C function: %p", fvalue(v)); break;
-// case LUA_VCCL:
+                throw new NotImplementedException();
+
+            case LUA_VCCL:
 // printf("C closure: %p", clCvalue(v)); break;
-// case LUA_VLCL:
+                throw new NotImplementedException();
+
+            case LUA_VLCL:
 // printf("Lua function: %p", clLvalue(v)); break;
-// case LUA_VTHREAD:
+                throw new NotImplementedException();
+
+            case LUA_VTHREAD:
 // printf("thread: %p", thvalue(v)); break;
-// case LUA_VTABLE:
+                throw new NotImplementedException();
+
+            case LUA_VTABLE:
 // printf("table: %p", hvalue(v)); break;
-// default:
-// Debug.Assert(0);
-// }
-        throw new NotImplementedException();
+                throw new NotImplementedException();
+
+            default:
+                throw new InvalidOperationException();
+        }
     }
 
     private static bool testobjref(global_State* g, GCObject* f, GCObject* t)
@@ -1055,13 +1079,15 @@ public static unsafe partial class Lua
 
     private static int listlocals(lua_State* L)
     {
-// Proto *p;
-// int pc = cast_int(luaL_checkinteger(L, 2)) - 1;
+        int pc = (int)luaL_checkinteger(L, 2) - 1;
 // int i = 0;
 // const char *name;
-// luaL_argcheck(L, lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
-// 1, "Lua function expected");
-// p = getproto(obj_at(L, 1));
+        luaL_argcheck(
+            L,
+            lua_isfunction(L, 1) && !lua_iscfunction(L, 1),
+            1,
+            "Lua function expected");
+        Proto* p = getproto(obj_at(L, 1));
 // while ((name = luaF_getlocalname(p, ++i, pc)) != null)
 // lua_pushstring(L, name);
 // return i-1;
@@ -1112,24 +1138,22 @@ public static unsafe partial class Lua
     {
         lua_createtable(L, 0, 5);
         setnameval(L, "IS32INT", 1);
-        // setnameval(L, "MAXARG_Ax", MAXARG_Ax);
-        // setnameval(L, "MAXARG_Bx", MAXARG_Bx);
-        // setnameval(L, "OFFSET_sBx", OFFSET_sBx);
-        // setnameval(L, "NUM_OPCODES", NUM_OPCODES);
-        // return 1;
-        throw new NotImplementedException();
+        setnameval(L, "MAXARG_Ax", MAXARG_Ax);
+        setnameval(L, "MAXARG_Bx", MAXARG_Bx);
+        setnameval(L, "OFFSET_sBx", OFFSET_sBx);
+        setnameval(L, "NUM_OPCODES", NUM_OPCODES);
+        return 1;
     }
 
     private static int get_sizes(lua_State* L)
     {
-// lua_newtable(L);
-// setnameval(L, "Lua state", sizeof(lua_State));
-// setnameval(L, "global state", sizeof(global_State));
-// setnameval(L, "TValue", sizeof(TValue));
-// setnameval(L, "Node", sizeof(Node));
-// setnameval(L, "stack Value", sizeof(StackValue));
-// return 1;
-        throw new NotImplementedException();
+        lua_newtable(L);
+        setnameval(L, "Lua state", sizeof(lua_State));
+        setnameval(L, "global state", sizeof(global_State));
+        setnameval(L, "TValue", sizeof(TValue));
+        setnameval(L, "Node", sizeof(Node));
+        setnameval(L, "stack Value", sizeof(StackValue));
+        return 1;
     }
 
     private static int mem_query(lua_State* L)
@@ -1189,12 +1213,16 @@ public static unsafe partial class Lua
 
     private static int settrick(lua_State* L)
     {
-// if (ttisnil(obj_at(L, 1)))
-// l_Trick = null;
-// else
-// l_Trick = gcvalue(obj_at(L, 1));
-// return 0;
-        throw new NotImplementedException();
+        if (ttisnil(obj_at(L, 1)))
+        {
+            l_Trick = null;
+        }
+        else
+        {
+            l_Trick = gcvalue(obj_at(L, 1));
+        }
+
+        return 0;
     }
 
     private static int gc_color(lua_State* L)
@@ -1243,18 +1271,20 @@ public static unsafe partial class Lua
 
     private static int gc_printobj(lua_State* L)
     {
-// TValue *o;
-// luaL_checkany(L, 1);
-// o = obj_at(L, 1);
-// if (!iscollectable(o))
-// printf("no collectable\n");
-// else {
-// GCObject *obj = gcvalue(o);
-// printobj(G(L), obj);
-// printf("\n");
-// }
-// return 0;
-        throw new NotImplementedException();
+        luaL_checkany(L, 1);
+        TValue* o = obj_at(L, 1);
+        if (!iscollectable(o))
+        {
+            Console.WriteLine("no collectable\n");
+        }
+        else
+        {
+            GCObject* obj = gcvalue(o);
+            printobj(G(L), obj);
+            Console.WriteLine();
+        }
+
+        return 0;
     }
 
     private static readonly string[] statenames =
@@ -1306,16 +1336,15 @@ public static unsafe partial class Lua
             return;
         }
 
-// global_State *g = G(L);
-// lua_unlock(L);
-// g->gcstp = GCSTPGC;
-// lua_checkstack(L, 10);
-// lua_getfield(L, LUA_REGISTRYINDEX, "tracegc");
-// lua_pushboolean(L, first);
-// lua_call(L, 1, 0);
-// g->gcstp = 0;
-// lua_lock(L);
-        throw new NotImplementedException();
+        global_State* g = G(L);
+        lua_unlock(L);
+        g->gcstp = GCSTPGC;
+        lua_checkstack(L, 10);
+        lua_getfield(L, LUA_REGISTRYINDEX, "tracegc");
+        lua_pushboolean(L, first);
+        lua_call(L, 1, 0);
+        g->gcstp = 0;
+        lua_lock(L);
     }
 
     private static int tracegc(lua_State* L)
@@ -1602,9 +1631,8 @@ public static unsafe partial class Lua
 
     private static int num2int(lua_State* L)
     {
-// lua_pushinteger(L, lua_tointeger(L, 1));
-// return 1;
-        throw new NotImplementedException();
+        lua_pushinteger(L, lua_tointeger(L, 1));
+        return 1;
     }
 
     private static int makeseed(lua_State* L)
@@ -1692,10 +1720,9 @@ public static unsafe partial class Lua
 
     private static int log2_aux(lua_State* L)
     {
-// unsigned int x = (unsigned int)luaL_checkinteger(L, 1);
-// lua_pushinteger(L, luaO_ceillog2(x));
-// return 1;
-        throw new NotImplementedException();
+        uint x = (uint)luaL_checkinteger(L, 1);
+        lua_pushinteger(L, luaO_ceillog2(x));
+        return 1;
     }
 
     private sealed class Aux
@@ -2221,20 +2248,27 @@ public static unsafe partial class Lua
                     break;
 
                 case "printstack":
-// int n = getnum_aux(L, L1, ref pc);
-// if (n != 0) {
-// lua_printvalue(s2v(L->ci->func.p + n));
-// printf("\n");
-// }
-// else lua_printstack(L1);
-                    throw new NotImplementedException();
-                    break;
+                    {
+                        int n = getnum_aux(L, L1, ref pc);
+                        if (n != 0)
+                        {
+                            lua_printvalue(s2v(L->ci->func.p + n));
+                            Console.WriteLine();
+                        }
+                        else
+                        {
+                            lua_printstack(L1);
+                        }
+
+                        break;
+                    }
 
                 case "print":
-// const char *msg = getstring_aux(L, ref pc);
-// printf("%s\n", msg);
-                    throw new NotImplementedException();
-                    break;
+                    {
+                        ReadOnlySpan<char> msg = getstring_aux(L, ref pc);
+                        Console.WriteLine(msg);
+                        break;
+                    }
 
                 case "warningC":
                     {

@@ -187,9 +187,6 @@ public static unsafe partial class Lua
         {
             public uint* savedpc;
             public byte trap; // function is tracing lines/counts
-            /// <summary>
-            /// volatile l_signalT trap; // function is tracing lines/counts TODO
-            /// </summary>
             public int nextraargs; // # of extra arguments in vararg functions
         }
 
@@ -673,7 +670,7 @@ public static unsafe partial class Lua
     // these macros allow user-specific actions when a thread is
     // created/deleted
 
-#if LUA_TEST && false // TODO
+#if LUA_TEST
     private static L_EXTRA* getlock(lua_State* l)
     {
         return (L_EXTRA*)lua_getextraspace(l);

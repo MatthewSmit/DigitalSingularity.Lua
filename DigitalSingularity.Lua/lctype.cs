@@ -2,7 +2,7 @@
 
 using System.Diagnostics;
 
-public static unsafe partial class Lua
+public static partial class Lua
 {
     // $Id: lctype.h $
     // 'ctype' functions for Lua

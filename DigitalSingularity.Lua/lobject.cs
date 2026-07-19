@@ -767,7 +767,7 @@ public static unsafe partial class Lua
 
     /// <summary>
     /// Header for userdata with no user values. These userdata do not need
-    /// to be gray during GC, and therefore do not need a 'gclist' field.
+    /// to be grey during GC, and therefore do not need a 'gclist' field.
     /// To simplify, the code always use 'Udata' for both kinds of userdata,
     /// making sure it never accesses 'gclist' on userdata with no user values.
     /// This structure here is used only to compute the correct size for
@@ -776,6 +776,7 @@ public static unsafe partial class Lua
     /// </summary>
     private struct Udata0
     {
+#pragma warning disable CS0649 // Field is never assigned to, and will always have its default value
         public GCObject* next;
         public byte tt;
         public byte marked;
@@ -783,6 +784,7 @@ public static unsafe partial class Lua
         public long len; // number of bytes
         public Table* metatable;
         public long bindata;
+#pragma warning restore CS0649 // Field is never assigned to, and will always have its default value
     }
 
     private static readonly nint Udata_uv_offset = Marshal.OffsetOf<Udata>(nameof(Udata.uv));
@@ -1301,7 +1303,7 @@ public static unsafe partial class Lua
     /// <summary>
     /// macro to call 'luaO_pushvfstring' correctly
     /// </summary>
-    private static void pushvfstring(lua_State* L, object[] argp, string fmt, out string msg)
+    private static void pushvfstring(lua_State* L, object?[] argp, string fmt, out string msg)
     {
         msg = luaO_pushfstring(L, fmt, argp);
         if (msg == null!)
@@ -1558,69 +1560,6 @@ public static unsafe partial class Lua
 
         return false;
     }
-
-    // {==================================================================
-    // Lua's implementation for 'lua_strx2number'
-    // ===================================================================
-
-// maximum number of significant digits to read (to avoid overflows
-// even with single floats)
-// #define MAXSIGDIG	30
-
-    /// <summary>
-    /// convert a hexadecimal numeric string to a number, following
-    /// C99 specification for 'strtod'
-    /// </summary>
-    private static double lua_strx2number(byte* s, byte** endptr)
-    {
-// int dot = lua_getlocaledecpoint();
-// double r = (0.0); // result (accumulator)
-// int sigdig = 0; // number of significant digits
-// int nosigdig = 0; // number of non-significant digits
-// int e = 0; // exponent correction
-// int neg; // 1 if number is negative
-// int hasdot = 0; // true after seen a dot
-// *endptr = cast_charp(s); // nothing is valid yet
-// while (lisspace(cast_uchar(*s))) s++; // skip initial spaces
-// neg = isneg(&s); // check sign
-// if (!(*s == '0' && (*(s + 1) == 'x' || *(s + 1) == 'X'))) // check '0x'
-// return (0.0); // invalid format (no '0x')
-// for (s += 2; ; s++) { // skip '0x' and read numeral
-// if (*s == dot) {
-// if (hasdot) break; // second dot? stop loop
-// else hasdot = 1;
-// }
-// else if (lisxdigit(cast_uchar(*s))) {
-// if (sigdig == 0 && *s == '0') // non-significant digit (zero)?
-// nosigdig++;
-// else if (++sigdig <= MAXSIGDIG) // can read it without overflow?
-// r = (r * (16.0)) + luaO_hexavalue(*s);
-// else e++; // too many digits; ignore, but still count for exponent
-// if (hasdot) e--; // decimal digit? correct exponent
-// }
-// else break; // neither a dot nor a digit
-// }
-// if (nosigdig + sigdig == 0) // no digits?
-// return (0.0); // invalid format
-// *endptr = cast_charp(s); // valid up to here
-// e *= 4; // each digit multiplies/divides value by 2^4
-// if (*s == 'p' || *s == 'P') { // exponent part?
-// int exp1 = 0; // exponent value
-// int neg1; // exponent sign
-// s++; // skip 'p'
-// neg1 = isneg(&s); // sign
-// if (!lisdigit(cast_uchar(*s)))
-// return (0.0); // invalid; must have at least one digit
-// while (lisdigit(cast_uchar(*s))) // read exponent
-// exp1 = exp1 * 10 + *(s++) - '0';
-// if (neg1) exp1 = -exp1;
-// e += exp1;
-// *endptr = cast_charp(s); // valid up to here
-// }
-// if (neg) r = -r;
-// return (ldexp)(r, e);
-        throw new NotImplementedException();
-    }
     
     /// <summary>
     /// maximum length of a numeral
@@ -1816,7 +1755,7 @@ public static unsafe partial class Lua
             buff,
             FloatFormatType.Shortest,
             false);
-        double check = double.Parse(buff, CultureInfo.InvariantCulture); // read it back
+        double check = double.Parse(buff.TrimEnd((byte)0), CultureInfo.InvariantCulture); // read it back
         if (check != n)
         {
             // not enough precision?
@@ -1933,6 +1872,7 @@ public static unsafe partial class Lua
 // }
                 throw new NotImplementedException();
 // FALLTHROUGH
+            
             default:
                 {
                     // no errors, but it can raise one creating the new string
@@ -2036,7 +1976,7 @@ public static unsafe partial class Lua
     /// this function handles only '%d', '%c', '%f', '%p', '%s', and '%%'
     /// conventional formats, plus Lua-specific '%I' and '%U'
     /// </summary>
-    internal static string luaO_pushfstring(lua_State* L, string fmt, params object[] args)
+    internal static string luaO_pushfstring(lua_State* L, string fmt, params object?[] args)
     {
         byte[] fmtBytes = Encoding.UTF8.GetBytes(fmt);
         luaO_pushfstring(L, fmtBytes, new ParamsReader(args));
